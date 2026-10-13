@@ -5,10 +5,12 @@ import '../design_system/mediaflow_theme.dart';
 /// Device-local presentation preference, isolated per signed-in account.
 /// Never modifies the original MediaFlow cloud settings or data.
 class NativePreferences {
-  NativePreferences({SharedPreferencesAsync? storage})
-      : _storage = storage ?? SharedPreferencesAsync();
+  NativePreferences({SharedPreferencesAsync? storage}) : _injected = storage;
 
-  final SharedPreferencesAsync _storage;
+  final SharedPreferencesAsync? _injected;
+  // Delay plugin construction until first use; Flutter widget tests may
+  // intentionally run without a registered native preferences implementation.
+  SharedPreferencesAsync get _storage => _injected ?? SharedPreferencesAsync();
 
   String _appearanceKey(String? userId) =>
       'mediaflow_app.native.appearance.' + (userId ?? 'preview');
