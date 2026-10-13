@@ -29,6 +29,7 @@ class SignInScreen extends StatefulWidget {
 class _SignInScreenState extends State<SignInScreen> {
   final email = TextEditingController();
   final password = TextEditingController();
+  final confirmation = TextEditingController();
   bool signup = false;
   bool busy = false;
   String? message;
@@ -36,11 +37,24 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     email.dispose();
     password.dispose();
+    confirmation.dispose();
     super.dispose();
   }
 
   Future<void> submit() async {
     if (busy) return;
+    if (!email.text.trim().contains('@')) {
+      setState(() => message = 'Enter a valid email address.');
+      return;
+    }
+    if (password.text.length < 6) {
+      setState(() => message = 'Password must contain at least 6 characters.');
+      return;
+    }
+    if (signup && password.text != confirmation.text) {
+      setState(() => message = 'Passwords do not match.');
+      return;
+    }
     setState(() { busy = true; message = null; });
     try {
       final result = signup
@@ -53,6 +67,28 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) setState(() => message = error.message);
     } catch (_) {
       if (mounted) setState(() => message = 'Could not connect. Try again.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> requestPasswordReset() async {
+    if (busy) return;
+    if (!email.text.trim().contains('@')) {
+      setState(() => message = 'Enter your email above, then request a reset.');
+      return;
+    }
+    setState(() { busy = true; message = null; });
+    try {
+      await widget.auth.resetPassword(email.text);
+      if (mounted) {
+        setState(() => message =
+            'Password reset email requested. Check your inbox.');
+      }
+    } on AuthException catch (error) {
+      if (mounted) setState(() => message = error.message);
+    } catch (_) {
+      if (mounted) setState(() => message = 'Could not request a reset.');
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -79,6 +115,12 @@ class _SignInScreenState extends State<SignInScreen> {
             TextField(controller: password, obscureText: true,
               autofillHints: [signup ? AutofillHints.newPassword : AutofillHints.password],
               decoration: const InputDecoration(labelText: 'Password')),
+            if (signup) ...[
+              const SizedBox(height: 12),
+              TextField(controller: confirmation, obscureText: true,
+                autofillHints: const [AutofillHints.newPassword],
+                decoration: const InputDecoration(labelText: 'Confirm password')),
+            ],
             if (message != null) Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(message!, textAlign: TextAlign.center)),
@@ -89,6 +131,10 @@ class _SignInScreenState extends State<SignInScreen> {
               signup = !signup;
               message = null;
             }), child: Text(signup ? 'Already have an account? Log in' : 'Create account')),
+            if (!signup) TextButton(
+              onPressed: busy ? null : requestPasswordReset,
+              child: const Text('Forgot password?'),
+            ),
           ]),
         ),
       ),
