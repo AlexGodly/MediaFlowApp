@@ -1,0 +1,10 @@
+.dart_tool/
+.flutter-plugins*
+.packages
+build/
+coverage/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+.env
