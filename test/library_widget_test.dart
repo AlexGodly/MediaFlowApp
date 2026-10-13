@@ -5,7 +5,7 @@ import 'package:mediaflow_app/data/mediaflow_models.dart';
 import 'package:mediaflow_app/data/mediaflow_state_codec.dart';
 import 'package:mediaflow_app/features/library/library_screen.dart';
 
-class FakeLibraryRepository implements MediaFlowLibraryRepository {
+class FakeLibraryRepository extends MediaFlowLibraryRepository {
   @override
   Future<MediaFlowCatalog> load() async => decodeMediaFlowState({
     'categories': [
