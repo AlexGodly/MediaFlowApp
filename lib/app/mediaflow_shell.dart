@@ -6,6 +6,7 @@ import '../features/dashboard/dashboard_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/auth/account_screen.dart';
 import '../services/native_preferences.dart';
+import '../features/settings/native_settings_screen.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 
@@ -120,11 +121,15 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
           return HistoryScreen(repository: data);
         case MediaFlowSection.account:
           return AccountScreen(client: widget.client!);
+        case MediaFlowSection.settings:
+          return NativeSettingsScreen(
+            appearance: appearance,
+            onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
+          );
         case MediaFlowSection.logging:
         case MediaFlowSection.personalOrder:
         case MediaFlowSection.collections:
         case MediaFlowSection.statistics:
-        case MediaFlowSection.settings:
           break;
       }
     }
