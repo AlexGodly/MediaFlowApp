@@ -35,13 +35,32 @@ MediaFlowCatalog decodeMediaFlowState(Object? raw) {
   final state = Map<String, dynamic>.from(decoded);
   final rawLibrary = state['library'];
   final rawCategories = state['categories'];
+  final rawSessions = state['sessions'];
+  final rawTask = state['currentTask'];
+  final rawSettings = state['settings'];
   if (rawLibrary != null && rawLibrary is! List) {
     throw const FormatException('MediaFlow library must be an array');
   }
   if (rawCategories != null && rawCategories is! List) {
     throw const FormatException('MediaFlow categories must be an array');
   }
+  if (rawSessions != null && rawSessions is! List) {
+    throw const FormatException('MediaFlow sessions must be an array');
+  }
+  final settings = rawSettings is Map
+      ? Map<String, dynamic>.from(rawSettings)
+      : const <String, dynamic>{};
   return MediaFlowCatalog(
+    sessions: (rawSessions as List? ?? const [])
+        .whereType<Map>()
+        .map((item) => MediaFlowSession.fromJson(Map<String, dynamic>.from(item)))
+        .toList(growable: false),
+    currentTask: rawTask is Map
+        ? MediaFlowTask.fromJson(Map<String, dynamic>.from(rawTask))
+        : null,
+    sessionActive: state['sessionActive'] == true,
+    tasksPerDay: mediaFlowNumber(settings['tasksPerDay']),
+    dailyMinutes: mediaFlowNumber(settings['dailyMinutes']),
     library: (rawLibrary as List? ?? const [])
         .whereType<Map>()
         .map((item) => MediaFlowTitle.fromJson(Map<String, dynamic>.from(item)))
