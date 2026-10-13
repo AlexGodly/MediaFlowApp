@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter/material.dart';
 
 import '../../data/mediaflow_library_repository.dart';
@@ -118,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if ((data.dailyMinutes ?? 0) > 0) ...[
               const SizedBox(height: 12),
               LinearProgressIndicator(
-                value: (minutes / data.dailyMinutes!).clamp(0.0, 1.0),
+                value: (minutes / data.dailyMinutes!).clamp(0.0, 1.0).toDouble(),
                 minHeight: 8,
               ),
               const SizedBox(height: 6),
