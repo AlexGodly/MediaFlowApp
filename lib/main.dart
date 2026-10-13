@@ -16,7 +16,7 @@ Future<void> main() async {
   );
   final configured = endpoint.isNotEmpty && publishableKey.isNotEmpty;
   if (configured) {
-    await Supabase.initialize(url: endpoint, anonKey: publishableKey);
+    await Supabase.initialize(url: endpoint, publishableKey: publishableKey);
   }
   runApp(MediaFlowApp(configured: configured));
 }
