@@ -98,6 +98,7 @@ NativeEditPreview previewNativeEdit({
         return const NativeEditPreview(valid: false, message: 'Title not found or duplicated');
       }
       matches.single[field] = value;
+      break;
     case NativeEditKind.reorderPersonalOrder:
       final requested = proposal.payload['titleIds'];
       final rawPlan = copy['orderPlan'];
@@ -115,6 +116,7 @@ NativeEditPreview previewNativeEdit({
             message: 'Reordering cannot add, remove, or duplicate titles');
       }
       rawPlan['titleIds'] = next;
+      break;
   }
   return NativeEditPreview(
     valid: true,
