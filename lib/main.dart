@@ -6,8 +6,14 @@ import 'services/mediaflow_auth.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const endpoint = String.fromEnvironment('SUPABASE_URL');
-  const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  const endpoint = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://wgeijxfdpgehesxialxm.supabase.co',
+  );
+  const publishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'sb_publishable_d2P0qZlvGZOSqcUzEg3BNg_3wQsHY_M',
+  );
   final configured = endpoint.isNotEmpty && publishableKey.isNotEmpty;
   if (configured) {
     await Supabase.initialize(url: endpoint, anonKey: publishableKey);
