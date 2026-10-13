@@ -41,16 +41,19 @@ class MediaFlowHistoryFilter {
           break;
         case MediaFlowHistoryRange.today:
           if (!session.isOnDate(today)) continue;
+          break;
         case MediaFlowHistoryRange.sevenDays:
           if (date == null ||
               date.isBefore(today.subtract(const Duration(days: 7)))) {
             continue;
           }
+          break;
         case MediaFlowHistoryRange.thirtyDays:
           if (date == null ||
               date.isBefore(today.subtract(const Duration(days: 30)))) {
             continue;
           }
+          break;
       }
       selected.add(session);
     }
