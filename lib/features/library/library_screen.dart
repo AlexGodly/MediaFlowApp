@@ -48,7 +48,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _refresh() => setState(() {
     _cacheCatalog = null;
     _page = 0;
-    _future = widget.repository.load();
+    _future = widget.repository.reload();
   });
 
   List<MediaFlowTitle> _results(MediaFlowCatalog catalog) {
