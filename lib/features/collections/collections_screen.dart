@@ -90,7 +90,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     leading: collection.coverUrl.isNotEmpty
                         ? Image.network(collection.coverUrl, width: 45, height: 60,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
+                            errorBuilder: (context, error, stackTrace) =>
                                 const Icon(Icons.collections_bookmark_outlined))
                         : const Icon(Icons.collections_bookmark_outlined),
                     title: Text(collection.title),
@@ -123,7 +123,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               leading: item.coverUrl.isNotEmpty
                   ? Image.network(item.coverUrl, width: 42, height: 58,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(Icons.book_outlined))
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.book_outlined))
                   : const Icon(Icons.book_outlined),
               title: Text(item.title),
               subtitle: Text('${item.status} · ${item.progress.toStringAsFixed(0)}'
