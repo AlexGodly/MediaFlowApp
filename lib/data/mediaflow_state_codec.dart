@@ -37,6 +37,9 @@ MediaFlowCatalog decodeMediaFlowState(Object? raw) {
   final rawCategories = state['categories'];
   final rawSessions = state['sessions'];
   final rawCollections = state['collections'];
+  final rawOrderPlan = state['orderPlan'];
+  final orderPlan = rawOrderPlan is Map ? Map<String, dynamic>.from(rawOrderPlan) : const <String, dynamic>{};
+  final rawOrderIds = orderPlan['titleIds'];
   final rawTask = state['currentTask'];
   final rawSettings = state['settings'];
   if (rawLibrary != null && rawLibrary is! List) {
@@ -51,10 +54,14 @@ MediaFlowCatalog decodeMediaFlowState(Object? raw) {
   if (rawCollections != null && rawCollections is! List) {
     throw const FormatException('MediaFlow collections must be an array');
   }
+  if (rawOrderIds != null && rawOrderIds is! List) {
+    throw const FormatException('MediaFlow Personal Order titleIds must be an array');
+  }
   final settings = rawSettings is Map
       ? Map<String, dynamic>.from(rawSettings)
       : const <String, dynamic>{};
   return MediaFlowCatalog(
+    personalOrderIds: (rawOrderIds as List? ?? const []).map((id) => id.toString()).toSet().toList(growable: false),
     collections: (rawCollections as List? ?? const [])
         .whereType<Map>()
         .map((item) => MediaFlowCollection.fromJson(Map<String, dynamic>.from(item)))
