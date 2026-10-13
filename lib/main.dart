@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app/mediaflow_shell.dart';
 
 void main() => runApp(const MediaFlowApp());
 
@@ -7,13 +8,10 @@ class MediaFlowApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'MediaFlow',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
-      home: const Scaffold(
-        body: Center(child: Text('MediaFlow native migration — development scaffold')),
-      ),
+      home: MediaFlowShell(),
     );
   }
 }
