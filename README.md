@@ -16,14 +16,17 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - iOS IPA requires macOS/Xcode and valid Apple signing/provisioning; installation/distribution depends on Apple rules.
 - Do not publish a production release until required build and parity checks pass.
 
-## Development status (milestone 04)
+## Development status (milestone 05)
 - Flutter adaptive shell and original-theme foundations committed.
 - Existing Supabase authentication integrated using the same project's **publishable** configuration.
 - Read-only Library implemented: gzip cloud snapshot decoding, filters, search, sorting, five layouts, details and pagination.
-- Flutter Analyze and automated tests passed on GitHub Actions in the milestone 04 source-validation run.
+- Native read-only Dashboard and History screens now show signed-in account information directly from the same cached account snapshot.
+- Account screen supports sign-out and password reset; native appearance selection persists locally per user.
+- Native source tests cover history decoding, filtering, Dashboard/History widgets and Library search.
+- Flutter Analyze and automated tests passed on GitHub Actions in the milestone 04 source-validation run. Milestone 05 has its own CI validation.
 - Original MediaFlow website, repository and production database remain unchanged.
 - No signed APK, Windows package or iOS IPA has been released. The remaining website features are not yet ported.
 
-Source details: [Milestone 04](docs/MILESTONE_04.md) and [parity audit](docs/V410_PARITY_AUDIT.md).
+Source details: [Milestone 05](docs/MILESTONE_05.md), [Milestone 04](docs/MILESTONE_04.md) and [parity audit](docs/V410_PARITY_AUDIT.md).
 
 Source: https://github.com/AlexGodly/MediaFlow (VERSION 410 verified on 2026-10-13).
