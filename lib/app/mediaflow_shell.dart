@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../data/mediaflow_library_repository.dart';
+import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 
 enum MediaFlowSection {
@@ -17,7 +20,8 @@ enum MediaFlowSection {
 }
 
 class MediaFlowShell extends StatefulWidget {
-  const MediaFlowShell({super.key});
+  const MediaFlowShell({super.key, this.client});
+  final SupabaseClient? client;
   @override
   State<MediaFlowShell> createState() => _MediaFlowShellState();
 }
@@ -101,17 +105,33 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               constraints: const BoxConstraints(maxWidth: 1080),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(selected.label, style: Theme.of(context).textTheme.headlineMedium),
-                      const SizedBox(height: 12),
-                      const Text('Native interface scaffold. This section is not yet connected to MediaFlow data.'),
-                    ],
-                  ),
-                ),
+                child: selected == MediaFlowSection.library && widget.client != null
+                    ? LibraryScreen(
+                        repository: SupabaseMediaFlowLibraryRepository(widget.client!),
+                      )
+                    : Align(
+                        alignment: Alignment.topLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(selected.label,
+                                style: Theme.of(context).textTheme.headlineMedium),
+                            const SizedBox(height: 12),
+                            if (selected == MediaFlowSection.library)
+                              const Text('Sign in with the existing MediaFlow account to browse your cloud Library.')
+                            else
+                              const Text('Native interface scaffold. This section is not yet connected to MediaFlow data.'),
+                            if (selected == MediaFlowSection.account && widget.client != null) ...[
+                              const SizedBox(height: 16),
+                              OutlinedButton.icon(
+                                onPressed: () => widget.client!.auth.signOut(),
+                                icon: const Icon(Icons.logout),
+                                label: const Text('Sign out'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
               ),
             ))),
           ]),
