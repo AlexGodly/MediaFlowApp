@@ -96,6 +96,7 @@ class MediaFlowCatalog {
     required this.library,
     this.sessions = const [],
     this.collections = const [],
+    this.personalOrderIds = const [],
     this.currentTask,
     this.sessionActive = false,
     this.tasksPerDay,
@@ -107,6 +108,7 @@ class MediaFlowCatalog {
   final List<MediaFlowTitle> library;
   final List<MediaFlowSession> sessions;
   final List<MediaFlowCollection> collections;
+  final List<String> personalOrderIds;
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
