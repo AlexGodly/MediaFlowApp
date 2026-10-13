@@ -95,6 +95,7 @@ class MediaFlowCatalog {
     required this.categories,
     required this.library,
     this.sessions = const [],
+    this.collections = const [],
     this.currentTask,
     this.sessionActive = false,
     this.tasksPerDay,
@@ -105,6 +106,7 @@ class MediaFlowCatalog {
   final List<MediaFlowCategory> categories;
   final List<MediaFlowTitle> library;
   final List<MediaFlowSession> sessions;
+  final List<MediaFlowCollection> collections;
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
@@ -113,6 +115,62 @@ class MediaFlowCatalog {
   Map<String, MediaFlowCategory> get categoryById => {
     for (final category in categories) category.id: category,
   };
+}
+
+class MediaFlowCollection {
+  const MediaFlowCollection({
+    required this.id, required this.title, required this.description,
+    required this.coverUrl, required this.titleIds,
+  });
+
+  final String id, title, description, coverUrl;
+  final List<String> titleIds;
+
+  factory MediaFlowCollection.fromJson(Map<String, dynamic> raw) {
+    final ids = raw['titleIds'];
+    final order = raw['order'];
+    final membership = ids is List
+        ? ids.map((value) => value.toString()).toSet()
+        : <String>{};
+    final ordered = <String>[];
+    if (order is List) {
+      for (final value in order) {
+        final id = value.toString();
+        if (membership.contains(id) && !ordered.contains(id)) ordered.add(id);
+      }
+    }
+    for (final id in membership) {
+      if (!ordered.contains(id)) ordered.add(id);
+    }
+    return MediaFlowCollection(
+      id: mediaFlowText(raw['id']),
+      title: mediaFlowText(raw['title'], fallback: 'Untitled Collection'),
+      description: mediaFlowText(raw['description']),
+      coverUrl: mediaFlowText(raw['coverUrl']),
+      titleIds: List.unmodifiable(ordered),
+    );
+  }
+
+  List<MediaFlowTitle> resolvedTitles(Map<String, MediaFlowTitle> byId) =>
+      [for (final id in titleIds) if (byId[id] != null) byId[id]!];
+
+  double progressPercent(Map<String, MediaFlowTitle> byId) {
+    final items = resolvedTitles(byId);
+    if (items.isEmpty) return 0;
+    var done = 0.0, total = 0.0, completed = 0;
+    for (final item in items) {
+      final t = item.total ?? 0;
+      if (t > 0) {
+        total += t;
+        done += item.progress.clamp(0, t);
+      }
+      if (item.status == 'completed' || (t > 0 && item.progress >= t)) {
+        completed++;
+      }
+    }
+    return total > 0 ? (done / total * 100).clamp(0, 100).toDouble()
+        : (completed / items.length * 100).clamp(0, 100).toDouble();
+  }
 }
 
 class MediaFlowSessionTitle {
