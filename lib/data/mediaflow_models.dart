@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 class MediaFlowCategory {
   const MediaFlowCategory({required this.id, required this.name,
       required this.icon, required this.iconUrl, required this.color});
