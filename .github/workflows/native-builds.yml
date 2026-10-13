@@ -1,0 +1,63 @@
+name: Native platform build validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/native-builds.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Android project
+        run: flutter create --project-name mediaflow_app --platforms=android .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build unsigned-validation Android APK
+        run: flutter build apk --debug
+      - name: Upload debug APK for validation
+        uses: actions/upload-artifact@v4
+        with:
+          name: mediaflowapp-android-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Windows project
+        run: flutter create --project-name mediaflow_app --platforms=windows .
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build Windows application
+        run: flutter build windows --release
+      - name: Upload Windows validation build
+        uses: actions/upload-artifact@v4
+        with:
+          name: mediaflowapp-windows-validation
+          path: build/windows/x64/runner/Release/**
+          if-no-files-found: error
+
+# CI artifacts are not a signed production release.
+# iOS distribution requires Apple signing, provisioning, and device tests.
