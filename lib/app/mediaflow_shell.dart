@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/mediaflow_library_repository.dart';
+import '../features/dashboard/dashboard_screen.dart';
+import '../features/history/history_screen.dart';
+import '../features/auth/account_screen.dart';
+import '../services/native_preferences.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 
@@ -29,6 +34,43 @@ class MediaFlowShell extends StatefulWidget {
 class _MediaFlowShellState extends State<MediaFlowShell> {
   MediaFlowSection selected = MediaFlowSection.dashboard;
   MediaFlowAppearance appearance = MediaFlowAppearance.dark;
+  final NativePreferences preferences = NativePreferences();
+  late final MediaFlowLibraryRepository? repository;
+
+  String? get preferenceUserId => widget.client?.auth.currentUser?.id;
+
+  @override
+  void initState() {
+    super.initState();
+    repository = widget.client == null
+        ? null : SupabaseMediaFlowLibraryRepository(widget.client!);
+    unawaited(_restoreAppearance());
+  }
+
+  Future<void> _restoreAppearance() async {
+    try {
+      final stored = await preferences.loadAppearance(preferenceUserId);
+      if (mounted && stored != null) {
+        setState(() => appearance = stored);
+      }
+    } catch (_) {
+      // App remains usable even if platform preferences are unavailable.
+    }
+  }
+
+  Future<void> _changeAppearance(MediaFlowAppearance next) async {
+    setState(() => appearance = next);
+    try {
+      await preferences.saveAppearance(preferenceUserId, next);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save the appearance preference.')),
+        );
+      }
+    }
+  }
+
   static const primary = [
     MediaFlowSection.dashboard,
     MediaFlowSection.library,
@@ -62,6 +104,47 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     );
   }
 
+  Widget _page(BuildContext context) {
+    final data = repository;
+    if (data != null) {
+      switch (selected) {
+        case MediaFlowSection.dashboard:
+          return DashboardScreen(
+            repository: data,
+            openLibrary: () => navigate(MediaFlowSection.library),
+            openHistory: () => navigate(MediaFlowSection.history),
+          );
+        case MediaFlowSection.library:
+          return LibraryScreen(repository: data);
+        case MediaFlowSection.history:
+          return HistoryScreen(repository: data);
+        case MediaFlowSection.account:
+          return AccountScreen(client: widget.client!);
+        case MediaFlowSection.logging:
+        case MediaFlowSection.personalOrder:
+        case MediaFlowSection.collections:
+        case MediaFlowSection.statistics:
+        case MediaFlowSection.settings:
+          break;
+      }
+    }
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(selected.label, style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 12),
+          Text(
+            data == null && selected == MediaFlowSection.library
+                ? 'Sign in to browse your existing MediaFlow Library.'
+                : 'Native implementation of this feature is not available yet.',
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -75,7 +158,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               PopupMenuButton<MediaFlowAppearance>(
                 tooltip: 'Appearance',
                 icon: const Icon(Icons.palette_outlined),
-                onSelected: (value) => setState(() => appearance = value),
+                onSelected: (value) => unawaited(_changeAppearance(value)),
                 itemBuilder: (_) => [
                   for (final value in MediaFlowAppearance.values)
                     PopupMenuItem(value: value, child: Text(value.name)),
@@ -105,33 +188,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               constraints: const BoxConstraints(maxWidth: 1080),
               child: Padding(
                 padding: const EdgeInsets.all(20),
-                child: selected == MediaFlowSection.library && widget.client != null
-                    ? LibraryScreen(
-                        repository: SupabaseMediaFlowLibraryRepository(widget.client!),
-                      )
-                    : Align(
-                        alignment: Alignment.topLeft,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(selected.label,
-                                style: Theme.of(context).textTheme.headlineMedium),
-                            const SizedBox(height: 12),
-                            if (selected == MediaFlowSection.library)
-                              const Text('Sign in with the existing MediaFlow account to browse your cloud Library.')
-                            else
-                              const Text('Native interface scaffold. This section is not yet connected to MediaFlow data.'),
-                            if (selected == MediaFlowSection.account && widget.client != null) ...[
-                              const SizedBox(height: 16),
-                              OutlinedButton.icon(
-                                onPressed: () => widget.client!.auth.signOut(),
-                                icon: const Icon(Icons.logout),
-                                label: const Text('Sign out'),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                child: _page(context),
               ),
             ))),
           ]),
