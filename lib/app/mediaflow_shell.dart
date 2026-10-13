@@ -9,6 +9,8 @@ import '../services/native_preferences.dart';
 import '../features/settings/native_settings_screen.dart';
 import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
+import '../features/personal_order/personal_order_screen.dart';
+import '../features/logging/logging_screen.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 
@@ -133,8 +135,9 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         case MediaFlowSection.statistics:
           return StatisticsScreen(repository: data);
         case MediaFlowSection.logging:
+          return LoggingScreen(repository: data);
         case MediaFlowSection.personalOrder:
-          break;
+          return PersonalOrderScreen(repository: data);
       }
     }
     return Align(
