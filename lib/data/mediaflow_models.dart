@@ -92,15 +92,121 @@ class MediaFlowTitle {
 
 class MediaFlowCatalog {
   const MediaFlowCatalog({
-    required this.categories, required this.library, this.updatedAt,
+    required this.categories,
+    required this.library,
+    this.sessions = const [],
+    this.currentTask,
+    this.sessionActive = false,
+    this.tasksPerDay,
+    this.dailyMinutes,
+    this.updatedAt,
   });
+
   final List<MediaFlowCategory> categories;
   final List<MediaFlowTitle> library;
+  final List<MediaFlowSession> sessions;
+  final MediaFlowTask? currentTask;
+  final bool sessionActive;
+  final double? tasksPerDay, dailyMinutes;
   final DateTime? updatedAt;
+
   Map<String, MediaFlowCategory> get categoryById => {
     for (final category in categories) category.id: category,
   };
 }
+
+class MediaFlowSessionTitle {
+  const MediaFlowSessionTitle({
+    required this.title, required this.libraryId, required this.quantity,
+    required this.loggedAt,
+  });
+  final String title;
+  final String libraryId;
+  final double quantity;
+  final DateTime? loggedAt;
+
+  factory MediaFlowSessionTitle.fromJson(Map<String, dynamic> data) =>
+      MediaFlowSessionTitle(
+        title: mediaFlowText(data['title'], fallback: 'Untitled'),
+        libraryId: mediaFlowText(data['libraryId']),
+        quantity: mediaFlowNumber(data['qty']) ?? 0,
+        loggedAt: mediaFlowDate(data['loggedAt']),
+      );
+}
+
+class MediaFlowSession {
+  const MediaFlowSession({
+    required this.id, required this.categoryId, required this.status,
+    required this.date, required this.timestamp, required this.actualAmount,
+    required this.minutes, required this.xp, required this.unit,
+    required this.note, required this.titles, required this.source,
+  });
+
+  final String id, categoryId, status, date, unit, note, source;
+  final DateTime? timestamp;
+  final double actualAmount, minutes, xp;
+  final List<MediaFlowSessionTitle> titles;
+
+  bool isOnDate(DateTime dateToCheck) {
+    final target = dateToCheck.year.toString().padLeft(4, '0') + '-'
+        + dateToCheck.month.toString().padLeft(2, '0') + '-'
+        + dateToCheck.day.toString().padLeft(2, '0');
+    if (date.isNotEmpty) return date == target;
+    final time = timestamp?.toLocal();
+    if (time == null) return false;
+    return time.year == dateToCheck.year &&
+        time.month == dateToCheck.month && time.day == dateToCheck.day;
+  }
+
+  factory MediaFlowSession.fromJson(Map<String, dynamic> data) {
+    final rawTitles = data['titles'];
+    return MediaFlowSession(
+      id: mediaFlowText(data['id']),
+      categoryId: mediaFlowText(data['categoryId']),
+      status: mediaFlowText(data['status'], fallback: 'logged'),
+      date: mediaFlowText(data['date']),
+      timestamp: mediaFlowDate(data['timestamp']),
+      actualAmount: mediaFlowNumber(data['actualAmount']) ?? 0,
+      minutes: mediaFlowNumber(data['minutes']) ?? 0,
+      xp: mediaFlowNumber(data['xp']) ?? 0,
+      unit: mediaFlowText(data['unit'], fallback: 'units'),
+      note: mediaFlowText(data['note']),
+      source: mediaFlowText(data['source']),
+      titles: rawTitles is List
+          ? rawTitles.whereType<Map>().map((title) =>
+              MediaFlowSessionTitle.fromJson(Map<String, dynamic>.from(title)))
+              .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+class MediaFlowTask {
+  const MediaFlowTask({
+    required this.categoryId, required this.title, required this.low,
+    required this.high, required this.unit, required this.reasons,
+  });
+  final String categoryId, title, unit;
+  final double low, high;
+  final List<String> reasons;
+
+  factory MediaFlowTask.fromJson(Map<String, dynamic> data) {
+    final rawReasons = data['reasons'];
+    return MediaFlowTask(
+      categoryId: mediaFlowText(data['categoryId']),
+      title: mediaFlowText(data['title']),
+      low: mediaFlowNumber(data['low'] ?? data['targetMid']) ?? 0,
+      high: mediaFlowNumber(data['high'] ?? data['targetMid']) ?? 0,
+      unit: mediaFlowText(data['unit'], fallback: 'units'),
+      reasons: rawReasons is List
+          ? rawReasons.map((item) => item.toString()).toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+/// The v410 account snapshot supplies projections together.
+/// No derived properties are written back to state_data.
 
 enum LibrarySort {
   alphabetical, alphabeticalReverse, progressHigh, progressLow,
