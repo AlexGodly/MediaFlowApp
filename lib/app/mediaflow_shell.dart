@@ -7,6 +7,8 @@ import '../features/history/history_screen.dart';
 import '../features/auth/account_screen.dart';
 import '../services/native_preferences.dart';
 import '../features/settings/native_settings_screen.dart';
+import '../features/collections/collections_screen.dart';
+import '../features/statistics/statistics_screen.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 
@@ -126,10 +128,12 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             appearance: appearance,
             onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
           );
+        case MediaFlowSection.collections:
+          return CollectionsScreen(repository: data);
+        case MediaFlowSection.statistics:
+          return StatisticsScreen(repository: data);
         case MediaFlowSection.logging:
         case MediaFlowSection.personalOrder:
-        case MediaFlowSection.collections:
-        case MediaFlowSection.statistics:
           break;
       }
     }
