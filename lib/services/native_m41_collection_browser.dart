@@ -59,19 +59,16 @@ NativeM41Page browseCollection(MediaFlowCollection collection,
   const rank = <String,int>{'high':0,'medium':1,'low':2};
   if (options.sort != NativeM41Sort.saved) {
     items.sort((a,b) {
-      int order;
-      switch (options.sort) {
-        case NativeM41Sort.saved:
-          order = 0;
-        case NativeM41Sort.title:
-          order = a.title.toLowerCase().compareTo(b.title.toLowerCase());
-        case NativeM41Sort.priority:
-          order = (rank[a.priority]??3).compareTo(rank[b.priority]??3);
-        case NativeM41Sort.rating:
-          order = (b.rating??-1).compareTo(a.rating??-1);
-        case NativeM41Sort.progress:
-          order = b.progress.compareTo(a.progress);
-      }
+      final order = switch(options.sort) {
+        NativeM41Sort.saved => 0,
+        NativeM41Sort.title =>
+          a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        NativeM41Sort.priority =>
+          (rank[a.priority]??3).compareTo(rank[b.priority]??3),
+        NativeM41Sort.rating =>
+          (b.rating??-1).compareTo(a.rating??-1),
+        NativeM41Sort.progress => b.progress.compareTo(a.progress),
+      };
       return order != 0 ? order :
           (saved[a.id]??0).compareTo(saved[b.id]??0);
     });
