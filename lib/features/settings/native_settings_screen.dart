@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../design_system/mediaflow_theme.dart';
+import '../../data/mediaflow_library_repository.dart';
+import 'cloud_safety_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
 /// schema remains untouched until full settings parity is tested.
@@ -8,10 +10,12 @@ class NativeSettingsScreen extends StatelessWidget {
     super.key,
     required this.appearance,
     required this.onAppearanceChanged,
+    this.repository,
   });
 
   final MediaFlowAppearance appearance;
   final ValueChanged<MediaFlowAppearance> onAppearanceChanged;
+  final MediaFlowLibraryRepository? repository;
 
   @override
   Widget build(BuildContext context) => ListView(children: [
@@ -40,6 +44,10 @@ class NativeSettingsScreen extends StatelessWidget {
       ]),
     )),
     const SizedBox(height: 12),
+    if (repository != null) ...[
+      CloudSafetyPanel(repository: repository!),
+      const SizedBox(height: 12),
+    ],
     Card(child: Padding(
       padding: const EdgeInsets.all(18),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
