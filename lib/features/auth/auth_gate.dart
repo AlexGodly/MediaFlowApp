@@ -12,7 +12,12 @@ class AuthGate extends StatelessWidget {
     return StreamBuilder<AuthState>(
       stream: auth.changes,
       builder: (context, snapshot) {
-        if (auth.user != null) return MediaFlowShell(client: auth.client);
+        if (auth.user != null) {
+          return MediaFlowShell(
+            key: ValueKey('mediaflow-user-${auth.user!.id}'),
+            client: auth.client,
+          );
+        }
         return SignInScreen(auth: auth);
       },
     );

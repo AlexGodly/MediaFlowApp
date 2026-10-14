@@ -58,6 +58,18 @@ void main() {
     );
   });
 
+  test('authenticated cloud reads reject incomplete core collections',
+      () async {
+    await expectLater(
+      decodeMediaFlowStateAsync({'sessions': <Object>[]}),
+      throwsFormatException,
+    );
+    final valid = await decodeMediaFlowStateAsync({
+      'library': <Object>[], 'categories': <Object>[],
+    });
+    expect(valid.library, isEmpty);
+  });
+
   test('combined search, category and status filters', () {
     final titles = decodeMediaFlowState(fixture).library;
     final found = const MediaFlowLibraryFilter(

@@ -4,8 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Native account management surface. Reads the existing identity, without
 /// introducing new user tables or copying any application data.
 class AccountScreen extends StatefulWidget {
-  const AccountScreen({super.key, required this.client});
+  const AccountScreen({super.key, required this.client, this.beforeSignOut});
   final SupabaseClient client;
+  final Future<void> Function()? beforeSignOut;
 
   @override
   State<AccountScreen> createState() => _AccountScreenState();
@@ -37,6 +38,9 @@ class _AccountScreenState extends State<AccountScreen> {
     if (busy) return;
     setState(() { busy = true; message = null; });
     try {
+      // Purge and invalidate the device cache before the session is removed.
+      // If local cleanup fails, do not silently leave an account copy behind.
+      await widget.beforeSignOut?.call();
       await widget.client.auth.signOut();
     } on AuthException catch (error) {
       if (mounted) setState(() => message = error.message);

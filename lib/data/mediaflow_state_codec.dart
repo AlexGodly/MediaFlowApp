@@ -6,7 +6,9 @@ import 'mediaflow_models.dart';
 
 /// v410 cloud state_data is either a JSON object or a gzip/base64 envelope.
 /// The codec is intentionally read-only: other snapshot fields aren't changed.
-MediaFlowCatalog decodeMediaFlowState(Object? raw) {
+MediaFlowCatalog decodeMediaFlowState(
+  Object? raw, {bool requireCoreCollections = false}
+) {
   if (raw == null) {
     return const MediaFlowCatalog(categories: [], library: []);
   }
@@ -33,6 +35,10 @@ MediaFlowCatalog decodeMediaFlowState(Object? raw) {
     throw const FormatException('MediaFlow cloud state is not an object');
   }
   final state = Map<String, dynamic>.from(decoded);
+  if (requireCoreCollections &&
+      (state['library'] is! List || state['categories'] is! List)) {
+    throw const FormatException('Incomplete cloud Library/categories snapshot');
+  }
   final rawLibrary = state['library'];
   final rawCategories = state['categories'];
   final rawSessions = state['sessions'];
@@ -89,4 +95,7 @@ MediaFlowCatalog decodeMediaFlowState(Object? raw) {
 
 /// Isolate-backed parsing avoids blocking the UI while inflating large states.
 Future<MediaFlowCatalog> decodeMediaFlowStateAsync(Object? raw) =>
-    compute(decodeMediaFlowState, raw);
+    compute(_decodeCloudForReadOnly, raw);
+
+MediaFlowCatalog _decodeCloudForReadOnly(Object? raw) =>
+    decodeMediaFlowState(raw, requireCoreCollections: true);
