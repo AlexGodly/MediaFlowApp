@@ -209,7 +209,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                 ),
               )
             else if (tablet)
-              NavigationRail(
+              SingleChildScrollView(
+                child: IntrinsicHeight(child: NavigationRail(
                 key: const Key('tablet-navigation-rail'),
                 selectedIndex: MediaFlowSection.values.indexOf(selected),
                 onDestinationSelected: (index) =>
@@ -222,7 +223,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                       label: Text(section.label),
                     ),
                 ],
-              ),
+              )),
             Expanded(child: Center(child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
