@@ -8,6 +8,7 @@ import '../features/auth/account_screen.dart';
 import '../services/native_preferences.dart';
 import '../services/native_m36_dashboard_tools.dart';
 import '../services/native_m37_library_plan.dart';
+import '../services/native_m40_collection_plan.dart';
 import '../features/settings/native_settings_screen.dart';
 import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
@@ -46,6 +47,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   late final MediaFlowLibraryRepository? repository;
   late final NativeM36DashboardToolsController dashboardTools;
   late final NativeM37LibraryPlan? libraryPlan;
+  late final NativeM40CollectionPlan? collectionPlan;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
@@ -56,6 +58,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     final ownerId = widget.client?.auth.currentUser?.id;
     libraryPlan = ownerId == null ? null
         : NativeM37LibraryPlan(ownerId: ownerId);
+    collectionPlan = ownerId == null ? null
+        : NativeM40CollectionPlan(ownerId: ownerId);
     repository = widget.client == null
         ? null : SupabaseMediaFlowLibraryRepository(widget.client!);
     unawaited(_restoreAppearance());
@@ -67,6 +71,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     if (current is SupabaseMediaFlowLibraryRepository) current.dispose();
     dashboardTools.dispose();
     libraryPlan?.dispose();
+    collectionPlan?.dispose();
     super.dispose();
   }
 
@@ -177,7 +182,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
           );
         case MediaFlowSection.collections:
-          return CollectionsScreen(repository: data);
+          return CollectionsScreen(repository: data, plan: collectionPlan);
         case MediaFlowSection.statistics:
           return StatisticsScreen(repository: data);
         case MediaFlowSection.logging:
