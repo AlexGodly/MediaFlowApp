@@ -90,7 +90,9 @@ class MediaFlowTitle {
     required this.total, required this.rating, required this.coverUrl,
     required this.tags, required this.seasons, required this.addedAt,
     required this.description,
+    this.completedAt,
   });
+  final DateTime? completedAt;
   final String id, title, categoryId, status, priority, coverUrl, description;
   final double progress;
   final double? total, rating;
@@ -122,6 +124,7 @@ class MediaFlowTitle {
           : const [],
       addedAt: mediaFlowDate(json['createdAt'] ?? json['addedAt'] ?? json['dateAdded']),
       description: mediaFlowText(json['description'] ?? json['synopsis']),
+      completedAt: mediaFlowDate(json['completedAt']),
     );
   }
 }
@@ -248,8 +251,11 @@ class MediaFlowSession {
     required this.date, required this.timestamp, required this.actualAmount,
     required this.minutes, required this.xp, required this.unit,
     required this.note, required this.titles, required this.source,
+    this.sessionGroupId = '', this.batchGroupId = '',
+    this.healthStatus = '', this.assignedCategoryId = '',
   });
 
+  final String sessionGroupId, batchGroupId, healthStatus, assignedCategoryId;
   final String id, categoryId, status, date, unit, note, source;
   final DateTime? timestamp;
   final double actualAmount, minutes, xp;
@@ -280,6 +286,10 @@ class MediaFlowSession {
       unit: mediaFlowText(data['unit'], fallback: 'units'),
       note: mediaFlowText(data['note']),
       source: mediaFlowText(data['source']),
+      sessionGroupId: mediaFlowText(data['sessionGroupId']),
+      batchGroupId: mediaFlowText(data['batchGroupId']),
+      healthStatus: mediaFlowText(data['healthStatus']),
+      assignedCategoryId: mediaFlowText(data['assignedCategoryId']),
       titles: rawTitles is List
           ? rawTitles.whereType<Map>().map((title) =>
               MediaFlowSessionTitle.fromJson(Map<String, dynamic>.from(title)))

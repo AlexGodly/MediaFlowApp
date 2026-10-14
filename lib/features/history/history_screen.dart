@@ -7,6 +7,7 @@ import '../../data/mediaflow_models.dart';
 import 'history_filter.dart';
 import 'history_index.dart';
 import 'history_xp_summary.dart';
+import '../../services/native_history_xp_parity.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, required this.repository});
@@ -20,6 +21,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   late Future<MediaFlowCatalog> _future;
   MediaFlowCatalog? _indexedCatalog;
   MediaFlowHistoryIndex? _historyIndex;
+  Map<String, int> _fullHistoryStreakDays = const {};
   final search = TextEditingController();
   Timer? debounce;
   String query = '', categoryId = '', status = '';
@@ -61,11 +63,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!identical(_indexedCatalog, catalog) || _historyIndex == null) {
         _indexedCatalog = catalog;
         _historyIndex = MediaFlowHistoryIndex(catalog.sessions);
+        _fullHistoryStreakDays =
+            NativeHistoryXpParity.streakMap(catalog.sessions);
       }
       final items = _historyIndex!.query(MediaFlowHistoryFilter(
         categoryId: categoryId, status: status, search: query, range: range,
       ));
       final xpSummary = HistoryXpSummary.fromSessions(items);
+      final parityAudit = NativeHistoryXpParity.analyze(
+        items, precomputedStreakDays: _fullHistoryStreakDays,
+      );
       final pages = items.isEmpty ? 1 : (items.length + pageSize - 1) ~/ pageSize;
       final current = page.clamp(0, pages - 1);
       final start = current * pageSize;
@@ -142,6 +149,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Text(
                   'Filtered History totals only — not your account XP, '
                   'level, or a new reward.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          )),
+          const SizedBox(height: 8),
+          Card(child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Source-audited History diagnostics',
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 5),
+                Text('Logical logging actions: ${parityAudit.logicalActions}'
+                    ' · History rows: ${parityAudit.historyRows}'),
+                Text('Known stored base XP: ${_number(parityAudit.knownBaseXp)}'
+                    ' · Illustrative streak bonus: '
+                    '${_number(parityAudit.knownStreakBonusXp)}'),
+                if (parityAudit.unresolvedXpRows > 0)
+                  Text('XP unresolved for ${parityAudit.unresolvedXpRows}'
+                      ' rows: original XP settings/formula required.'),
+                const SizedBox(height: 5),
+                Text(
+                  'Uses full History for streak dates even with filters. '
+                  'The illustration assumes leveling is enabled; it is '
+                  'NOT your final XP, account level or a new reward. '
+                  'Completion bonuses and other ledgers are excluded.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
