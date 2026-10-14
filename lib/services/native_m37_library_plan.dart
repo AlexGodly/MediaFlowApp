@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import '../data/mediaflow_models.dart';
+import 'native_m39_metadata.dart';
 
 /// Typed editable *projection*. Original full v410 fields/side effects cannot
 /// be reconstructed from MediaFlowCatalog and must never be uploaded from it.
@@ -17,11 +18,22 @@ class NativeM37Fields {
     required this.coverUrl,
     required this.description,
     List<String> tags = const [],
-  }) : tags = List.unmodifiable(tags);
+    List<MediaFlowSeason> seasons = const [],
+    Map<String,String> externalIds = const {},
+    Map<String,String?> manualExternalIds = const {},
+    this.seasonSource = '',
+  }) : tags = List.unmodifiable(tags),
+       seasons = List.unmodifiable(seasons),
+       externalIds = Map.unmodifiable(externalIds),
+       manualExternalIds = Map.unmodifiable(manualExternalIds);
   final String title, categoryId, status, priority, coverUrl, description;
   final double progress;
   final double? total, rating;
   final List<String> tags;
+  final List<MediaFlowSeason> seasons;
+  final Map<String,String> externalIds;
+  final Map<String,String?> manualExternalIds;
+  final String seasonSource;
 
   factory NativeM37Fields.fromTitle(MediaFlowTitle title) =>
       NativeM37Fields(
@@ -29,7 +41,10 @@ class NativeM37Fields {
         status: title.status, priority: title.priority,
         progress: title.progress, total: title.total, rating: title.rating,
         coverUrl: title.coverUrl, description: title.description,
-        tags: title.tags,
+        tags: title.tags, seasons: title.seasons,
+        externalIds: title.externalIds,
+        manualExternalIds: title.manualExternalIds,
+        seasonSource: title.seasonSource,
       );
 
   bool sameAs(NativeM37Fields other) =>
@@ -38,14 +53,21 @@ class NativeM37Fields {
       progress == other.progress && total == other.total &&
       rating == other.rating && coverUrl == other.coverUrl &&
       description == other.description &&
-      listEquals(tags, other.tags);
+      listEquals(tags, other.tags) &&
+      NativeM39Metadata.sameSeasons(seasons, other.seasons) &&
+      mapEquals(externalIds, other.externalIds) &&
+      mapEquals(manualExternalIds, other.manualExternalIds) &&
+      seasonSource == other.seasonSource;
 
   MediaFlowTitle preview(String id, {MediaFlowTitle? original}) =>
       MediaFlowTitle(
         id: id, title: title, categoryId: categoryId, status: status,
         priority: priority, progress: progress, total: total, rating: rating,
         coverUrl: coverUrl, tags: tags,
-        seasons: original?.seasons ?? const [],
+        seasons: seasons,
+        externalIds: externalIds,
+        manualExternalIds: manualExternalIds,
+        seasonSource: seasonSource,
         addedAt: original?.addedAt, completedAt: original?.completedAt,
         description: description,
       );
@@ -141,7 +163,8 @@ class NativeM37LibraryPlan extends ChangeNotifier {
         !const {'low','medium','high'}.contains(fields.priority) ||
         !fields.progress.isFinite || fields.progress < 0 ||
         (fields.total != null && (!fields.total!.isFinite ||
-          fields.total! < 0 || fields.progress > fields.total!)) ||
+          fields.total! < 0 ||
+          (fields.seasons.isEmpty && fields.progress > fields.total!))) ||
         (fields.rating != null && (!fields.rating!.isFinite ||
           fields.rating! < 0 || fields.rating! > 10)) ||
         fields.coverUrl.length > 2000 ||
@@ -153,11 +176,22 @@ class NativeM37LibraryPlan extends ChangeNotifier {
         fields.tags.any((t) => t.trim().isEmpty || t.length > 100)) {
       throw const FormatException('Invalid Library title fields');
     }
+    NativeM39Metadata.validateIds(
+      fields.externalIds, fields.manualExternalIds);
+    NativeM39Metadata.validateSeasons(fields.seasons);
+    if (fields.seasons.isNotEmpty) {
+      final aggregate = NativeM39Metadata.aggregate(fields.seasons);
+      if (fields.progress != aggregate.progress ||
+          fields.total != aggregate.total) {
+        throw const FormatException('Season aggregate must match season rows');
+      }
+    }
     if (original != null && original.seasons.isNotEmpty &&
+        NativeM39Metadata.sameSeasons(fields.seasons, original.seasons) &&
         (fields.progress != original.progress ||
          fields.total != original.total)) {
       throw const FormatException(
-        'Season aggregate editing requires verified season parity');
+        'Edit individual seasons to change aggregate progress');
     }
   }
 
@@ -265,6 +299,10 @@ class NativeM37LibraryPlan extends ChangeNotifier {
         progress: before.progress, total: before.total,
         rating: before.rating, coverUrl: before.coverUrl,
         description: before.description, tags: tags,
+        seasons: before.seasons,
+        externalIds: before.externalIds,
+        manualExternalIds: before.manualExternalIds,
+        seasonSource: before.seasonSource,
       );
       _validate(after, original: original);
       if (after.sameAs(before)) continue;
@@ -290,6 +328,41 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       _updated.remove(id);
     }
     _changed();
+  }
+
+  /// Typed local-only external ID and season edit. Existing extra fields,
+  /// tags, cover and priority remain projected unchanged; no cloud write.
+  void editM39(String id, {
+    Map<String,String?> idChanges = const {},
+    List<MediaFlowSeason>? seasons,
+  }) {
+    _ensureValid();
+    final old = fieldsFor(id);
+    final changedIds = NativeM39Metadata.applyIdChanges(
+      old.externalIds, old.manualExternalIds, idChanges);
+    final nextSeasons = seasons ?? old.seasons;
+    NativeM39Metadata.validateSeasons(nextSeasons);
+    // Removing all seasons cannot infer the intended title-wide counters.
+    // Explicit removal needs the complete website side-effect protocol.
+    if (old.seasons.isNotEmpty && nextSeasons.isEmpty) {
+      throw const FormatException(
+        'Removing all seasons requires website-equivalent state recovery');
+    }
+    final aggregate = nextSeasons.isEmpty ? null :
+        NativeM39Metadata.aggregate(nextSeasons);
+    final next = NativeM37Fields(
+      title: old.title, categoryId: old.categoryId, status: old.status,
+      priority: old.priority,
+      progress: aggregate?.progress ?? old.progress,
+      total: aggregate?.total ?? old.total,
+      rating: old.rating, coverUrl: old.coverUrl,
+      description: old.description, tags: old.tags,
+      seasons: nextSeasons, externalIds: changedIds.ids,
+      manualExternalIds: changedIds.manual,
+      seasonSource: seasons == null ? old.seasonSource : 'manual',
+    );
+    if (next.sameAs(old)) return;
+    edit(id, next);
   }
 
   void stageDelete(Iterable<String> ids) {
