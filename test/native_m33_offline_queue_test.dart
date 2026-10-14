@@ -146,6 +146,7 @@ void main() {
   });
 
   MediaFlowCatalog catalog() => MediaFlowCatalog(
+    categories: const [],
     library:[MediaFlowTitle.fromJson({
       'id':'anime-a','title':'A','priority':'high','status':'active',
       'categoryId':'anime','progress':2,'total':12,'rating':8,
@@ -209,6 +210,7 @@ void main() {
     expect(savedCount,1);
     expect(workspace.titleCount,1);
     expect((await coordinator.load())?.queueId,kept.queueId);
+    expect(readCount, greaterThan(0));
     expect((await coordinator.inspect()).status,
       NativeM33CheckStatus.needsManualCloudReview);
     expect(NativeCloudCapabilities.offlineWriteQueueEnabled,false);

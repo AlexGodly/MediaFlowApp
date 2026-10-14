@@ -40,34 +40,40 @@ class _NativeM33OfflineDraftPanelState
           'Review unavailable or unsafe. Cloud data was not changed.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) { setState(() => busy = false); }
     }
   }
 
   Future<void> _refresh() => _act(() async {
     final restored = await widget.repository.loadOfflineDraftQueue();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       queue = restored;
       message = restored == null
           ? 'No encrypted offline drafts found.'
           : 'Restored encrypted device drafts. No automatic synchronization.';
-    });
+      });
+    }
   });
 
   Future<void> _save() => _act(() async {
     final saved = await widget.repository.keepOfflinePriorityDrafts();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       queue = saved;
       message = 'Priority-only drafts saved securely to this device.';
-    });
+      });
+    }
   });
 
   Future<void> _inspect() => _act(() async {
     final check = await widget.repository.inspectOfflineDraftQueue();
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       result = check;
       message = check.message;
-    });
+      });
+    }
   });
 
   Future<void> _discard() async {
@@ -90,10 +96,12 @@ class _NativeM33OfflineDraftPanelState
     if (approved != true || !mounted) return;
     await _act(() async {
       await widget.repository.discardOfflineDraftQueue();
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         queue = null;
         message = 'Encrypted device drafts discarded. Nothing uploaded.';
-      });
+        });
+      }
     });
   }
 

@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
@@ -160,7 +159,9 @@ class NativeM33DraftStore {
       if (data is! Map || data['format'] != format ||
           data['ownerHash'] != hash ||
           data['nonce'] is! String ||
-          data['ciphertext'] is! String || data['mac'] is! String) return null;
+          data['ciphertext'] is! String || data['mac'] is! String) {
+        return null;
+      }
       final nonce = base64Decode(data['nonce'] as String);
       final mac = base64Decode(data['mac'] as String);
       final cipher = base64Decode(data['ciphertext'] as String);
