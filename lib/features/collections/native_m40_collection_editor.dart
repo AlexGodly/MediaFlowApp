@@ -145,7 +145,7 @@ class _NativeM40AddTitlesSheetState extends State<NativeM40AddTitlesSheet> {
   @override
   Widget build(BuildContext context) {
     final source = widget.plan.source;
-    if (source == null) return const Center(child: Text('No source snapshot.'));
+    if (source == null) { return const Center(child: Text('No source snapshot.')); }
     return SafeArea(child: FractionallySizedBox(
       heightFactor: .90,
       child: AnimatedBuilder(
@@ -160,7 +160,7 @@ class _NativeM40AddTitlesSheetState extends State<NativeM40AddTitlesSheet> {
           final seenIds = <String>{};
           final duplicate = <String>{};
           for (final t in source.library) {
-            if (!seenIds.add(t.id)) duplicate.add(t.id);
+            if (!seenIds.add(t.id)) { duplicate.add(t.id); }
           }
           final needle = query.trim().toLowerCase();
           final matches = <MediaFlowTitle>[];
@@ -175,7 +175,7 @@ class _NativeM40AddTitlesSheetState extends State<NativeM40AddTitlesSheet> {
               continue;
             }
             total++;
-            if (matches.length < 75) matches.add(title);
+            if (matches.length < 75) { matches.add(title); }
           }
           return Column(children: [
             Padding(
