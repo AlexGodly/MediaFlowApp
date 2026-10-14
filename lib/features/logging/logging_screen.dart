@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
+import '../../services/native_editing_workspace.dart';
+import '../library/native_editing_sheet.dart';
 
 /// Multi-title selection workspace. It is intentionally a read-only
 /// preview: selections never create sessions, XP, cloud writes, or drafts.
 class LoggingScreen extends StatefulWidget {
-  const LoggingScreen({super.key, required this.repository});
+  const LoggingScreen({super.key, required this.repository, this.workspace});
   final MediaFlowLibraryRepository repository;
+  final NativeEditingWorkspace? workspace;
 
   @override
   State<LoggingScreen> createState() => _LoggingScreenState();
@@ -109,7 +112,9 @@ class _LoggingScreenState extends State<LoggingScreen> {
     );
   }
 
-  void _details(BuildContext context, MediaFlowTitle title) {
+  void _details(BuildContext context, MediaFlowTitle title,
+      MediaFlowCatalog catalog) {
+    widget.workspace?.observe(catalog);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -127,9 +132,32 @@ class _LoggingScreenState extends State<LoggingScreen> {
             Text('Priority: ${title.priority}'),
             const SizedBox(height: 12),
             const Text(
-              'Logging edits, History writes and XP awards are disabled '
-              'until cross-device conflict handling is verified.',
+              'Cloud logging, History writes and XP awards remain disabled '
+              'until cross-device safety and website side effects are verified.',
             ),
+            if (widget.workspace != null) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: widget.workspace!.stale ? null : () {
+                  Navigator.pop(sheet);
+                  showModalBottomSheet<void>(
+                    context: context,
+                    showDragHandle: true,
+                    isScrollControlled: true,
+                    builder: (_) => NativeLogDraftSheet(
+                      catalog: catalog, title: title,
+                      workspace: widget.workspace!,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.playlist_add_outlined),
+                label: const Text('Draft logging locally'),
+              ),
+              if (widget.workspace!.logDraft(title.id) != null)
+                const Text('Local logging draft exists. See Settings.'),
+              if (widget.workspace!.stale)
+                const Text('Snapshot changed. Discard stale drafts in Settings.'),
+            ],
           ],
         ),
       )),
@@ -172,7 +200,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Logging', style: Theme.of(context).textTheme.headlineMedium),
-                const Text('Native title selection · No submission'),
+                const Text('Native title selection · Local drafts only'),
               ],
             )),
             IconButton(
@@ -181,6 +209,13 @@ class _LoggingScreenState extends State<LoggingScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ]),
+          if (widget.workspace != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Local drafts: ${widget.workspace!.logCount} log plans '
+                  '· History entries submitted: 0 · XP awarded: 0',
+                key: const Key('logging-local-draft-summary')),
+            ),
           if (data.sessionActive && data.currentTask != null) ...[
             const SizedBox(height: 8),
             Card(child: ListTile(
@@ -308,7 +343,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
                       trailing: IconButton(
                         tooltip: 'View title details',
                         icon: const Icon(Icons.info_outline),
-                        onPressed: () => _details(context, title),
+                        onPressed: () => _details(context, title, data),
                       ),
                       onTap: () => _selectionChanged(
                           title.id, !_selectedIds.contains(title.id)),
@@ -321,7 +356,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
               child: const Text('Show 50 more titles'),
             ),
           const Text(
-            'Selections are temporary and are not saved or synchronized.',
+            'Selections and local logging drafts are temporary and are not saved or synchronized.',
             textAlign: TextAlign.center,
           ),
         ],
