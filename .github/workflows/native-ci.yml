@@ -31,6 +31,8 @@ jobs:
         run: node tool/parity/m28_contract_guard.mjs
       - name: Verify pinned v410 business rule sources
         run: TZ=UTC node tool/parity/m29_website_reference.mjs
+      - name: Verify shared sync protocol remains local-only
+        run: node tool/parity/m30_contract_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

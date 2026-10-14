@@ -25,7 +25,8 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
-## Development status (milestone 29)
+## Development status (milestone 30)
+- Milestone 30 adds a local-only, revisioned and idempotent shared synchronization contract simulation and coordinated website/server migration plan. **No production sync writes or migration were enabled.** [Details](docs/MILESTONE_30.md).
 - Milestone 29 adds source-pinned v410 scheduler, season, advanced-logging and Collection/Personal Order action-trigger regression parity checks. **These are isolated, no-write reference subsets, not full 307-feature or runtime behavior certification.** [Details](docs/MILESTONE_29.md).
 - Milestone 28 adds a lossless, source-backed full-state model that preserves all unknown JSON fields and original gzip/string/map formats for **local testing only**. See [Milestone 28](docs/MILESTONE_28.md). Cloud writes remain disabled.
 - Milestone 27 introduces source-backed Dark/Light/AMOLED design tokens, shared widgets and adaptive navigation; reuses the original MediaFlow launcher logo within the Flutter shell and login screen. Full screenshot/font/custom-theme parity is still pending (see [Milestone 27](docs/MILESTONE_27.md)).
