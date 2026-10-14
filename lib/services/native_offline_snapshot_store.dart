@@ -63,22 +63,24 @@ class NativeOfflineSnapshotStore {
 
   /// Only called after a current, authenticated cloud snapshot has decoded.
   /// Two generations protect the last validated projection from torn writes.
-  Future<void> save(String accountId, MediaFlowCatalog catalog) async {
+  Future<void> save(String accountId, MediaFlowCatalog catalog) {
     final hash = _ownerHash(accountId);
-    final stamp = DateTime.now().toUtc().toIso8601String();
-    final compressed = await compute(_compressProjection, catalog);
-    final digest = _checksum(hash, stamp, compressed);
-    final envelope = jsonEncode({
-      'format': format,
-      'ownerHash': hash,
-      'savedAt': stamp,
-      'payload': compressed,
-      'checksum': digest,
-    });
-    if (utf8.encode(envelope).length > maxFileBytes) {
-      throw const FormatException('Offline projection exceeds device cache limit');
-    }
-    await _exclusive(() async {
+    // Queue before compression. A sign-out purge must never race an in-flight
+    // serialization and leave a newly written cache behind.
+    return _exclusive(() async {
+      final stamp = DateTime.now().toUtc().toIso8601String();
+      final compressed = await compute(_compressProjection, catalog);
+      final digest = _checksum(hash, stamp, compressed);
+      final envelope = jsonEncode({
+        'format': format,
+        'ownerHash': hash,
+        'savedAt': stamp,
+        'payload': compressed,
+        'checksum': digest,
+      });
+      if (utf8.encode(envelope).length > maxFileBytes) {
+        throw const FormatException('Offline projection exceeds device cache limit');
+      }
       final folder = await _directory();
       await folder.create(recursive: true);
       final primary = File(_path(folder, hash));
