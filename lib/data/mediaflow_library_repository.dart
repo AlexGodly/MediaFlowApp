@@ -35,6 +35,8 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   final String? _ownerId;
   final ValueNotifier<NativeSnapshotSource> source =
       ValueNotifier(NativeSnapshotSource.idle);
+  /// Set only when displaying a device copy; not an authorization timestamp.
+  final ValueNotifier<DateTime?> offlineSavedAt = ValueNotifier(null);
 
   Future<MediaFlowCatalog>? _cached;
   int _requestId = 0;
@@ -99,6 +101,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         dailyMinutes: decoded.dailyMinutes,
         updatedAt: DateTime.tryParse((row['updated_at'] ?? '').toString()),
       );
+      offlineSavedAt.value = null;
       source.value = NativeSnapshotSource.cloud;
       // Disk serialization runs on an isolate; the cloud view is not delayed.
       unawaited(_saveVerifiedProjection(id, catalog));
@@ -110,11 +113,13 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         throw StateError('Signed-in account changed during recovery.');
       }
       if (cached != null) {
+        offlineSavedAt.value = cached.savedAt;
         source.value = cached.recoveredPrevious
             ? NativeSnapshotSource.recoveredPrevious
             : NativeSnapshotSource.offline;
         return cached.catalog;
       }
+      offlineSavedAt.value = null;
       source.value = NativeSnapshotSource.unavailable;
       rethrow;
     }
@@ -142,6 +147,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   Future<void> prepareSignOut() async {
     ++_requestId;
     _cached = null;
+    offlineSavedAt.value = null;
     await clearOfflineCache();
   }
 
@@ -149,5 +155,6 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     _closed = true;
     ++_requestId;
     source.dispose();
+    offlineSavedAt.dispose();
   }
 }
