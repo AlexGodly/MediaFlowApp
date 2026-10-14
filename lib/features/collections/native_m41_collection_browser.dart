@@ -88,7 +88,7 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
     }
   }
 
-  Widget _dropdown<T>(String name,T value,List<DropdownMenuItem<T>> items,
+  Widget _dropdown<T>(T value,List<DropdownMenuItem<T>> items,
       ValueChanged<T> change,{Key? key}) =>
     DropdownButton<T>(
       key:key,value:value,items:items,
@@ -155,32 +155,38 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
       SingleChildScrollView(
         scrollDirection:Axis.horizontal,
         child:Row(children:[
-          _dropdown<String>('Category',category,[
+          _dropdown<String>(category,[
             const DropdownMenuItem(value:'',child:Text('All categories')),
             for(final c in widget.catalog.categories)
               DropdownMenuItem(value:c.id,child:Text(c.name)),
           ],(v)=>category=v,key:const Key('m41-category')),
           const SizedBox(width:10),
-          _dropdown<String>('Status',status,[
+          _dropdown<String>(status,[
             const DropdownMenuItem(value:'',child:Text('All statuses')),
             for(final s in ['planned','active','paused','dropped','completed'])
               DropdownMenuItem(value:s,child:Text(s)),
           ],(v)=>status=v,key:const Key('m41-status')),
           const SizedBox(width:10),
-          _dropdown<String>('Priority',priority,[
+          _dropdown<String>(priority,[
             const DropdownMenuItem(value:'',child:Text('All priorities')),
             for(final p in ['low','medium','high'])
               DropdownMenuItem(value:p,child:Text(p)),
           ],(v)=>priority=v,key:const Key('m41-priority')),
           const SizedBox(width:10),
-          _dropdown<String>('Rating',minimumRating,[
-            const DropdownMenuItem<double?>(value:null,
-              child:Text('All ratings')),
-            for(final n in [5.0,6.0,7.0,8.0,9.0])
-              DropdownMenuItem<double?>(value:n,child:Text('${n.toInt()}+')),
-          ],(v)=>minimumRating=v,key:const Key('m41-rating')),
+          DropdownButton<double?>(
+            key:const Key('m41-rating'),
+            value:minimumRating,
+            items:[
+              const DropdownMenuItem<double?>(value:null,
+                child:Text('All ratings')),
+              for(final n in [5.0,6.0,7.0,8.0,9.0])
+                DropdownMenuItem<double?>(value:n,
+                  child:Text('${n.toInt()}+')),
+            ],
+            onChanged:(v)=>_filter(()=>minimumRating=v),
+          ),
           const SizedBox(width:10),
-          _dropdown<String>('Covers',cover,[
+          _dropdown<String>(cover,[
             const DropdownMenuItem(value:'all',child:Text('All covers')),
             const DropdownMenuItem(value:'with',child:Text('With cover')),
             const DropdownMenuItem(value:'without',child:Text('Missing cover')),
@@ -189,13 +195,13 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
       ),
       Wrap(spacing:8,runSpacing:4,crossAxisAlignment:WrapCrossAlignment.center,
         children:[
-          _dropdown<NativeM41Sort>('Sort',sort,[
+          _dropdown<NativeM41Sort>(sort,[
             for(final s in NativeM41Sort.values)
               DropdownMenuItem(value:s,
                 child:Text(s==NativeM41Sort.saved?'Saved order':
                   s.name)),
           ],(v)=>sort=v,key:const Key('m41-sort')),
-          _dropdown<NativeM41View>('View',view,[
+          _dropdown<NativeM41View>(view,[
             for(final v in NativeM41View.values)
               DropdownMenuItem(value:v,child:Text(
                 switch(v){
@@ -206,7 +212,7 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
                   NativeM41View.coversTitles=>'Covers + Titles',
                 })),
           ],(v)=>view=v,key:const Key('m41-view')),
-          _dropdown<int>('Per page',pageSize,[
+          _dropdown<int>(pageSize,[
             for (final n in [25,50,100,200])
               DropdownMenuItem(value:n,child:Text('$n/page')),
           ],(v)=>pageSize=v,key:const Key('m41-per-page')),
