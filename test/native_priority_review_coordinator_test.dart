@@ -126,10 +126,7 @@ void main() {
       throwsStateError);
     workspace.discardAll();
     workspace.observe(catalog);
-    priority(progress:7);
-    await expectLater(workflow.stage(workspace:workspace,
-      catalog:catalog, anchor:anchor, isDisplayedAuthoritativeCloud:true),
-      throwsStateError);
+    expect(() => priority(progress:7), throwsFormatException);
     workspace.discardAll();
     workspace.observe(catalog);
     priority(rating:9);

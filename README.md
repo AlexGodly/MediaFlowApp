@@ -25,7 +25,8 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
-## Development status (milestone 31)
+## Development status (milestone 32)
+- Milestone 32 adds a real signed-in, **read-only** Settings Priority review: verified online Library priority sketches can be encrypted as inert pending-review records and checked against a fresh full cloud SELECT, with explicit conflict/discard UX. **No upload or cloud writing is enabled.** [Details](docs/MILESTONE_32.md).
 - Milestone 31 integrates an offline-first read-only coordinator into the real Supabase repository: authenticated encrypted recovery, memory-only fallback, explicit reconnect status, stale refresh suppression and fail-closed malformed-cloud handling. [Details](docs/MILESTONE_31.md). **No production cloud writes or offline editing.**
 - Milestone 30 adds a local-only, revisioned and idempotent shared synchronization contract simulation and coordinated website/server migration plan. **No production sync writes or migration were enabled.** [Details](docs/MILESTONE_30.md).
 - Milestone 29 adds source-pinned v410 scheduler, season, advanced-logging and Collection/Personal Order action-trigger regression parity checks. **These are isolated, no-write reference subsets, not full 307-feature or runtime behavior certification.** [Details](docs/MILESTONE_29.md).

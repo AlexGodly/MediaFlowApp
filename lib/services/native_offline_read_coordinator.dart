@@ -52,6 +52,13 @@ class NativeOfflineReadCoordinator {
   final ValueNotifier<DateTime?> offlineSavedAt = ValueNotifier(null);
   final ValueNotifier<bool> refreshing = ValueNotifier(false);
   MediaFlowCatalog? _lastReadable;
+  MediaFlowCatalog? _lastAuthoritative;
+
+  bool isCurrentCloudCatalog(MediaFlowCatalog? catalog) =>
+      catalog != null && isOwnerCurrent() && !_closed &&
+      identical(_lastAuthoritative, catalog) &&
+      (source.value == NativeSnapshotSource.cloud ||
+       source.value == NativeSnapshotSource.cloudNotCached);
   Future<MediaFlowCatalog>? _cached;
   int _requestId = 0;
   int _cacheEpoch = 0;
@@ -94,6 +101,7 @@ class NativeOfflineReadCoordinator {
       final cloud = await readCloud();
       _check(id);
       _lastReadable = cloud;
+      _lastAuthoritative = cloud;
       offlineSavedAt.value = null;
       source.value = NativeSnapshotSource.cloud;
       unawaited(_persist(id, _cacheEpoch, cloud));
@@ -101,6 +109,7 @@ class NativeOfflineReadCoordinator {
     } on NativeMissingCloudRow {
       _check(id);
       _lastReadable = null;
+      _lastAuthoritative = null;
       offlineSavedAt.value = null;
       source.value = NativeSnapshotSource.invalidCloud;
       rethrow;
@@ -112,6 +121,7 @@ class NativeOfflineReadCoordinator {
       rethrow;
     } catch (_) {
       _check(id);
+      _lastAuthoritative = null;
       NativeCachedSnapshot? device;
       try {
         device = await readDeviceCopy(ownerId!);
@@ -179,6 +189,7 @@ class NativeOfflineReadCoordinator {
     ++_cacheEpoch;
     _cached = null;
     _lastReadable = null;
+    _lastAuthoritative = null;
     if (source.value != NativeSnapshotSource.idle) {
       source.value = NativeSnapshotSource.idle;
     }
@@ -194,6 +205,7 @@ class NativeOfflineReadCoordinator {
     ++_requestId;
     _cached = null;
     _lastReadable = null;
+    _lastAuthoritative = null;
     source.dispose();
     refreshing.dispose();
     offlineSavedAt.dispose();
