@@ -129,7 +129,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         throw StateError('Signed-in account changed while anchoring');
       }
       _cloudAnchors[catalog] = NativePriorityCloudAnchor(
-        ownerId: _ownerId!, revision: revision, fullPayloadDigest: digest,
+        ownerId: _ownerId, revision: revision, fullPayloadDigest: digest,
       );
     }
     return catalog;

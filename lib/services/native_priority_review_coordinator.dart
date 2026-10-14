@@ -44,7 +44,7 @@ class NativePriorityReviewCoordinator {
   bool _busy = false;
 
   bool get busy => _busy;
-  bool _hasOwner => ownerId.isNotEmpty && isOwnerCurrent();
+  bool get _hasOwner => ownerId.isNotEmpty && isOwnerCurrent();
 
   void _verifyOwner() {
     if (!_hasOwner) throw StateError('Authenticated account changed');

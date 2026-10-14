@@ -39,8 +39,10 @@ class _NativePriorityReviewPanelState
     } on FormatException catch (error) {
       if (mounted) setState(() => notice = error.message);
     } catch (_) {
-      if (mounted) setState(() =>
-          notice = 'Cloud or device review is unavailable. Nothing was submitted.');
+      if (mounted) {
+        setState(() => notice =
+            'Cloud or device review is unavailable. Nothing was submitted.');
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
