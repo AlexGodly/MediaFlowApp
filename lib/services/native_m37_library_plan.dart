@@ -341,6 +341,8 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     final changedIds = NativeM39Metadata.applyIdChanges(
       old.externalIds, old.manualExternalIds, idChanges);
     final nextSeasons = seasons ?? old.seasons;
+    final seasonsChanged = seasons != null &&
+        !NativeM39Metadata.sameSeasons(nextSeasons, old.seasons);
     NativeM39Metadata.validateSeasons(nextSeasons);
     // Removing all seasons cannot infer the intended title-wide counters.
     // Explicit removal needs the complete website side-effect protocol.
@@ -359,7 +361,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       description: old.description, tags: old.tags,
       seasons: nextSeasons, externalIds: changedIds.ids,
       manualExternalIds: changedIds.manual,
-      seasonSource: seasons == null ? old.seasonSource : 'manual',
+      seasonSource: seasonsChanged ? 'manual' : old.seasonSource,
     );
     if (next.sameAs(old)) return;
     edit(id, next);
