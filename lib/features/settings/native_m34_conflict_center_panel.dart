@@ -248,7 +248,7 @@ class _NativeM34ConflictCenterPanelState
               FilledButton.icon(
                 onPressed: !_busy && selected > 0 ? _resolve : null,
                 icon: const Icon(Icons.security_update_good_outlined),
-                label: Text('Confirm ${selected} device-only decision(s)'),
+                label: Text('Confirm $selected device-only decision(s)'),
               ),
             ],
           ],
