@@ -44,10 +44,9 @@ abstract final class NativeSnapshotCodec {
         original['__mediaflowCompressed'] == 'gzip') {
       // Keep the same on-wire *format*, not the same compressed bytes.
       // Unknown v410 fields survive because the full state was cloned.
-      return {
-        '__mediaflowCompressed': 'gzip',
-        'data': base64Encode(gzip.encode(utf8.encode(serialized))),
-      };
+      final envelope = Map<String, dynamic>.from(original);
+      envelope['data'] = base64Encode(gzip.encode(utf8.encode(serialized)));
+      return envelope;
     }
     if (original is Map && original.containsKey('__mediaflowCompressed')) {
       throw const FormatException('Unsupported original cloud envelope');
