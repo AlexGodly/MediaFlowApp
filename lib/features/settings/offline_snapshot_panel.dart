@@ -20,12 +20,18 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
     setState(() { busy = true; notice = null; });
     try {
       await widget.repository.reload();
-      if (mounted) setState(() => notice = 'Snapshot refreshed or recovered safely.');
+      if (mounted) {
+        setState(() => notice = 'Snapshot refreshed or recovered safely.');
+      }
     } catch (_) {
-      if (mounted) setState(() =>
+      if (mounted) {
+        setState(() =>
           notice = 'No usable snapshot. Sign in and reconnect to refresh.');
+      }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -54,13 +60,19 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
     setState(() { busy = true; notice = null; });
     try {
       await widget.repository.clearOfflineCache();
-      if (mounted) setState(() => notice =
+      if (mounted) {
+        setState(() => notice =
           'Offline copies removed. Current open view remains in memory.');
+      }
     } catch (_) {
-      if (mounted) setState(() =>
+      if (mounted) {
+        setState(() =>
           notice = 'Could not remove every local copy on this device.');
+      }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
