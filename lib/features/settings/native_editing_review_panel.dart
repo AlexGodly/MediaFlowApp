@@ -89,6 +89,9 @@ class NativeEditingReviewPanel extends StatelessWidget {
                   ' units · ' + log.minutes.toString() + ' minutes · '
                   'Preview progress ' + log.startingProgress.toString() +
                   ' to ' + log.projectedProgress.toString() +
+                  ' · ' + (log.mode.name == 'lastProgress' ? 'Last progress' : 'Amount') +
+                  (log.repeat ? ' · Repeat' : '') +
+                  ' · Hypothetical streak ' + log.prospectiveStreak.toString() +
                   ' · No History/XP changes',
                 ),
                 trailing: IconButton(

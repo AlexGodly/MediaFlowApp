@@ -200,7 +200,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Logging', style: Theme.of(context).textTheme.headlineMedium),
-                const Text('Native title selection · Local drafts only'),
+                const Text('Native title selection · Source-derived History previews (no submission)'),
               ],
             )),
             IconButton(
