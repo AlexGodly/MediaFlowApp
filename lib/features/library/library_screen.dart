@@ -5,13 +5,16 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
+import '../../services/native_editing_workspace.dart';
+import 'native_editing_sheet.dart';
 import '../../design_system/mediaflow_theme.dart';
 
 enum NativeLibraryView { list, compact, cards, covers, coversWithTitles }
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, required this.repository});
+  const LibraryScreen({super.key, required this.repository, this.workspace});
   final MediaFlowLibraryRepository repository;
+  final NativeEditingWorkspace? workspace;
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
@@ -214,7 +217,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           return Card(
             margin: const EdgeInsets.only(bottom: 6),
             child: InkWell(
-              onTap: () => _details(context, title, cat),
+              onTap: () => _details(context, title, cat, _cacheCatalog!),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: EdgeInsets.all(compact ? 8 : 12),
@@ -261,7 +264,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       itemBuilder: (context, index) {
         final title = titles[index];
         return InkWell(
-          onTap: () => _details(context, title, categories[title.categoryId]),
+          onTap: () => _details(context, title, categories[title.categoryId], _cacheCatalog!),
           borderRadius: BorderRadius.circular(10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Expanded(child: MediaFlowCover(
@@ -304,7 +307,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ),
   ]);
 
-  void _details(BuildContext context, MediaFlowTitle title, MediaFlowCategory? cat) {
+  void _details(BuildContext context, MediaFlowTitle title,
+      MediaFlowCategory? cat, MediaFlowCatalog catalog) {
+    widget.workspace?.observe(catalog);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -344,7 +349,32 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   trailing: Text(_number(season.progress) + ' / ' + _number(season.total))),
             ],
             const SizedBox(height: 16),
-            const Text('Read-only preview. Editing and logging require verified native cloud synchronization.'),
+            if (widget.workspace != null) ...[
+              const Text('Cloud Library remains read-only. You can keep '
+                  'a temporary on-device draft for review; no save occurs.'),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: widget.workspace!.stale ? null : () {
+                  Navigator.pop(sheetContext);
+                  showModalBottomSheet<void>(
+                    context: context,
+                    showDragHandle: true,
+                    isScrollControlled: true,
+                    builder: (_) => NativeTitleDraftSheet(
+                      catalog: catalog, title: title,
+                      workspace: widget.workspace!,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Draft changes locally'),
+              ),
+              if (widget.workspace!.titleDraft(title.id) != null)
+                const Text('Local draft exists; inspect it in Settings.'),
+              if (widget.workspace!.stale)
+                const Text('Source changed. Discard stale drafts in Settings.'),
+            ] else
+              const Text('Read-only preview. Editing requires verified cloud synchronization.'),
           ],
         ),
       )),
