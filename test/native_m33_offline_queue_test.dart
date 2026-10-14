@@ -125,7 +125,7 @@ void main() {
       NativeM33CheckStatus.missingOrDuplicateTitle);
     final duplicate=state();
     (duplicate['library'] as List).add(
-      jsonDecode(jsonEncode((duplicate['library'] as List).first)));
+      Map<String, Object>.from((duplicate['library'] as List).first as Map));
     expect(NativeM33ManualReview.inspect(queue:queue(),
       current:row(payload:duplicate),signedInOwnerId:owner).status,
       NativeM33CheckStatus.missingOrDuplicateTitle);

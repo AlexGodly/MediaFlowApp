@@ -77,7 +77,7 @@ void main(){
       () async {
     await store.save(owner,queue());
     await expectLater(store.save(owner,queue(id:'newer')),throwsStateError);
-    await expectLater(store.save('other-user',queue()),throwsStateError);
+    expect(() => store.save('other-user',queue()),throwsStateError);
     expect((await store.load(owner))?.queueId,'batch-one');
   });
 
