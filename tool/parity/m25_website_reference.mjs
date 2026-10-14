@@ -49,7 +49,16 @@ function v348Ledger(){
   return S.xpLedger;
 }
 // VERBATIM v348Award
-function v348Award(kind,amount=1,details={}
+function v348Award(kind,amount=1,details={}){
+  if(!v348Enabled())return 0;
+  const quantity=Math.max(0,Math.round(Number(amount)||0));if(!quantity)return 0;
+  const xp=v348Multiply(quantity*v348Rate(kind));if(!xp)return 0;
+  const l=v348Ledger();const key=kind+':'+(typeof uid==='function'?uid():Date.now()+'_'+Math.random());
+  l.v348ActionEvents[key]=xp;
+  l.v348EventMeta[key]={kind,baseXP:quantity*v348Rate(kind),multiplier:v348Multiplier(),xp,timestamp:Date.now(),source:v348SourceLabel(kind),details:String(details?.description||'').slice(0,300),subjectId:String(details?.subjectId||''),quantity};
+  v334InvalidateXP();
+  return xp;
+}
 // VERBATIM v348SourceLabel
 function v348SourceLabel(kind){
   const labels={collectionAddTitleXP:'Collection · added titles',collectionReorderTitleXP:'Collection · reordered titles',orderAddTitleXP:'Personal Order · added titles',orderAddCollectionXP:'Personal Order · assigned Collection',orderReorderTitleXP:'Personal Order · reordered titles',orderReorderCollectionXP:'Personal Order · reordered Collections',batchLogXP:'Batch Log bonus',libraryAdditions:'Library · new title',libraryEdits:'Library · edited title',manualCovers:'Library · manual cover',ratings:'Rating reward',v334StartedTitles:'First title start',v335FirstEpisodeRewards:'First episode',v334CollectionCreates:'Collection created',v334CollectionEdits:'Collection edited',logCompletions:'Log completion bonus'};
