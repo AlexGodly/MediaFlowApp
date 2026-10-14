@@ -29,6 +29,8 @@ jobs:
         run: node tool/parity/m26_inventory_guard.mjs
       - name: Verify lossless v410 data contract and native write gates
         run: node tool/parity/m28_contract_guard.mjs
+      - name: Verify pinned v410 business rule sources
+        run: TZ=UTC node tool/parity/m29_website_reference.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
