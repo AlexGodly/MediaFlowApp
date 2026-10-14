@@ -134,11 +134,22 @@ void main() {
       catalog:catalog, anchor:anchor, isDisplayedAuthoritativeCloud:true),
       throwsStateError);
     workspace.discardAll();
-    workspace.observe(catalog);
-    workspace.stageLog(catalog:catalog,titleId:'v410-1',
+    // Standard logging is prohibited for titles with seasons by the
+    // existing v252 safety guard; use a separate no-season synthetic catalog
+    // to verify that even a valid logging draft cannot stage a cloud review.
+    final logCatalog = decodeMediaFlowState({
+      'categories': <Object>[], 'sessions': <Object>[],
+      'library': [
+        {'id':'v410-1','title':'Synthetic Series','categoryId':'anime',
+         'status':'active','priority':'high','progress':6,'total':24,
+         'rating':8.5,'seasons':<Object>[]},
+      ],
+    });
+    workspace.observe(logCatalog);
+    workspace.stageLog(catalog:logCatalog,titleId:'v410-1',
       amount:1,minutes:24,note:'Synthetic');
     await expectLater(workflow.stage(workspace:workspace,
-      catalog:catalog, anchor:anchor, isDisplayedAuthoritativeCloud:true),
+      catalog:logCatalog, anchor:anchor, isDisplayedAuthoritativeCloud:true),
       throwsStateError);
     expect(saves,0);
   });
