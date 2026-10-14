@@ -220,6 +220,78 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _changed();
   }
 
+  /// Milestone 38: one validated, undoable local-only metadata action.
+  /// No implicit progress/status side effects, write transport, or XP events.
+  /// All selected IDs and field values are checked before the first mutation.
+  void batchEdit(Iterable<String> ids, {
+    String? categoryId, String? status, String? priority,
+    List<String> addTags = const [],
+  }) {
+    _ensureValid();
+    final selected = ids.toSet();
+    if (selected.isEmpty || selected.length > 200) {
+      throw const FormatException('Choose 1–200 titles');
+    }
+    if (categoryId == null && status == null && priority == null &&
+        addTags.isEmpty) {
+      throw const FormatException('Choose at least one metadata change');
+    }
+    if (addTags.any((tag) => tag.trim().isEmpty ||
+        tag.trim().length > 100)) {
+      throw const FormatException('Invalid tag to add');
+    }
+    final pendingCreated = <String, NativeM37Fields>{};
+    final pendingUpdated = <String, NativeM37Fields>{};
+    final removeUnchanged = <String>{};
+    for (final id in selected) {
+      final local = _created[id];
+      final original = local == null ? _requireExisting(id) : null;
+      if (_deleted.contains(id)) {
+        throw StateError('Restore pending deletions before batch editing');
+      }
+      final before = local ?? _updated[id] ??
+          NativeM37Fields.fromTitle(original!);
+      final tags = List<String>.of(before.tags);
+      final knownTags = tags.map((tag) => tag.toLowerCase()).toSet();
+      for (final tag in addTags) {
+        final normalized = tag.trim();
+        if (knownTags.add(normalized.toLowerCase())) tags.add(normalized);
+      }
+      final after = NativeM37Fields(
+        title: before.title,
+        categoryId: categoryId ?? before.categoryId,
+        status: status ?? before.status,
+        priority: priority ?? before.priority,
+        progress: before.progress, total: before.total,
+        rating: before.rating, coverUrl: before.coverUrl,
+        description: before.description, tags: tags,
+      );
+      _validate(after, original: original);
+      if (after.sameAs(before)) continue;
+      if (local != null) {
+        pendingCreated[id] = after;
+      } else if (after.sameAs(NativeM37Fields.fromTitle(original!))) {
+        removeUnchanged.add(id);
+      } else {
+        pendingUpdated[id] = after;
+      }
+    }
+    if (pendingCreated.isEmpty && pendingUpdated.isEmpty &&
+        removeUnchanged.isEmpty) { return; }
+    final newChanges = pendingUpdated.keys.where(
+        (id) => !_updated.containsKey(id)).length;
+    if (changeCount + newChanges > 200) {
+      throw StateError('200 local changes maximum');
+    }
+    _checkpoint();
+    _created.addAll(pendingCreated);
+    _updated.addAll(pendingUpdated);
+    for (final id in removeUnchanged) {
+      _updated.remove(id);
+    }
+    _changed();
+  }
+
   void stageDelete(Iterable<String> ids) {
     _ensureValid();
     final selected = ids.toSet();

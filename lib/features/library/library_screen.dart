@@ -9,6 +9,7 @@ import '../../services/native_editing_workspace.dart';
 import 'native_editing_sheet.dart';
 import '../../services/native_m37_library_plan.dart';
 import 'native_m37_library_plan_ui.dart';
+import 'native_m38_title_details.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../design_system/mediaflow_components.dart';
 
@@ -438,6 +439,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 : () => setState(() => _selectedIds.clear()),
               icon: const Icon(Icons.deselect_outlined),
               label: const Text('Deselect')),
+            OutlinedButton.icon(
+              key: const Key('m38-bulk-metadata'),
+              onPressed: _selectedIds.isEmpty ? null : () {
+                final selected = _selectedIds.toList(growable: false);
+                showModalBottomSheet<void>(
+                  context: context, showDragHandle: true,
+                  isScrollControlled: true,
+                  builder: (_) => NativeM38BulkMetadataSheet(
+                    plan: plan, catalog: source, ids: selected),
+                );
+              },
+              icon: const Icon(Icons.edit_note_outlined),
+              label: Text('Batch edit metadata (${_selectedIds.length})')),
             FilledButton.icon(
               key: const Key('m37-bulk-delete'),
               onPressed: _selectedIds.isEmpty ? null
@@ -467,19 +481,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _openTitle(BuildContext context, MediaFlowTitle title,
       MediaFlowCategory? cat, MediaFlowCatalog catalog) {
-    final plan = widget.changePlan;
     if (_selecting) {
       setState(() {
         if (!_selectedIds.add(title.id)) { _selectedIds.remove(title.id); }
       });
       return;
     }
-    if (_previewChanges && plan != null && !plan.stale &&
-        plan.hasChanges) {
-      _openM37Form(plan.source!,titleId:title.id);
-    } else {
-      _details(context,title,cat,catalog);
-    }
+    _details(context, title, cat, catalog);
   }
 
   Future<void> _confirmBulkDelete(NativeM37LibraryPlan plan) async {
@@ -522,6 +530,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _details(BuildContext context, MediaFlowTitle title,
       MediaFlowCategory? cat, MediaFlowCatalog catalog) {
+    final plan = widget.changePlan;
+    if (plan != null) {
+      showModalBottomSheet<void>(
+        context: context, showDragHandle: true, isScrollControlled: true,
+        builder: (_) => NativeM38TitleDetails(
+          title: title, catalog: plan.source ?? catalog, plan: plan),
+      );
+      return;
+    }
     widget.workspace?.observe(catalog);
     showModalBottomSheet<void>(
       context: context,
