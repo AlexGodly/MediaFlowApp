@@ -34,16 +34,52 @@ DateTime? mediaFlowDate(Object? value) {
 }
 
 class MediaFlowSeason {
-  const MediaFlowSeason(this.name, this.progress, this.total);
-  final String name;
+  const MediaFlowSeason(this.name, this.progress, this.total, {
+    this.id = '', this.number, this.synthetic = false,
+  });
+  final String id, name;
   final double progress;
-  final double? total;
+  final double? total, number;
+  final bool synthetic;
   factory MediaFlowSeason.fromJson(Map<String, dynamic> json) =>
       MediaFlowSeason(
         mediaFlowText(json['name'] ?? json['number'], fallback: 'Season'),
         mediaFlowNumber(json['progress']) ?? 0,
         mediaFlowNumber(json['total']),
+        id: mediaFlowText(json['id'] ?? json['seasonId'] ?? json['season_id']),
+        number: mediaFlowNumber(json['number'] ?? json['seasonNumber']),
+        synthetic: json['synthetic'] == true,
       );
+}
+
+/// Read-only projection of a real v369 itemized History unit. This is a
+/// diagnostic only, NEVER a serialized cloud edit or a new History record.
+class MediaFlowLoggedUnit {
+  const MediaFlowLoggedUnit({
+    required this.id, required this.number, required this.seasonId,
+    required this.isRepeat, required this.durationSeconds,
+    required this.loggedAt,
+  });
+  final String id, seasonId;
+  final int number;
+  final bool isRepeat;
+  final int? durationSeconds;
+  final DateTime? loggedAt;
+
+  factory MediaFlowLoggedUnit.fromJson(Map<String, dynamic> raw) {
+    final secs = mediaFlowNumber(raw['durationSeconds']);
+    final fallbackMinutes = mediaFlowNumber(raw['minutes']);
+    return MediaFlowLoggedUnit(
+      id: mediaFlowText(raw['id']),
+      number: (mediaFlowNumber(raw['number']) ?? 0).floor(),
+      seasonId: mediaFlowText(raw['seasonId']),
+      isRepeat: raw['isRepeat'] == true,
+      durationSeconds: secs != null && secs.isFinite
+          ? secs.floor() : fallbackMinutes != null &&
+              fallbackMinutes.isFinite ? (fallbackMinutes * 60).round() : null,
+      loggedAt: mediaFlowDate(raw['loggedAt']),
+    );
+  }
 }
 
 /// Read-only native projection of the existing web application's entries.
@@ -179,11 +215,15 @@ class MediaFlowSessionTitle {
   const MediaFlowSessionTitle({
     required this.title, required this.libraryId, required this.quantity,
     required this.loggedAt,
+    this.units = const [],
+    this.repeat = false,
   });
   final String title;
   final String libraryId;
   final double quantity;
   final DateTime? loggedAt;
+  final bool repeat;
+  final List<MediaFlowLoggedUnit> units;
 
   factory MediaFlowSessionTitle.fromJson(Map<String, dynamic> data) =>
       MediaFlowSessionTitle(
@@ -191,6 +231,14 @@ class MediaFlowSessionTitle {
         libraryId: mediaFlowText(data['libraryId']),
         quantity: mediaFlowNumber(data['qty']) ?? 0,
         loggedAt: mediaFlowDate(data['loggedAt']),
+        repeat: data['repeat'] == true,
+        units: data['v369Units'] is List
+            ? (data['v369Units'] as List).whereType<Map>().map(
+                (item) => MediaFlowLoggedUnit.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              ).toList(growable: false)
+            : const [],
       );
 }
 
