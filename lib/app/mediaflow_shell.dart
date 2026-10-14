@@ -52,6 +52,13 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     unawaited(_restoreAppearance());
   }
 
+  @override
+  void dispose() {
+    final current = repository;
+    if (current is SupabaseMediaFlowLibraryRepository) current.dispose();
+    super.dispose();
+  }
+
   Future<void> _restoreAppearance() async {
     try {
       final stored = await preferences.loadAppearance(preferenceUserId);
@@ -127,11 +134,16 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         case MediaFlowSection.history:
           return HistoryScreen(repository: data);
         case MediaFlowSection.account:
-          return AccountScreen(client: widget.client!);
+          return AccountScreen(
+            client: widget.client!,
+            beforeSignOut: data is SupabaseMediaFlowLibraryRepository
+                ? data.prepareSignOut : null,
+          );
         case MediaFlowSection.settings:
           return NativeSettingsScreen(
             appearance: appearance,
             repository: data,
+            nativeRepository: data is SupabaseMediaFlowLibraryRepository ? data : null,
             onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
           );
         case MediaFlowSection.collections:
@@ -184,7 +196,37 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               ),
             ],
           ),
-          body: Row(children: [
+          body: Column(children: [
+            if (repository is SupabaseMediaFlowLibraryRepository)
+              ValueListenableBuilder<NativeSnapshotSource>(
+                valueListenable:
+                    (repository! as SupabaseMediaFlowLibraryRepository).source,
+                builder: (context, status, _) {
+                  if (status != NativeSnapshotSource.offline &&
+                      status != NativeSnapshotSource.recoveredPrevious) {
+                    return const SizedBox.shrink();
+                  }
+                  return Material(
+                    color: Theme.of(context).colorScheme.tertiaryContainer,
+                    child: Padding(
+                      key: const Key('offline-readonly-banner'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8,
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.cloud_off_outlined, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(child: Text(
+                          status == NativeSnapshotSource.recoveredPrevious
+                              ? 'Recovered older device copy — read-only. Refresh when online.'
+                              : 'Offline device copy — read-only and possibly outdated.',
+                        )),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            Expanded(child: Row(children: [
             if (desktop)
               SizedBox(
                 width: 236,
@@ -235,6 +277,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                 child: _page(context),
               ),
             ))),
+          ])),
           ]),
           bottomNavigationBar: desktop || tablet ? null : NavigationBar(
             height: narrow ? 70 : 80,
