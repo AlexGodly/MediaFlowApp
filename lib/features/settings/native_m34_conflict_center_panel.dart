@@ -206,15 +206,18 @@ class _NativeM34ConflictCenterPanelState
                           Text('Cloud: ${item.cloudPriority ?? "Unknown"}'),
                         ]),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<_ManualChoice>(
-                          key: Key('m34-choice-${item.operationId}'),
-                          initialValue: _choices[item.operationId] ??
-                              _ManualChoice.keep,
-                          isExpanded: true,
+                        InputDecorator(
                           decoration: const InputDecoration(
                             labelText: 'Manual decision (device only)',
                             border: OutlineInputBorder(), isDense: true,
                           ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<_ManualChoice>(
+                          key: Key('m34-choice-${item.operationId}'),
+                          value: _choices[item.operationId] ??
+                              _ManualChoice.keep,
+                          isExpanded: true,
+                          isDense: true,
                           items: [
                             const DropdownMenuItem(
                               value: _ManualChoice.keep,
@@ -235,6 +238,8 @@ class _NativeM34ConflictCenterPanelState
                               setState(() => _choices[item.operationId] = next);
                             }
                           },
+                            ),
+                          ),
                         ),
                       ],
                     ),
