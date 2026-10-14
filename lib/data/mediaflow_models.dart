@@ -36,11 +36,12 @@ DateTime? mediaFlowDate(Object? value) {
 class MediaFlowSeason {
   const MediaFlowSeason(this.name, this.progress, this.total, {
     this.id = '', this.number, this.synthetic = false,
+    this.source = '', this.manual = false,
   });
-  final String id, name;
+  final String id, name, source;
   final double progress;
   final double? total, number;
-  final bool synthetic;
+  final bool synthetic, manual;
   factory MediaFlowSeason.fromJson(Map<String, dynamic> json) =>
       MediaFlowSeason(
         mediaFlowText(json['name'] ?? json['number'], fallback: 'Season'),
@@ -49,6 +50,8 @@ class MediaFlowSeason {
         id: mediaFlowText(json['id'] ?? json['seasonId'] ?? json['season_id']),
         number: mediaFlowNumber(json['number'] ?? json['seasonNumber']),
         synthetic: json['synthetic'] == true,
+        source: mediaFlowText(json['source']),
+        manual: json['manual'] == true,
       );
 }
 
@@ -91,9 +94,14 @@ class MediaFlowTitle {
     required this.tags, required this.seasons, required this.addedAt,
     required this.description,
     this.completedAt,
+    this.externalIds = const {}, this.manualExternalIds = const {},
+    this.seasonSource = '',
   });
   final DateTime? completedAt;
   final String id, title, categoryId, status, priority, coverUrl, description;
+  final Map<String, String> externalIds;
+  final Map<String, String?> manualExternalIds;
+  final String seasonSource;
   final double progress;
   final double? total, rating;
   final List<String> tags;
@@ -125,10 +133,34 @@ class MediaFlowTitle {
       addedAt: mediaFlowDate(json['createdAt'] ?? json['addedAt'] ?? json['dateAdded']),
       description: mediaFlowText(json['description'] ?? json['synopsis']),
       completedAt: mediaFlowDate(json['completedAt']),
+      externalIds: _mediaFlowExternalIds(json['externalIds']),
+      manualExternalIds: _mediaFlowManualIds(json['v377ManualExternalIds']),
+      seasonSource: mediaFlowText(json['seasonSource']),
     );
   }
 }
 
+
+/// Only the explicitly known ID maps are projected. Unknown Library fields
+/// remain in MediaFlowFullState, which must not be rebuilt from these models.
+Map<String, String> _mediaFlowExternalIds(Object? raw) {
+  if (raw is! Map) return const {};
+  return Map.unmodifiable({
+    for (final e in raw.entries)
+      if (e.key is String && e.value != null &&
+          e.value.toString().trim().isNotEmpty)
+        e.key as String: e.value.toString(),
+  });
+}
+
+Map<String, String?> _mediaFlowManualIds(Object? raw) {
+  if (raw is! Map) return const {};
+  return Map.unmodifiable({
+    for (final e in raw.entries)
+      if (e.key is String)
+        e.key as String: e.value == null ? null : e.value.toString(),
+  });
+}
 
 /// Compact read-only v410 XP evidence, deliberately omitting individual
 /// ledger IDs, event metadata, and all account/cloud writable state.
