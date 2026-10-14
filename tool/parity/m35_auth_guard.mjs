@@ -18,7 +18,7 @@ assert(rules.includes('Password recovery is already in progress.'));
 for(const method of ['signInWithPassword','signUp(','resetPasswordForEmail']){
   assert(service.includes(method));
 }
-assert(!/\.upsert\(|\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(repository)));
+assert(!/\.upsert\(|\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(repository));
 for(const flag of ['cloudWritesEnabled = false',
   'hasServerSideCas = false','offlineWriteQueueEnabled = false']){
   assert(flags.includes(flag),'Cloud write safety changed '+flag);
