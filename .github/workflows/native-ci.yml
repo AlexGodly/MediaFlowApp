@@ -21,13 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Verify pinned website JavaScript parity fixtures
-        run: node tool/parity/m23_website_reference.mjs
+        run: |
+          TZ=UTC node tool/parity/m23_website_reference.mjs
+          TZ=UTC node tool/parity/m24_website_reference.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
       - name: Generate native platform templates on CI host
-        run: flutter create --project-name mediaflow_app --platforms=android,ios,windows .
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android,ios,windows .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Validate Android, iOS, Windows MediaFlow identity and icons
+        run: python tool/branding/apply_branding.py --platforms=android,ios,windows
       - name: Resolve Flutter dependencies
         run: flutter pub get
       - name: Analyze Dart source
