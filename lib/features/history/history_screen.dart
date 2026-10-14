@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'history_filter.dart';
+import 'history_index.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, required this.repository});
@@ -16,6 +17,8 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<MediaFlowCatalog> _future;
+  MediaFlowCatalog? _indexedCatalog;
+  MediaFlowHistoryIndex? _historyIndex;
   final search = TextEditingController();
   Timer? debounce;
   String query = '', categoryId = '', status = '';
@@ -54,9 +57,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ]));
       }
       final catalog = data.requireData;
-      final items = MediaFlowHistoryFilter(
+      if (!identical(_indexedCatalog, catalog) || _historyIndex == null) {
+        _indexedCatalog = catalog;
+        _historyIndex = MediaFlowHistoryIndex(catalog.sessions);
+      }
+      final items = _historyIndex!.query(MediaFlowHistoryFilter(
         categoryId: categoryId, status: status, search: query, range: range,
-      ).apply(catalog.sessions);
+      ));
       final pages = items.isEmpty ? 1 : (items.length + pageSize - 1) ~/ pageSize;
       final current = page.clamp(0, pages - 1);
       final start = current * pageSize;
