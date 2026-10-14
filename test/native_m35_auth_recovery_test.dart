@@ -30,7 +30,7 @@ void main() {
     final flow=NativeM35PasswordRecovery(
       expectedOwnerId:'alice',
       currentOwnerId:()=>'bob',
-      updatePassword:(_) async => calls++,
+      updatePassword:(_) async { calls++; },
     );
     await expectLater(flow.complete('abcdef','abcdef'),throwsStateError);
     expect(calls,0);
@@ -41,7 +41,7 @@ void main() {
     final flow=NativeM35PasswordRecovery(
       expectedOwnerId:'alice',
       currentOwnerId:()=>'alice',
-      updatePassword:(_) async => calls++,
+      updatePassword:(_) async { calls++; },
     );
     await expectLater(flow.complete('abc','abc'),throwsFormatException);
     await expectLater(flow.complete('abcabc','wrong!'),throwsFormatException);
