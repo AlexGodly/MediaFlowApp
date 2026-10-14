@@ -181,6 +181,11 @@ void main() {
     ), throwsFormatException);
     // Defend staged batch immutability from caller-mutable JSON maps.
     expect(staged.entries.single.proposal.accountId, owner);
+    final detached = staged.toJson();
+    final first = (detached['operations'] as List).first as Map;
+    final proposal = first['proposal'] as Map;
+    (proposal['payload'] as Map)['value'] = 'low';
+    expect(staged.entries.single.proposal.payload['value'], 'high');
     expect(staged.toJson()['ownerId'], owner);
   });
 
