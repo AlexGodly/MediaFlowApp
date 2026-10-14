@@ -8,6 +8,7 @@ import 'history_filter.dart';
 import 'history_index.dart';
 import 'history_xp_summary.dart';
 import '../../services/native_history_xp_parity.dart';
+import '../../services/native_xp_ledger_and_clock_parity.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, required this.repository});
@@ -308,8 +309,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 const SizedBox(height: 12),
                 Text('Logged titles', style: Theme.of(context).textTheme.titleMedium),
                 for (final entry in session.titles)
-                  ListTile(title: Text(entry.title),
-                    trailing: Text('×${_number(entry.quantity)}')),
+                  ListTile(
+                    title: Text(entry.title),
+                    subtitle: Text(
+                      'Event time: ${NativeHistoryEventClock.eventDateForRow(
+                        session: session, titleRow: entry, now: DateTime.now(),
+                      ).toLocal().toString().substring(0, 16)}'
+                      ' · Read-only',
+                    ),
+                    trailing: Text('×${_number(entry.quantity)}'),
+                  ),
               ],
               const SizedBox(height: 16),
               const Text('Read-only: native History editing is not enabled yet.'),
