@@ -6,6 +6,7 @@ import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import '../library/native_editing_sheet.dart';
+import 'native_itemized_draft_sheet.dart';
 
 /// Multi-title selection workspace. It is intentionally a read-only
 /// preview: selections never create sessions, XP, cloud writes, or drafts.
@@ -153,7 +154,25 @@ class _LoggingScreenState extends State<LoggingScreen> {
                 icon: const Icon(Icons.playlist_add_outlined),
                 label: const Text('Draft logging locally'),
               ),
-              if (widget.workspace!.logDraft(title.id) != null)
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: widget.workspace!.stale ? null : () {
+                  Navigator.pop(sheet);
+                  showModalBottomSheet<void>(
+                    context: context,
+                    showDragHandle: true,
+                    isScrollControlled: true,
+                    builder: (_) => NativeItemizedDraftSheet(
+                      catalog: catalog, title: title,
+                      workspace: widget.workspace!,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.format_list_numbered),
+                label: const Text('Draft itemized / season units'),
+              ),
+              if (widget.workspace!.logDraft(title.id) != null ||
+                  widget.workspace!.itemizedDraft(title.id) != null)
                 const Text('Local logging draft exists. See Settings.'),
               if (widget.workspace!.stale)
                 const Text('Snapshot changed. Discard stale drafts in Settings.'),

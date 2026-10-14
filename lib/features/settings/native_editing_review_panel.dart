@@ -100,6 +100,27 @@ class NativeEditingReviewPanel extends StatelessWidget {
                   icon: const Icon(Icons.close),
                 ),
               ),
+            for (final entry in workspace.itemizedDrafts)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.format_list_numbered),
+                title: Text('Itemized · ' + entry.seasonName),
+                subtitle: Text(
+                  entry.unitNumbers.join(', ') +
+                  ' · season progress ' +
+                  entry.beforeSeasonProgress.toString() +
+                  ' → ' + entry.afterSeasonProgress.toString() +
+                  ' · title progress ' +
+                  entry.afterTitleProgress.toString() +
+                  (entry.repeat ? ' · repeat' : '') +
+                  ' · History/XP submitted: 0',
+                ),
+                trailing: IconButton(
+                  tooltip: 'Discard itemized draft',
+                  onPressed: () => workspace.discardItemizedLog(entry.titleId),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: workspace.hasDrafts

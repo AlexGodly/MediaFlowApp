@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/mediaflow_models.dart';
 import 'native_logging_parity_preview.dart';
+import 'native_itemized_parity.dart';
 
 /// M20 account-scoped, RAM-only edit sketches. These are deliberately NOT the
 /// M19 cloud pending-review protocol and never become Supabase state_data.
@@ -16,17 +17,22 @@ class NativeEditingWorkspace extends ChangeNotifier {
   bool _stale = false;
   final Map<String, NativeTitleIntent> _titles = {};
   final Map<String, NativeLogIntent> _logs = {};
+  final Map<String, NativeItemizedPreview> _itemized = {};
 
   bool get stale => _stale;
   int get titleCount => _titles.length;
-  int get logCount => _logs.length;
-  bool get hasDrafts => _titles.isNotEmpty || _logs.isNotEmpty;
-  int get pendingHistoryEntries => _logs.length;
+  int get logCount => _logs.length + _itemized.length;
+  int get itemizedCount => _itemized.length;
+  bool get hasDrafts => _titles.isNotEmpty || _logs.isNotEmpty ||
+      _itemized.isNotEmpty;
+  int get pendingHistoryEntries => _logs.length + _itemized.length;
   double get xpAwarded => 0; // No History or XP mutations before parity.
   List<NativeTitleIntent> get titleDrafts =>
       List.unmodifiable(_titles.values);
   List<NativeLogIntent> get logDrafts =>
       List.unmodifiable(_logs.values);
+  List<NativeItemizedPreview> get itemizedDrafts =>
+      List.unmodifiable(_itemized.values);
 
   /// A new cloud/cached catalog invalidates old sketches rather than silently
   /// rebasing edits across revisions. User can inspect then discard manually.
@@ -58,6 +64,7 @@ class NativeEditingWorkspace extends ChangeNotifier {
 
   NativeTitleIntent? titleDraft(String id) => _titles[id];
   NativeLogIntent? logDraft(String id) => _logs[id];
+  NativeItemizedPreview? itemizedDraft(String id) => _itemized[id];
 
   void stageTitle({
     required MediaFlowCatalog catalog,
@@ -84,6 +91,11 @@ class NativeEditingWorkspace extends ChangeNotifier {
     if (original.seasons.isNotEmpty && progress != original.progress) {
       throw const FormatException(
         'Season-based progress requires per-season editing parity',
+      );
+    }
+    if (_itemized.containsKey(titleId)) {
+      throw const FormatException(
+        'Discard itemized draft before editing this title',
       );
     }
     final existingLog = _logs[titleId];
@@ -123,6 +135,9 @@ class NativeEditingWorkspace extends ChangeNotifier {
   }) {
     _requireFresh(catalog);
     final original = _find(catalog, titleId);
+    if (_itemized.containsKey(titleId)) {
+      throw const FormatException('Discard itemized draft first');
+    }
     if (note.length > 2000) {
       throw const FormatException('Log note exceeds 2,000 characters');
     }
@@ -185,6 +200,33 @@ class NativeEditingWorkspace extends ChangeNotifier {
     notifyListeners();
   }
 
+  void stageItemizedLog({
+    required MediaFlowCatalog catalog,
+    required String titleId,
+    required String seasonId,
+    required List<int> numbers,
+    required int secondsPerUnit,
+    bool repeat = false,
+  }) {
+    _requireFresh(catalog);
+    if (_logs.containsKey(titleId) || _titles.containsKey(titleId)) {
+      throw const FormatException(
+        'Discard title/standard logging drafts before itemized logging',
+      );
+    }
+    final original = _find(catalog, titleId);
+    final preview = NativeItemizedParity.calculate(
+      title: original, sessions: catalog.sessions, seasonId: seasonId,
+      numbers: numbers, secondsPerUnit: secondsPerUnit, repeat: repeat,
+    );
+    _itemized[titleId] = preview;
+    notifyListeners();
+  }
+
+  void discardItemizedLog(String id) {
+    if (_itemized.remove(id) != null) notifyListeners();
+  }
+
   void discardTitle(String id) {
     if (_titles.remove(id) != null) {
       if (_logs.containsKey(id)) _logs.remove(id);
@@ -199,6 +241,7 @@ class NativeEditingWorkspace extends ChangeNotifier {
   void discardAll() {
     _titles.clear();
     _logs.clear();
+    _itemized.clear();
     _base = null;
     _stale = false;
     notifyListeners();
