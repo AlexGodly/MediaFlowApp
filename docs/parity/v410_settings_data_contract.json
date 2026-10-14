@@ -1,0 +1,570 @@
+{
+  "schemaVersion": 1,
+  "baseline": "MediaFlow v410",
+  "contractStatus": "SOURCE_INVENTORY_NOT_PRODUCTION_WRITE_SPEC",
+  "sourcePins": [
+    {
+      "path": "src/js/build-order.json",
+      "gitBlobSha": "248a32a03edc528df0d202298ef7baa4d7c24409"
+    },
+    {
+      "path": "src/js/runtime-order.json",
+      "gitBlobSha": "8acf45239ac1977d7cf6b524ff804806e96a0ebe"
+    },
+    {
+      "path": "src/js/core/constants/001-constants.js",
+      "gitBlobSha": "832f968b627b24ea1ee4f56465d90b3d4f7ade4c"
+    },
+    {
+      "path": "src/js/core/state/002-state.js",
+      "gitBlobSha": "042e40d78e79c4746b6e5385e41ac61c4d1b73bd"
+    },
+    {
+      "path": "src/js/components/263-v365-settings-center.js",
+      "gitBlobSha": "2fb8dd8781688f6f235ba69f47f8ca216022047c"
+    },
+    {
+      "path": "legacy/v/410/index.html",
+      "gitBlobSha": "6963b42d506ef32fc806b4784e75d652f997afe1"
+    },
+    {
+      "path": "legacy/v/410/README.md",
+      "gitBlobSha": "4f7dd2621ff49667e1783487755c226633358bad"
+    }
+  ],
+  "settingsCenterSections": [
+    "appearance",
+    "library",
+    "categories",
+    "personal-order",
+    "collections",
+    "dashboard",
+    "progression",
+    "cloud",
+    "account",
+    "app"
+  ],
+  "defaultSettings": [
+    {
+      "key": "v405ShowFloatingAdd",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v405ShowFloatingTaskProgress",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "dailyMinutes",
+      "group": "dashboard",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "tasksPerDay",
+      "group": "dashboard",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "intensity",
+      "group": "dashboard",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "neglectRate",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "neglectCap",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "repetitionPenalty",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "consecutivePenalty",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "saturationWeight",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalBonus",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "randomness",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshCount",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshAuto",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshSyncMinutes",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshLastSyncAt",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshLastProvider",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshLastMatched",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "seasonalFreshLastEpisodeTotal",
+      "group": "scheduler",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "exactTitleRecommendations",
+      "group": "dashboard",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "prioritizePersonalOrder",
+      "group": "dashboard",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "customCategoryIcons",
+      "group": "categories",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "customCategoryColors",
+      "group": "categories",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "highlightDefaultCategories",
+      "group": "categories",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "mediaServicesImportInterface",
+      "group": "data",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v175PageSizes",
+      "group": "library",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "historyPageSize",
+      "group": "history",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v177CoverSizes",
+      "group": "library",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v179LoggingModes",
+      "group": "logging",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v181Logging",
+      "group": "logging",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v181Library",
+      "group": "library",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "v181CoverSizes",
+      "group": "library",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "dynamicCoverTheme",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "theme",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "globalAppearanceEnabled",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "appearanceMode",
+      "group": "appearance",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "backup",
+      "group": "data",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    },
+    {
+      "key": "leveling",
+      "group": "progression",
+      "source": "src/js/core/constants/001-constants.js",
+      "nativeReadParityVerified": false,
+      "nativeWriteParityVerified": false
+    }
+  ],
+  "additionalVersionedSettings": [
+    {
+      "key": "v230ChoiceLayout",
+      "state": "seen_or_expected_in_versioned_source; requires runtime inclusion and storage audit",
+      "nativeParityVerified": false
+    },
+    {
+      "key": "v365SettingsCenter",
+      "state": "seen_or_expected_in_versioned_source; requires runtime inclusion and storage audit",
+      "nativeParityVerified": false
+    }
+  ],
+  "stateRoots": [
+    {
+      "key": "categories",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "categoryOrder",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "library",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "sessions",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "settings",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "currentTask",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "profilePicture",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "stopwatch",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "malLink",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "xpLedger",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "completionTimeline",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "orderPlan",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "activityLog",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "collections",
+      "kind": "persistent_candidate",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "view",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "loading",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "modal",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "logging",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "logDraft",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "entryDraft",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "batchDraft",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "histFilters",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "histPage",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "histPageSize",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "showReasonDetail",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "profileReturnView",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "offlineMode",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "statsRecapMonth",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "statsHeatmapYear",
+      "kind": "UI_or_device_transient",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    },
+    {
+      "key": "sessionActive",
+      "kind": "unverified",
+      "cloudStoredVerified": false,
+      "notes": "Website source has state references; storage/restore contract must be checked against latest v410 serialized full-state and backup schemas before enabling writes."
+    }
+  ],
+  "sourceEvidence": {
+    "state": [
+      "src/js/core/state/002-state.js",
+      "src/js/core/constants/001-constants.js"
+    ],
+    "settingsCenter": [
+      "src/js/components/263-v365-settings-center.js"
+    ],
+    "cloud": [
+      "src/js/services/cloud-sync/004-v115-cloud-data-loss-prevention-recovery-guard.js"
+    ],
+    "backup": [
+      "src/js/features/backup/053-v148-complete-data-backup-audit-full-restore.js"
+    ],
+    "library": [
+      "src/js/components/186-v252-seasons-view.js"
+    ],
+    "xp": [
+      "src/js/components/245-v348-universal-streak-action-xp.js"
+    ]
+  },
+  "syncRequirements": {
+    "singleAuthoritativeAccountState": true,
+    "nativeWebEditsEnabled": false,
+    "atomicCompareAndSwapForAllWritersDeployed": false,
+    "websiteWriteCompatibilityVerified": false,
+    "ownerScopedRlsRequired": true,
+    "idempotencyAndCrashRecoveryRequired": true,
+    "noUnknownFieldLossRequired": true,
+    "source": "docs/MILESTONE_19.md",
+    "note": "Cloud writes intentionally disabled. No SQL/schema migration or service secrets included in this audit."
+  },
+  "backupAndImportContracts": {
+    "fullBackupSchemas": [
+      "legacy backup v29 (historical; verify v410 latest)"
+    ],
+    "automaticBackupVariants": [
+      "Automatic Backup",
+      "Automatic Backup 2"
+    ],
+    "formatsToVerify": [
+      "JSON",
+      "CSV",
+      "XML",
+      "MAL file",
+      "SIMKL file",
+      "media-service file",
+      "Settings Preset"
+    ],
+    "cancelledLiveTracking": [
+      "MAL live tracking",
+      "SIMKL live tracking"
+    ],
+    "note": "MAL/SIMKL file import ≠ cancelled account tracking; verify exactly what the v410 build supports before marking an import format working."
+  },
+  "completionConditions": [
+    "Every persisted root and nested settings key has source evidence, native roundtrip test and unknown-field preservation test",
+    "Lossless v410 backup/export/import/restore verified on small and large fixture datasets",
+    "Native, web and Supabase compatible server-enforced atomic revision protocol rolled out for all writers before production native writes",
+    "Completion/XP/History side effects covered by original web comparison and idempotency tests"
+  ]
+}
