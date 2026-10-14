@@ -129,8 +129,10 @@ abstract final class NativeLoggingParityPreview {
             (title.total ?? 0) > 0 && title.status != 'dropped'
           ? 'completed'
           : title.status == 'planned' ? 'active' : title.status;
-    final stamp = date ?? DateTime.now().toUtc();
-    final day = dateKey(stamp);
+    final stamp = date ?? DateTime.now();
+    // Original website's todayISO is a device-local calendar day, unlike
+    // v149's timestamp fallback, which uses UTC.
+    final day = localDateKey(stamp);
     final streak = prospectiveStreak(existingSessions, day);
     return NativeLoggingPreview(
       mode: mode,
@@ -175,9 +177,16 @@ abstract final class NativeLoggingParityPreview {
         d.day.toString().padLeft(2, '0');
   }
 
+  static String localDateKey(DateTime value) {
+    final d = value;
+    return d.year.toString().padLeft(4, '0') + '-' +
+        d.month.toString().padLeft(2, '0') + '-' +
+        d.day.toString().padLeft(2, '0');
+  }
+
   static bool _isValidDateKey(String key) {
     if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(key)) return false;
-    final parsed = DateTime.tryParse(key);
+    final parsed = DateTime.tryParse(key + 'T12:00:00Z');
     return parsed != null && dateKey(parsed) == key;
   }
 
