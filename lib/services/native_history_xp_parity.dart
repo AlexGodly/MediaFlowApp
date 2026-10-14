@@ -117,12 +117,13 @@ abstract final class NativeHistoryXpParity {
     Iterable<MediaFlowSession> rows, {
     Iterable<MediaFlowTitle> library = const [],
     bool levelingEnabled = true,
+    Map<String, int>? precomputedStreakDays,
   }) {
     final source = rows is List<MediaFlowSession> ? rows : rows.toList();
     final groups = <String>{};
     var unknown = 0, skipped = 0, ambiguous = 0;
     var baseSum = 0.0, bonusSum = 0.0;
-    final days = streakMap(source);
+    final days = precomputedStreakDays ?? streakMap(source);
     for (final row in source) {
       if (row.sessionGroupId.isNotEmpty && row.batchGroupId.isNotEmpty) {
         ambiguous++;
