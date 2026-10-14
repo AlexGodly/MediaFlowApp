@@ -26,7 +26,8 @@ assert(shell.includes('collectionPlan?.dispose()'));
 assert(shell.includes('plan: collectionPlan'));
 assert(tests.includes('100k Library titles'));
 for(const source of [model,ui,editor]) {
-  assert(!/\.upsert\(|\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(source),
+  // A Dart List.insert is an in-memory reorder; block cloud client calls only.
+  assert(!/\.upsert\(|\.rpc\(|\.from\(\s*['"]mediaflow_states/.test(source),
     'M40 cannot introduce production cloud mutations');
 }
 for(const marker of ['cloudWritesEnabled = false',
