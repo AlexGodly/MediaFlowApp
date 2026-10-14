@@ -176,9 +176,9 @@ void main() {
       NativeM30Result.legacyWriteBlocked);
     expect(store.readForTest(signedInOwnerId:'account-a',
       ownerId:'account-a')!.wireDigest,base.wireDigest);
-    expect(store.commitForTest(signedInOwnerId:'account-a',
+    expect(() => store.commitForTest(signedInOwnerId:'account-a',
       intent:edit(base,id:'unsupported',priority:'completed'),
-      clientKind:'android'),throwsA(isA<FormatException>()));
+      clientKind:'android'),throwsFormatException);
   });
 
   test('validate payload and never invent missing/duplicated title records', () {
