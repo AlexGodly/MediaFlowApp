@@ -225,7 +225,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 label:const Text('Discard entire local plan')),
             ],
           )),
-      ))),
+      )),
     );
   }
 
@@ -486,7 +486,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     tooltip:'Move member later',
                     onPressed:widget.plan!.stale || memberQuery.isNotEmpty ||
                         memberStatus.isNotEmpty || memberSort != 'saved' ||
-                        order.indexOf(item.id) < 0 ||
+                        !order.contains(item.id) ||
                         order.indexOf(item.id) >= order.length-1 ? null :
                       ()=>_move(collectionId,item.id,order.indexOf(item.id)+1),
                     icon:const Icon(Icons.arrow_downward,size:19)),
