@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import '../data/mediaflow_models.dart';
 
 /// v120 original logged-completion ledger behavior, run on a DEFENSIVE COPY
