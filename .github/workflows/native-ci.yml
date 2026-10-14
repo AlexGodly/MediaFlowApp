@@ -39,6 +39,8 @@ jobs:
         run: node tool/parity/m32_review_safety_guard.mjs
       - name: Guard M33 encrypted offline drafts against cloud replay
         run: node tool/parity/m33_offline_queue_guard.mjs
+      - name: Guard M34 per-title review and disabled cloud writes
+        run: node tool/parity/m34_conflict_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

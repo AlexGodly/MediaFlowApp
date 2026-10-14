@@ -70,6 +70,7 @@ class NativeM33DraftStore {
     String owner,
     NativeM33OfflineDraftQueue queue, {
     String? explicitlyReplacingQueueId,
+    bool forgetPreviousOnReplace = false,
   }) {
     if (owner.isEmpty || owner != queue.ownerId) {
       throw StateError('Foreign offline draft queue');
@@ -144,11 +145,22 @@ class NativeM33DraftStore {
           await primary.rename(previous.path);
         }
         await pending.rename(primary.path);
+        // A targeted discard must not preserve deleted draft entries in
+        // the usual rollback generation after successful replacement.
+        if (forgetPreviousOnReplace && await previous.exists()) {
+          await previous.delete();
+        }
       } finally {
         if (await pending.exists()) await pending.delete();
       }
     });
   }
+
+  /// M34 intentionally prunes backup generation on successful local rewrite.
+  Future<void> replaceForResolution(
+    String owner, NativeM33OfflineDraftQueue queue, String oldQueueId,
+  ) => save(owner, queue, explicitlyReplacingQueueId: oldQueueId,
+      forgetPreviousOnReplace: true);
 
   Future<NativeM33OfflineDraftQueue?> _read(
     File file, String hash, Uint8List key, String owner,
