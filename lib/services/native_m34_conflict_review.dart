@@ -38,7 +38,7 @@ class NativeM34ReviewReport {
     required this.ownerId,
     required this.queueId,
     required this.queueDigest,
-    required this.items,
+    required List<NativeM34ConflictItem> items,
     required this.message,
     this.cloudUpdatedAt,
     this.cloudDigest,

@@ -12,6 +12,7 @@ import '../services/native_priority_review_coordinator.dart';
 import '../services/native_m33_offline_queue.dart';
 import '../services/native_m33_draft_store.dart';
 import '../services/native_m33_draft_coordinator.dart';
+import '../services/native_m34_conflict_review.dart';
 import '../services/native_cas_protocol.dart';
 import '../services/native_sync_review.dart';
 import '../services/native_snapshot_codec.dart';
@@ -87,6 +88,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         readStored: _offlineDraftStore.load,
         writeStored: _offlineDraftStore.save,
         deleteStored: _offlineDraftStore.clear,
+        replaceStored: _offlineDraftStore.replaceForResolution,
         fetchFreshCloudRow: _readFreshForPriorityReview,
       );
   NativeEditingWorkspace? _editingWorkspace;
@@ -226,6 +228,20 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
 
   Future<NativeM33CheckResult> inspectOfflineDraftQueue() => _m33.inspect();
   Future<void> discardOfflineDraftQueue() => _m33.discard();
+
+  /// M34: manual per-title conflict comparison and LOCAL choices only.
+  Future<NativeM34ReviewReport?> reviewOfflineDraftConflicts() =>
+      _m33.inspectDetailed();
+
+  Future<NativeM33OfflineDraftQueue?> resolveOfflineDraftConflicts({
+    required NativeM34ReviewReport reviewed,
+    required Set<String> discardOperationIds,
+    required Set<String> recreateOperationIds,
+  }) => _m33.resolveDetailed(
+    reviewed: reviewed,
+    discardOperationIds: discardOperationIds,
+    recreateOperationIds: recreateOperationIds,
+  );
 
   Future<void> clearOfflineCache() => _readCoordinator.clearDeviceCopy();
 
