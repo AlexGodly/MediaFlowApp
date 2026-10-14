@@ -233,7 +233,9 @@ void main() {
     expect(p.edits,1);
     expect(p.fieldsFor('collection-1').titleIds.last,'title-2');
     expect(src.collections.single.titleIds.length,2);
-    await tester.pageBack();
+    // ModalBottomSheet has no Cupertino navigation back button. Dismiss its
+    // scrim as a user would, without depending on the platform toolbar.
+    await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('m40-preview')));
     await tester.pumpAndSettle();
