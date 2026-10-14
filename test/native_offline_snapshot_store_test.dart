@@ -174,12 +174,16 @@ void main() {
       switch (change) {
         case 'ownerHash':
           altered[change] = ownerHash('account-b');
+          break;
         case 'savedAt':
           altered[change] = '2020-01-01T00:00:00.000Z';
+          break;
         case 'mac':
           altered[change] = base64Encode(List<int>.filled(16, 0));
+          break;
         case 'nonce':
           altered[change] = base64Encode(List<int>.filled(12, 0));
+          break;
       }
       await file.writeAsString(jsonEncode(altered), flush: true);
       expect(await store.load('account-a'), isNull, reason: change);
