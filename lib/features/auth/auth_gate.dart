@@ -14,7 +14,7 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         if (auth.user != null) {
           return MediaFlowShell(
-            key: ValueKey('mediaflow-user-' + auth.user!.id),
+            key: ValueKey('mediaflow-user-${auth.user!.id}'),
             client: auth.client,
           );
         }
