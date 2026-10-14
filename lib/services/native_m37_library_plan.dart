@@ -473,6 +473,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       categories: source.categories, library: List.unmodifiable(projected),
       sessions: source.sessions, collections: source.collections,
       personalOrderIds: source.personalOrderIds,
+      collectionAssignments: source.collectionAssignments,
       currentTask: source.currentTask, sessionActive: source.sessionActive,
       tasksPerDay: source.tasksPerDay, dailyMinutes: source.dailyMinutes,
       xpEvidence: source.xpEvidence, updatedAt: source.updatedAt,

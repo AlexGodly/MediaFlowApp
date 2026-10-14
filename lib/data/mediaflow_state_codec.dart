@@ -68,6 +68,12 @@ MediaFlowCatalog decodeMediaFlowState(
       : const <String, dynamic>{};
   return MediaFlowCatalog(
     personalOrderIds: (rawOrderIds as List? ?? const []).map((id) => id.toString()).toSet().toList(growable: false),
+    collectionAssignments: (orderPlan['collectionAssignments'] is List
+      ? orderPlan['collectionAssignments'] as List : const [])
+        .whereType<Map>()
+        .map((item) => MediaFlowCollectionAssignment.fromJson(
+          Map<String,dynamic>.from(item)))
+        .toList(growable:false),
     collections: (rawCollections as List? ?? const [])
         .whereType<Map>()
         .map((item) => MediaFlowCollection.fromJson(Map<String, dynamic>.from(item)))
