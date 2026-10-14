@@ -45,6 +45,8 @@ jobs:
         run: node tool/parity/m35_auth_guard.mjs
       - name: Guard M36 Dashboard utilities and disabled account writes
         run: node tool/parity/m36_dashboard_tools_guard.mjs
+      - name: Guard M37 local Library CRUD against cloud writes
+        run: node tool/parity/m37_library_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
