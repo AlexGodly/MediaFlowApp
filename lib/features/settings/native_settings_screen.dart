@@ -79,7 +79,7 @@ class NativeSettingsScreen extends StatelessWidget {
         const Text('Local title and logging drafts are available, but '
             'saving them to cloud, awarding XP and updating History, '
             'automatic offline synchronization, imports and backup '
-            'restoration are not enabled yet. 
+            'restoration are not enabled yet. '
             'The original MediaFlow website remains authoritative.'),
       ]),
     )),
