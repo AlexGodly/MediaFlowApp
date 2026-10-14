@@ -6,6 +6,7 @@ import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'history_filter.dart';
 import 'history_index.dart';
+import 'history_xp_summary.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, required this.repository});
@@ -64,6 +65,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final items = _historyIndex!.query(MediaFlowHistoryFilter(
         categoryId: categoryId, status: status, search: query, range: range,
       ));
+      final xpSummary = HistoryXpSummary.fromSessions(items);
       final pages = items.isEmpty ? 1 : (items.length + pageSize - 1) ~/ pageSize;
       final current = page.clamp(0, pages - 1);
       final start = current * pageSize;
@@ -124,6 +126,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
           const SizedBox(height: 12),
           Text('Showing ${items.isEmpty ? 0 : start + 1}–${start + visible.length}'
               ' of ${items.length} sessions', style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 8),
+          Card(child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(spacing: 18, runSpacing: 4, children: [
+                  Text('Stored session XP: ${_number(xpSummary.storedSessionXp)}',
+                      key: const Key('history-stored-xp')),
+                  Text('Logged: ${_number(xpSummary.loggedMinutes)} min'),
+                  Text('${xpSummary.sessionsWithStoredXp} sessions with XP'),
+                ]),
+                const SizedBox(height: 4),
+                Text(
+                  'Filtered History totals only — not your account XP, '
+                  'level, or a new reward.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          )),
           const SizedBox(height: 8),
           Expanded(child: visible.isEmpty
             ? Center(child: Text(catalog.sessions.isEmpty
