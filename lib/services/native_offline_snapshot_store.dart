@@ -111,8 +111,9 @@ class NativeOfflineSnapshotStore {
       await _purgeLegacy(hash);
       var key = await _keys.read(hash);
       if (key == null) {
+        final random = Random.secure();
         key = Uint8List.fromList(List<int>.generate(
-          keyLength, (_) => Random.secure().nextInt(256),
+          keyLength, (_) => random.nextInt(256),
         ));
         await _keys.write(hash, key);
         final verified = await _keys.read(hash);
@@ -125,8 +126,9 @@ class NativeOfflineSnapshotStore {
       }
 
       final savedAt = DateTime.now().toUtc().toIso8601String();
+      final random = Random.secure();
       final nonce = Uint8List.fromList(List<int>.generate(
-        nonceLength, (_) => Random.secure().nextInt(256),
+        nonceLength, (_) => random.nextInt(256),
       ));
       final envelope = await compute(
         _sealProjection,
