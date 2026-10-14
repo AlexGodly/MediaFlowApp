@@ -20,7 +20,7 @@ for(const mark of ['STOPWATCH','RUNTIME CALCULATOR','RATE YOUR LIBRARY',
 assert(dashboard.includes('NativeM36DashboardToolsPanel('));
 assert(shell.includes('dashboardTools.dispose()'));
 assert(shell.includes('dashboardTools: dashboardTools'));
-assert(!/\.upsert\(|\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(repository)));
+assert(!/\.upsert\(|\.insert\(|\.update\(|\.delete\(|\.rpc\(/.test(repository));
 for(const mark of ['cloudWritesEnabled = false',
   'hasServerSideCas = false','offlineWriteQueueEnabled = false']){
   assert(flags.includes(mark),'Production write gate changed');
