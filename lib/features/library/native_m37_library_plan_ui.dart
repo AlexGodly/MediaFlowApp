@@ -70,6 +70,14 @@ class _NativeM37TitleFormState extends State<NativeM37TitleForm> {
         description: description.text.trim(),
         tags: tags.text.trim().isEmpty ? const [] : tags.text
           .split(',').map((e)=>e.trim()).toList(),
+        seasons: widget.titleId == null ? const [] :
+          widget.plan.fieldsFor(widget.titleId!).seasons,
+        externalIds: widget.titleId == null ? const {} :
+          widget.plan.fieldsFor(widget.titleId!).externalIds,
+        manualExternalIds: widget.titleId == null ? const {} :
+          widget.plan.fieldsFor(widget.titleId!).manualExternalIds,
+        seasonSource: widget.titleId == null ? '' :
+          widget.plan.fieldsFor(widget.titleId!).seasonSource,
       );
       if (widget.titleId == null) {
         widget.plan.create(next);
