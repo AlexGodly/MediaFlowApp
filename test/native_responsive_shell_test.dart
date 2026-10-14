@@ -23,7 +23,7 @@ void main() {
     await size(tester, 360, 780);
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byType(NavigationRail), findsNothing);
-    await tester.tap(find.text('More'));
+    await tester.tap(find.byIcon(Icons.more_horiz));
     await tester.pumpAndSettle();
     expect(find.text('Collections'), findsWidgets);
     await tester.tap(find.text('Collections').last);
