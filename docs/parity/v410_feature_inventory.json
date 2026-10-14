@@ -3,7 +3,7 @@
   "sourceBaseline": "MediaFlow v410",
   "sourceManifest": "docs/parity/v410_source_manifest.json",
   "isFullParityCertification": false,
-  "inventoryNote": "Initial source-backed inventory; 304 candidate feature surfaces are NOT signed off for exact runtime/UI parity. Further DOM interaction and manual screenshot audits are explicit blockers. Do not imply read_only=daily-usable editing.",
+  "inventoryNote": "Initial source-backed inventory; 307 candidate feature surfaces are NOT signed off for exact runtime/UI parity. Further DOM interaction and manual screenshot audits are explicit blockers. Do not imply read_only=daily-usable editing.",
   "statuses": [
     "foundation",
     "read_only",
