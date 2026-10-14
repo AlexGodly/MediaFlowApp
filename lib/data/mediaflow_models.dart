@@ -158,7 +158,7 @@ Map<String, String?> _mediaFlowManualIds(Object? raw) {
   return Map.unmodifiable({
     for (final e in raw.entries)
       if (e.key is String)
-        e.key as String: e.value == null ? null : e.value.toString(),
+        e.key as String: e.value?.toString(),
   });
 }
 
