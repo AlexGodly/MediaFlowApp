@@ -61,7 +61,8 @@ class NativeM33OfflineDraftQueue {
   }) : _entries = List.unmodifiable(entries) {
     if (ownerId.isEmpty ||
         !RegExp(r'^[a-zA-Z0-9_-]{1,128}$').hasMatch(queueId) ||
-        !const {'cloud', 'offline', 'recoveredPrevious', 'offlineMemory'}
+        !const {'cloud', 'offline', 'recoveredPrevious', 'offlineMemory',
+          'mixedManual'}
             .contains(source) ||
         createdAt.isAfter(DateTime.now().toUtc().add(
           const Duration(minutes: 5))) ||
