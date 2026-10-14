@@ -4,6 +4,7 @@ import '../../data/mediaflow_library_repository.dart';
 import 'cloud_safety_panel.dart';
 import 'account_health_panel.dart';
 import 'offline_snapshot_panel.dart';
+import 'sync_safety_lab_panel.dart';
 import 'draft_sandbox_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
@@ -60,6 +61,8 @@ class NativeSettingsScreen extends StatelessWidget {
       const SizedBox(height: 12),
     ],
     const DraftSandboxPanel(),
+    const SizedBox(height: 12),
+    const SyncSafetyLabPanel(),
     const SizedBox(height: 12),
     Card(child: Padding(
       padding: const EdgeInsets.all(18),
