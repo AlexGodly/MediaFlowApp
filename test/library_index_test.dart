@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow_app/data/mediaflow_library_index.dart';
 import 'package:mediaflow_app/data/mediaflow_models.dart';
