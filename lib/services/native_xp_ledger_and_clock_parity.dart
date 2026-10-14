@@ -24,7 +24,7 @@ abstract final class NativeXpLedgerParity {
     }
     final ledger = Map<String, int>.of(existingLedger);
     final awards = <int>[];
-    final bonus = configuredCompletionBonusXp.round().clamp(0, 100000000);
+    final bonus = configuredCompletionBonusXp.round().clamp(0, 100000000).toInt();
     for (final id in completedTitleIds) {
       if (!enabled || id.isEmpty || ledger.containsKey(id)) {
         awards.add(0);
