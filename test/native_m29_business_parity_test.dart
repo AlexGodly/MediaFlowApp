@@ -54,7 +54,7 @@ void main() {
       category:categories[0],categories:categories,
       sessions:[],nowMillis:now);
     expect(noSessions.ratio,1);
-    expect(noSessions.daysIdle,isInfinite);
+    expect(noSessions.daysIdle,double.infinity);
     final untouched=NativeM29BusinessParity.suggestedAmount(
       target:4,balance:noSessions);
     final empty=source['emptyScheduler'] as Map;
