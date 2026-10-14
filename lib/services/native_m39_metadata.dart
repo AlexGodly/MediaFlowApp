@@ -16,7 +16,7 @@ class NativeM39Metadata {
 
   static bool validId(String provider, String value) {
     if (!_key.hasMatch(provider) || provider.length > 33 ||
-        value.length > 120) return false;
+        value.length > 120) { return false; }
     if (value.isEmpty) { return true; }
     if (const {'mal','simkl','anilist','tmdb','kitsu'}
         .contains(provider)) { return _positive.hasMatch(value); }
@@ -124,7 +124,7 @@ class NativeM39Metadata {
       if (x.id != y.id || x.number != y.number || x.name != y.name ||
           x.progress != y.progress || x.total != y.total ||
           x.source != y.source || x.manual != y.manual ||
-          x.synthetic != y.synthetic) return false;
+          x.synthetic != y.synthetic) { return false; }
     }
     return true;
   }
