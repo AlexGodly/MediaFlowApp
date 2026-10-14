@@ -94,8 +94,12 @@ def ios(icon):
     count = len(re.findall(r'PRODUCT_BUNDLE_IDENTIFIER\s*=\s*[^;]+;', contents))
     if count == 0:
         raise RuntimeError("Xcode bundle ID not found")
-    contents = re.sub(r'PRODUCT_BUNDLE_IDENTIFIER\s*=\s*[^;]+;',
-                      'PRODUCT_BUNDLE_IDENTIFIER = ' + PACKAGE_ID + ';', contents)
+    contents = re.sub(
+        r'PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);',
+        lambda match: 'PRODUCT_BUNDLE_IDENTIFIER = ' + PACKAGE_ID +
+            ('.RunnerTests' if 'RunnerTests' in match.group(1) else '') + ';',
+        contents,
+    )
     pbx.write_text(contents, encoding="utf-8")
     info = root / "Info.plist"
     contents = info.read_text(encoding="utf-8")
