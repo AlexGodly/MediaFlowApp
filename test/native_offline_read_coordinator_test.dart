@@ -179,7 +179,7 @@ void main() {
     expect(coordinator.source.value, NativeSnapshotSource.idle);
     expect(clears, 1);
     expect(writes, 0);
-    expect(() => coordinator.reload(), throwsStateError);
+    await expectLater(coordinator.reload(), throwsStateError);
   });
 
   test('clearing device copy keeps current view in RAM, not a cloud upload',

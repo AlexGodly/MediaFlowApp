@@ -60,12 +60,21 @@ class NativeOfflineReadCoordinator {
   bool _isCurrent(int id) => !_closed && id == _requestId &&
       ownerId != null && ownerId!.isNotEmpty && isOwnerCurrent();
 
-  Future<MediaFlowCatalog> load() => _cached ??= _request();
+  Future<MediaFlowCatalog> load() => _cached ??= _issue();
+
+  Future<MediaFlowCatalog> _issue() {
+    final future = _request();
+    // A failed request must not become a permanently cached failure.
+    future.then<void>((_) {}, onError: (Object _, StackTrace __) {
+      if (identical(_cached, future)) _cached = null;
+    });
+    return future;
+  }
 
   /// Explicit refresh from Settings or a view's Refresh button.
   /// Existing offline status stays visible while a reconnect is attempted.
   Future<MediaFlowCatalog> reload() {
-    final next = _request();
+    final next = _issue();
     _cached = next;
     return next;
   }

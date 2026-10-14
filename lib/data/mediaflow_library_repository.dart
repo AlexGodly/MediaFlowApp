@@ -76,7 +76,14 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     if (row == null || row['state_data'] == null) {
       throw const NativeMissingCloudRow();
     }
-    final decoded = await decodeMediaFlowStateAsync(row['state_data']);
+    final MediaFlowCatalog decoded;
+    try {
+      decoded = await decodeMediaFlowStateAsync(row['state_data']);
+    } catch (_) {
+      // Isolate parsing may wrap FormatException in a RemoteError.
+      // Malformed authenticated cloud rows must NEVER be masked by cache.
+      throw const FormatException('Invalid MediaFlow cloud state');
+    }
     return MediaFlowCatalog(
       categories: decoded.categories,
       library: decoded.library,
