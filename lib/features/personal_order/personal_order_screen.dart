@@ -60,7 +60,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
         ),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
-          value: categoryId,
+          initialValue: categoryId,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Category', border: OutlineInputBorder()),
