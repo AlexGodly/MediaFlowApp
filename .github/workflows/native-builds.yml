@@ -7,6 +7,7 @@ on:
     paths:
       - 'lib/**'
       - 'pubspec.yaml'
+      - 'tool/branding/**'
       - '.github/workflows/native-builds.yml'
 
 permissions:
@@ -26,7 +27,11 @@ jobs:
         with:
           channel: stable
       - name: Generate Android project
-        run: flutter create --project-name mediaflow_app --platforms=android .
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Apply original MediaFlow identity and launcher icon
+        run: python tool/branding/apply_branding.py --platforms=android
       - name: Resolve dependencies
         run: flutter pub get
       - name: Build unsigned-validation Android APK
@@ -34,7 +39,7 @@ jobs:
       - name: Upload debug APK for validation
         uses: actions/upload-artifact@v4
         with:
-          name: mediaflowapp-android-debug
+          name: MediaFlow-android-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 
@@ -47,7 +52,11 @@ jobs:
         with:
           channel: stable
       - name: Generate Windows project
-        run: flutter create --project-name mediaflow_app --platforms=windows .
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=windows .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Apply original MediaFlow identity and launcher icon
+        run: python tool/branding/apply_branding.py --platforms=windows
       - name: Resolve dependencies
         run: flutter pub get
       - name: Build Windows application
@@ -55,7 +64,7 @@ jobs:
       - name: Upload Windows validation build
         uses: actions/upload-artifact@v4
         with:
-          name: mediaflowapp-windows-validation
+          name: MediaFlow-windows-validation
           path: build/windows/x64/runner/Release/**
           if-no-files-found: error
 
