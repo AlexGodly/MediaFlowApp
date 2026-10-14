@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../design_system/mediaflow_theme.dart';
+import '../../design_system/mediaflow_components.dart';
 import '../../data/mediaflow_library_repository.dart';
 import 'cloud_safety_panel.dart';
 import 'account_health_panel.dart';
@@ -27,14 +28,10 @@ class NativeSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(children: [
-    Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
-    const SizedBox(height: 4),
-    Text('Native application preferences',
-        style: Theme.of(context).textTheme.bodySmall),
+    const MfPageHeader(title: 'Settings',
+      subtitle: 'Native application preferences'),
     const SizedBox(height: 16),
-    Card(child: Padding(
-      padding: const EdgeInsets.all(18),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    MfPanel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Appearance', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 6),
         const Text('Choose how MediaFlow looks on this device. '
@@ -49,8 +46,7 @@ class NativeSettingsScreen extends StatelessWidget {
               onSelected: (_) => onAppearanceChanged(mode),
             ),
         ]),
-      ]),
-    )),
+      ])),
     const SizedBox(height: 12),
     if (repository != null) ...[
       CloudSafetyPanel(repository: repository!),
@@ -84,8 +80,7 @@ class NativeSettingsScreen extends StatelessWidget {
             'automatic offline synchronization, imports and backup '
             'restoration are not enabled yet. '
             'The original MediaFlow website remains authoritative.'),
-      ]),
-    )),
+      ]))),
   ]);
 }
 

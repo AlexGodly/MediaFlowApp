@@ -107,6 +107,8 @@ class _SignInScreenState extends State<SignInScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Center(child: Image.asset('assets/branding/mediaflow-launcher-512.png', width: 66, height: 66)),
+            const SizedBox(height: 12),
             Text('MediaFlow', textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineLarge),
             const SizedBox(height: 12),

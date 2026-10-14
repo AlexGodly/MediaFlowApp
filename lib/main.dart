@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/mediaflow_shell.dart';
+import 'design_system/mediaflow_theme.dart';
 import 'features/auth/auth_gate.dart';
 import 'services/mediaflow_auth.dart';
 
@@ -29,6 +30,7 @@ class MediaFlowApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'MediaFlow',
     debugShowCheckedModeBanner: false,
+    theme: MediaFlowTheme.build(MediaFlowAppearance.dark),
     home: configured
         ? AuthGate(auth: MediaFlowAuth(Supabase.instance.client))
         : const MediaFlowShell(),

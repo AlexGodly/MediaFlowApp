@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import '../../design_system/mediaflow_theme.dart';
+import '../../design_system/mediaflow_components.dart';
 
 /// Read-only Dashboard projection. Scheduler/XP mutations remain owned by
 /// the existing website until the native sync contract is validated.
@@ -80,20 +81,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return ListView(
       children: [
-        Row(children: [
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Today', style: Theme.of(context).textTheme.headlineMedium),
-              Text(_dateLabel(today),
-                  style: Theme.of(context).textTheme.bodySmall),
-            ],
-          )),
-          IconButton(
+        MfPageHeader(
+          title: 'Today',
+          subtitle: _dateLabel(today),
+          trailing: IconButton(
             tooltip: 'Refresh Dashboard from cloud',
             onPressed: refresh,
             icon: const Icon(Icons.refresh),
           ),
-        ]),
+        ),
         const SizedBox(height: 15),
         Wrap(spacing: 12, runSpacing: 12, children: [
           _metric(context, cardWidth, 'Library titles',
