@@ -80,7 +80,7 @@ class NativeSettingsScreen extends StatelessWidget {
             'automatic offline synchronization, imports and backup '
             'restoration are not enabled yet. '
             'The original MediaFlow website remains authoritative.'),
-      ])),
+      ]))),
   ]);
 }
 
