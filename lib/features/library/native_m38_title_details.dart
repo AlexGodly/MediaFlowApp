@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_m37_library_plan.dart';
 import 'library_screen.dart' show MediaFlowCover;
+import 'native_m39_metadata_sheet.dart';
 import 'native_m37_library_plan_ui.dart';
 
 /// M38 native title inspector. Cloud data remains read-only and all proposed
@@ -147,17 +148,38 @@ class NativeM38TitleDetails extends StatelessWidget {
                 const SizedBox(height: 6),
                 SelectableText(shown.description),
               ],
+              if (shown.externalIds.isNotEmpty ||
+                  shown.manualExternalIds.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text('External Media IDs',
+                  style: Theme.of(context).textTheme.titleSmall),
+                for (final entry in shown.externalIds.entries)
+                  ListTile(
+                    dense:true,contentPadding:EdgeInsets.zero,
+                    title:Text(entry.key.toUpperCase()),
+                    trailing:SelectableText(entry.value),
+                  ),
+                for (final entry in shown.manualExternalIds.entries)
+                  if (entry.value == null)
+                    ListTile(
+                      dense:true,contentPadding:EdgeInsets.zero,
+                      title:Text(entry.key.toUpperCase()),
+                      trailing:const Text('Manually cleared'),
+                    ),
+              ],
               if (shown.seasons.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                Text('Seasons · read-only',
+                Text('Seasons · device-only edit available',
                   style: Theme.of(context).textTheme.titleSmall),
                 for (final season in shown.seasons)
                   ListTile(
                     dense: true, contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.format_list_numbered),
                     title: Text(season.name),
-                    subtitle: season.number == null ? null
-                        : Text('Season ${_number(season.number)}'),
+                    subtitle: Text(season.source.isEmpty
+                      ? (season.number == null ? 'Season metadata'
+                          : 'Season ${_number(season.number)}')
+                      : 'Source: ${season.source}'),
                     trailing: Text(
                       '${_number(season.progress)} / ${_number(season.total)}'),
                   ),
@@ -166,10 +188,10 @@ class NativeM38TitleDetails extends StatelessWidget {
               if (staged && !p.isTemporary(title.id))
                 const Text('This title has an unsaved local metadata edit. '
                   'Unknown website fields and related records have not been modified.'),
-              const Text('Native details show the available Library projection; '
-                'external provider IDs and other full v410 metadata are not yet '
-                'editable here. Status and progress do not trigger website '
-                'logging, completion, History or XP side effects.'),
+              const Text('External ID and season edits are device-only drafts. '
+                'Native projections do not contain every opaque v410 field; '
+                'they must never be uploaded to cloud. Provider verification, '
+                'History, XP and completion side effects remain unavailable.'),
               const SizedBox(height: 14),
               if (p != null)
                 Wrap(spacing: 8, runSpacing: 8, children: [
@@ -179,6 +201,18 @@ class NativeM38TitleDetails extends StatelessWidget {
                         : () => _edit(context),
                     icon: const Icon(Icons.edit_outlined),
                     label: const Text('Edit local metadata'),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('m39-edit-metadata'),
+                    onPressed: p.stale || p.isDeleted(title.id) ? null
+                      : () => showModalBottomSheet<void>(
+                        context: context, showDragHandle:true,
+                        isScrollControlled:true,
+                        builder: (_) => NativeM39MetadataSheet(
+                          plan:p,titleId:title.id),
+                      ),
+                    icon: const Icon(Icons.link_outlined),
+                    label: const Text('Edit IDs & seasons locally'),
                   ),
                   OutlinedButton.icon(
                     key: const Key('m38-delete-title'),
