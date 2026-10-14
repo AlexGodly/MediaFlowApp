@@ -76,7 +76,7 @@ abstract final class NativeSubmissionGroupingPreview {
             item.itemizedSeconds!;
       }
     }
-    final totalWeight = math.max(1,
+    final totalWeight = math.max(1.0,
         weights.values.fold<double>(0, (sum, value) => sum + value));
     final result = <NativeGroupingRow>[];
     var minutesLeft = minutes;
@@ -89,8 +89,8 @@ abstract final class NativeSubmissionGroupingPreview {
           : i == order.length - 1
             ? minutesLeft
             : math.min(minutesLeft,
-                (minutes * (weights[id]! / totalWeight)).roundToDouble());
-      minutesLeft = math.max(0, minutesLeft - groupMinutes);
+                (minutes * (weights[id]! / totalWeight)).roundToDouble()).toDouble();
+      minutesLeft = math.max(0.0, minutesLeft - groupMinutes).toDouble();
       String status = 'logged';
       if (isAssigned) {
         if (amount < target) {
