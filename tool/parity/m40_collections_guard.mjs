@@ -14,13 +14,17 @@ for(const marker of ['NativeM40CollectionPlan','void observe(','void addTitles('
 }
 for (const marker of ['m40-create','m40-preview','m40-undo','m40-redo',
   'm40-add-titles','m40-confirm-delete','m40-confirm-remove',
-  'm40-source-label','m40-up-','m40-down-']) {
+  'm40-source-label']) {
   assert(ui.includes(marker),'M40 Collections UI missing '+marker);
 }
 for (const marker of ['m40-direct-add-','m40-picker-multi',
   'm40-add-selected','m40-save-collection','LOCAL PREVIEW']) {
   if(marker === 'LOCAL PREVIEW') continue;
   assert(editor.includes(marker),'M40 editor missing '+marker);
+}
+const advanced=fs.readFileSync('lib/features/collections/native_m41_collection_browser.dart','utf8');
+for(const marker of ['m40-up-','m40-down-','m40-remove-']) {
+  assert(advanced.includes(marker),'M41 extracted Collection controls missing '+marker);
 }
 assert(shell.includes('collectionPlan?.dispose()'));
 assert(shell.includes('plan: collectionPlan'));
