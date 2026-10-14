@@ -93,6 +93,11 @@ abstract final class NativeLoggingParityPreview {
         'Season logging needs full v252/v369 unit and season identifiers',
       );
     }
+    if (isCompleted(title) && !repeat) {
+      throw const FormatException(
+        'Completed titles require repeat mode in this local preview',
+      );
+    }
     if (repeat && !isCompleted(title)) {
       throw const FormatException(
         'Repeat logging requires an already completed title',
@@ -116,7 +121,7 @@ abstract final class NativeLoggingParityPreview {
         title.total != null && title.total! > 0
         ? math.min(rawNext, title.total!) : rawNext;
     final wouldComplete = !repeat &&
-        !isCompleted(title) &&
+        title.status != 'dropped' && !isCompleted(title) &&
         title.total != null && title.total! > 0 &&
         next >= title.total!;
     final nextStatus = repeat ? title.status :
