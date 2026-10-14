@@ -61,8 +61,10 @@ void main() {
     expect(find.text('Library titles'), findsOneWidget);
     expect(find.text('NEXT TASK'), findsOneWidget);
     expect(find.text('Hotel', skipOffstage: false), findsWidgets);
-    await tester.ensureVisible(find.text('Browse Library'));
-    await tester.tap(find.text('Browse Library'));
+    await tester.ensureVisible(
+      find.widgetWithText(OutlinedButton, 'Browse Library'));
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Browse Library'));
     expect(navigated, isTrue);
   });
 
