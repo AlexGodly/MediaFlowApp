@@ -13,6 +13,7 @@ import '../features/personal_order/personal_order_screen.dart';
 import '../features/logging/logging_screen.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
+import '../design_system/mediaflow_components.dart';
 
 enum MediaFlowSection {
   dashboard('Dashboard', Icons.space_dashboard_outlined),
@@ -103,6 +104,12 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         child: ListView(
           shrinkWrap: true,
           children: [
+            const ListTile(
+              title: Text('MORE IN MEDIAFLOW', style: TextStyle(
+                fontSize: 12, fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              )),
+            ),
             for (final section in MediaFlowSection.values.where((s) => !primary.contains(s)))
               ListTile(
                 leading: Icon(section.icon),
@@ -186,12 +193,17 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     return Theme(
       data: MediaFlowTheme.build(appearance),
       child: LayoutBuilder(builder: (context, constraints) {
-        final desktop = constraints.maxWidth >= 1100;
-        final tablet = constraints.maxWidth >= 700 && !desktop;
-        final narrow = constraints.maxWidth < 390;
+        final desktop = constraints.maxWidth >= MediaFlowBreakpoints.desktop;
+        final tablet = constraints.maxWidth >= MediaFlowBreakpoints.tablet && !desktop;
+        final narrow = constraints.maxWidth < MediaFlowBreakpoints.compactPhone;
         return Scaffold(
           appBar: AppBar(
-            title: const Text('MediaFlow'),
+            title: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.auto_awesome, size: 22,
+                color: MediaFlowTokens.of(context).accent),
+              const SizedBox(width: 9),
+              const Text('MediaFlow'),
+            ]),
             actions: [
               PopupMenuButton<MediaFlowAppearance>(
                 tooltip: 'Appearance',
@@ -237,22 +249,33 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             Expanded(child: Row(children: [
             if (desktop)
               SizedBox(
-                width: 236,
-                child: Material(
-                  color: Theme.of(context).colorScheme.surface,
+                width: 244,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: MediaFlowTokens.of(context).panel,
+                    border: Border(right: BorderSide(
+                      color: MediaFlowTokens.of(context).borderSoft)),
+                  ),
                   child: ListView(children: [
-                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('ALEX GODLY', style: TextStyle(
+                          fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.w800,
+                          color: MediaFlowTokens.of(context).accent,
+                        )),
+                        const SizedBox(height: 5),
+                        Text('MEDIAFLOW', style: Theme.of(context).textTheme.titleLarge),
+                      ]),
+                    ),
+                    Divider(color: MediaFlowTokens.of(context).borderSoft),
+                    const SizedBox(height: 8),
                     for (final section in MediaFlowSection.values)
-                      ListTile(
+                      MfNavigationTile(
                         key: ValueKey('nav-${section.name}'),
-                        leading: Icon(section.icon),
-                        title: Text(section.label),
+                        icon: section.icon,
+                        label: section.label,
                         selected: selected == section,
-                        selectedTileColor: Theme.of(context)
-                            .colorScheme.primaryContainer.withValues(alpha: 0.35),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                         onTap: () => navigate(section),
                       ),
                   ]),
@@ -275,12 +298,11 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                 ],
               ))),
             Expanded(child: Center(child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+              constraints: const BoxConstraints(maxWidth: MediaFlowBreakpoints.contentMax),
               child: Padding(
                 padding: EdgeInsets.symmetric(
-                  horizontal: constraints.maxWidth < 390 ? 10 :
-                      constraints.maxWidth < 700 ? 14 : 20,
-                  vertical: constraints.maxWidth < 390 ? 10 : 20,
+                  horizontal: MediaFlowBreakpoints.pagePadding(constraints.maxWidth),
+                  vertical: narrow ? 10 : 20,
                 ),
                 child: _page(context),
               ),

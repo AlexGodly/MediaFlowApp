@@ -8,6 +8,7 @@ import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import 'native_editing_sheet.dart';
 import '../../design_system/mediaflow_theme.dart';
+import '../../design_system/mediaflow_components.dart';
 
 enum NativeLibraryView { list, compact, cards, covers, coversWithTitles }
 
@@ -98,17 +99,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
         return LayoutBuilder(builder: (context, constraints) {
           final width = constraints.maxWidth;
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Library', style: Theme.of(context).textTheme.headlineMedium),
-                Text(catalog.library.length.toString() + ' saved titles',
-                    style: Theme.of(context).textTheme.bodySmall),
-              ])),
-              IconButton(
+            MfPageHeader(
+              title: 'Library',
+              subtitle: catalog.library.length.toString() + ' saved titles',
+              trailing: IconButton(
                 tooltip: 'Refresh from cloud (read-only)',
                 onPressed: _refresh, icon: const Icon(Icons.refresh),
               ),
-            ]),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
