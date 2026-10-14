@@ -85,6 +85,13 @@ class NativeEditingWorkspace extends ChangeNotifier {
         'Season-based progress requires per-season editing parity',
       );
     }
+    final existingLog = _logs[titleId];
+    if (existingLog != null &&
+        existingLog.startingProgress != progress) {
+      throw const FormatException(
+        'Discard logging draft before changing title progress',
+      );
+    }
     if (priority == original.priority && status == original.status &&
         progress == original.progress && rating == original.rating) {
       _titles.remove(titleId);
@@ -144,7 +151,10 @@ class NativeEditingWorkspace extends ChangeNotifier {
   }
 
   void discardTitle(String id) {
-    if (_titles.remove(id) != null) notifyListeners();
+    if (_titles.remove(id) != null) {
+      if (_logs.containsKey(id)) _logs.remove(id);
+      notifyListeners();
+    }
   }
 
   void discardLog(String id) {
