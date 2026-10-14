@@ -20,7 +20,7 @@ PACKAGE_ID = "com.alexgodly.mediaflow"
 DISPLAY_NAME = "MediaFlow"
 
 def original(filename):
-    raw = (ROOT / "tool" / "branding" / (filename + ".base64")).read_text(encoding="ascii").strip()
+    raw = "".join((ROOT / "tool" / "branding" / (filename + ".base64")).read_text(encoding="ascii").split())
     return base64.b64decode(raw, validate=True)
 
 def replace_required(path, before, after):
