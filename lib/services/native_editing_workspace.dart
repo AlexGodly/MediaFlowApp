@@ -20,6 +20,8 @@ class NativeEditingWorkspace extends ChangeNotifier {
   final Map<String, NativeItemizedPreview> _itemized = {};
 
   bool get stale => _stale;
+  /// Identity-only source for safe, *manual* authenticated cloud review.
+  MediaFlowCatalog? get baseCatalog => _base;
   int get titleCount => _titles.length;
   int get logCount => _logs.length + _itemized.length;
   int get itemizedCount => _itemized.length;

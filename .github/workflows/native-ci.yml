@@ -35,6 +35,8 @@ jobs:
         run: node tool/parity/m30_contract_guard.mjs
       - name: Verify owner-scoped offline-first read safety
         run: node tool/parity/m31_offline_safety_guard.mjs
+      - name: Verify priority review has no cloud write transport
+        run: node tool/parity/m32_review_safety_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
