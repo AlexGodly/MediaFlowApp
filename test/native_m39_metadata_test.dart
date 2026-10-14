@@ -197,6 +197,8 @@ void main() {
     await tester.tap(find.byKey(const Key('m39-stage-metadata')));
     await tester.pumpAndSettle();
     expect(plan.fieldsFor('show-1').externalIds['mal'],'1234');
+    expect(plan.fieldsFor('show-1').seasonSource,'simkl');
+    expect(plan.fieldsFor('show-1').seasons.single.source,'simkl');
     expect(source.library.single.externalIds['mal'],'123');
     plan.dispose();
   });
