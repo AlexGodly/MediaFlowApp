@@ -83,9 +83,11 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Offline recovery', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 8),
-        const Text('When the cloud cannot be reached, MediaFlow may show '
-            'the last verified device copy for this signed-in account. '
-            'Offline views are read-only and may be outdated.'),
+        const Text('A verified read-only snapshot is encrypted on this '
+            'device using AES-256-GCM. A separate account key is stored '
+            'through the operating system’s protected storage. '
+            'If cloud access fails, the latest authenticated device '
+            'copy may be shown, but it can be outdated.'),
         const SizedBox(height: 10),
         ValueListenableBuilder<NativeSnapshotSource>(
           valueListenable: widget.repository.source,
@@ -93,6 +95,14 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
             _describe(status),
             key: const Key('offline-snapshot-status'),
           ),
+        ),
+        const SizedBox(height: 5),
+        ValueListenableBuilder<DateTime?>(
+          valueListenable: widget.repository.offlineSavedAt,
+          builder: (_, savedAt, __) => savedAt == null
+              ? const SizedBox.shrink()
+              : Text('Device copy saved: ${savedAt.toLocal()}',
+                  key: const Key('offline-copy-saved-at')),
         ),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -113,9 +123,11 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
             child: Text(notice!, key: const Key('offline-cache-notice')),
           ),
         const SizedBox(height: 8),
-        Text('Device copies are stored in the app-private directory, '
-            'but are not encrypted. They are never cloud backups or sync '
-            'authorities. Signing out removes this account’s local copies.',
+        Text('Milestone 17 unencrypted caches are discarded after upgrade. '
+            'Reconnect to create a new encrypted offline copy. '
+            'Loss of the protected key makes its snapshot unreadable. '
+            'Device copies are never cloud backups or synchronization '
+            'authorities. Signing out removes copies and their keys.',
             style: Theme.of(context).textTheme.bodySmall),
       ]),
     ),
