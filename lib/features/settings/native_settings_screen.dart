@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../data/mediaflow_library_repository.dart';
 import 'cloud_safety_panel.dart';
+import 'account_health_panel.dart';
 import 'draft_sandbox_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
@@ -47,6 +48,8 @@ class NativeSettingsScreen extends StatelessWidget {
     const SizedBox(height: 12),
     if (repository != null) ...[
       CloudSafetyPanel(repository: repository!),
+      const SizedBox(height: 12),
+      AccountHealthPanel(repository: repository!),
       const SizedBox(height: 12),
     ],
     const DraftSandboxPanel(),
