@@ -10,6 +10,7 @@ import 'native_editing_review_panel.dart';
 import 'native_xp_ledger_audit_panel.dart';
 import 'draft_sandbox_panel.dart';
 import 'native_priority_review_panel.dart';
+import 'native_m33_offline_draft_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
 /// schema remains untouched until full settings parity is tested.
@@ -61,6 +62,8 @@ class NativeSettingsScreen extends StatelessWidget {
       NativeEditingReviewPanel(workspace: nativeRepository!.editingWorkspace),
       const SizedBox(height: 12),
       NativePriorityReviewPanel(repository: nativeRepository!),
+      const SizedBox(height: 12),
+      NativeM33OfflineDraftPanel(repository: nativeRepository!),
       const SizedBox(height: 12),
       OfflineSnapshotPanel(repository: nativeRepository!),
       const SizedBox(height: 12),
