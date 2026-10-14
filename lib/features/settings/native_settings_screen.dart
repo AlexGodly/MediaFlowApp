@@ -5,6 +5,7 @@ import 'cloud_safety_panel.dart';
 import 'account_health_panel.dart';
 import 'offline_snapshot_panel.dart';
 import 'sync_safety_lab_panel.dart';
+import 'native_editing_review_panel.dart';
 import 'draft_sandbox_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
@@ -57,6 +58,8 @@ class NativeSettingsScreen extends StatelessWidget {
       const SizedBox(height: 12),
     ],
     if (nativeRepository != null) ...[
+      NativeEditingReviewPanel(workspace: nativeRepository!.editingWorkspace),
+      const SizedBox(height: 12),
       OfflineSnapshotPanel(repository: nativeRepository!),
       const SizedBox(height: 12),
     ],
@@ -73,8 +76,10 @@ class NativeSettingsScreen extends StatelessWidget {
             'access to your existing Supabase account. Refreshing a view '
             'reloads the original cloud snapshot.'),
         const SizedBox(height: 8),
-        const Text('Native editing, automatic offline synchronization, '
-            'imports and backup restoration are not enabled yet. '
+        const Text('Local title and logging drafts are available, but '
+            'saving them to cloud, awarding XP and updating History, '
+            'automatic offline synchronization, imports and backup '
+            'restoration are not enabled yet. 
             'The original MediaFlow website remains authoritative.'),
       ]),
     )),
