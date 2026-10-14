@@ -3,6 +3,7 @@ import '../../design_system/mediaflow_theme.dart';
 import '../../data/mediaflow_library_repository.dart';
 import 'cloud_safety_panel.dart';
 import 'account_health_panel.dart';
+import 'offline_snapshot_panel.dart';
 import 'draft_sandbox_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
@@ -13,11 +14,13 @@ class NativeSettingsScreen extends StatelessWidget {
     required this.appearance,
     required this.onAppearanceChanged,
     this.repository,
+    this.nativeRepository,
   });
 
   final MediaFlowAppearance appearance;
   final ValueChanged<MediaFlowAppearance> onAppearanceChanged;
   final MediaFlowLibraryRepository? repository;
+  final SupabaseMediaFlowLibraryRepository? nativeRepository;
 
   @override
   Widget build(BuildContext context) => ListView(children: [
@@ -50,6 +53,10 @@ class NativeSettingsScreen extends StatelessWidget {
       CloudSafetyPanel(repository: repository!),
       const SizedBox(height: 12),
       AccountHealthPanel(repository: repository!),
+      const SizedBox(height: 12),
+    ],
+    if (nativeRepository != null) ...[
+      OfflineSnapshotPanel(repository: nativeRepository!),
       const SizedBox(height: 12),
     ],
     const DraftSandboxPanel(),
