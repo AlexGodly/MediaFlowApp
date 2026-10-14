@@ -206,8 +206,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         return Scaffold(
           appBar: AppBar(
             title: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.auto_awesome, size: 22,
-                color: MediaFlowTokens.of(context).accent),
+              Image.asset('assets/branding/mediaflow-launcher-512.png', width: 25, height: 25),
               const SizedBox(width: 9),
               const Text('MediaFlow'),
             ]),
@@ -272,7 +271,11 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                           color: MediaFlowTokens.of(context).accent,
                         )),
                         const SizedBox(height: 5),
-                        Text('MEDIAFLOW', style: Theme.of(context).textTheme.titleLarge),
+                        Row(children: [
+                          Image.asset('assets/branding/mediaflow-launcher-512.png', width: 26, height: 26),
+                          const SizedBox(width: 9),
+                          Text('MEDIAFLOW', style: Theme.of(context).textTheme.titleLarge),
+                        ]),
                       ]),
                     ),
                     Divider(color: MediaFlowTokens.of(context).borderSoft),

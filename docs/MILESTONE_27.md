@@ -12,6 +12,7 @@
 - Reusable UI primitives: `MfPanel`, `MfPageHeader`, `MfBadge`, `MfEmptyState`, `MfNavigationTile`, `showMfAdaptiveDialog`. These own **presentation only**, never mutations.
 - Desktop sidebar with active accents and keyboard-accessible InkWell links, intermediate-size rail, phone bottom navigation with More sheet. Replaced older desktop >=1100 threshold with the source-backed >=1081 breakpoint.
 - Dashboard, Library and Settings now consume reusable design-system primitives rather than duplicating their page headers and panels.
+- Original MediaFlow logo restored in the native app bar, desktop navigation and authentication screen from the existing source-pinned branding asset. The login screen now uses the same native base theme.
 - Theme and navigation widget tests for tokens, light/AMOLED rendering, responsive thresholds, navigation, and appearance selection.
 
 ## Comparison notes and visual acceptance gaps
