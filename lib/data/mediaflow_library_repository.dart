@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/native_offline_snapshot_store.dart';
+import '../services/native_pending_review_store.dart';
 import 'mediaflow_models.dart';
 import 'mediaflow_state_codec.dart';
 
@@ -27,11 +28,14 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   SupabaseMediaFlowLibraryRepository(
     this.client, {
     NativeOfflineSnapshotStore? offlineStore,
+    NativePendingReviewStore? pendingReviewStore,
   }) : _offlineStore = offlineStore ?? NativeOfflineSnapshotStore(),
+       _pendingReviews = pendingReviewStore ?? NativePendingReviewStore(),
        _ownerId = client.auth.currentUser?.id;
 
   final SupabaseClient client;
   final NativeOfflineSnapshotStore _offlineStore;
+  final NativePendingReviewStore _pendingReviews;
   final String? _ownerId;
   final ValueNotifier<NativeSnapshotSource> source =
       ValueNotifier(NativeSnapshotSource.idle);
@@ -149,6 +153,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     _cached = null;
     offlineSavedAt.value = null;
     await clearOfflineCache();
+    if (_ownerId != null) await _pendingReviews.clear(_ownerId);
   }
 
   void dispose() {
