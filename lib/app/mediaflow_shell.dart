@@ -128,6 +128,13 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
 
   Widget _page(BuildContext context) {
     final data = repository;
+    // Device appearance and safety information remain usable while signed out.
+    if (data == null && selected == MediaFlowSection.settings) {
+      return NativeSettingsScreen(
+        appearance: appearance,
+        onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
+      );
+    }
     if (data != null) {
       switch (selected) {
         case MediaFlowSection.dashboard:
