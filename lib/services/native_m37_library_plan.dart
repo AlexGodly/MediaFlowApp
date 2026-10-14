@@ -277,7 +277,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       }
     }
     if (pendingCreated.isEmpty && pendingUpdated.isEmpty &&
-        removeUnchanged.isEmpty) return;
+        removeUnchanged.isEmpty) { return; }
     final newChanges = pendingUpdated.keys.where(
         (id) => !_updated.containsKey(id)).length;
     if (changeCount + newChanges > 200) {
