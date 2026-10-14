@@ -193,7 +193,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m39-metadata-sheet')),findsOneWidget);
     await tester.enterText(find.byKey(const Key('m39-id-mal')),'1234');
-    await tester.ensureVisible(find.byKey(const Key('m39-stage-metadata')));
+    await tester.dragUntilVisible(
+      find.byKey(const Key('m39-stage-metadata')),
+      find.byKey(const Key('m39-metadata-sheet')),
+      const Offset(0,-300),
+    );
     await tester.tap(find.byKey(const Key('m39-stage-metadata')));
     await tester.pumpAndSettle();
     expect(plan.fieldsFor('show-1').externalIds['mal'],'1234');
