@@ -37,9 +37,13 @@ NativeM41Page browseCollection(MediaFlowCollection collection,
     final title = library[id];
     if (title == null) { continue; }
     if (needle.isNotEmpty && !title.title.toLowerCase().contains(needle) &&
-        !title.tags.any((tag)=>tag.toLowerCase().contains(needle))) continue;
+        !title.tags.any((tag)=>tag.toLowerCase().contains(needle))) {
+      continue;
+    }
     if (options.categoryId.isNotEmpty &&
-        title.categoryId != options.categoryId) continue;
+        title.categoryId != options.categoryId) {
+      continue;
+    }
     if (options.status.isNotEmpty && title.status != options.status) { continue; }
     if (options.priority.isNotEmpty && title.priority != options.priority) {
       continue;
