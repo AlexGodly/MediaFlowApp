@@ -481,7 +481,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _openTitle(BuildContext context, MediaFlowTitle title,
       MediaFlowCategory? cat, MediaFlowCatalog catalog) {
-    final plan = widget.changePlan;
     if (_selecting) {
       setState(() {
         if (!_selectedIds.add(title.id)) { _selectedIds.remove(title.id); }
