@@ -49,6 +49,8 @@ jobs:
         run: node tool/parity/m37_library_guard.mjs
       - name: Guard M38 local details and reversible batch metadata
         run: node tool/parity/m38_library_guard.mjs
+      - name: Guard M39 external IDs, seasons and lossless metadata safety
+        run: node tool/parity/m39_metadata_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
