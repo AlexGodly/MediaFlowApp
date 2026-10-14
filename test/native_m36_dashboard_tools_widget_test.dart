@@ -65,7 +65,11 @@ void main(){
     await tester.pump();
     expect(find.text('00:30:00'),findsOneWidget);
     expect(ctl.calculator.proposedLoggingMinutes,30);
+    await tester.testTextInput.hide();
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('m36-continue-result')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('m36-continue-result')));
     await tester.pump();
     expect(ctl.calculator.chain.first.totalSeconds,1800);
