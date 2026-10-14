@@ -380,8 +380,9 @@ class _NativePasswordRecoveryScreenState
             'Recovery failed. Check the link or request a new one.');
       }
     } catch (_) {
-      if (mounted) setState(() =>
-          message = 'Could not complete password recovery.');
+      if (mounted) {
+        setState(() => message = 'Could not complete password recovery.');
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
