@@ -233,12 +233,13 @@ class MediaFlowXpEvidence {
   };
 
   factory MediaFlowXpEvidence.fromProjection(Map<String, dynamic> raw) {
-    Map<String, double> doubles(Object? value, List<String> allowed) {
+    Map<String, double> doubles(Object? value, List<String> allowed,
+        {bool nonnegativeOnly = true}) {
       final input = value is Map ? value : const {};
       return {
         for (final key in allowed)
           if (mediaFlowNumber(input[key]) case final v?)
-            if (v.isFinite && v >= 0) key: v,
+            if (v.isFinite && (!nonnegativeOnly || v >= 0)) key: v,
       };
     }
     final rawCounts = raw['ledgerCounts'];
@@ -248,7 +249,8 @@ class MediaFlowXpEvidence {
       ledgerPresent: raw['ledgerPresent'] == true,
       levelingEnabled: raw['levelingEnabled'] != false,
       globalStreakEnabled: raw['globalStreakEnabled'] != false,
-      actionRates: doubles(raw['actionRates'], actionKeys),
+      actionRates: doubles(raw['actionRates'], actionKeys,
+          nonnegativeOnly: false),
       ledgerTotals: doubles(raw['ledgerTotals'], ledgerKeys),
       ledgerCounts: {
         for (final key in ledgerKeys)
