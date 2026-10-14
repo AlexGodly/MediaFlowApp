@@ -25,7 +25,8 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
-## Development status (milestone 35 auth + transactional readiness)
+## Development status (milestone 36 native Dashboard tools)
+- Milestone 36 adds an actual account-scoped **Stopwatch**, v256-inspired **Runtime Calculator** (carry-forward and multi-row), and read-only **Rate Your Library / Missing Covers** suggestion panels to the Flutter Dashboard. No logging, XP or cloud state is written. [Details](docs/MILESTONE_36.md).
 - Milestone 35 completes a native, responsive login/signup/password-recovery **subset** and owner-validated Supabase Auth password update path; it expands synthetic four-client CAS acceptance tests. Real password recovery deep-link registration still requires device configuration and QA, and production cloud data writes remain disabled. [Details](docs/MILESTONE_35.md).
 - Milestone 34 implements a responsive **Conflict Resolution Center** for encrypted priority-only offline intents: Before / Your draft / Cloud comparison, full-wire cloud drift warning, per-title diagnostics and user-confirmed local discard/recreate with fresh owner-scoped revalidation. **No cloud writes, automatic uploads or production sync have been enabled.** [Details](docs/MILESTONE_34.md).
 - Milestone 33 implements an encrypted, owner-scoped **offline priority draft** store, app-restart recovery, manual fresh-cloud conflict checking, and a Settings review/discard panel. Full roadmap **offline editing with automatic cloud synchronization remains blocked** because real atomic cross-writer CAS and verified web/native writes are not yet deployed. [Details](docs/MILESTONE_33.md).
