@@ -316,7 +316,9 @@ class _ReadOnlyTitleQueuesState extends State<_ReadOnlyTitleQueues> {
     var unratedTotal = 0, missingTotal = 0;
     for (final title in library) {
       if (_filterCategory != 'all' &&
-          title.categoryId != _filterCategory) continue;
+          title.categoryId != _filterCategory) {
+        continue;
+      }
       if (title.rating == null) {
         unratedTotal++;
         if (!_skippedRating.contains(title.id) && unrated.length < 5) {
