@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../services/native_snapshot_codec.dart';
+import '../services/native_m39_metadata.dart';
 import 'mediaflow_models.dart';
 import 'mediaflow_state_codec.dart';
 
@@ -134,6 +135,132 @@ class MediaFlowFullState {
     return MediaFlowFullState._(
       _originalWire, clone, format, isLocalSimulation: true,
     );
+  }
+
+  /// v410-aware **simulation only**, not a cloud save payload.
+  /// Copy the full original state and modify only a uniquely identified
+  /// Library title's external IDs/manual provenance/season rows.
+  /// Untouched fields, season-specific opaque metadata, History and XP retain
+  /// their exact original JSON representations.
+  MediaFlowFullState simulateTitleMetadata({
+    required String titleId,
+    Map<String,String?> idChanges = const {},
+    List<MediaFlowSeason>? seasons,
+  }) {
+    if (titleId.isEmpty || (idChanges.isEmpty && seasons == null)) {
+      throw const FormatException('Choose a title and metadata changes');
+    }
+    final library = _state['library'];
+    if (library is! List) {
+      throw const FormatException('Missing v410 Library');
+    }
+    final matches = <int>[];
+    for (var i = 0; i < library.length; i++) {
+      final item = library[i];
+      if (item is Map && item['id']?.toString() == titleId) matches.add(i);
+    }
+    if (matches.length != 1) {
+      throw StateError('Missing or duplicate original title ID');
+    }
+    final index = matches.single;
+    final clone = NativeSnapshotCodec.deepClone(_state);
+    final rows = clone['library'] as List;
+    final record = Map<String,dynamic>.from(rows[index] as Map);
+    final originalRecord = NativeSnapshotCodec.deepClone(record);
+
+    if (idChanges.isNotEmpty) {
+      final rawIds = record['externalIds'];
+      final rawManual = record['v377ManualExternalIds'];
+      if (rawIds != null && rawIds is! Map ||
+          rawManual != null && rawManual is! Map) {
+        throw const FormatException('Unsupported ID metadata shape');
+      }
+      final ids = <String,String>{
+        for (final e in (rawIds as Map? ?? const {}).entries)
+          e.key.toString(): e.value.toString(),
+      };
+      final manual = <String,String?>{
+        for (final e in (rawManual as Map? ?? const {}).entries)
+          e.key.toString(): e.value?.toString(),
+      };
+      final result = NativeM39Metadata.applyIdChanges(ids,manual,idChanges);
+      record['externalIds'] = Map<String,String>.of(result.ids);
+      record['v377ManualExternalIds'] =
+          Map<String,String?>.of(result.manual);
+      // Deliberately leave legacy malId/mal_id aliases intact in this local
+      // test: cloud edits require coordinated v377 alias cleanup.
+    }
+
+    if (seasons != null) {
+      NativeM39Metadata.validateSeasons(seasons);
+      final rawSeasons = record['seasons'];
+      if (rawSeasons != null &&
+          (rawSeasons is! List || rawSeasons.any((s) => s is! Map))) {
+        throw const FormatException('Invalid source seasons');
+      }
+      final old = (rawSeasons as List? ?? const [])
+          .map((e) => Map<String,dynamic>.from(e as Map)).toList();
+      if (old.isNotEmpty && seasons.isEmpty) {
+        throw const FormatException(
+          'Cannot remove every season in an offline simulation');
+      }
+      final byId = <String,Map<String,dynamic>>{};
+      for (final raw in old) {
+        final id = raw['id']?.toString() ?? '';
+        if (id.isEmpty || byId.containsKey(id)) {
+          throw StateError('Ambiguous source season identity');
+        }
+        byId[id] = raw;
+      }
+      final oldModels = old.map(MediaFlowSeason.fromJson).toList();
+      if (!NativeM39Metadata.sameSeasons(oldModels, seasons)) {
+        final updated = <Map<String,dynamic>>[];
+        for (final season in seasons) {
+          final source = byId[season.id];
+          if (source == null && !season.id.startsWith('local-m39-')) {
+            throw const FormatException('Unknown season identity');
+          }
+          final current = source == null ? null :
+              MediaFlowSeason.fromJson(source);
+          if (current != null &&
+              NativeM39Metadata.sameSeasons([current],[season])) {
+            updated.add(source!);
+          } else {
+            updated.add({
+              ...?source,
+              'id': season.id,
+              'name': season.name,
+              'number': season.number?.toInt(),
+              'progress': season.progress.toInt(),
+              'total': season.total?.toInt(),
+              'source': season.source.isEmpty ? 'manual' : season.source,
+              'manual': season.manual,
+              'synthetic': season.synthetic,
+            });
+          }
+        }
+        record['seasons'] = updated;
+        if (seasons.isNotEmpty) {
+          final aggregate = NativeM39Metadata.aggregate(seasons);
+          record['progress'] = aggregate.progress.toInt();
+          record['total'] = aggregate.total?.toInt();
+          record['seasonSource'] = 'manual';
+          record['seasonViewEnabled'] = true;
+        }
+      }
+    }
+    if (NativeSnapshotCodec.equivalent(record, originalRecord)) {
+      throw const FormatException('Metadata patch contains no changes');
+    }
+    rows[index] = record;
+    _validate(clone, requireCore: true);
+    final restored = NativeSnapshotCodec.deepClone(clone);
+    (restored['library'] as List)[index] = originalRecord;
+    if (!NativeSnapshotCodec.equivalent(restored,_state)) {
+      throw StateError('Loss of unrelated v410 account fields');
+    }
+    return MediaFlowFullState._(
+      _originalWire, clone, format, isLocalSimulation:true);
   }
 
   static void _validate(Map<String, dynamic> state,
