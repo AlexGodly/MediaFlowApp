@@ -143,6 +143,15 @@ def windows():
     if edits != 1:
         raise RuntimeError("Windows executable name target missing")
     cmake.write_text(contents, encoding="utf-8")
+    main_cpp = root / "runner/main.cpp"
+    if main_cpp.is_file():
+        contents = main_cpp.read_text(encoding="utf-8")
+        contents = re.sub(
+            r'window\.Create\(L"[^"]+"',
+            'window.Create(L"MediaFlow"',
+            contents,
+        )
+        main_cpp.write_text(contents, encoding="utf-8")
     ico = root / "runner/resources/app_icon.ico"
     ico.parent.mkdir(parents=True, exist_ok=True)
     ico.write_bytes(original("mediaflow.ico"))
