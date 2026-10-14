@@ -27,6 +27,8 @@ jobs:
           TZ=UTC node tool/parity/m25_website_reference.mjs
       - name: Check source-pinned v410 feature inventory and parity matrix
         run: node tool/parity/m26_inventory_guard.mjs
+      - name: Verify lossless v410 data contract and native write gates
+        run: node tool/parity/m28_contract_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
