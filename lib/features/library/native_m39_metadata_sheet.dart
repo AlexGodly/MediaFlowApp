@@ -102,8 +102,9 @@ class _NativeM39MetadataSheetState extends State<NativeM39MetadataSheet> {
       for (final entry in ids.entries) {
         final current = entry.value.text.trim();
         final previous = original.externalIds[entry.key] ?? '';
-        if (current != previous) changes[entry.key] =
-            current.isEmpty ? null : current;
+        if (current != previous) {
+          changes[entry.key] = current.isEmpty ? null : current;
+        }
       }
       final rows = <MediaFlowSeason>[];
       for (final r in seasons) {
