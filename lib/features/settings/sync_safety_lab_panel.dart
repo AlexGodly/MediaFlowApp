@@ -72,7 +72,7 @@ class _SyncSafetyLabPanelState extends State<SyncSafetyLabPanel> {
       batch: batch, cloudRow: _server.current,
       signedInOwnerId: owner,
     );
-    setState(() => message = result.status.name + ': ' + result.message);
+    setState(() => message = '${result.status.name}: ${result.message}');
   }
 
   void _simulateOtherDevice() {
@@ -95,8 +95,8 @@ class _SyncSafetyLabPanelState extends State<SyncSafetyLabPanel> {
       batch: batch, signedInOwnerId: owner,
     );
     setState(() => message = receipt.alreadyApplied
-        ? 'Duplicate simulation ignored: ' + receipt.result
-        : 'Local CAS result: ' + receipt.result + '. No cloud writes.');
+        ? 'Duplicate simulation ignored: ${receipt.result}'
+        : 'Local CAS result: ${receipt.result}. No cloud writes.');
   }
 
   @override
