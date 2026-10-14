@@ -17,7 +17,11 @@ class NativeReviewBatch {
     required this.baseRevision,
     required this.baseDigest,
     required List<NativeDraftEntry> entries,
-  }) : _entries = List.unmodifiable(entries);
+  }) : _entries = List.unmodifiable(entries.map((item) =>
+      NativeDraftEntry.fromJson(Map<String, dynamic>.from(
+        jsonDecode(jsonEncode(item.toJson())) as Map,
+      )),
+    ));
 
   static const format = 'mediaflow-native-sync-review-v1';
   static const maxOperations = 1000;
@@ -221,7 +225,7 @@ class NativeSimulatedAtomicServer {
   NativeSimulatedAtomicServer(NativeCloudRow initial) : _row = initial;
 
   NativeCloudRow? _row;
-  final Map<String, String> _applied = {};
+  final Map<String, (String, String)> _applied = {};
 
   NativeCloudRow? get current => _row == null ? null : NativeCloudRow(
     ownerId: _row!.ownerId,
@@ -240,8 +244,15 @@ class NativeSimulatedAtomicServer {
     if (signedInOwnerId.isEmpty || signedInOwnerId != batch.ownerId) {
       return const NativeSimulatedReceipt('access-denied', false);
     }
-    if (_applied.containsKey(receiptKey)) {
-      return NativeSimulatedReceipt(_applied[receiptKey]!, true);
+    final fingerprint = sha256.convert(
+      utf8.encode(NativeSnapshotCodec.canonicalJson(batch.toJson())),
+    ).toString();
+    final previous = _applied[receiptKey];
+    if (previous != null) {
+      if (previous.$1 != fingerprint) {
+        return const NativeSimulatedReceipt('reused-id-different-batch', false);
+      }
+      return NativeSimulatedReceipt(previous.$2, true);
     }
     final decision = NativeSyncReview.inspect(
       batch: batch, cloudRow: _row, signedInOwnerId: signedInOwnerId,
@@ -258,7 +269,7 @@ class NativeSimulatedAtomicServer {
       updatedAt: nextRevision,
       stateData: decision.plan!.proposedStateData,
     );
-    _applied[receiptKey] = nextRevision;
+    _applied[receiptKey] = (fingerprint, nextRevision);
     return NativeSimulatedReceipt(nextRevision, false);
   }
 }
