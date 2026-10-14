@@ -104,7 +104,11 @@ class NativePendingReviewStore {
         await pending.writeAsString(encoded, flush: true);
         // A pending record cannot become active until the complete authenticated
         // ciphertext was durably written. No automatic execution ever occurs.
-        if (await primary.exists()) await primary.delete();
+        if (await primary.exists()) {
+          final previous = File(primary.path + '.previous');
+          if (await previous.exists()) await previous.delete();
+          await primary.rename(previous.path);
+        }
         await pending.rename(primary.path);
       } finally {
         if (await pending.exists()) await pending.delete();
@@ -119,37 +123,54 @@ class NativePendingReviewStore {
         final key = await _keys.read(hash);
         if (key == null || key.length != 32) return null;
         final primary = await _file(hash);
-        if (!await primary.exists() ||
-            await primary.length() > maxFileBytes) return null;
-        final raw = jsonDecode(await primary.readAsString());
-        if (raw is! Map ||
-            raw['format'] != format ||
-            raw['ownerHash'] != hash ||
-            raw['nonce'] is! String ||
-            raw['mac'] is! String ||
-            raw['ciphertext'] is! String) return null;
-        final nonce = base64Decode(raw['nonce'] as String);
-        final mac = base64Decode(raw['mac'] as String);
-        final cipher = base64Decode(raw['ciphertext'] as String);
-        if (nonce.length != 12 || mac.length != 16 ||
-            cipher.length > maxFileBytes) return null;
-        final plain = await AesGcm.with256bits().decrypt(
-          SecretBox(cipher, nonce: nonce, mac: Mac(mac)),
-          secretKey: SecretKey(key),
-          aad: utf8.encode(format + ':' + hash),
-        );
-        if (plain.length > NativeReviewBatch.maxSerializedBytes) return null;
-        final decoded = jsonDecode(utf8.decode(plain));
-        if (decoded is! Map) return null;
-        return NativeReviewBatch.fromJson(
-          Map<String, dynamic>.from(decoded),
-          signedInOwnerId: signedInOwnerId,
-        );
+        for (final file in [primary, File(primary.path + '.previous')]) {
+          final restored = await _tryRead(
+            file, key, hash, signedInOwnerId,
+          );
+          if (restored != null) return restored;
+        }
       } catch (_) {
-        // A foreign, corrupt, locked, or tampered record always fails closed.
+        // Unavailable secure key always fails closed.
+      }
+      return null;
+    });
+  }
+
+  Future<NativeReviewBatch?> _tryRead(
+    File file, Uint8List key, String hash, String owner,
+  ) async {
+    try {
+      if (!await file.exists() || await file.length() > maxFileBytes) {
         return null;
       }
-    });
+      final raw = jsonDecode(await file.readAsString());
+      if (raw is! Map ||
+          raw['format'] != format ||
+          raw['ownerHash'] != hash ||
+          raw['nonce'] is! String ||
+          raw['mac'] is! String ||
+          raw['ciphertext'] is! String) return null;
+      final nonce = base64Decode(raw['nonce'] as String);
+      final mac = base64Decode(raw['mac'] as String);
+      final cipher = base64Decode(raw['ciphertext'] as String);
+      if (nonce.length != 12 || mac.length != 16 ||
+          cipher.length > maxFileBytes) return null;
+      final plain = await AesGcm.with256bits().decrypt(
+        SecretBox(cipher, nonce: nonce, mac: Mac(mac)),
+        secretKey: SecretKey(key),
+        aad: utf8.encode(format + ':' + hash),
+      );
+      if (plain.length > NativeReviewBatch.maxSerializedBytes) return null;
+      final decoded = jsonDecode(utf8.decode(plain));
+      if (decoded is! Map) return null;
+      return NativeReviewBatch.fromJson(
+        Map<String, dynamic>.from(decoded),
+        signedInOwnerId: owner,
+      );
+    } catch (_) {
+      // Corrupted, truncated, unknown-format and tampered files rejected.
+      return null;
+    }
   }
 
   /// Wipes the signed-in account's key and files. Called before sign-out.
@@ -163,7 +184,7 @@ class NativePendingReviewStore {
         failure = error;
       }
       final primary = await _file(hash);
-      for (final suffix in ['', '.pending']) {
+      for (final suffix in ['', '.previous', '.pending']) {
         try {
           final file = File(primary.path + suffix);
           if (await file.exists()) await file.delete();
