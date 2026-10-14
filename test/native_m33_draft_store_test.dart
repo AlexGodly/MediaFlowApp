@@ -126,6 +126,19 @@ void main(){
     expect(keys.keys,isEmpty);
   });
 
+
+  test('M34 targeted resolution removes prior rollback generation on success',
+      () async {
+    await store.save(owner,queue());
+    await store.replaceForResolution(owner,queue(id:'m34-cleaned'),'batch-one');
+    expect((await store.load(owner))?.queueId,'m34-cleaned');
+    expect(await file(suffix:'.previous').exists(),false);
+    // If the newly cleaned snapshot corrupts, an old discarded intent must
+    // never reappear through the previous-generation fallback.
+    await file().writeAsString('{corrupted',flush:true);
+    expect(await store.load(owner),isNull);
+  });
+
   test('secure storage unavailable fails safe, does not return plaintext',() async {
     await store.save(owner,queue());
     keys.locked=true;
