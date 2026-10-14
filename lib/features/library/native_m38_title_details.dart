@@ -80,7 +80,7 @@ class NativeM38TitleDetails extends StatelessWidget {
           final p = plan;
           final staged = p != null && !p.stale &&
               (p.isEdited(title.id) || p.isTemporary(title.id));
-          final shown = staged ? p.fieldsFor(title.id).preview(
+          final shown = staged ? p!.fieldsFor(title.id).preview(
               title.id, original: title) : title;
           final category = catalog.categoryById[shown.categoryId];
           final total = shown.total;
