@@ -83,7 +83,10 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     MediaFlowSection.personalOrder,
   ];
 
-  void navigate(MediaFlowSection section) => setState(() => selected = section);
+  void navigate(MediaFlowSection section) {
+    if (selected == section) return;
+    setState(() => selected = section);
+  }
 
   void showMore() {
     showModalBottomSheet<void>(
@@ -163,7 +166,9 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     return Theme(
       data: MediaFlowTheme.build(appearance),
       child: LayoutBuilder(builder: (context, constraints) {
-        final desktop = constraints.maxWidth > 860;
+        final desktop = constraints.maxWidth >= 1100;
+        final tablet = constraints.maxWidth >= 700 && !desktop;
+        final narrow = constraints.maxWidth < 390;
         return Scaffold(
           appBar: AppBar(
             title: const Text('MediaFlow'),
@@ -189,23 +194,52 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                     const SizedBox(height: 16),
                     for (final section in MediaFlowSection.values)
                       ListTile(
+                        key: ValueKey('nav-${section.name}'),
                         leading: Icon(section.icon),
                         title: Text(section.label),
                         selected: selected == section,
+                        selectedTileColor: Theme.of(context)
+                            .colorScheme.primaryContainer.withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         onTap: () => navigate(section),
                       ),
                   ]),
                 ),
+              )
+            else if (tablet)
+              NavigationRail(
+                key: const Key('tablet-navigation-rail'),
+                selectedIndex: MediaFlowSection.values.indexOf(selected),
+                onDestinationSelected: (index) =>
+                    navigate(MediaFlowSection.values[index]),
+                labelType: NavigationRailLabelType.selected,
+                destinations: [
+                  for (final section in MediaFlowSection.values)
+                    NavigationRailDestination(
+                      icon: Icon(section.icon),
+                      label: Text(section.label),
+                    ),
+                ],
               ),
             Expanded(child: Center(child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1080),
+              constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.symmetric(
+                  horizontal: constraints.maxWidth < 390 ? 10 :
+                      constraints.maxWidth < 700 ? 14 : 20,
+                  vertical: constraints.maxWidth < 390 ? 10 : 20,
+                ),
                 child: _page(context),
               ),
             ))),
           ]),
-          bottomNavigationBar: desktop ? null : NavigationBar(
+          bottomNavigationBar: desktop || tablet ? null : NavigationBar(
+            height: narrow ? 70 : 80,
+            labelBehavior: narrow
+                ? NavigationDestinationLabelBehavior.onlyShowSelected
+                : NavigationDestinationLabelBehavior.alwaysShow,
             selectedIndex: primary.contains(selected) ? primary.indexOf(selected) : 4,
             onDestinationSelected: (index) {
               if (index == 4) { showMore(); } else { navigate(primary[index]); }
