@@ -16,10 +16,11 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - iOS IPA requires macOS/Xcode and valid Apple signing/provisioning; installation/distribution depends on Apple rules.
 - Do not publish a production release until required build and parity checks pass.
 
-## Development status (milestone 20)
+## Development status (milestone 21)
 - Native adaptive Flutter UI is implemented for **Library, Dashboard, History, Collections, Statistics, Personal Order, Logging browser, Account, and device-local Settings**. Some screens remain read-only projections; they are NOT 1:1 website parity.
 - Existing Supabase accounts and original compressed cloud snapshot are reused. Account data is not mirrored into new public tables.
 - Authentication and local Dark/Light/AMOLED preferences are implemented; advanced web settings and actual persistent edit/logging workflows remain incomplete.
+- Milestone 21 adds source-grounded Last Progress and Repeat logging draft previews, provisional completion/History summaries, v149 historical-day streak diagnostics, contiguous-unit calculation, and regression fixtures; **exact XP, advanced seasons/unit submission, History writes and cloud writes remain OFF**.
 - Milestone 20 adds Library title draft forms (status/priority/progress/rating), Logging units/minutes/note draft form, shared signed-in RAM workspace, stale snapshot quarantine, Settings review/discard and synthetic 100K tests. **These are local previews only**: History/XP/cloud are never changed.
 - Milestone 19 adds exact owner/revision/full-payload conflict anchors, encrypted pending-review records, a simulated atomic/idempotent server, timestamp-collision checks and a synthetic Settings lab. **Production cloud writes and offline replay are still disabled**; all web/cloud writers need an aligned server-enforced CAS protocol before enabling them.
 - Milestone 18 encrypts native offline snapshots with AES-256-GCM and per-account OS-protected keys, invalidates old plaintext caches, and validates tampering/key loss/recovery. Cloud writes remain OFF.
@@ -33,6 +34,6 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - No signed APK, Windows package, or iOS IPA has been released. Production native edits, full Logging/XP/history parity, automatic offline cloud-write queue, advanced Collections/Personal Order behavior, production device tests, and 100K-title benchmarks remain pending.
 - Original MediaFlow and MediaFlow Plus repositories and production data remain unchanged.
 
-**Development reports:** [Milestone 20](docs/MILESTONE_20.md) · [Milestone 19](docs/MILESTONE_19.md) · [Milestone 18](docs/MILESTONE_18.md) · [Milestone 17](docs/MILESTONE_17.md) · [Milestone 16](docs/MILESTONE_16.md) · [Milestone 15](docs/MILESTONE_15.md) · [Milestone 14](docs/MILESTONE_14.md) · [Milestone 13](docs/MILESTONE_13.md) · [Milestone 12](docs/MILESTONE_12.md) · [Milestone 11](docs/MILESTONE_11.md) · [Milestone 10](docs/MILESTONE_10.md) · [Milestone 09](docs/MILESTONE_09.md) · [Milestone 08](docs/MILESTONE_08.md) · [Milestone 07](docs/MILESTONE_07.md) · [Milestone 06](docs/MILESTONE_06.md) · [v410 parity audit](docs/V410_PARITY_AUDIT.md).
+**Development reports:** [Milestone 21](docs/MILESTONE_21.md) · [Milestone 20](docs/MILESTONE_20.md) · [Milestone 19](docs/MILESTONE_19.md) · [Milestone 18](docs/MILESTONE_18.md) · [Milestone 17](docs/MILESTONE_17.md) · [Milestone 16](docs/MILESTONE_16.md) · [Milestone 15](docs/MILESTONE_15.md) · [Milestone 14](docs/MILESTONE_14.md) · [Milestone 13](docs/MILESTONE_13.md) · [Milestone 12](docs/MILESTONE_12.md) · [Milestone 11](docs/MILESTONE_11.md) · [Milestone 10](docs/MILESTONE_10.md) · [Milestone 09](docs/MILESTONE_09.md) · [Milestone 08](docs/MILESTONE_08.md) · [Milestone 07](docs/MILESTONE_07.md) · [Milestone 06](docs/MILESTONE_06.md) · [v410 parity audit](docs/V410_PARITY_AUDIT.md).
 
 Source: https://github.com/AlexGodly/MediaFlow (VERSION 410 verified on 2026-10-13).
