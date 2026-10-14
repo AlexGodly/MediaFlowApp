@@ -35,11 +35,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool _previewChanges = false, _selecting = false;
   final Set<String> _selectedIds = {};
   void _onPlanChange() {
-    if (mounted) setState(() {
+    if (mounted) {
+      setState(() {
       _cacheCatalog = null;
       _page = 0;
       _selectedIds.clear();
-    });
+      });
+    }
   }
   MediaFlowCatalog? _cacheCatalog;
   MediaFlowLibraryIndex? _libraryIndex;
