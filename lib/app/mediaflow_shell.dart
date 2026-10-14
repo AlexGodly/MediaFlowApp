@@ -128,6 +128,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         case MediaFlowSection.settings:
           return NativeSettingsScreen(
             appearance: appearance,
+            repository: data,
             onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
           );
         case MediaFlowSection.collections:
