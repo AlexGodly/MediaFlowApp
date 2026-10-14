@@ -145,7 +145,7 @@ enum NativeM30Result {
 
 class NativeM30Receipt {
   const NativeM30Receipt(
-    this.result, {this.revision, this.digest, this.message = ''},
+    this.result, {this.revision, this.digest, this.message = ''}
   );
   final NativeM30Result result;
   final int? revision;
@@ -223,7 +223,7 @@ class NativeM30SimulatedSharedServer {
       return const NativeM30Receipt(NativeM30Result.invalid,
         message: 'Unknown synthetic client kind');
     }
-    final key = intent.ownerId + ':' + intent.operationId;
+    final key = '${intent.ownerId}:${intent.operationId}';
     final prior = _receipts[key];
     if (prior != null) {
       if (prior.fingerprint != intent.fingerprint) {
