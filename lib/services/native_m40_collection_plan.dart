@@ -52,7 +52,7 @@ class _CollectionRevision {
 /// NEVER be serialized to an account snapshot.
 class NativeM40CollectionPlan extends ChangeNotifier {
   NativeM40CollectionPlan({required this.ownerId}) {
-    if (ownerId.isEmpty) throw StateError('Authenticated owner required');
+    if (ownerId.isEmpty) { throw StateError('Authenticated owner required'); }
   }
   final String ownerId;
   final Random _random = Random.secure();
@@ -84,7 +84,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
   );
 
   void observe(MediaFlowCatalog catalog) {
-    if (identical(catalog, _latest)) return;
+    if (identical(catalog, _latest)) { return; }
     _latest = catalog;
     if (_base != null && !identical(_base, catalog) && hasChanges) {
       _stale = true;
@@ -102,11 +102,11 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     _ambiguousCollections.clear();
     _ambiguousTitles.clear();
     for (final c in catalog.collections) {
-      if (_source.containsKey(c.id)) _ambiguousCollections.add(c.id);
+      if (_source.containsKey(c.id)) { _ambiguousCollections.add(c.id); }
       _source[c.id] = c;
     }
     for (final t in catalog.library) {
-      if (_library.containsKey(t.id)) _ambiguousTitles.add(t.id);
+      if (_library.containsKey(t.id)) { _ambiguousTitles.add(t.id); }
       _library[t.id] = t;
     }
     _projectedRevision = -1;
@@ -152,7 +152,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
   NativeM40CollectionFields fieldsFor(String id) {
     _ensureCurrent();
     final local = _created[id];
-    if (local != null) return local;
+    if (local != null) { return local; }
     _assertRealCollection(id);
     return _edited[id] ?? NativeM40CollectionFields.fromCollection(_source[id]!);
   }
@@ -165,7 +165,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     Map.of(_created), Map.of(_edited), Set.of(_deleted),
   );
   void _checkpoint() {
-    if (_undo.length >= 30) _undo.removeAt(0);
+    if (_undo.length >= 30) { _undo.removeAt(0); }
     _undo.add(_capture());
     _redo.clear();
   }
@@ -185,7 +185,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
   String create(NativeM40CollectionFields fields) {
     _validate(fields);
     for (final id in fields.titleIds) { _assertLibraryId(id); }
-    if (changeCount >= 200) throw StateError('200 local changes maximum');
+    if (changeCount >= 200) { throw StateError('200 local changes maximum'); }
     _checkpoint();
     final id = 'local_m40_${++_sequence}_${_random.nextInt(1<<32).toRadixString(16)}';
     _created[id] = fields;
@@ -202,9 +202,9 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     // Unresolved legacy references may be retained, but cannot be added.
     final previously = old.titleIds.toSet();
     for (final tid in fields.titleIds) {
-      if (!previously.contains(tid)) _assertLibraryId(tid);
+      if (!previously.contains(tid)) { _assertLibraryId(tid); }
     }
-    if (fields.matches(old)) return;
+    if (fields.matches(old)) { return; }
     if (!_created.containsKey(id) && !_edited.containsKey(id) &&
         changeCount >= 200) {
       throw StateError('200 local changes maximum');
@@ -233,7 +233,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     final seen = old.titleIds.toSet();
     final result = [...old.titleIds];
     for (final tid in ids) {
-      if (seen.add(tid)) result.add(tid);
+      if (seen.add(tid)) { result.add(tid); }
     }
     edit(id, old.copyWith(titleIds: result));
   }
@@ -259,7 +259,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     if (index < 0 || position < 0 || position >= old.titleIds.length) {
       throw const FormatException('Invalid collection order position');
     }
-    if (index == position) return;
+    if (index == position) { return; }
     final ids = [...old.titleIds];
     final moved = ids.removeAt(index);
     ids.insert(position, moved);
@@ -270,8 +270,8 @@ class NativeM40CollectionPlan extends ChangeNotifier {
   /// The deletion is only a reversible projection.
   void stageDelete(String id) {
     _ensureCurrent();
-    if (!_created.containsKey(id)) _assertRealCollection(id);
-    if (_deleted.contains(id)) return;
+    if (!_created.containsKey(id)) { _assertRealCollection(id); }
+    if (_deleted.contains(id)) { return; }
     if (!_created.containsKey(id) && !_edited.containsKey(id) &&
         changeCount >= 200) {
       throw StateError('200 local changes maximum');
@@ -286,7 +286,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
 
   void restore(String id) {
     _ensureCurrent();
-    if (!_deleted.contains(id)) throw StateError('No staged deletion to restore');
+    if (!_deleted.contains(id)) { throw StateError('No staged deletion to restore'); }
     _checkpoint();
     _deleted.remove(id);
     _changed();
@@ -294,13 +294,13 @@ class NativeM40CollectionPlan extends ChangeNotifier {
 
   void undo() {
     _ensureCurrent();
-    if (_undo.isEmpty) return;
+    if (_undo.isEmpty) { return; }
     _redo.add(_capture());
     _restore(_undo.removeLast());
   }
   void redo() {
     _ensureCurrent();
-    if (_redo.isEmpty) return;
+    if (_redo.isEmpty) { return; }
     _undo.add(_capture());
     _restore(_redo.removeLast());
   }
@@ -310,13 +310,13 @@ class NativeM40CollectionPlan extends ChangeNotifier {
     _deleted.clear();
     _undo.clear();
     _redo.clear();
-    if (_latest != null) _attach(_latest!);
+    if (_latest != null) { _attach(_latest!); }
     _changed();
   }
 
   MediaFlowCatalog previewCatalog() {
     _ensureCurrent();
-    if (!hasChanges) return _base!;
+    if (!hasChanges) { return _base!; }
     if (_projected != null && _projectedRevision == _revision) {
       return _projected!;
     }
