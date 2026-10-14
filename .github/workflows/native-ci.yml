@@ -53,6 +53,8 @@ jobs:
         run: node tool/parity/m39_metadata_guard.mjs
       - name: Guard M40 reversible local Collections and write restrictions
         run: node tool/parity/m40_collections_guard.mjs
+      - name: Guard M41 advanced Collections and v287 order reference safety
+        run: node tool/parity/m41_collections_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
