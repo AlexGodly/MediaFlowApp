@@ -67,7 +67,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
         const SizedBox(height: 8),
         Wrap(spacing: 8, runSpacing: 8, children: [
           SizedBox(width: 210, child: DropdownButtonFormField<String>(
-            value: categoryId, isExpanded: true,
+            initialValue: categoryId, isExpanded: true,
             decoration: const InputDecoration(labelText: 'Category',
                 border: OutlineInputBorder()),
             items: [
@@ -81,7 +81,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
             }),
           )),
           SizedBox(width: 190, child: DropdownButtonFormField<String>(
-            value: status, isExpanded: true,
+            initialValue: status, isExpanded: true,
             decoration: const InputDecoration(labelText: 'Status',
                 border: OutlineInputBorder()),
             items: [
