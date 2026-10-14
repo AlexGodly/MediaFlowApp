@@ -70,6 +70,7 @@ abstract final class NativeOfflineProjectionCodec {
         'reasons': catalog.currentTask!.reasons,
       },
       'sessionActive': catalog.sessionActive,
+      'nativeXpEvidence': catalog.xpEvidence?.toProjection(),
       'settings': {
         'tasksPerDay': catalog.tasksPerDay,
         'dailyMinutes': catalog.dailyMinutes,
@@ -98,6 +99,7 @@ abstract final class NativeOfflineProjectionCodec {
       sessionActive: value.sessionActive,
       tasksPerDay: value.tasksPerDay,
       dailyMinutes: value.dailyMinutes,
+      xpEvidence: value.xpEvidence,
       updatedAt: date == null ? null : DateTime.parse(date as String),
     );
   }

@@ -24,6 +24,7 @@ jobs:
         run: |
           TZ=UTC node tool/parity/m23_website_reference.mjs
           TZ=UTC node tool/parity/m24_website_reference.mjs
+          TZ=UTC node tool/parity/m25_website_reference.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

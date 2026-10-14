@@ -6,6 +6,7 @@ import 'account_health_panel.dart';
 import 'offline_snapshot_panel.dart';
 import 'sync_safety_lab_panel.dart';
 import 'native_editing_review_panel.dart';
+import 'native_xp_ledger_audit_panel.dart';
 import 'draft_sandbox_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
@@ -53,6 +54,8 @@ class NativeSettingsScreen extends StatelessWidget {
     const SizedBox(height: 12),
     if (repository != null) ...[
       CloudSafetyPanel(repository: repository!),
+      const SizedBox(height: 12),
+      NativeXpLedgerAuditPanel(repository: repository!),
       const SizedBox(height: 12),
       AccountHealthPanel(repository: repository!),
       const SizedBox(height: 12),

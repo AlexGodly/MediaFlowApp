@@ -129,6 +129,141 @@ class MediaFlowTitle {
   }
 }
 
+
+/// Compact read-only v410 XP evidence, deliberately omitting individual
+/// ledger IDs, event metadata, and all account/cloud writable state.
+class MediaFlowXpEvidence {
+  MediaFlowXpEvidence({
+    required this.settingsPresent,
+    required this.ledgerPresent,
+    required this.levelingEnabled,
+    required this.globalStreakEnabled,
+    required Map<String, double> actionRates,
+    required Map<String, double> ledgerTotals,
+    required Map<String, int> ledgerCounts,
+    required this.invalidLedgerValues,
+  }) : actionRates = Map.unmodifiable(actionRates),
+       ledgerTotals = Map.unmodifiable(ledgerTotals),
+       ledgerCounts = Map.unmodifiable(ledgerCounts);
+
+  static const actionKeys = [
+    'collectionAddTitleXP', 'collectionReorderTitleXP',
+    'orderAddTitleXP', 'orderAddCollectionXP',
+    'orderReorderTitleXP', 'orderReorderCollectionXP', 'batchLogXP',
+  ];
+  static const ledgerKeys = [
+    'v348ActionEvents', 'v348LibraryAdditionBonus',
+    'v348LibraryCompletionBonus', 'logCompletions',
+  ];
+  final bool settingsPresent, ledgerPresent, levelingEnabled;
+  final bool globalStreakEnabled;
+  final Map<String, double> actionRates, ledgerTotals;
+  final Map<String, int> ledgerCounts;
+  final int invalidLedgerValues;
+
+  double get knownExtraXp =>
+      (ledgerTotals['v348ActionEvents'] ?? 0) +
+      (ledgerTotals['v348LibraryAdditionBonus'] ?? 0) +
+      (ledgerTotals['v348LibraryCompletionBonus'] ?? 0);
+  int get actionEventCount => ledgerCounts['v348ActionEvents'] ?? 0;
+  bool get completeAccountXp => false;
+  bool get canWrite => false;
+
+  factory MediaFlowXpEvidence.fromState(Map<String, dynamic> state) {
+    final settings = state['settings'];
+    final rawLeveling = settings is Map ? settings['leveling'] : null;
+    final leveling = rawLeveling is Map ? rawLeveling : const {};
+    final ledgerRaw = state['xpLedger'];
+    final ledger = ledgerRaw is Map ? ledgerRaw : const {};
+    final rates = <String, double>{};
+    for (final key in actionKeys) {
+      final value = mediaFlowNumber(leveling[key]);
+      if (value != null && value.isFinite) rates[key] = value;
+    }
+    var invalid = 0;
+    final sums = <String, double>{};
+    final counts = <String, int>{};
+    for (final key in ledgerKeys) {
+      final raw = ledger[key];
+      var sum = 0.0, count = 0;
+      if (raw is Map) {
+        for (final value in raw.values) {
+          // Unlike the JavaScript source, native diagnostics reject infinities
+          // and malformed numbers rather than claiming an authoritative sum.
+          final number = mediaFlowNumber(value);
+          if (number == null || !number.isFinite) {
+            invalid++;
+            continue;
+          }
+          if (number >= 0) {
+            final next = sum + number;
+            if (next.isFinite) {
+              sum = next;
+              count++;
+            } else {
+              invalid++;
+            }
+          }
+        }
+      } else if (raw != null) {
+        invalid++;
+      }
+      sums[key] = sum;
+      counts[key] = count;
+    }
+    return MediaFlowXpEvidence(
+      settingsPresent: rawLeveling is Map,
+      ledgerPresent: ledgerRaw is Map,
+      levelingEnabled: leveling['enabled'] != false,
+      globalStreakEnabled: leveling['globalStreakMultiplierEnabled'] != false,
+      actionRates: rates, ledgerTotals: sums,
+      ledgerCounts: counts, invalidLedgerValues: invalid,
+    );
+  }
+
+  Map<String, dynamic> toProjection() => {
+    'settingsPresent': settingsPresent,
+    'ledgerPresent': ledgerPresent,
+    'levelingEnabled': levelingEnabled,
+    'globalStreakEnabled': globalStreakEnabled,
+    'actionRates': actionRates,
+    'ledgerTotals': ledgerTotals,
+    'ledgerCounts': ledgerCounts,
+    'invalidLedgerValues': invalidLedgerValues,
+  };
+
+  factory MediaFlowXpEvidence.fromProjection(Map<String, dynamic> raw) {
+    Map<String, double> doubles(Object? value, List<String> allowed,
+        {bool nonnegativeOnly = true}) {
+      final input = value is Map ? value : const {};
+      return {
+        for (final key in allowed)
+          if (mediaFlowNumber(input[key]) case final v?)
+            if (v.isFinite && (!nonnegativeOnly || v >= 0)) key: v,
+      };
+    }
+    final rawCounts = raw['ledgerCounts'];
+    final counts = rawCounts is Map ? rawCounts : const {};
+    return MediaFlowXpEvidence(
+      settingsPresent: raw['settingsPresent'] == true,
+      ledgerPresent: raw['ledgerPresent'] == true,
+      levelingEnabled: raw['levelingEnabled'] != false,
+      globalStreakEnabled: raw['globalStreakEnabled'] != false,
+      actionRates: doubles(raw['actionRates'], actionKeys,
+          nonnegativeOnly: false),
+      ledgerTotals: doubles(raw['ledgerTotals'], ledgerKeys),
+      ledgerCounts: {
+        for (final key in ledgerKeys)
+          if (mediaFlowNumber(counts[key]) case final n?)
+            if (n.isFinite && n >= 0 && n <= 100000000)
+              key: n.toInt(),
+      },
+      invalidLedgerValues: (mediaFlowNumber(raw['invalidLedgerValues']) ?? 0)
+          .clamp(0, 100000000).toInt(),
+    );
+  }
+}
+
 class MediaFlowCatalog {
   const MediaFlowCatalog({
     required this.categories,
@@ -140,6 +275,7 @@ class MediaFlowCatalog {
     this.sessionActive = false,
     this.tasksPerDay,
     this.dailyMinutes,
+    this.xpEvidence,
     this.updatedAt,
   });
 
@@ -151,6 +287,7 @@ class MediaFlowCatalog {
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
+  final MediaFlowXpEvidence? xpEvidence;
   final DateTime? updatedAt;
 
   Map<String, MediaFlowCategory> get categoryById => {
