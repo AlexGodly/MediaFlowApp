@@ -5,6 +5,8 @@ import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../design_system/mediaflow_components.dart';
+import '../../services/native_m36_dashboard_tools.dart';
+import 'native_m36_dashboard_tools_panel.dart';
 
 /// Read-only Dashboard projection. Scheduler/XP mutations remain owned by
 /// the existing website until the native sync contract is validated.
@@ -14,10 +16,12 @@ class DashboardScreen extends StatefulWidget {
     required this.repository,
     required this.openLibrary,
     required this.openHistory,
+    this.dashboardTools,
   });
 
   final MediaFlowLibraryRepository repository;
   final VoidCallback openLibrary, openHistory;
+  final NativeM36DashboardToolsController? dashboardTools;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -25,11 +29,21 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<MediaFlowCatalog> _future;
+  late final NativeM36DashboardToolsController _ownedTools;
+  NativeM36DashboardToolsController get _tools =>
+      widget.dashboardTools ?? _ownedTools;
 
   @override
   void initState() {
     super.initState();
+    _ownedTools = NativeM36DashboardToolsController();
     _future = widget.repository.load();
+  }
+
+  @override
+  void dispose() {
+    _ownedTools.dispose();
+    super.dispose();
   }
 
   void refresh() => setState(() => _future = widget.repository.reload());
@@ -130,6 +144,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         )),
         const SizedBox(height: 8),
         _taskCard(context, data),
+        const SizedBox(height: 8),
+        NativeM36DashboardToolsPanel(
+          controller: _tools, catalog: data,
+          openLibrary: widget.openLibrary,
+        ),
         const SizedBox(height: 8),
         Card(child: Padding(
           padding: const EdgeInsets.all(18),

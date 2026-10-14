@@ -14,7 +14,8 @@ class NativeM36Duration {
 
   factory NativeM36Duration.normalized(int hours, int minutes, int seconds) =>
     NativeM36Duration(
-      hours.clamp(0, 99999), minutes.clamp(0, 59), seconds.clamp(0, 59));
+      hours.clamp(0, 99999).toInt(), minutes.clamp(0, 59).toInt(),
+      seconds.clamp(0, 59).toInt());
 
   factory NativeM36Duration.fromSeconds(int seconds) {
     final valid = math.max(0, seconds);

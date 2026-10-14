@@ -6,6 +6,7 @@ import '../features/dashboard/dashboard_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/auth/account_screen.dart';
 import '../services/native_preferences.dart';
+import '../services/native_m36_dashboard_tools.dart';
 import '../features/settings/native_settings_screen.dart';
 import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
@@ -42,12 +43,14 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   MediaFlowAppearance appearance = MediaFlowAppearance.dark;
   final NativePreferences preferences = NativePreferences();
   late final MediaFlowLibraryRepository? repository;
+  late final NativeM36DashboardToolsController dashboardTools;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
   @override
   void initState() {
     super.initState();
+    dashboardTools = NativeM36DashboardToolsController();
     repository = widget.client == null
         ? null : SupabaseMediaFlowLibraryRepository(widget.client!);
     unawaited(_restoreAppearance());
@@ -57,6 +60,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   void dispose() {
     final current = repository;
     if (current is SupabaseMediaFlowLibraryRepository) current.dispose();
+    dashboardTools.dispose();
     super.dispose();
   }
 
@@ -142,6 +146,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             repository: data,
             openLibrary: () => navigate(MediaFlowSection.library),
             openHistory: () => navigate(MediaFlowSection.history),
+            dashboardTools: dashboardTools,
           );
         case MediaFlowSection.library:
           return LibraryScreen(

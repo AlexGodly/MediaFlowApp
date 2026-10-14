@@ -344,7 +344,8 @@ class _ReadOnlyTitleQueuesState extends State<_ReadOnlyTitleQueues> {
               style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _filterCategory,
+              key: ValueKey('m36-category-$_filterCategory'),
+              initialValue: _filterCategory,
               isExpanded: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
