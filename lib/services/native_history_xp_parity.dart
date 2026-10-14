@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'dart:math' as math;
 
 import '../data/mediaflow_models.dart';
@@ -99,7 +100,9 @@ abstract final class NativeHistoryXpParity {
     MediaFlowTitle title, Iterable<MediaFlowSession> rows,
   ) {
     if (!NativeLoggingParityPreview.isCompleted(title) ||
-        title.id.isEmpty || title.completedAt == null) return false;
+        title.id.isEmpty || title.completedAt == null) {
+      return false;
+    }
     final ended = title.completedAt!.millisecondsSinceEpoch;
     for (final row in rows) {
       if (row.status == 'skipped' || row.timestamp == null ||
