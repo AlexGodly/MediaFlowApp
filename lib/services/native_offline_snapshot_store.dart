@@ -168,7 +168,36 @@ String _compressProjection(MediaFlowCatalog catalog) {
   return base64Encode(gzip.encode(utf8.encode(raw)));
 }
 
+/// Chunking also caps decompression of a damaged/hostile local gzip payload.
 MediaFlowCatalog _expandProjection(String payload) {
-  final raw = utf8.decode(gzip.decode(base64Decode(payload)));
+  final bytes = base64Decode(payload);
+  final sink = _BoundedBytesSink();
+  final decoder = gzip.decoder.startChunkedConversion(sink);
+  const chunkSize = 64 * 1024;
+  for (var position = 0; position < bytes.length; position += chunkSize) {
+    final end = position + chunkSize < bytes.length
+        ? position + chunkSize : bytes.length;
+    decoder.add(bytes.sublist(position, end));
+  }
+  decoder.close();
+  final raw = utf8.decode(sink.bytes.takeBytes());
   return NativeOfflineProjectionCodec.decode(jsonDecode(raw));
+}
+
+class _BoundedBytesSink implements Sink<List<int>> {
+  static const maxUncompressedBytes = 192 * 1024 * 1024;
+  final BytesBuilder bytes = BytesBuilder(copy: false);
+  int total = 0;
+
+  @override
+  void add(List<int> chunk) {
+    total += chunk.length;
+    if (total > maxUncompressedBytes) {
+      throw const FormatException('Offline projection expands past safe limit');
+    }
+    bytes.add(chunk);
+  }
+
+  @override
+  void close() {}
 }
