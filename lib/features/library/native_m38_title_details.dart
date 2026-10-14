@@ -80,7 +80,7 @@ class NativeM38TitleDetails extends StatelessWidget {
           final p = plan;
           final staged = p != null && !p.stale &&
               (p.isEdited(title.id) || p.isTemporary(title.id));
-          final shown = staged ? p!.fieldsFor(title.id).preview(
+          final shown = staged ? p.fieldsFor(title.id).preview(
               title.id, original: title) : title;
           final category = catalog.categoryById[shown.categoryId];
           final total = shown.total;
@@ -163,7 +163,7 @@ class NativeM38TitleDetails extends StatelessWidget {
                   ),
               ],
               const SizedBox(height: 16),
-              if (staged && !p!.isTemporary(title.id))
+              if (staged && !p.isTemporary(title.id))
                 const Text('This title has an unsaved local metadata edit. '
                   'Unknown website fields and related records have not been modified.'),
               const Text('Native details show the available Library projection; '
