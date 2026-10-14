@@ -178,9 +178,17 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     }
     NativeM39Metadata.validateIds(
       fields.externalIds, fields.manualExternalIds);
-    NativeM39Metadata.validateSeasons(fields.seasons);
+    // Historical imports sometimes lack season IDs. Preserve exactly
+    // unchanged legacy rows in ordinary edits, but never let this carve-out
+    // authorize any season mutation without unambiguous identities.
+    final carryLegacy = original != null &&
+        NativeM39Metadata.sameSeasons(fields.seasons, original.seasons) &&
+        original.seasons.any((season) => season.id.trim().isEmpty);
+    NativeM39Metadata.validateSeasons(fields.seasons,
+        legacyUnidentified: carryLegacy);
     if (fields.seasons.isNotEmpty) {
-      final aggregate = NativeM39Metadata.aggregate(fields.seasons);
+      final aggregate = NativeM39Metadata.aggregate(fields.seasons,
+          legacyUnidentified: carryLegacy);
       if (fields.progress != aggregate.progress ||
           fields.total != aggregate.total) {
         throw const FormatException('Season aggregate must match season rows');
@@ -343,7 +351,10 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     final nextSeasons = seasons ?? old.seasons;
     final seasonsChanged = seasons != null &&
         !NativeM39Metadata.sameSeasons(nextSeasons, old.seasons);
-    NativeM39Metadata.validateSeasons(nextSeasons);
+    final carryLegacy = !seasonsChanged &&
+        old.seasons.any((season) => season.id.trim().isEmpty);
+    NativeM39Metadata.validateSeasons(nextSeasons,
+        legacyUnidentified: carryLegacy);
     // Removing all seasons cannot infer the intended title-wide counters.
     // Explicit removal needs the complete website side-effect protocol.
     if (old.seasons.isNotEmpty && nextSeasons.isEmpty) {
@@ -351,7 +362,8 @@ class NativeM37LibraryPlan extends ChangeNotifier {
         'Removing all seasons requires website-equivalent state recovery');
     }
     final aggregate = nextSeasons.isEmpty ? null :
-        NativeM39Metadata.aggregate(nextSeasons);
+        NativeM39Metadata.aggregate(nextSeasons,
+            legacyUnidentified: carryLegacy);
     final next = NativeM37Fields(
       title: old.title, categoryId: old.categoryId, status: old.status,
       priority: old.priority,
