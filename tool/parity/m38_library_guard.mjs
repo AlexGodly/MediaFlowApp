@@ -21,7 +21,9 @@ for (const marker of ['m38-title-details', 'm38-edit-title',
   assert(details.includes(marker), 'UI element missing: ' + marker);
 }
 assert(details.includes('No server save'));
-assert(details.includes('external provider IDs'));
+// M39 upgrades the M38 read-only external-ID limitation to a local editor.
+assert(details.includes('NativeM39MetadataSheet'));
+assert(details.includes('device-only drafts'));
 assert(tests.includes('fails atomically'));
 assert(tests.includes('undo'));
 for (const content of [plan, details, screen]) {
