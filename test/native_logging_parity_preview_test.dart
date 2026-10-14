@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow_app/data/mediaflow_models.dart';
@@ -151,6 +152,22 @@ void main() {
     workspace.dispose();
   });
 
+  test('100000 synthetic History rows do not mutate any real session', () {
+    final records = [
+      for (var i = 0; i < 100000; i++)
+        session(i.isEven ? '2026-10-12' : '2026-10-13'),
+    ];
+    final timer = Stopwatch()..start();
+    final streak = NativeLoggingParityPreview.prospectiveStreak(
+      records, '2026-10-14',
+    );
+    expect(streak, 3);
+    expect(records.length, 100000);
+    expect(records.first.xp, 50);
+    // Synthetic CI telemetry only, not device benchmarks.
+    // ignore: avoid_print
+    print('M21_HISTORY_100K_STREAK_MS=' + timer.elapsedMilliseconds.toString());
+  }, timeout: const Timeout(Duration(minutes: 2)));
   testWidgets('native log form exposes mode and no-XP hypothetical panel',
       (tester) async {
     final original = title();
