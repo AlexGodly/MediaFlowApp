@@ -274,7 +274,10 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                         Row(children: [
                           Image.asset('assets/branding/mediaflow-launcher-512.png', width: 26, height: 26),
                           const SizedBox(width: 9),
-                          Text('MEDIAFLOW', style: Theme.of(context).textTheme.titleLarge),
+                          Expanded(child: Text('MEDIAFLOW', maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: MediaFlowTokens.of(context).text,
+                              fontWeight: FontWeight.w800, fontSize: 17))),
                         ]),
                       ]),
                     ),
