@@ -3,6 +3,7 @@ import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_m40_collection_plan.dart';
 import 'native_m40_collection_editor.dart';
+import 'native_m41_collection_browser.dart';
 
 class CollectionsScreen extends StatefulWidget {
   const CollectionsScreen({super.key, required this.repository, this.plan});
@@ -35,9 +36,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   }
   final search = TextEditingController();
   String query = '';
-  String memberQuery = '';
-  String memberStatus = '';
-  String memberSort = 'saved';
   String? opened;
   @override
   void initState() {
@@ -274,24 +272,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     ));
   }
 
-  List<MediaFlowTitle> _visibleMembers(String collectionId) {
-    final needle = memberQuery.trim().toLowerCase();
-    final filtered = [
-      for (final title in _resolved[collectionId] ?? const <MediaFlowTitle>[])
-        if ((needle.isEmpty || title.title.toLowerCase().contains(needle)) &&
-            (memberStatus.isEmpty || title.status == memberStatus))
-          title,
-    ];
-    if (memberSort == 'alphabetical') {
-      filtered.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-    } else if (memberSort == 'progress') {
-      filtered.sort((a, b) => b.progress.compareTo(a.progress));
-    } else if (memberSort == 'priority') {
-      const weights = {'high': 0, 'medium': 1, 'low': 2};
-      filtered.sort((a, b) => (weights[a.priority] ?? 3).compareTo(weights[b.priority] ?? 3));
-    }
-    return filtered;
-  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<MediaFlowCatalog>(
@@ -319,7 +299,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         Row(children: [
           if (selected != null) IconButton(
             tooltip: 'Back to Collections',
-            onPressed: () => setState(() { opened = null; memberQuery = ''; memberStatus = ''; memberSort = 'saved'; }),
+            onPressed: () => setState(() { opened = null; }),
             icon: const Icon(Icons.arrow_back),
           ),
           Expanded(child: Column(
@@ -374,51 +354,13 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             const Text('Member ordering/removal below only stages device changes. '
               'No Library titles will be deleted.'),
           ],
-          Text(selected.description),
-          const SizedBox(height: 8),
-          Text('${selected.titleIds.length} saved title references · '
-              '${(_resolved[selected.id]?.length ?? 0)} available in Library'),
-          const SizedBox(height: 12),
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Search titles in this collection',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(), isDense: true,
-            ),
-            onChanged: (value) => setState(() => memberQuery = value),
-          ),
-          const SizedBox(height: 8),
-          Wrap(spacing: 10, runSpacing: 8, children: [
-            DropdownButton<String>(
-              value: memberStatus,
-              items: const [
-                DropdownMenuItem(value: '', child: Text('All statuses')),
-                DropdownMenuItem(value: 'active', child: Text('In progress')),
-                DropdownMenuItem(value: 'paused', child: Text('On hold')),
-                DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                DropdownMenuItem(value: 'dropped', child: Text('Dropped')),
-                DropdownMenuItem(value: 'planned', child: Text('Planned')),
-              ],
-              onChanged: (value) => setState(() => memberStatus = value ?? ''),
-            ),
-            DropdownButton<String>(
-              value: memberSort,
-              items: const [
-                DropdownMenuItem(value: 'saved', child: Text('Saved order')),
-                DropdownMenuItem(value: 'alphabetical', child: Text('Title A–Z')),
-                DropdownMenuItem(value: 'progress', child: Text('Most progress')),
-                DropdownMenuItem(value: 'priority', child: Text('Priority')),
-              ],
-              onChanged: (value) => setState(() => memberSort = value ?? 'saved'),
-            ),
-          ]),
-          Text('${_visibleMembers(selected.id).length} matching titles',
-              style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 8),
         ],
         Expanded(child: selected != null
-          ? _titles(_visibleMembers(selected.id),
-              collectionId:selected.id, order: selected.titleIds)
+          ? NativeM41CollectionBrowser(
+              key:ValueKey('m41-browser-${selected.id}'),
+              catalog:data,collection:selected,plan:plan,
+              onMove:(id,position)=>_move(selected.id,id,position),
+              onRemove:(id)=>_confirmRemove(selected.id,id))
           : collections.isEmpty
             ? Center(child: Text(data.collections.isEmpty
                 ? 'No collections yet.' : 'No matching collections.'))
@@ -446,7 +388,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                       ],
                     ),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => setState(() { opened = collection.id; memberQuery = ''; memberStatus = ''; memberSort = 'saved'; }),
+                    onTap: () => setState(() { opened = collection.id; }),
                   ));
                 },
               )),
@@ -454,50 +396,4 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
     },
   );
 
-  Widget _titles(List<MediaFlowTitle> titles, {
-      required String collectionId,required List<String> order}) =>
-      titles.isEmpty
-      ? const Center(child: Text('No available Library titles in this collection.'))
-      : ListView.builder(
-          itemCount: titles.length,
-          itemBuilder: (context, index) {
-            final item = titles[index];
-            return Card(child: ListTile(
-              leading: item.coverUrl.isNotEmpty
-                  ? Image.network(item.coverUrl, width: 42, height: 58,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.book_outlined))
-                  : const Icon(Icons.book_outlined),
-              title: Text(item.title),
-              subtitle: Text('${item.status} · ${item.progress.toStringAsFixed(0)}'
-                  '/${item.total?.toStringAsFixed(0) ?? "?"} · ${item.priority}'),
-              trailing: widget.plan == null ? null :
-                Row(mainAxisSize:MainAxisSize.min,children:[
-                  IconButton(
-                    key:Key('m40-up-${item.id}'),
-                    tooltip:'Move member earlier',
-                    onPressed:widget.plan!.stale || memberQuery.isNotEmpty ||
-                        memberStatus.isNotEmpty || memberSort != 'saved' ||
-                        order.indexOf(item.id) <= 0 ? null :
-                      ()=>_move(collectionId,item.id,order.indexOf(item.id)-1),
-                    icon:const Icon(Icons.arrow_upward,size:19)),
-                  IconButton(
-                    key:Key('m40-down-${item.id}'),
-                    tooltip:'Move member later',
-                    onPressed:widget.plan!.stale || memberQuery.isNotEmpty ||
-                        memberStatus.isNotEmpty || memberSort != 'saved' ||
-                        !order.contains(item.id) ||
-                        order.indexOf(item.id) >= order.length-1 ? null :
-                      ()=>_move(collectionId,item.id,order.indexOf(item.id)+1),
-                    icon:const Icon(Icons.arrow_downward,size:19)),
-                  IconButton(
-                    key:Key('m40-remove-${item.id}'),
-                    tooltip:'Remove member locally',
-                    onPressed:widget.plan!.stale ? null :
-                      ()=>_confirmRemove(collectionId,item.id),
-                    icon:const Icon(Icons.remove_circle_outline,size:19)),
-                ]),
-            ));
-          },
-        );
 }
