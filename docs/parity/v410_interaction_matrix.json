@@ -474,7 +474,9 @@
       "domain": "logging",
       "title": "Amount vs Last Progress",
       "steps": [
-        "For title at 3/12 choose Amount 4 then Last Progress 7"
+        "Open title with progress 3/12 and choose Amount Consumed = 4",
+        "Open the same source state and choose Last Progress = 7",
+        "Compare hypothetical quantities, timestamps and saved History after eventual verified submission"
       ],
       "expected": "Both modes yield equivalent consumed units while respecting v410 timestamps",
       "devices": [
