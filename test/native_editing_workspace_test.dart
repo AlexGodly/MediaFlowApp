@@ -155,7 +155,7 @@ void main() {
     expect(source.library.length, 100000);
     expect(source.library.last.priority, 'medium');
     // ignore: avoid_print
-    print('M20_100K_LOCAL_DRAFT_MS=' + watch.elapsedMilliseconds.toString());
+    print('M20_100K_LOCAL_DRAFT_MS=${watch.elapsedMilliseconds}');
     w.dispose();
   }, timeout: const Timeout(Duration(minutes: 2)));
 
