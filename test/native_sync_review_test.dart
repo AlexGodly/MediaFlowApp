@@ -269,7 +269,7 @@ void main() {
     await store.save(batch(id: 'first-batch'), owner);
     await store.save(batch(id: 'new-batch'), owner);
     expect(await File(local(owner).path + '.previous').exists(), true);
-    await local(owner).writeAsString('{\"truncated\":', flush: true);
+    await local(owner).writeAsString('{"truncated":', flush: true);
     final previous = await store.load(owner);
     expect(previous?.batchId, 'first-batch');
     // Recovery does not execute or upload the batch.
