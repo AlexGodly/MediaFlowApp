@@ -223,7 +223,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                       label: Text(section.label),
                     ),
                 ],
-              )),
+              ))),
             Expanded(child: Center(child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1200),
               child: Padding(
