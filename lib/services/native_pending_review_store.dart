@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
@@ -149,12 +148,16 @@ class NativePendingReviewStore {
           raw['ownerHash'] != hash ||
           raw['nonce'] is! String ||
           raw['mac'] is! String ||
-          raw['ciphertext'] is! String) return null;
+          raw['ciphertext'] is! String) {
+        return null;
+      }
       final nonce = base64Decode(raw['nonce'] as String);
       final mac = base64Decode(raw['mac'] as String);
       final cipher = base64Decode(raw['ciphertext'] as String);
       if (nonce.length != 12 || mac.length != 16 ||
-          cipher.length > maxFileBytes) return null;
+          cipher.length > maxFileBytes) {
+        return null;
+      }
       final plain = await AesGcm.with256bits().decrypt(
         SecretBox(cipher, nonce: nonce, mac: Mac(mac)),
         secretKey: SecretKey(key),
