@@ -9,6 +9,9 @@ import '../services/native_offline_snapshot_store.dart';
 import '../services/native_pending_review_store.dart';
 import '../services/native_editing_workspace.dart';
 import '../services/native_priority_review_coordinator.dart';
+import '../services/native_m33_offline_queue.dart';
+import '../services/native_m33_draft_store.dart';
+import '../services/native_m33_draft_coordinator.dart';
 import '../services/native_cas_protocol.dart';
 import '../services/native_sync_review.dart';
 import '../services/native_snapshot_codec.dart';
@@ -39,8 +42,10 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     this.client, {
     NativeOfflineSnapshotStore? offlineStore,
     NativePendingReviewStore? pendingReviewStore,
+    NativeM33DraftStore? offlineDraftStore,
   }) : _offlineStore = offlineStore ?? NativeOfflineSnapshotStore(),
        _pendingReviews = pendingReviewStore ?? NativePendingReviewStore(),
+       _offlineDraftStore = offlineDraftStore ?? NativeM33DraftStore(),
        _ownerId = client.auth.currentUser?.id {
     _readCoordinator = NativeOfflineReadCoordinator(
       ownerId: _ownerId,
@@ -56,6 +61,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   final SupabaseClient client;
   final NativeOfflineSnapshotStore _offlineStore;
   final NativePendingReviewStore _pendingReviews;
+  final NativeM33DraftStore _offlineDraftStore;
   final String? _ownerId;
   bool _closed = false;
   late final NativeOfflineReadCoordinator _readCoordinator;
@@ -71,6 +77,17 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         loadEncryptedReview: _pendingReviews.load,
         saveEncryptedReview: _pendingReviews.save,
         clearEncryptedReview: _pendingReviews.clear,
+      );
+  NativeM33DraftCoordinator? _offlineDraftCoordinator;
+  NativeM33DraftCoordinator get _m33 => _offlineDraftCoordinator ??=
+      NativeM33DraftCoordinator(
+        ownerId: _ownerId ?? '',
+        isOwnerCurrent: () => !_closed && _ownerId != null &&
+            client.auth.currentUser?.id == _ownerId,
+        readStored: _offlineDraftStore.load,
+        writeStored: _offlineDraftStore.save,
+        deleteStored: _offlineDraftStore.clear,
+        fetchFreshCloudRow: _readFreshForPriorityReview,
       );
   NativeEditingWorkspace? _editingWorkspace;
   NativeEditingWorkspace get editingWorkspace =>
@@ -185,6 +202,31 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     );
   }
 
+  /// M33 offline *device-only* queue; no automated cloud replay.
+  Future<NativeM33OfflineDraftQueue?> loadOfflineDraftQueue() =>
+      _m33.load();
+
+  Future<NativeM33OfflineDraftQueue> keepOfflinePriorityDrafts() {
+    final workspace = _editingWorkspace;
+    final catalog = workspace?.baseCatalog;
+    if (workspace == null || catalog == null) {
+      throw StateError('Draft a Library title priority first');
+    }
+    final sourceStatus = source.value;
+    final anchored = _readCoordinator.isCurrentCloudCatalog(catalog);
+    if ((sourceStatus == NativeSnapshotSource.cloud ||
+         sourceStatus == NativeSnapshotSource.cloudNotCached) && !anchored) {
+      throw StateError('The cloud Library has changed; review again');
+    }
+    return _m33.keep(
+      workspace: workspace, catalog: catalog, source: sourceStatus,
+      liveCloudAnchor: anchored ? _cloudAnchors[catalog] : null,
+    );
+  }
+
+  Future<NativeM33CheckResult> inspectOfflineDraftQueue() => _m33.inspect();
+  Future<void> discardOfflineDraftQueue() => _m33.discard();
+
   Future<void> clearOfflineCache() => _readCoordinator.clearDeviceCopy();
 
   /// Called before signing out. Revokes in-flight network reads, cached
@@ -200,6 +242,11 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     }
     try {
       if (_ownerId != null) await _pendingReviews.clear(_ownerId);
+    } catch (error) {
+      failure ??= error;
+    }
+    try {
+      if (_ownerId != null) await _offlineDraftStore.clear(_ownerId);
     } catch (error) {
       failure ??= error;
     }
