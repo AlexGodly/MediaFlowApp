@@ -21,7 +21,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Verify pinned website JavaScript parity fixtures
-        run: node tool/parity/m23_website_reference.mjs
+        run: |
+          TZ=UTC node tool/parity/m23_website_reference.mjs
+          TZ=UTC node tool/parity/m24_website_reference.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
