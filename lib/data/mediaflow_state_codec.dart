@@ -82,6 +82,11 @@ MediaFlowCatalog decodeMediaFlowState(
     sessionActive: state['sessionActive'] == true,
     tasksPerDay: mediaFlowNumber(settings['tasksPerDay']),
     dailyMinutes: mediaFlowNumber(settings['dailyMinutes']),
+    xpEvidence: state['nativeXpEvidence'] is Map
+      ? MediaFlowXpEvidence.fromProjection(
+          Map<String, dynamic>.from(state['nativeXpEvidence'] as Map),
+        )
+      : MediaFlowXpEvidence.fromState(state),
     library: (rawLibrary as List? ?? const [])
         .whereType<Map>()
         .map((item) => MediaFlowTitle.fromJson(Map<String, dynamic>.from(item)))
