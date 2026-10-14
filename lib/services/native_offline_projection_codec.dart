@@ -21,6 +21,7 @@ abstract final class NativeOfflineProjectionCodec {
            'status': t.status, 'priority': t.priority, 'progress': t.progress,
            'total': t.total, 'rating': t.rating, 'coverUrl': t.coverUrl,
            'description': t.description, 'tags': t.tags,
+           'completedAt': t.completedAt?.toUtc().toIso8601String(),
            'createdAt': t.addedAt?.toUtc().toIso8601String(),
            'seasons': [
              for (final s in t.seasons)
@@ -35,6 +36,10 @@ abstract final class NativeOfflineProjectionCodec {
            'date': s.date, 'timestamp': s.timestamp?.toUtc().toIso8601String(),
            'actualAmount': s.actualAmount, 'minutes': s.minutes,
            'xp': s.xp, 'unit': s.unit, 'note': s.note, 'source': s.source,
+           'sessionGroupId': s.sessionGroupId,
+           'batchGroupId': s.batchGroupId,
+           'healthStatus': s.healthStatus,
+           'assignedCategoryId': s.assignedCategoryId,
            'titles': [
              for (final t in s.titles)
                {'title': t.title, 'libraryId': t.libraryId,
