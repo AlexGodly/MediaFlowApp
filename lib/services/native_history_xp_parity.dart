@@ -70,9 +70,9 @@ abstract final class NativeHistoryXpParity {
     if (base == null) return null;
     final key = NativeLoggingParityPreview.sessionDate(session);
     final count = key == null ? 1 : (dayStreaks[key] ?? 1);
-    return math.max(0,
+    return math.max(0.0,
         (base * multiplier(count, levelingEnabled: levelingEnabled)).round()
-        - base);
+        - base).toDouble();
   }
 
   static Map<String, int> streakMap(Iterable<MediaFlowSession> rows) {
