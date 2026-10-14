@@ -17,9 +17,9 @@ class NativeM39Metadata {
   static bool validId(String provider, String value) {
     if (!_key.hasMatch(provider) || provider.length > 33 ||
         value.length > 120) return false;
-    if (value.isEmpty) return true;
+    if (value.isEmpty) { return true; }
     if (const {'mal','simkl','anilist','tmdb','kitsu'}
-        .contains(provider)) return _positive.hasMatch(value);
+        .contains(provider)) { return _positive.hasMatch(value); }
     if (provider == 'imdb') return _imdb.hasMatch(value);
     if (provider == 'isbn') return _isbn.hasMatch(value);
     return _generic.hasMatch(value);
@@ -118,7 +118,7 @@ class NativeM39Metadata {
 
   static bool sameSeasons(List<MediaFlowSeason> a,List<MediaFlowSeason> b) {
     if (identical(a,b)) return true;
-    if (a.length != b.length) return false;
+    if (a.length != b.length) { return false; }
     for (var i=0; i<a.length; i++) {
       final x=a[i], y=b[i];
       if (x.id != y.id || x.number != y.number || x.name != y.name ||
