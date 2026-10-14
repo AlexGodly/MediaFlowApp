@@ -303,6 +303,7 @@ class MediaFlowCatalog {
     this.sessions = const [],
     this.collections = const [],
     this.personalOrderIds = const [],
+    this.collectionAssignments = const [],
     this.currentTask,
     this.sessionActive = false,
     this.tasksPerDay,
@@ -316,6 +317,7 @@ class MediaFlowCatalog {
   final List<MediaFlowSession> sessions;
   final List<MediaFlowCollection> collections;
   final List<String> personalOrderIds;
+  final List<MediaFlowCollectionAssignment> collectionAssignments;
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
@@ -325,6 +327,30 @@ class MediaFlowCatalog {
   Map<String, MediaFlowCategory> get categoryById => {
     for (final category in categories) category.id: category,
   };
+}
+
+/// v287 Personal Order Collection assignment, read-only and opaque-safe.
+class MediaFlowCollectionAssignment {
+  const MediaFlowCollectionAssignment({
+    required this.id, required this.collectionId,
+    required this.categoryId, required this.categoryRule,
+    required this.completedRule, required this.traversedTitleIds,
+  });
+  final String id, collectionId, categoryId, categoryRule, completedRule;
+  final List<String> traversedTitleIds;
+
+  factory MediaFlowCollectionAssignment.fromJson(Map<String,dynamic> raw) =>
+      MediaFlowCollectionAssignment(
+        id: mediaFlowText(raw['id']),
+        collectionId: mediaFlowText(raw['collectionId']),
+        categoryId: mediaFlowText(raw['categoryId']),
+        categoryRule: mediaFlowText(raw['categoryRule'],fallback:'match'),
+        completedRule: mediaFlowText(raw['completedRule'],fallback:'skip'),
+        traversedTitleIds: List.unmodifiable(
+          (raw['traversedTitleIds'] is List
+            ? raw['traversedTitleIds'] as List : const [])
+              .map((v)=>v.toString())),
+      );
 }
 
 class MediaFlowCollection {
