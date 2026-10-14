@@ -304,6 +304,7 @@ class MediaFlowCatalog {
     this.collections = const [],
     this.personalOrderIds = const [],
     this.collectionAssignments = const [],
+    this.categoryQueues = const {},
     this.currentTask,
     this.sessionActive = false,
     this.tasksPerDay,
@@ -318,6 +319,8 @@ class MediaFlowCatalog {
   final List<MediaFlowCollection> collections;
   final List<String> personalOrderIds;
   final List<MediaFlowCollectionAssignment> collectionAssignments;
+  /// Raw v287 per-category t:/c: tokens, never a cloud-write payload.
+  final Map<String, List<String>> categoryQueues;
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
@@ -335,13 +338,16 @@ class MediaFlowCollectionAssignment {
     required this.id, required this.collectionId,
     required this.categoryId, required this.categoryRule,
     required this.completedRule, required this.traversedTitleIds,
+    this.createdAt = 0,
   });
   final String id, collectionId, categoryId, categoryRule, completedRule;
   final List<String> traversedTitleIds;
+  final int createdAt;
 
   factory MediaFlowCollectionAssignment.fromJson(Map<String,dynamic> raw) =>
       MediaFlowCollectionAssignment(
         id: mediaFlowText(raw['id']),
+        createdAt: (mediaFlowNumber(raw['createdAt']) ?? 0).toInt(),
         collectionId: mediaFlowText(raw['collectionId']),
         categoryId: mediaFlowText(raw['categoryId']),
         categoryRule: mediaFlowText(raw['categoryRule'],fallback:'match'),
