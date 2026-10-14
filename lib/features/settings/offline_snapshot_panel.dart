@@ -96,6 +96,16 @@ class _OfflineSnapshotPanelState extends State<OfflineSnapshotPanel> {
             key: const Key('offline-snapshot-status'),
           ),
         ),
+        ValueListenableBuilder<bool>(
+          valueListenable: widget.repository.refreshing,
+          builder: (_, active, __) => active
+              ? const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('Checking for a fresh cloud snapshot…',
+                      key: Key('offline-refreshing-notice')),
+                )
+              : const SizedBox.shrink(),
+        ),
         const SizedBox(height: 5),
         ValueListenableBuilder<DateTime?>(
           valueListenable: widget.repository.offlineSavedAt,
@@ -145,6 +155,10 @@ String _describe(NativeSnapshotSource status) {
       return 'Offline — displaying verified device copy (read-only).';
     case NativeSnapshotSource.recoveredPrevious:
       return 'Offline — recovered previous verified device copy (read-only).';
+    case NativeSnapshotSource.offlineMemory:
+      return 'Offline — last authenticated data in RAM only, not saved to device. Read-only.';
+    case NativeSnapshotSource.invalidCloud:
+      return 'Cloud account snapshot missing or invalid. Device recovery was blocked; no data changed.';
     case NativeSnapshotSource.unavailable:
       return 'Neither a current cloud snapshot nor a valid offline copy is available.';
   }

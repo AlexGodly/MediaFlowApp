@@ -229,7 +229,10 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                     (repository! as SupabaseMediaFlowLibraryRepository).source,
                 builder: (context, status, _) {
                   if (status != NativeSnapshotSource.offline &&
-                      status != NativeSnapshotSource.recoveredPrevious) {
+                      status != NativeSnapshotSource.recoveredPrevious &&
+                      status != NativeSnapshotSource.offlineMemory &&
+                      status != NativeSnapshotSource.invalidCloud &&
+                      status != NativeSnapshotSource.cloudNotCached) {
                     return const SizedBox.shrink();
                   }
                   return Material(
@@ -245,7 +248,13 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                         Expanded(child: Text(
                           status == NativeSnapshotSource.recoveredPrevious
                               ? 'Recovered older device copy — read-only. Refresh when online.'
-                              : 'Offline device copy — read-only and possibly outdated.',
+                              : status == NativeSnapshotSource.offlineMemory
+                                  ? 'Offline in-memory copy — read-only; not saved to device.'
+                                  : status == NativeSnapshotSource.invalidCloud
+                                      ? 'Cloud snapshot missing or invalid — recovery blocked.'
+                                      : status == NativeSnapshotSource.cloudNotCached
+                                          ? 'Cloud loaded, but encrypted offline caching failed.'
+                                          : 'Offline device copy — read-only and possibly outdated.',
                         )),
                       ]),
                     ),
