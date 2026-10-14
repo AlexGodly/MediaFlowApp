@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/native_offline_snapshot_store.dart';
 import '../services/native_pending_review_store.dart';
+import '../services/native_editing_workspace.dart';
 import 'mediaflow_models.dart';
 import 'mediaflow_state_codec.dart';
 
@@ -36,6 +37,9 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   final SupabaseClient client;
   final NativeOfflineSnapshotStore _offlineStore;
   final NativePendingReviewStore _pendingReviews;
+  NativeEditingWorkspace? _editingWorkspace;
+  NativeEditingWorkspace get editingWorkspace =>
+      _editingWorkspace ??= NativeEditingWorkspace(ownerId: _ownerId ?? '');
   final String? _ownerId;
   final ValueNotifier<NativeSnapshotSource> source =
       ValueNotifier(NativeSnapshotSource.idle);
@@ -152,6 +156,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     ++_requestId;
     _cached = null;
     offlineSavedAt.value = null;
+    _editingWorkspace?.discardAll();
     await clearOfflineCache();
     if (_ownerId != null) await _pendingReviews.clear(_ownerId);
   }
@@ -159,6 +164,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
   void dispose() {
     _closed = true;
     ++_requestId;
+    _editingWorkspace?.dispose();
     source.dispose();
     offlineSavedAt.dispose();
   }

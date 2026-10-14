@@ -130,7 +130,11 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             openHistory: () => navigate(MediaFlowSection.history),
           );
         case MediaFlowSection.library:
-          return LibraryScreen(repository: data);
+          return LibraryScreen(
+            repository: data,
+            workspace: data is SupabaseMediaFlowLibraryRepository
+                ? data.editingWorkspace : null,
+          );
         case MediaFlowSection.history:
           return HistoryScreen(repository: data);
         case MediaFlowSection.account:
@@ -151,7 +155,11 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         case MediaFlowSection.statistics:
           return StatisticsScreen(repository: data);
         case MediaFlowSection.logging:
-          return LoggingScreen(repository: data);
+          return LoggingScreen(
+            repository: data,
+            workspace: data is SupabaseMediaFlowLibraryRepository
+                ? data.editingWorkspace : null,
+          );
         case MediaFlowSection.personalOrder:
           return PersonalOrderScreen(repository: data);
       }
