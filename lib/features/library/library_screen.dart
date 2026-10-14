@@ -475,8 +475,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       return;
     }
     if (_previewChanges && plan != null && !plan.stale &&
-        plan.hasChanges && (plan.isTemporary(title.id) ||
-          plan.isEdited(title.id))) {
+        plan.hasChanges) {
       _openM37Form(plan.source!,titleId:title.id);
     } else {
       _details(context,title,cat,catalog);

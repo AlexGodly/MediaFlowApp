@@ -78,6 +78,16 @@ class NativeM37LibraryPlan extends ChangeNotifier {
   final Random _random = Random.secure();
   bool _stale = false;
   int _sequence = 0;
+  int _revision = 0;
+  int get revision => _revision;
+  int _cachedRevision = -1;
+  MediaFlowCatalog? _cachedProjection;
+  void _changed() {
+    _revision++;
+    _cachedRevision = -1;
+    _cachedProjection = null;
+    notifyListeners();
+  }
 
   bool get stale => _stale;
   bool get hasChanges =>
@@ -174,7 +184,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _created..clear()..addAll(revision.created);
     _updated..clear()..addAll(revision.updated);
     _deleted..clear()..addAll(revision.deleted);
-    notifyListeners();
+    _changed();
   }
 
   void create(NativeM37Fields fields) {
@@ -183,7 +193,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _checkpoint();
     final id = 'local_m37_${++_sequence}_${_random.nextInt(1<<32).toRadixString(16)}';
     _created[id] = fields;
-    notifyListeners();
+    _changed();
   }
 
   void edit(String id, NativeM37Fields fields) {
@@ -207,7 +217,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
         _updated[id] = fields;
       }
     }
-    notifyListeners();
+    _changed();
   }
 
   void stageDelete(Iterable<String> ids) {
@@ -233,7 +243,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       _updated.remove(id);
       _deleted.add(id);
     }
-    notifyListeners();
+    _changed();
   }
 
   void restoreDeleted(String id) {
@@ -243,7 +253,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     }
     _checkpoint();
     _deleted.remove(id);
-    notifyListeners();
+    _changed();
   }
 
   void undo() {
@@ -267,7 +277,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _undo.clear();
     _redo.clear();
     if (_latest != null) { _attach(_latest!); }
-    notifyListeners();
+    _changed();
   }
 
   NativeM37Fields fieldsFor(String id) {
@@ -286,6 +296,9 @@ class NativeM37LibraryPlan extends ChangeNotifier {
   MediaFlowCatalog previewCatalog() {
     _ensureValid();
     if (!hasChanges) { return _base!; }
+    if (_cachedProjection != null && _cachedRevision == _revision) {
+      return _cachedProjection!;
+    }
     final source = _base!;
     final projected = <MediaFlowTitle>[];
     for (final original in source.library) {
@@ -297,7 +310,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     for (final entry in _created.entries) {
       projected.add(entry.value.preview(entry.key));
     }
-    return MediaFlowCatalog(
+    final result = MediaFlowCatalog(
       categories: source.categories, library: List.unmodifiable(projected),
       sessions: source.sessions, collections: source.collections,
       personalOrderIds: source.personalOrderIds,
@@ -305,6 +318,9 @@ class NativeM37LibraryPlan extends ChangeNotifier {
       tasksPerDay: source.tasksPerDay, dailyMinutes: source.dailyMinutes,
       xpEvidence: source.xpEvidence, updatedAt: source.updatedAt,
     );
+    _cachedProjection = result;
+    _cachedRevision = _revision;
+    return result;
   }
 
   /// Unchanged read-only source holds references in related collections,
