@@ -107,6 +107,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
         sessionActive: decoded.sessionActive,
         tasksPerDay: decoded.tasksPerDay,
         dailyMinutes: decoded.dailyMinutes,
+        xpEvidence: decoded.xpEvidence,
         updatedAt: DateTime.tryParse((row['updated_at'] ?? '').toString()),
       );
       offlineSavedAt.value = null;
