@@ -1,0 +1,1311 @@
+{
+  "schemaVersion": 1,
+  "baseline": "MediaFlow v410",
+  "matrixStatus": "PENDING_REAL_DEVICE_AND_WEBSITE_COMPARE",
+  "sourceScreenshots": [
+    {
+      "path": "legacy/v/410/v398-ui-preview-375.png",
+      "viewport": "375px",
+      "note": "Historical visual context v398, NOT an exact v410 sign-off."
+    },
+    {
+      "path": "legacy/v/410/v398-ui-preview-820.png",
+      "viewport": "820px",
+      "note": "Historical visual context v398, NOT an exact v410 sign-off."
+    },
+    {
+      "path": "legacy/v/410/v398-ui-preview-1280.png",
+      "viewport": "1280px",
+      "note": "Historical visual context v398, NOT an exact v410 sign-off."
+    },
+    {
+      "path": "legacy/v/410/v400-order-picker-390.png",
+      "viewport": "390px",
+      "note": "Historical v400 picker, pending v410 re-capture."
+    },
+    {
+      "path": "legacy/v/410/v400-order-picker-820.png",
+      "viewport": "820px",
+      "note": "Historical v400 picker, pending v410 re-capture."
+    }
+  ],
+  "requiredFutureScreenshots": [
+    "v410 Dashboard phone/tablet/desktop dark/light/dynamic",
+    "v410 Library all five modes/filters and empty/100k states",
+    "v410 Logging quick/advanced/itemized and modal overlays",
+    "v410 Collections and Personal Order pickers",
+    "v410 Settings Center all sections and themes",
+    "v410 cloud conflict/offline/error/backup flows"
+  ],
+  "cases": [
+    {
+      "id": "FLOW-001",
+      "domain": "authentication",
+      "title": "Existing account login",
+      "steps": [
+        "Enter valid existing credentials",
+        "submit",
+        "relaunch"
+      ],
+      "expected": "Restores correct user session and data; no cross-account leakage",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "online",
+        "logout"
+      ],
+      "targetMilestone": 35,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-002",
+      "domain": "authentication",
+      "title": "Password recovery and signup",
+      "steps": [
+        "Trigger forgot password",
+        "request recovery",
+        "initiate signup"
+      ],
+      "expected": "Matches website validation, confirmation and recovery states",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "invalid-email",
+        "offline"
+      ],
+      "targetMilestone": 35,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-003",
+      "domain": "authentication",
+      "title": "Account switching",
+      "steps": [
+        "Sign in account A",
+        "sign out",
+        "sign in account B"
+      ],
+      "expected": "A data and encrypted drafts remain inaccessible under B",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline-account-switch"
+      ],
+      "targetMilestone": 35,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-004",
+      "domain": "shell-navigation",
+      "title": "Desktop sidebar and modal states",
+      "steps": [
+        "Expand/collapse sidebar",
+        "navigate all routes",
+        "open modal",
+        "use back"
+      ],
+      "expected": "Correct route, scroll, focus, and modal close behavior",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "desktop"
+      ],
+      "targetMilestone": 27,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-005",
+      "domain": "shell-navigation",
+      "title": "Responsive mobile More & floating dock",
+      "steps": [
+        "Open phone navigation",
+        "open More",
+        "open floating quick actions",
+        "close overlay"
+      ],
+      "expected": "No overlap, inaccessible controls or focus leaks; v410 dock/sheet visual parity",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "small-mobile"
+      ],
+      "targetMilestone": 27,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-006",
+      "domain": "dashboard",
+      "title": "Task recommendation with order preferences",
+      "steps": [
+        "Configure order priority",
+        "load dashboard",
+        "inspect recommendation",
+        "reroll"
+      ],
+      "expected": "Recommendation and rollover match v410 deterministic test state",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "empty-order",
+        "100000-titles"
+      ],
+      "targetMilestone": 40,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-007",
+      "domain": "dashboard",
+      "title": "Quick logging next task",
+      "steps": [
+        "Open recommended title",
+        "log a unit",
+        "return dashboard"
+      ],
+      "expected": "One compatible History action, progress, XP, task status and reroll only once",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline",
+        "repeat"
+      ],
+      "targetMilestone": 41,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-008",
+      "domain": "dashboard",
+      "title": "Stopwatch and runtime calculator",
+      "steps": [
+        "Start stopwatch",
+        "pause",
+        "transfer calculator result",
+        "reopen app"
+      ],
+      "expected": "Duration and settings match website and persist where expected",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "relaunch",
+        "mobile"
+      ],
+      "targetMilestone": 36,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-009",
+      "domain": "dashboard",
+      "title": "Rating queue and missing covers",
+      "steps": [
+        "Open rating queue",
+        "rate/skip",
+        "assign missing cover URL"
+      ],
+      "expected": "Same queue order, validation and XP; no spurious duplicate awards",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "invalid-cover"
+      ],
+      "targetMilestone": 36,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-010",
+      "domain": "dashboard",
+      "title": "On This Day and recent titles",
+      "steps": [
+        "Select history-rich account",
+        "open dashboard",
+        "change date/view"
+      ],
+      "expected": "Whole-day multi-title past activity and recent titles match v410",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "empty-history",
+        "100000"
+      ],
+      "targetMilestone": 36,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-011",
+      "domain": "library-crud",
+      "title": "Full title add/edit/delete/restore",
+      "steps": [
+        "Add title with metadata",
+        "edit",
+        "delete",
+        "restore"
+      ],
+      "expected": "All fields and Library History actions preserved with no duplicate IDs",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "large-metadata"
+      ],
+      "targetMilestone": 37,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-012",
+      "domain": "library-crud",
+      "title": "Bulk category/status/priority changes",
+      "steps": [
+        "Select visible titles",
+        "edit fields",
+        "confirm",
+        "inspect History"
+      ],
+      "expected": "Only selected IDs changed; statuses and XP follow source rules",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-titles"
+      ],
+      "targetMilestone": 37,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-013",
+      "domain": "library-crud",
+      "title": "Imported metadata manual locks",
+      "steps": [
+        "Import provider metadata",
+        "override title field",
+        "reimport"
+      ],
+      "expected": "Manual changes retained, imported fields updated only when permitted",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "unknown-provider-fields"
+      ],
+      "targetMilestone": 37,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-014",
+      "domain": "library-views",
+      "title": "Five Library view modes",
+      "steps": [
+        "Switch List/Compact/Cards/Covers/Covers+Titles",
+        "navigate",
+        "reopen"
+      ],
+      "expected": "Selection, layout and title data remain equivalent on phone/tablet/desktop",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-titles"
+      ],
+      "targetMilestone": 38,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-015",
+      "domain": "library-views",
+      "title": "Normal and Dynamic Library ordering",
+      "steps": [
+        "Switch library mode",
+        "drag title rows",
+        "change category/status"
+      ],
+      "expected": "Correct native row order, category/status semantics and persistence",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "touch",
+        "mouse"
+      ],
+      "targetMilestone": 38,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-016",
+      "domain": "library-views",
+      "title": "Library responsive filter workspace",
+      "steps": [
+        "Search titles",
+        "choose cover/category/status/priority filters",
+        "paginate"
+      ],
+      "expected": "Focus retained; no hidden controls; results match website sorting",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "375px",
+        "820px",
+        "1280px"
+      ],
+      "targetMilestone": 38,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-017",
+      "domain": "seasons-metadata",
+      "title": "Seasons editing and aggregate progress",
+      "steps": [
+        "Create seasons",
+        "log episode",
+        "edit season",
+        "remove season"
+      ],
+      "expected": "Stable IDs, accurate totals, History attribution and aggregate remain valid",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "season-gap"
+      ],
+      "targetMilestone": 39,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-018",
+      "domain": "seasons-metadata",
+      "title": "Fresh-episode metadata refresh",
+      "steps": [
+        "Open airing title",
+        "request metadata",
+        "inspect source evidence"
+      ],
+      "expected": "No fabricated episode availability; provider failures fail closed",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline",
+        "provider-error"
+      ],
+      "targetMilestone": 39,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-019",
+      "domain": "logging",
+      "title": "Amount vs Last Progress",
+      "steps": [
+        "For title at 3/12 choose Amount 4 then Last Progress 7"
+      ],
+      "expected": "Both modes yield equivalent consumed units while respecting v410 timestamps",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "zero-and-overflow"
+      ],
+      "targetMilestone": 41,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-020",
+      "domain": "logging",
+      "title": "Repeat consumption and one-time completion",
+      "steps": [
+        "Finish title",
+        "log repeat",
+        "inspect progress/XP/History"
+      ],
+      "expected": "No progress double increment and no completion reward replay",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline",
+        "race"
+      ],
+      "targetMilestone": 41,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-021",
+      "domain": "logging",
+      "title": "Advanced itemized episode gap",
+      "steps": [
+        "At episode 3 log 4 and 6",
+        "inspect season progress",
+        "log 5"
+      ],
+      "expected": "Gap remains uncredited until episode 5; timestamps survive",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "mixed-seasons"
+      ],
+      "targetMilestone": 42,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-022",
+      "domain": "logging",
+      "title": "Multi-title itemized session",
+      "steps": [
+        "Select multiple titles",
+        "enter per-unit durations",
+        "submit"
+      ],
+      "expected": "All events grouped as v410, seconds and day attribution intact",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "mixed-dayparts"
+      ],
+      "targetMilestone": 42,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-023",
+      "domain": "batch-log",
+      "title": "Batch Log selection and submit",
+      "steps": [
+        "Search title set",
+        "select visible",
+        "specify date and quantities",
+        "submit"
+      ],
+      "expected": "Correct category splits, date stamps and single logical action",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "mixed-categories"
+      ],
+      "targetMilestone": 42,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-024",
+      "domain": "batch-log",
+      "title": "Batch Log undo and reset",
+      "steps": [
+        "Prepare a batch",
+        "cancel",
+        "rebuild",
+        "submit",
+        "inspect activity"
+      ],
+      "expected": "Draft recovery and undo semantics match website, no stray XP",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "relaunch"
+      ],
+      "targetMilestone": 42,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-025",
+      "domain": "history",
+      "title": "History filters and pagination",
+      "steps": [
+        "Filter by category/status/date",
+        "change page size",
+        "navigate"
+      ],
+      "expected": "Full dataset and filtered counts remain correct; scroll states preserved",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-sessions"
+      ],
+      "targetMilestone": 43,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-026",
+      "domain": "history",
+      "title": "History editing/deletion safety",
+      "steps": [
+        "Select several History rows",
+        "edit/delete",
+        "inspect totals"
+      ],
+      "expected": "Affected records and XP/levels reconcile; unrelated data preserved",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "conflict"
+      ],
+      "targetMilestone": 43,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-027",
+      "domain": "history",
+      "title": "Library History audit and undo",
+      "steps": [
+        "Edit title",
+        "view Library History",
+        "undo a supported action"
+      ],
+      "expected": "Original field values and downstream side effects restored atomically",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline"
+      ],
+      "targetMilestone": 43,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-028",
+      "domain": "progression",
+      "title": "Completion XP idempotency",
+      "steps": [
+        "Log a completion",
+        "repeat submit/retry",
+        "reload in web"
+      ],
+      "expected": "Completion ledger awards once across devices and duplicate retries",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "two-devices"
+      ],
+      "targetMilestone": 44,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-029",
+      "domain": "progression",
+      "title": "Streak and XP across days",
+      "steps": [
+        "Log on consecutive days and a skipped day",
+        "inspect streak"
+      ],
+      "expected": "v149 and v348 math matches website and settings, no double multipliers",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "timezone-crossing"
+      ],
+      "targetMilestone": 44,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-030",
+      "domain": "progression",
+      "title": "XP settings and achievements",
+      "steps": [
+        "Configure XP rate",
+        "earn event",
+        "unlock milestone"
+      ],
+      "expected": "Amounts, levels, respect and achievements match v410 source",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "disabled-leveling"
+      ],
+      "targetMilestone": 44,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-031",
+      "domain": "statistics",
+      "title": "Heatmap and monthly recap",
+      "steps": [
+        "Choose month/year",
+        "compare completed/logged activity"
+      ],
+      "expected": "Charts, selectors, totals and day boundaries identical",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "empty-year"
+      ],
+      "targetMilestone": 45,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-032",
+      "domain": "statistics",
+      "title": "Active-time and XP calculator",
+      "steps": [
+        "Perform timed activity",
+        "open calculator and charts"
+      ],
+      "expected": "Totals and projections correct with no invented XP",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "large-history"
+      ],
+      "targetMilestone": 45,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-033",
+      "domain": "collections",
+      "title": "Collection CRUD, picker, progress",
+      "steps": [
+        "Create Collection",
+        "add 100 titles",
+        "reorder",
+        "remove title"
+      ],
+      "expected": "Same member IDs, cover, progress, order and cloud persistence",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-title-picker"
+      ],
+      "targetMilestone": 46,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-034",
+      "domain": "collections",
+      "title": "Searchable category multi-select",
+      "steps": [
+        "Search inside category checklist",
+        "toggle values",
+        "close/reopen"
+      ],
+      "expected": "Selection persists across search/filter and matches v410 semantics",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "22-icons"
+      ],
+      "targetMilestone": 46,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-035",
+      "domain": "collections",
+      "title": "Collection instant add and bulk",
+      "steps": [
+        "From Library add title to Collection",
+        "bulk select",
+        "save"
+      ],
+      "expected": "No duplicates, membership immediately visible and sync-safe",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline"
+      ],
+      "targetMilestone": 46,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-036",
+      "domain": "personal-order",
+      "title": "Global queue and category tabs",
+      "steps": [
+        "Add titles/Collections",
+        "switch list/tabs",
+        "drag, arrows, numeric reorder"
+      ],
+      "expected": "Stable mixed order and selection with correctly scoped categories",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "touch",
+        "mouse"
+      ],
+      "targetMilestone": 47,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-037",
+      "domain": "personal-order",
+      "title": "Personal Order searchable pickers",
+      "steps": [
+        "Search browse",
+        "filter added/available",
+        "select page",
+        "navigate back"
+      ],
+      "expected": "Picker position, pagination and membership persist appropriately",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-titles"
+      ],
+      "targetMilestone": 47,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-038",
+      "domain": "personal-order",
+      "title": "Order export/import roundtrip",
+      "steps": [
+        "Export queue",
+        "clear",
+        "import",
+        "compare across platforms"
+      ],
+      "expected": "Order and collection associations lossless with no XP replay",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "unknown-fields"
+      ],
+      "targetMilestone": 47,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-039",
+      "domain": "settings",
+      "title": "Settings Center navigation and resets",
+      "steps": [
+        "Open each Settings section",
+        "search field",
+        "modify",
+        "reset section"
+      ],
+      "expected": "All controls discoverable and persisted; reset only intended keys",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "responsive"
+      ],
+      "targetMilestone": 48,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-040",
+      "domain": "settings",
+      "title": "Versioned choice layout and icons",
+      "steps": [
+        "Reorder toolbar fields",
+        "hide/show controls",
+        "set category icons"
+      ],
+      "expected": "Inherited layout and icons equal v410 in all affected pages",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "mobile"
+      ],
+      "targetMilestone": 48,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-041",
+      "domain": "themes",
+      "title": "Built-in theme catalog and dynamic covers",
+      "steps": [
+        "Cycle themes",
+        "enable full-cover dynamic mode",
+        "open dialogs"
+      ],
+      "expected": "Accurate colors/layout/fonts and no broken overlays",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "dark",
+        "light",
+        "amoled"
+      ],
+      "targetMilestone": 49,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-042",
+      "domain": "data-management",
+      "title": "Full Backup and restore roundtrip",
+      "steps": [
+        "Export full backup",
+        "validate manifest",
+        "restore to test account"
+      ],
+      "expected": "No loss of unknown v410 keys, settings, History, order, XP ledgers",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "100000-titles"
+      ],
+      "targetMilestone": 50,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-043",
+      "domain": "data-management",
+      "title": "Automatic Backup 2 integrity",
+      "steps": [
+        "Trigger automatic backup",
+        "interrupt/restart",
+        "inspect recovery"
+      ],
+      "expected": "Verified recoverable backup and no overwrite of newer cloud state",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "corrupt-file"
+      ],
+      "targetMilestone": 50,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-044",
+      "domain": "data-management",
+      "title": "File imports and exclusions",
+      "steps": [
+        "Import MAL/SIMKL JSON/XML and CSV mappings",
+        "exclude type"
+      ],
+      "expected": "Correct category/title counts and no live tracking activation",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "malformed-import"
+      ],
+      "targetMilestone": 50,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-045",
+      "domain": "cloud-sync",
+      "title": "Web/Android/Windows simultaneous edits",
+      "steps": [
+        "Edit same title on two devices and website",
+        "reconnect"
+      ],
+      "expected": "Atomic revision conflict detected; one writer never silently overwrites other",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "two-devices",
+        "offline"
+      ],
+      "targetMilestone": 31,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-046",
+      "domain": "cloud-sync",
+      "title": "Offline queuing and account isolation",
+      "steps": [
+        "Disconnect device",
+        "edit Library",
+        "restart",
+        "sign out",
+        "reconnect"
+      ],
+      "expected": "Encrypted owner-scoped queue replays exactly once when authorized",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "key-loss"
+      ],
+      "targetMilestone": 33,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-047",
+      "domain": "cloud-sync",
+      "title": "Recovery from tampered snapshot",
+      "steps": [
+        "Create cache",
+        "corrupt latest generation",
+        "relaunch"
+      ],
+      "expected": "Previous verified generation restored, no data corruption/cloud overwrite",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "tampered-file"
+      ],
+      "targetMilestone": 34,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-048",
+      "domain": "scheduler",
+      "title": "Personal Order recommendation scoring",
+      "steps": [
+        "Change order and scheduler weights",
+        "reroll many times"
+      ],
+      "expected": "Eligibility/weights/freshness match deterministic website fixtures",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "offline-provider"
+      ],
+      "targetMilestone": 40,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-049",
+      "domain": "old-system",
+      "title": "Old System date navigation",
+      "steps": [
+        "Load legacy dataset",
+        "open Old System",
+        "select date"
+      ],
+      "expected": "Original legacy records and chronological navigation preserved",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "legacy-data"
+      ],
+      "targetMilestone": 51,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-050",
+      "domain": "platform-native",
+      "title": "Android keyboard and app lifecycle",
+      "steps": [
+        "Open picker",
+        "keyboard",
+        "background/restart",
+        "return"
+      ],
+      "expected": "No lost focus/data; installs with correct icon/package and back handling",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "android-low-memory"
+      ],
+      "targetMilestone": 52,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-051",
+      "domain": "platform-native",
+      "title": "Windows desktop file operations",
+      "steps": [
+        "Resize app",
+        "drag cards",
+        "import/export backup"
+      ],
+      "expected": "Mouse/keyboard and native file dialogs behave correctly",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "windows-125pct-scaling"
+      ],
+      "targetMilestone": 53,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-052",
+      "domain": "platform-native",
+      "title": "iOS signing and lifecycle",
+      "steps": [
+        "Install signed test IPA",
+        "exercise safe area",
+        "background/restore"
+      ],
+      "expected": "Correct bundle identity/icon and no data loss; TestFlight-ready where possible",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "iphone",
+        "ipad"
+      ],
+      "targetMilestone": 54,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-053",
+      "domain": "performance-security",
+      "title": "100k-title performance and real-device profiling",
+      "steps": [
+        "Load 100k",
+        "scroll/search/sort",
+        "inspect memory/frame timing"
+      ],
+      "expected": "No noticeable freeze, focus loss, unbounded build or unsafe cache",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "android-midrange",
+        "windows"
+      ],
+      "targetMilestone": 55,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    },
+    {
+      "id": "FLOW-054",
+      "domain": "performance-security",
+      "title": "Final parity screenshot and accessibility",
+      "steps": [
+        "Capture same v410 states on 3 breakpoints",
+        "run screen reader"
+      ],
+      "expected": "Layout differences adjudicated; accessible semantics and navigation pass",
+      "devices": [
+        "phone",
+        "tablet",
+        "desktop"
+      ],
+      "variants": [
+        "375px",
+        "820px",
+        "1280px"
+      ],
+      "targetMilestone": 55,
+      "verified": false,
+      "automationStatus": "pending",
+      "manualEvidenceRequired": true
+    }
+  ]
+}
