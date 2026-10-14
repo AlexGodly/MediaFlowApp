@@ -78,7 +78,10 @@ class NativeReviewBatch {
     'ownerId': ownerId,
     'baseRevision': baseRevision,
     'baseDigest': baseDigest,
-    'operations': [for (final item in _entries) item.toJson()],
+    'operations': [
+      for (final item in _entries)
+        jsonDecode(jsonEncode(item.toJson())),
+    ],
   };
 
   void _validate() {
