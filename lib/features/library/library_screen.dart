@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/mediaflow_library_repository.dart';
+import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
 import '../../design_system/mediaflow_theme.dart';
 
@@ -24,8 +25,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   NativeLibraryView _view = NativeLibraryView.list;
   int _page = 0, _perPage = 50;
   MediaFlowCatalog? _cacheCatalog;
-  String _cacheKey = '';
-  List<MediaFlowTitle> _cacheResults = const [];
+  MediaFlowLibraryIndex? _libraryIndex;
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _filterChanged() => setState(() {
     _page = 0;
-    _cacheCatalog = null;
+    // Retain sorted snapshot index while filters change.
   });
 
   void _refresh() => setState(() {
@@ -52,17 +52,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
   });
 
   List<MediaFlowTitle> _results(MediaFlowCatalog catalog) {
-    final key = [_search, _category, _status, _priority, _sort.name].join('|');
-    if (identical(_cacheCatalog, catalog) && key == _cacheKey) {
-      return _cacheResults;
+    if (!identical(_cacheCatalog, catalog) || _libraryIndex == null) {
+      _cacheCatalog = catalog;
+      _libraryIndex = MediaFlowLibraryIndex(catalog.library);
     }
-    _cacheKey = key;
-    _cacheCatalog = catalog;
-    _cacheResults = MediaFlowLibraryFilter(
-      search: _search, categoryId: _category, status: _status,
-      priority: _priority, sort: _sort,
-    ).apply(catalog.library);
-    return _cacheResults;
+    return _libraryIndex!.query(MediaFlowLibraryFilter(
+      search: _search,
+      categoryId: _category,
+      status: _status,
+      priority: _priority,
+      sort: _sort,
+    ));
   }
 
   @override
