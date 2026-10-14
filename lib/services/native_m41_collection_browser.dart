@@ -35,12 +35,12 @@ NativeM41Page browseCollection(MediaFlowCollection collection,
   final items = <MediaFlowTitle>[];
   for (final id in collection.titleIds) {
     final title = library[id];
-    if (title == null) continue;
+    if (title == null) { continue; }
     if (needle.isNotEmpty && !title.title.toLowerCase().contains(needle) &&
         !title.tags.any((tag)=>tag.toLowerCase().contains(needle))) continue;
     if (options.categoryId.isNotEmpty &&
         title.categoryId != options.categoryId) continue;
-    if (options.status.isNotEmpty && title.status != options.status) continue;
+    if (options.status.isNotEmpty && title.status != options.status) { continue; }
     if (options.priority.isNotEmpty && title.priority != options.priority) {
       continue;
     }
@@ -48,8 +48,8 @@ NativeM41Page browseCollection(MediaFlowCollection collection,
         (title.rating == null || title.rating! < options.minRating!)) {
       continue;
     }
-    if (options.cover == 'with' && title.coverUrl.isEmpty) continue;
-    if (options.cover == 'without' && title.coverUrl.isNotEmpty) continue;
+    if (options.cover == 'with' && title.coverUrl.isEmpty) { continue; }
+    if (options.cover == 'without' && title.coverUrl.isNotEmpty) { continue; }
     items.add(title);
   }
   final saved = <String,int>{
