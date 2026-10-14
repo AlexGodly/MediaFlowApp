@@ -21,7 +21,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   Map<String, double> _progress = const {};
 
   void _index(MediaFlowCatalog catalog) {
-    if (identical(_indexedCatalog, catalog)) return;
+    if (identical(_indexedCatalog, catalog)) { return; }
     _indexedCatalog = catalog;
     _byId = {for (final title in catalog.library) title.id: title};
     _resolved = {
@@ -64,7 +64,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
   }
 
   void _onPlanChange() {
-    if (!mounted) return;
+    if (!mounted) { return; }
     setState(() { _indexedCatalog = null; });
   }
 
@@ -75,7 +75,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   void _openForm({String? id}) {
     final plan = widget.plan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     showModalBottomSheet<void>(
       context:context, isScrollControlled:true, showDragHandle:true,
       builder:(_) => NativeM40CollectionForm(plan:plan,collectionId:id));
@@ -83,14 +83,14 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   void _openPicker(String id) {
     final plan = widget.plan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     showModalBottomSheet<void>(
       context:context,isScrollControlled:true,showDragHandle:true,
       builder:(_) => NativeM40AddTitlesSheet(plan:plan,collectionId:id));
   }
 
   void _reportFailure(Object e) {
-    if (!mounted) return;
+    if (!mounted) { return; }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content:Text(e is FormatException ? e.message :
           e is StateError ? e.message : 'Collection action was rejected')));
@@ -98,7 +98,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   Future<void> _confirmRemove(String collectionId, String titleId) async {
     final plan = widget.plan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     final confirmed = await showDialog<bool>(
       context:context,
       builder:(dialog)=>AlertDialog(
@@ -115,7 +115,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     try { plan.removeTitles(collectionId,[titleId]); }
     on StateError catch(e) { _reportFailure(e); }
     on FormatException catch(e) { _reportFailure(e); }
@@ -123,7 +123,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   Future<void> _confirmDelete(MediaFlowCollection collection) async {
     final plan = widget.plan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     final confirmed = await showDialog<bool>(
       context:context,
       builder:(dialog)=>AlertDialog(
@@ -142,7 +142,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) { return; }
     try {
       plan.stageDelete(collection.id);
       setState(() { opened = null; });
@@ -152,7 +152,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   void _move(String collectionId,String titleId,int position) {
     final plan = widget.plan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     try { plan.moveTitle(collectionId,titleId,position); }
     on StateError catch(e) { _reportFailure(e); }
     on FormatException catch(e) { _reportFailure(e); }
@@ -160,7 +160,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   void _review() {
     final plan = widget.plan;
-    if (plan == null) return;
+    if (plan == null) { return; }
     showModalBottomSheet<void>(
       context:context,showDragHandle:true,isScrollControlled:true,
       builder:(ctx)=>SafeArea(child:FractionallySizedBox(
@@ -218,7 +218,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                     ));
                   if (approved == true) {
                     plan.discard();
-                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (ctx.mounted) { Navigator.pop(ctx); }
                   }
                 } : null,
                 icon:const Icon(Icons.delete_sweep_outlined),
