@@ -207,6 +207,7 @@ function categoryStatus(_cat){return {status:'healthy'};}
 function calculateConsumptionXP(){return {xp:1};}
 function uid(){return 'synthetic-'+(++nextId);}
 function todayISO(){return '2026-10-14';}
+function entriesNote(){return '';}
 function persistSessions(){} function persistLibrary(){}
 function persistTask(){} function render(){}
 function v165ApplyRespectReward(){}
