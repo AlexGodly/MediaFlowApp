@@ -27,7 +27,9 @@ class TestVault implements NativeOfflineKeyVault {
     keys[hash] = Uint8List.fromList(key);
   }
   @override
-  Future<void> delete(String hash) async => keys.remove(hash);
+  Future<void> delete(String hash) async {
+    keys.remove(hash);
+  }
 }
 
 void main() {
