@@ -80,13 +80,15 @@ class NativeM39Metadata {
 
   /// v252 season rows are integer-valued; aggregate derives from rows.
   /// Existing row identifiers are unique. Null totals are allowed.
-  static void validateSeasons(List<MediaFlowSeason> seasons) {
+  static void validateSeasons(List<MediaFlowSeason> seasons,
+      {bool legacyUnidentified = false}) {
     if (seasons.length > 200) {
       throw const FormatException('200 seasons maximum');
     }
     final ids = <String>{};
     for (final season in seasons) {
-      if (season.id.trim().isEmpty || !ids.add(season.id) ||
+      if ((season.id.trim().isEmpty && !legacyUnidentified) ||
+          (season.id.trim().isNotEmpty && !ids.add(season.id)) ||
           season.id.length > 150 ||
           season.name.trim().isEmpty || season.name.length > 200 ||
           !season.progress.isFinite || season.progress < 0 ||
@@ -103,8 +105,9 @@ class NativeM39Metadata {
     }
   }
 
-  static NativeM39SeasonAggregate aggregate(List<MediaFlowSeason> seasons) {
-    validateSeasons(seasons);
+  static NativeM39SeasonAggregate aggregate(List<MediaFlowSeason> seasons,
+      {bool legacyUnidentified = false}) {
+    validateSeasons(seasons, legacyUnidentified: legacyUnidentified);
     var progress = 0.0, total = 0.0;
     for (final season in seasons) {
       progress += season.progress;
