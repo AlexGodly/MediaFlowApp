@@ -169,7 +169,8 @@ void main() {
     expect(find.text('Title 2'),findsOneWidget);
     await tester.enterText(find.byKey(const Key('m41-search')),'Title 1');
     await tester.pumpAndSettle();
-    expect(find.text('Title 1'),findsOneWidget);
+    // The search TextField and the result row both display this exact text.
+    expect(find.text('Title 1'),findsWidgets);
     expect(find.text('Title 2'),findsNothing);
   });
 
