@@ -455,7 +455,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   void _openM37Form(MediaFlowCatalog source, {String? titleId}) {
     final plan = widget.changePlan;
-    if (plan == null || plan.stale) return;
+    if (plan == null || plan.stale) { return; }
     showModalBottomSheet<void>(
       context: context, showDragHandle: true, isScrollControlled: true,
       builder: (_) => NativeM37TitleForm(
@@ -468,7 +468,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final plan = widget.changePlan;
     if (_selecting) {
       setState(() {
-        if (!_selectedIds.add(title.id)) _selectedIds.remove(title.id);
+        if (!_selectedIds.add(title.id)) { _selectedIds.remove(title.id); }
       });
       return;
     }
@@ -506,11 +506,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
       try {
         plan.stageDelete(ids);
       } on StateError catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)));
+        }
       } on FormatException catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message)));
+        }
       }
     }
   }

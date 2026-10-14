@@ -65,7 +65,7 @@ class _M37Revision {
 /// - Creates are client-local temp IDs only, NOT v410 cloud Library IDs.
 class NativeM37LibraryPlan extends ChangeNotifier {
   NativeM37LibraryPlan({required this.ownerId}) {
-    if (ownerId.isEmpty) throw StateError('Signed-in owner is required');
+    if (ownerId.isEmpty) { throw StateError('Signed-in owner is required'); }
   }
   final String ownerId;
   MediaFlowCatalog? _base, _latest;
@@ -95,7 +95,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
   MediaFlowCatalog? get source => _base;
 
   void observe(MediaFlowCatalog catalog) {
-    if (identical(_latest, catalog)) return;
+    if (identical(_latest, catalog)) { return; }
     _latest = catalog;
     if (_base != null && !identical(_base, catalog) && hasChanges) {
       _stale = true;
@@ -110,7 +110,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _source = {};
     _ambiguous.clear();
     for (final title in catalog.library) {
-      if (_source.containsKey(title.id)) _ambiguous.add(title.id);
+      if (_source.containsKey(title.id)) { _ambiguous.add(title.id); }
       _source[title.id] = title;
     }
     _stale = false;
@@ -165,7 +165,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
   );
 
   void _checkpoint() {
-    if (_undo.length >= 30) _undo.removeAt(0);
+    if (_undo.length >= 30) { _undo.removeAt(0); }
     _undo.add(_capture());
     _redo.clear();
   }
@@ -179,7 +179,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
 
   void create(NativeM37Fields fields) {
     _validate(fields);
-    if (changeCount >= 200) throw StateError('200 local changes maximum');
+    if (changeCount >= 200) { throw StateError('200 local changes maximum'); }
     _checkpoint();
     final id = 'local_m37_${++_sequence}_${_random.nextInt(1<<32).toRadixString(16)}';
     _created[id] = fields;
@@ -221,7 +221,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     }
     final effective = selected.where((id) =>
       _created.containsKey(id) || !_deleted.contains(id)).toList();
-    if (effective.isEmpty) return;
+    if (effective.isEmpty) { return; }
     final additional = effective.where((id) => !_created.containsKey(id) &&
       !_updated.containsKey(id)).length;
     if (changeCount + additional > 200) {
@@ -229,7 +229,7 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     }
     _checkpoint();
     for (final id in effective) {
-      if (_created.remove(id) != null) continue;
+      if (_created.remove(id) != null) { continue; }
       _updated.remove(id);
       _deleted.add(id);
     }
@@ -248,14 +248,14 @@ class NativeM37LibraryPlan extends ChangeNotifier {
 
   void undo() {
     _ensureValid();
-    if (_undo.isEmpty) return;
+    if (_undo.isEmpty) { return; }
     _redo.add(_capture());
     _restoreRevision(_undo.removeLast());
   }
 
   void redo() {
     _ensureValid();
-    if (_redo.isEmpty) return;
+    if (_redo.isEmpty) { return; }
     _undo.add(_capture());
     _restoreRevision(_redo.removeLast());
   }
@@ -266,13 +266,13 @@ class NativeM37LibraryPlan extends ChangeNotifier {
     _deleted.clear();
     _undo.clear();
     _redo.clear();
-    if (_latest != null) _attach(_latest!);
+    if (_latest != null) { _attach(_latest!); }
     notifyListeners();
   }
 
   NativeM37Fields fieldsFor(String id) {
     _ensureValid();
-    if (_created[id] != null) return _created[id]!;
+    if (_created[id] != null) { return _created[id]!; }
     final original = _requireExisting(id);
     return _updated[id] ?? NativeM37Fields.fromTitle(original);
   }
@@ -285,11 +285,11 @@ class NativeM37LibraryPlan extends ChangeNotifier {
   /// The original catalog is returned when no changes are staged.
   MediaFlowCatalog previewCatalog() {
     _ensureValid();
-    if (!hasChanges) return _base!;
+    if (!hasChanges) { return _base!; }
     final source = _base!;
     final projected = <MediaFlowTitle>[];
     for (final original in source.library) {
-      if (_deleted.contains(original.id)) continue;
+      if (_deleted.contains(original.id)) { continue; }
       final edit = _updated[original.id];
       projected.add(edit == null ? original :
           edit.preview(original.id, original: original));

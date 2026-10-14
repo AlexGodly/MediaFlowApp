@@ -55,7 +55,7 @@ class _NativeM37TitleFormState extends State<NativeM37TitleForm> {
     try {
       double? number(TextEditingController controller) {
         final value = controller.text.trim();
-        if (value.isEmpty) return null;
+        if (value.isEmpty) { return null; }
         final parsed = double.tryParse(value);
         if (parsed == null || !parsed.isFinite) {
           throw const FormatException('Enter valid finite numbers');
@@ -103,7 +103,7 @@ class _NativeM37TitleFormState extends State<NativeM37TitleForm> {
     decoration: InputDecoration(labelText: label,
       border: const OutlineInputBorder(),isDense: true),
     items: items, onChanged: (next) {
-      if (next != null) setState(() => update(next));
+      if (next != null) { setState(() => update(next)); }
     },
   );
 
@@ -252,7 +252,7 @@ class NativeM37PlanReview extends StatelessWidget {
                       child:const Text('Discard local plan')),
                   ],
                 ));
-              if (yes == true) plan.discard();
+              if (yes == true) { plan.discard(); }
             } : null,
             icon:const Icon(Icons.delete_sweep_outlined),
             label:const Text('Discard entire local plan'),
