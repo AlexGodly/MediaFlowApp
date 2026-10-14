@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/mediaflow_models.dart';
+import 'native_logging_parity_preview.dart';
 
 /// M20 account-scoped, RAM-only edit sketches. These are deliberately NOT the
 /// M19 cloud pending-review protocol and never become Supabase state_data.
@@ -116,36 +117,70 @@ class NativeEditingWorkspace extends ChangeNotifier {
     required double amount,
     required double minutes,
     required String note,
+    NativeLogInputMode mode = NativeLogInputMode.amount,
+    bool repeat = false,
+    DateTime? date,
   }) {
     _requireFresh(catalog);
     final original = _find(catalog, titleId);
-    if (!amount.isFinite || amount <= 0 || amount > 100000 ||
-        !minutes.isFinite || minutes < 0 || minutes > 100000) {
-      throw const FormatException('Invalid units or runtime');
-    }
     if (note.length > 2000) {
       throw const FormatException('Log note exceeds 2,000 characters');
     }
-    // Preview must not invent a per-season logging conversion.
-    if (original.seasons.isNotEmpty) {
-      throw const FormatException(
-        'Per-season logging requires website-compatible conversion',
-      );
-    }
     final effectiveProgress = _titles[titleId]?.progress ?? original.progress;
-    if (original.total != null &&
-        effectiveProgress + amount > original.total!) {
+    // No mutation of the typed cloud catalog; if a title sketch changes
+    // progress, create an isolated view just for the hypothetical calculation.
+    final previewTitle = MediaFlowTitle.fromJson({
+      'id': original.id,
+      'title': original.title,
+      'categoryId': original.categoryId,
+      'status': _titles[titleId]?.status ?? original.status,
+      'priority': original.priority,
+      'progress': effectiveProgress,
+      'total': original.total,
+      'rating': original.rating,
+      'seasons': [
+        for (final season in original.seasons)
+          {'name': season.name, 'progress': season.progress,
+           'total': season.total},
+      ],
+    });
+    final projection = NativeLoggingParityPreview.calculate(
+      title: previewTitle,
+      existingSessions: catalog.sessions,
+      mode: mode,
+      value: amount,
+      minutes: minutes,
+      note: note,
+      repeat: repeat,
+      date: date,
+    );
+    if (!projection.repeat && original.total != null &&
+        projection.projectedLibraryProgress > original.total!) {
+      throw const FormatException('Draft exceeds title total');
+    }
+    // Keep the existing conservative M20 behavior for amount-overflow:
+    // not silently dropping consumed units on a nonrepeat Library draft.
+    if (mode == NativeLogInputMode.amount && !projection.repeat &&
+        original.total != null &&
+        effectiveProgress + projection.consumed > original.total!) {
       throw const FormatException('Draft would exceed title total');
     }
     _logs[titleId] = NativeLogIntent(
       titleId: titleId,
       title: original.title,
       categoryId: original.categoryId,
-      units: amount,
+      units: projection.consumed,
       minutes: minutes,
       note: note.trim(),
       startingProgress: effectiveProgress,
-      projectedProgress: effectiveProgress + amount,
+      projectedProgress: projection.projectedLibraryProgress,
+      mode: mode,
+      repeat: repeat,
+      wouldComplete: projection.wouldComplete,
+      projectedStatus: projection.projectedStatus,
+      prospectiveStreak: projection.prospectiveStreak,
+      indicativeStreakMultiplier: projection.streakMultiplier,
+      hypotheticalDate: projection.historyProjection.date,
     );
     notifyListeners();
   }
@@ -199,8 +234,20 @@ class NativeLogIntent {
     required this.note,
     required this.startingProgress,
     required this.projectedProgress,
+    this.mode = NativeLogInputMode.amount,
+    this.repeat = false,
+    this.wouldComplete = false,
+    this.projectedStatus = '',
+    this.prospectiveStreak = 1,
+    this.indicativeStreakMultiplier = 1,
+    this.hypotheticalDate = '',
   });
 
-  final String titleId, title, categoryId, note;
+  final String titleId, title, categoryId, note, projectedStatus, hypotheticalDate;
   final double units, minutes, startingProgress, projectedProgress;
+  final NativeLogInputMode mode;
+  final bool repeat, wouldComplete;
+  final int prospectiveStreak;
+  final double indicativeStreakMultiplier;
+  double? get hypotheticalXp => null;
 }
