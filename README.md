@@ -16,17 +16,16 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - iOS IPA requires macOS/Xcode and valid Apple signing/provisioning; installation/distribution depends on Apple rules.
 - Do not publish a production release until required build and parity checks pass.
 
-## Development status (milestone 05)
-- Flutter adaptive shell and original-theme foundations committed.
-- Existing Supabase authentication integrated using the same project's **publishable** configuration.
-- Read-only Library implemented: gzip cloud snapshot decoding, filters, search, sorting, five layouts, details and pagination.
-- Native read-only Dashboard and History screens now show signed-in account information directly from the same cached account snapshot.
-- Account screen supports sign-out and password reset; native appearance selection persists locally per user.
-- Native source tests cover history decoding, filtering, Dashboard/History widgets and Library search.
-- Flutter Analyze and automated tests passed on GitHub Actions in the milestone 04 source-validation run. Milestone 05 has its own CI validation.
-- Original MediaFlow website, repository and production database remain unchanged.
-- No signed APK, Windows package or iOS IPA has been released. The remaining website features are not yet ported.
+## Development status (milestone 09)
+- Native adaptive Flutter UI is implemented for **Library, Dashboard, History, Collections, Statistics, Personal Order, Logging browser, Account, and device-local Settings**. Some screens remain read-only projections; they are NOT 1:1 website parity.
+- Existing Supabase accounts and original compressed cloud snapshot are reused. Account data is not mirrored into new public tables.
+- Authentication and local Dark/Light/AMOLED preferences are implemented; advanced web settings and all edit/logging workflows remain incomplete.
+- Cloud saves are **disabled by design**. Milestone 09 audited the original v410 UPSERT mechanism and added an owner-checked local compare-and-swap proposal planner, in-memory conflict tests, gzip round trips and Settings diagnostics.
+- A draft RLS-invoker CAS SQL function exists **only for review** and was **not deployed**. The original website still uses unconditional UPSERT; therefore a native CAS RPC alone would not provide full cross-device safety.
+- Automated Flutter analysis/tests and Android debug/Windows build validation are configured in GitHub Actions. See actual workflow runs for pass/fail status.
+- No signed APK, Windows package, or iOS IPA has been released. Native edits, full Logging/XP/history parity, offline write queue, advanced Collections/Personal Order behavior, production device tests, and 100K-title benchmarks remain pending.
+- Original MediaFlow and MediaFlow Plus repositories and production data remain unchanged.
 
-Source details: [Milestone 05](docs/MILESTONE_05.md), [Milestone 04](docs/MILESTONE_04.md) and [parity audit](docs/V410_PARITY_AUDIT.md).
+**Development reports:** [Milestone 09](docs/MILESTONE_09.md) · [Milestone 08](docs/MILESTONE_08.md) · [Milestone 07](docs/MILESTONE_07.md) · [Milestone 06](docs/MILESTONE_06.md) · [v410 parity audit](docs/V410_PARITY_AUDIT.md).
 
 Source: https://github.com/AlexGodly/MediaFlow (VERSION 410 verified on 2026-10-13).
