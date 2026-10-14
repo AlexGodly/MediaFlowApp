@@ -11,6 +11,24 @@ class CollectionsScreen extends StatefulWidget {
 
 class _CollectionsScreenState extends State<CollectionsScreen> {
   late Future<MediaFlowCatalog> future;
+  MediaFlowCatalog? _indexedCatalog;
+  Map<String, MediaFlowTitle> _byId = const {};
+  Map<String, List<MediaFlowTitle>> _resolved = const {};
+  Map<String, double> _progress = const {};
+
+  void _index(MediaFlowCatalog catalog) {
+    if (identical(_indexedCatalog, catalog)) return;
+    _indexedCatalog = catalog;
+    _byId = {for (final title in catalog.library) title.id: title};
+    _resolved = {
+      for (final collection in catalog.collections)
+        collection.id: collection.resolvedTitles(_byId),
+    };
+    _progress = {
+      for (final collection in catalog.collections)
+        collection.id: collection.progressPercent(_byId),
+    };
+  }
   final search = TextEditingController();
   String query = '';
   String? opened;
@@ -38,7 +56,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
             child: const Text('Could not load Collections — retry')));
       }
       final data = result.requireData;
-      final byId = {for (final item in data.library) item.id: item};
+      _index(data);
       final collections = data.collections.where((item) =>
           item.title.toLowerCase().contains(query.toLowerCase())).toList();
       final selected = opened == null ? null
@@ -73,11 +91,11 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
           Text(selected.description),
           const SizedBox(height: 8),
           Text('${selected.titleIds.length} saved title references · '
-              '${selected.resolvedTitles(byId).length} available in Library'),
+              '${(_resolved[selected.id]?.length ?? 0)} available in Library'),
           const SizedBox(height: 12),
         ],
         Expanded(child: selected != null
-          ? _titles(selected.resolvedTitles(byId))
+          ? _titles((_resolved[selected.id] ?? const <MediaFlowTitle>[]))
           : collections.isEmpty
             ? Center(child: Text(data.collections.isEmpty
                 ? 'No collections yet.' : 'No matching collections.'))
@@ -85,7 +103,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 itemCount: collections.length,
                 itemBuilder: (context, index) {
                   final collection = collections[index];
-                  final resolved = collection.resolvedTitles(byId);
+                  final resolved = _resolved[collection.id] ?? const <MediaFlowTitle>[];
                   return Card(child: ListTile(
                     leading: collection.coverUrl.isNotEmpty
                         ? Image.network(collection.coverUrl, width: 45, height: 60,
@@ -101,7 +119,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                           Text(collection.description, maxLines: 2,
                               overflow: TextOverflow.ellipsis),
                         Text('${resolved.length} titles · '
-                            '${collection.progressPercent(byId).toStringAsFixed(0)}% progress'),
+                            '${(_progress[collection.id] ?? 0).toStringAsFixed(0)}% progress'),
                       ],
                     ),
                     trailing: const Icon(Icons.chevron_right),
