@@ -257,8 +257,8 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
                 gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount:columns,crossAxisSpacing:8,
                   mainAxisSpacing:8,
-                  childAspectRatio:view==NativeM41View.covers?.80:
-                    view==NativeM41View.coversTitles?.63:.92),
+                  childAspectRatio:view==NativeM41View.covers ? 0.80 :
+                    view==NativeM41View.coversTitles ? 0.63 : 0.92),
                 itemBuilder:(context,i)=>_card(members.items[i]));
             }),
       ),
@@ -284,7 +284,7 @@ class _NativeM41CollectionBrowserState extends State<NativeM41CollectionBrowser>
     title.coverUrl.isEmpty ? SizedBox(width:width,height:height,
       child:const Icon(Icons.book_outlined))
     : Image.network(title.coverUrl,width:width,height:height,
-      fit:BoxFit.cover,errorBuilder:(_,_,_)=>SizedBox(
+      fit:BoxFit.cover,errorBuilder:(context,error,stack)=>SizedBox(
         width:width,height:height,child:const Icon(Icons.book_outlined)));
 
   Widget _row(MediaFlowTitle item,{required bool compact}) {
