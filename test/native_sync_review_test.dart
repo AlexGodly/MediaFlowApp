@@ -259,6 +259,18 @@ void main() {
     expect(await store.load(owner), null);
   });
 
+  test('corrupt newest pending review recovers prior encrypted generation',
+      () async {
+    await store.save(batch(id: 'first-batch'), owner);
+    await store.save(batch(id: 'new-batch'), owner);
+    expect(await File(local(owner).path + '.previous').exists(), true);
+    await local(owner).writeAsString('{\"truncated\":', flush: true);
+    final previous = await store.load(owner);
+    expect(previous?.batchId, 'first-batch');
+    // Recovery does not execute or upload the batch.
+    expect(NativeCloudCapabilities.cloudWritesEnabled, false);
+  });
+
   test('queued save, clear, and logout cannot recreate old pending review',
       () async {
     final saving = store.save(batch(), owner);
