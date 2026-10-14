@@ -7,15 +7,19 @@ import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import 'native_editing_sheet.dart';
+import '../../services/native_m37_library_plan.dart';
+import 'native_m37_library_plan_ui.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../design_system/mediaflow_components.dart';
 
 enum NativeLibraryView { list, compact, cards, covers, coversWithTitles }
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({super.key, required this.repository, this.workspace});
+  const LibraryScreen({super.key, required this.repository, this.workspace,
+    this.changePlan});
   final MediaFlowLibraryRepository repository;
   final NativeEditingWorkspace? workspace;
+  final NativeM37LibraryPlan? changePlan;
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
@@ -28,6 +32,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
   LibrarySort _sort = LibrarySort.alphabetical;
   NativeLibraryView _view = NativeLibraryView.list;
   int _page = 0, _perPage = 50;
+  bool _previewChanges = false, _selecting = false;
+  final Set<String> _selectedIds = {};
+  void _onPlanChange() {
+    if (mounted) setState(() {
+      _cacheCatalog = null;
+      _page = 0;
+      _selectedIds.clear();
+    });
+  }
   MediaFlowCatalog? _cacheCatalog;
   MediaFlowLibraryIndex? _libraryIndex;
 
@@ -35,11 +48,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void initState() {
     super.initState();
     _future = widget.repository.load();
+    widget.changePlan?.addListener(_onPlanChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.changePlan != widget.changePlan) {
+      oldWidget.changePlan?.removeListener(_onPlanChange);
+      widget.changePlan?.addListener(_onPlanChange);
+      _previewChanges = false;
+      _selectedIds.clear();
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    widget.changePlan?.removeListener(_onPlanChange);
     _searchController.dispose();
     super.dispose();
   }
@@ -52,6 +78,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _refresh() => setState(() {
     _cacheCatalog = null;
     _page = 0;
+    _selectedIds.clear();
     _future = widget.repository.reload();
   });
 
@@ -89,7 +116,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           ]));
         }
-        final catalog = snapshot.data!;
+        final authoritative = snapshot.data!;
+        final plan = widget.changePlan;
+        plan?.observe(authoritative);
+        final previewActive = _previewChanges && plan != null &&
+            !plan.stale && plan.hasChanges;
+        final catalog = previewActive
+            ? plan.previewCatalog() : authoritative;
         final matched = _results(catalog);
         final pages = matched.isEmpty ? 1 : (matched.length + _perPage - 1) ~/ _perPage;
         final page = _page.clamp(0, pages - 1);
@@ -107,6 +140,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 onPressed: _refresh, icon: const Icon(Icons.refresh),
               ),
             ),
+            if (plan != null) ...[
+              const SizedBox(height: 8),
+              _draftControls(authoritative, visible, plan, previewActive),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
@@ -140,7 +177,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
             const SizedBox(height: 10),
             Text('Showing ' + (matched.isEmpty ? 0 : start + 1).toString() +
                  '–' + (start + visible.length).toString() +
-                 ' of ' + matched.length.toString() + ' · Read-only',
+                 ' of ' + matched.length.toString() +
+                 (previewActive ? ' · LOCAL PREVIEW — NOT SAVED'
+                     : ' · Cloud source — read-only'),
                  style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 8),
             Expanded(child: visible.isEmpty
@@ -215,7 +254,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           return Card(
             margin: const EdgeInsets.only(bottom: 6),
             child: InkWell(
-              onTap: () => _details(context, title, cat, _cacheCatalog!),
+              onTap: () => _openTitle(context, title, cat, _cacheCatalog!),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: EdgeInsets.all(compact ? 8 : 12),
@@ -239,7 +278,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         style: Theme.of(context).textTheme.bodySmall),
                     ],
                   )),
-                  const Icon(Icons.chevron_right, size: 20),
+                  if (_selecting)
+                    Checkbox(
+                      key: Key('m37-select-${title.id}'),
+                      value: _selectedIds.contains(title.id),
+                      onChanged: (v) => setState(() {
+                        if (v == true) { _selectedIds.add(title.id); }
+                        else { _selectedIds.remove(title.id); }
+                      }),
+                    )
+                  else
+                    const Icon(Icons.chevron_right, size: 20),
                 ]),
               ),
             ),
@@ -262,9 +311,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
       itemBuilder: (context, index) {
         final title = titles[index];
         return InkWell(
-          onTap: () => _details(context, title, categories[title.categoryId], _cacheCatalog!),
+          onTap: () => _openTitle(context, title, categories[title.categoryId], _cacheCatalog!),
           borderRadius: BorderRadius.circular(10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (_selecting)
+              Align(alignment: Alignment.centerRight, child: Checkbox(
+                key: Key('m37-select-${title.id}'),
+                value: _selectedIds.contains(title.id),
+                onChanged: (v) => setState(() {
+                  if (v == true) { _selectedIds.add(title.id); }
+                  else { _selectedIds.remove(title.id); }
+                }),
+              )),
             Expanded(child: MediaFlowCover(
               url: title.coverUrl, width: double.infinity, height: double.infinity)),
             if (!coverOnly) ...[
@@ -304,6 +362,158 @@ class _LibraryScreenState extends State<LibraryScreen> {
       onChanged: (next) => setState(() { _perPage = next ?? 50; _page = 0; }),
     ),
   ]);
+
+
+  Widget _draftControls(MediaFlowCatalog source, List<MediaFlowTitle> visible,
+      NativeM37LibraryPlan plan, bool previewActive) {
+    return Card(child: Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('LOCAL LIBRARY CHANGE PLANNER',
+          style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 6),
+        Text(plan.stale ? 'Snapshot refreshed. Local plan quarantined. '
+            'Discard it before any new edit.'
+          : '${plan.creationCount} create · ${plan.editCount} edit · '
+            '${plan.deletionCount} delete pending · Never uploaded',
+          key: const Key('m37-plan-count')),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          FilledButton.icon(
+            key: const Key('m37-new-title'),
+            onPressed: plan.stale || source.categories.isEmpty ? null
+                : () => _openM37Form(source),
+            icon: const Icon(Icons.add),
+            label: const Text('Create local title')),
+          OutlinedButton.icon(
+            key: const Key('m37-review-plan'),
+            onPressed: () => showModalBottomSheet<void>(
+              context: context, showDragHandle: true,
+              isScrollControlled: true,
+              builder: (_) => NativeM37PlanReview(plan: plan)),
+            icon: const Icon(Icons.fact_check_outlined),
+            label: const Text('Review local changes')),
+          OutlinedButton.icon(
+            key: const Key('m37-preview-toggle'),
+            onPressed: !plan.hasChanges || plan.stale ? null
+              : () => setState(() {
+                _previewChanges = !_previewChanges;
+                _cacheCatalog = null;
+                _selectedIds.clear();
+              }),
+            icon: Icon(previewActive ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined),
+            label: Text(previewActive ? 'Show cloud source' : 'Preview changes')),
+          OutlinedButton.icon(
+            key: const Key('m37-undo'),
+            onPressed: !plan.stale && plan.canUndo ? plan.undo : null,
+            icon: const Icon(Icons.undo),
+            label: const Text('Undo')),
+          OutlinedButton.icon(
+            key: const Key('m37-redo'),
+            onPressed: !plan.stale && plan.canRedo ? plan.redo : null,
+            icon: const Icon(Icons.redo),
+            label: const Text('Redo')),
+          OutlinedButton.icon(
+            key: const Key('m37-select-mode'),
+            onPressed: plan.stale ? null : () => setState(() {
+              _selecting = !_selecting;
+              _selectedIds.clear();
+            }),
+            icon: const Icon(Icons.checklist_outlined),
+            label: Text(_selecting ? 'Exit selection' : 'Bulk select')),
+          if (_selecting) ...[
+            TextButton.icon(
+              key: const Key('m37-select-visible'),
+              onPressed: () => setState(() {
+                _selectedIds.addAll(visible.map((e)=>e.id));
+              }),
+              icon: const Icon(Icons.select_all),
+              label: const Text('Select visible')),
+            OutlinedButton.icon(
+              key: const Key('m37-clear-selection'),
+              onPressed: _selectedIds.isEmpty ? null
+                : () => setState(() => _selectedIds.clear()),
+              icon: const Icon(Icons.deselect_outlined),
+              label: const Text('Deselect')),
+            FilledButton.icon(
+              key: const Key('m37-bulk-delete'),
+              onPressed: _selectedIds.isEmpty ? null
+                : () => _confirmBulkDelete(plan),
+              icon: const Icon(Icons.delete_outline),
+              label: Text('Stage deletion (${_selectedIds.length})')),
+          ],
+        ]),
+        if (previewActive) const Padding(
+          padding: EdgeInsets.only(top: 6),
+          child: Text('PREVIEW ONLY — This is not your saved Library. '
+            'Session History, Collections and XP still reflect cloud source.',
+            key: Key('m37-preview-warning'))),
+      ]),
+    ));
+  }
+
+  void _openM37Form(MediaFlowCatalog source, {String? titleId}) {
+    final plan = widget.changePlan;
+    if (plan == null || plan.stale) return;
+    showModalBottomSheet<void>(
+      context: context, showDragHandle: true, isScrollControlled: true,
+      builder: (_) => NativeM37TitleForm(
+        plan: plan, catalog: source, titleId: titleId),
+    );
+  }
+
+  void _openTitle(BuildContext context, MediaFlowTitle title,
+      MediaFlowCategory? cat, MediaFlowCatalog catalog) {
+    final plan = widget.changePlan;
+    if (_selecting) {
+      setState(() {
+        if (!_selectedIds.add(title.id)) _selectedIds.remove(title.id);
+      });
+      return;
+    }
+    if (_previewChanges && plan != null && !plan.stale &&
+        plan.hasChanges && (plan.isTemporary(title.id) ||
+          plan.isEdited(title.id))) {
+      _openM37Form(plan.source!,titleId:title.id);
+    } else {
+      _details(context,title,cat,catalog);
+    }
+  }
+
+  Future<void> _confirmBulkDelete(NativeM37LibraryPlan plan) async {
+    final ids = _selectedIds.toList(growable: false);
+    final referenceCount = ids.fold<int>(0,
+      (sum,id)=>sum+plan.references(id));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Stage deletion of ${ids.length} titles?'),
+        content: Text('This is only a local preview. Your cloud Library, '
+            'History, XP and Personal Order remain unchanged. '
+            '${referenceCount > 0 ? "These titles have $referenceCount "
+             "related references that would require coordinated cleanup. " : ""}'
+            'Undo or Restore can reverse the staged action.'),
+        actions: [
+          TextButton(onPressed: ()=>Navigator.pop(dialog,false),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: ()=>Navigator.pop(dialog,true),
+            child: const Text('Stage device-only deletion')),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      try {
+        plan.stageDelete(ids);
+      } on StateError catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)));
+      } on FormatException catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)));
+      }
+    }
+  }
 
   void _details(BuildContext context, MediaFlowTitle title,
       MediaFlowCategory? cat, MediaFlowCatalog catalog) {
