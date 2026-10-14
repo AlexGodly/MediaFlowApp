@@ -9,6 +9,7 @@ import 'package:mediaflow_app/services/native_editing_workspace.dart';
 import 'package:mediaflow_app/services/native_m33_draft_coordinator.dart';
 import 'package:mediaflow_app/services/native_m33_offline_queue.dart';
 import 'package:mediaflow_app/services/native_offline_read_coordinator.dart';
+import 'package:mediaflow_app/services/native_priority_review_coordinator.dart';
 import 'package:mediaflow_app/services/native_snapshot_codec.dart';
 
 void main() {

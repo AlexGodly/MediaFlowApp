@@ -17,7 +17,8 @@ for(const keyword of ['mayUpload => false','missingOrDuplicateTitle',
   'unrelatedCloudChanges','titleConflict','needsManualCloudReview'])
   assert(queue.includes(keyword));
 assert(!coord.includes('supabase_flutter'));
-assert(ui.includes('Review against cloud')&&ui.includes('No cloud'));
+assert(ui.includes('Review against cloud')&&
+  ui.includes('does not apply or upload changes'));
 for(const flag of ['cloudWritesEnabled = false',
   'hasServerSideCas = false','offlineWriteQueueEnabled = false'])
   assert(flags.includes(flag));
