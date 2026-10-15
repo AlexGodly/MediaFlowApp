@@ -52,7 +52,7 @@ class NativeM46TitlePicker {
       if (status.isNotEmpty && title.status != status) continue;
       if (priority.isNotEmpty && title.priority != priority) continue;
       if (needle.isNotEmpty && !title.searchText.contains(needle) &&
-          !title.id.toLowerCase().contains(needle)) continue;
+          !title.id.toLowerCase().contains(needle)) { continue; }
       matches.add(title);
     }
     switch (sort) {
