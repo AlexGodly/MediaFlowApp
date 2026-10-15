@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "milestone": 56,
+  "assessmentDate": "2026-10-15",
+  "sourceBaseline": "MediaFlow v410",
+  "websiteSource": {
+    "repository": "AlexGodly/MediaFlow",
+    "ref": "410",
+    "scope": "Source-level anchors from pinned original v410 tag. Runtime override chain and other dynamic write calls still require exhaustive verification."
+  },
+  "nativeRepository": "AlexGodly/MediaFlowApp",
+  "productionTouched": false,
+  "actualStagingProvisioned": false,
+  "cloudWritesEnabled": false,
+  "status": "incomplete_writer_discovery_do_not_cut_over",
+  "exhaustive": false,
+  "warning": "The inventory distinguishes one direct database writer from many local state mutation and save call sites. No claim that every dynamically installed v410 writer is found.",
+  "writerSurfaces": [
+    {
+      "id": "web-cloud-rawset",
+      "client": "website",
+      "kind": "direct_cloud_writer",
+      "source": {
+        "path": "src/js/services/cloud-sync/004-v115-cloud-data-loss-prevention-recovery-guard.js",
+        "gitBlobSha": "3a79b1073266093b6da026409ede9632c5350bef"
+      },
+      "entrypoint": "rawSet()",
+      "behavior": "Supabase mediaflow_states unconditional upsert of compressed account state",
+      "stateRoots": [
+        "all v410 state roots"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Migrate behind server-enforced revisioned, idempotent, owner-checked transaction; block direct upsert"
+    },
+    {
+      "id": "web-autosave",
+      "client": "website",
+      "kind": "cloud_write_caller",
+      "source": {
+        "path": "src/js/services/cloud-sync/004-v115-cloud-data-loss-prevention-recovery-guard.js",
+        "gitBlobSha": "3a79b1073266093b6da026409ede9632c5350bef"
+      },
+      "entrypoint": "saveState() -> saveQueue -> rawSet()",
+      "behavior": "Serializes writes inside a single browser, not across devices",
+      "stateRoots": [
+        "all v410 state roots"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Preserve ordering without relying on per-tab saveQueue as distributed conflict protection"
+    },
+    {
+      "id": "web-sync-now",
+      "client": "website",
+      "kind": "direct_cloud_write_caller",
+      "source": {
+        "path": "src/js/services/cloud-sync/058-v155-complete-cloud-state-full-sync-now.js",
+        "gitBlobSha": "f097e9eef0dbebc511a2b5a1ac697c80c154366f"
+      },
+      "entrypoint": "v155SyncNow() -> mergeStates() -> rawSet()",
+      "behavior": "Explicit Sync Now uploads full recomputed state after local/cloud merge",
+      "stateRoots": [
+        "library",
+        "sessions",
+        "settings",
+        "orderPlan",
+        "oldSystem",
+        "XP",
+        "portableExtras"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Make cross-client read-merge-write one atomic shared protocol, preserve v410 legacy merged semantics"
+    },
+    {
+      "id": "web-recovery-restore",
+      "client": "website",
+      "kind": "cloud_write_caller",
+      "source": {
+        "path": "src/js/services/cloud-sync/004-v115-cloud-data-loss-prevention-recovery-guard.js",
+        "gitBlobSha": "3a79b1073266093b6da026409ede9632c5350bef"
+      },
+      "entrypoint": "MediaFlowRecovery.restore() / saveState()",
+      "behavior": "User-selected local safety-cache recovery can later upload state",
+      "stateRoots": [
+        "all v410 state roots"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Require verified backup, snapshot owner/revision and explicit restore receipt"
+    },
+    {
+      "id": "web-logging-submit",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/features/logging/008-session-flow.js",
+        "gitBlobSha": "58dae516e673a5cf991ec1a811d4ead356282084"
+      },
+      "entrypoint": "App.submitLog() -> persistLibrary()/persistSessions()/persistTask()",
+      "behavior": "Combined consumption, History, task, Library effects and XP hooks",
+      "stateRoots": [
+        "library",
+        "sessions",
+        "currentTask",
+        "completionTimeline",
+        "xpLedger",
+        "activityLog"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Commit all dependent roots and award receipts atomically exactly once"
+    },
+    {
+      "id": "web-collection-traversal",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/components/221-v287-personal-order-collection-queues.js",
+        "gitBlobSha": "24703488c769cc22d43ca3c80ca33ca374976646"
+      },
+      "entrypoint": "v287StageTraversal()/v287RollbackTraversal()/App.submitLog wrapper",
+      "behavior": "Stages order progress before logging; rolls back when submit fails",
+      "stateRoots": [
+        "orderPlan",
+        "currentTask",
+        "library",
+        "sessions"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Transactionally couple traversal to accepted logging, with durable rollback semantics"
+    },
+    {
+      "id": "web-order-clear-restore",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/components/221-v287-personal-order-collection-queues.js",
+        "gitBlobSha": "24703488c769cc22d43ca3c80ca33ca374976646"
+      },
+      "entrypoint": "v287 clear/restore Order actions -> saveState()",
+      "behavior": "Direct order and Collection assignments changed by clear/restore",
+      "stateRoots": [
+        "orderPlan",
+        "library",
+        "collections"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Apply owner/revision rule to full order assignment lifecycle"
+    },
+    {
+      "id": "web-full-backup-restore",
+      "client": "website",
+      "kind": "cloud_write_caller",
+      "source": {
+        "path": "src/js/features/backup/053-v148-complete-data-backup-audit-full-restore.js",
+        "gitBlobSha": "2e29a69d99c1e902916fd11f8b1e60a451dcb642"
+      },
+      "entrypoint": "restore validated backup -> v46ApplyState() -> saveState()",
+      "behavior": "User-supplied restore replaces account and uploads cloud state",
+      "stateRoots": [
+        "all roots",
+        "portableExtras",
+        "profilePicture",
+        "profileName"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Require explicit replacement intent, safe restore point, full schema validation, idempotent receipt"
+    },
+    {
+      "id": "web-backup-export",
+      "client": "website",
+      "kind": "local_file_export",
+      "source": {
+        "path": "src/js/features/backup/053-v148-complete-data-backup-audit-full-restore.js",
+        "gitBlobSha": "2e29a69d99c1e902916fd11f8b1e60a451dcb642"
+      },
+      "entrypoint": "v148BuildFullBackup() / App.exportJSON()",
+      "behavior": "Builds portable backup and downloads JSON; no upload in export itself",
+      "stateRoots": [
+        "account snapshot",
+        "portableExtras"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Validate output envelope and reproducible lossless recovery; do not classify as cloud writer"
+    },
+    {
+      "id": "web-automatic-backup",
+      "client": "website",
+      "kind": "local_file_export",
+      "source": {
+        "path": "src/js/features/backup/056-v152-automatic-backup-full-backup.js",
+        "gitBlobSha": "7289bc3a2f177046cdde77b449ad1f9fe2cc69a6"
+      },
+      "entrypoint": "backupSnapshot() -> v148BuildFullBackup()",
+      "behavior": "Automatic local/file backups include portable account data",
+      "stateRoots": [
+        "all v410 state roots",
+        "portableExtras"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Audit target storage and restore path; do not infer server write from backup scheduling"
+    },
+    {
+      "id": "web-settings-wrappers",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/services/cloud-sync/115-persistence-merge-sync-now-full-backup.js",
+        "gitBlobSha": "1dd1a4c30450ee74a0c26068d321e30fe6b818a6"
+      },
+      "entrypoint": "persistSettings() wrapper",
+      "behavior": "Nested and versioned settings persist via chained wrappers",
+      "stateRoots": [
+        "settings",
+        "portableExtras"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Exhaustively enumerate effective runtime overrides and unknown settings before cutover"
+    },
+    {
+      "id": "web-rating-queue-portable",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/services/cloud-sync/058-v155-complete-cloud-state-full-sync-now.js",
+        "gitBlobSha": "f097e9eef0dbebc511a2b5a1ac697c80c154366f"
+      },
+      "entrypoint": "v155SchedulePortableCloudSave() / snapshot wrapper",
+      "behavior": "Rating Queue and portable preferences are included in cloud saving",
+      "stateRoots": [
+        "portableExtras",
+        "settings"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Preserve portable timestamps and optimistic changes through atomic revisions"
+    },
+    {
+      "id": "web-library-import",
+      "client": "website",
+      "kind": "state_mutator_to_autosave",
+      "source": {
+        "path": "src/js/features/import-export/071-v169-advanced-import-export-media-services.js",
+        "gitBlobSha": "adb282a7cc2841f54ab65cd421ef1f047569aa15"
+      },
+      "entrypoint": "v169 import apply/rollback",
+      "behavior": "Imported metadata/category mapping mutates Library; failed operation uses local rollback",
+      "stateRoots": [
+        "library",
+        "categories",
+        "settings"
+      ],
+      "risk": "high",
+      "evidence": "partially_traced",
+      "cutoverRequirement": "Trace final imported save callback and verify behavior on remote write failure"
+    },
+    {
+      "id": "web-legacy-backup-overrides",
+      "client": "website",
+      "kind": "runtime_override_to_review",
+      "source": {
+        "path": "src/js/services/cloud-sync/140-persistence-cloud-full-backup.js",
+        "gitBlobSha": "9e855ad33cd46d37688de3edae5921d59f699797"
+      },
+      "entrypoint": "v200 persistSettings()/snapshot()/backup builder",
+      "behavior": "Later wrapper extends state and full backup schema",
+      "stateRoots": [
+        "settings",
+        "categories",
+        "library",
+        "portableExtras"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Trace entire assembled runtime-order chain; do not treat one source file as total runtime coverage"
+    },
+    {
+      "id": "native-owner-read",
+      "client": "native",
+      "kind": "cloud_read_only",
+      "source": {
+        "path": "lib/data/mediaflow_library_repository.dart"
+      },
+      "entrypoint": "_readCloud() / _readFreshForPriorityReview()",
+      "behavior": "Owner-scoped SELECT of mediaflow_states; no cloud editing transport",
+      "stateRoots": [
+        "state_data",
+        "updated_at"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Preserve owner and wire format in staging; no native UPLOAD or RPC"
+    },
+    {
+      "id": "native-local-drafts",
+      "client": "native",
+      "kind": "device_local_only",
+      "source": {
+        "path": "lib/services/native_m33_draft_store.dart"
+      },
+      "entrypoint": "encrypted offline pending review drafts",
+      "behavior": "Encrypted per-owner draft storage; no replay transport",
+      "stateRoots": [
+        "priority review intents only"
+      ],
+      "risk": "high",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Require authenticated owner, integrity and conflict checks before any future staging replay"
+    },
+    {
+      "id": "native-proposed-cas",
+      "client": "native",
+      "kind": "test_only_simulation",
+      "source": {
+        "path": "lib/services/native_m30_shared_sync.dart"
+      },
+      "entrypoint": "NativeM30SimulatedSharedServer",
+      "behavior": "Pure in-memory synthetic CAS and receipt behavior",
+      "stateRoots": [
+        "priority intent on complete wire"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Do not conflate fake server with durable PostgreSQL CAS"
+    },
+    {
+      "id": "native-locked-cloud-writes",
+      "client": "native",
+      "kind": "production_capability_gate",
+      "source": {
+        "path": "lib/services/native_cas_protocol.dart"
+      },
+      "entrypoint": "NativeCloudCapabilities flags",
+      "behavior": "Native production write, CAS and offline write queue explicitly disabled",
+      "stateRoots": [
+        "all native cloud writes"
+      ],
+      "risk": "critical",
+      "evidence": "confirmed",
+      "cutoverRequirement": "Remain false until approved whole-system migration and verified staging QA"
+    }
+  ],
+  "pendingDiscovery": [
+    "Enumerate dynamically overwritten saveState/rawSet/persistX functions in full runtime order",
+    "Verify legacy page and beta/live deployments use the same pinned compiled v410 bundle",
+    "Audit every Supabase table, storage and Auth/Edge Function write path (no live credentials or schema accessed)",
+    "Audit all Library and category CRUD entrypoints, duplicate imports and bulk delete",
+    "Audit XP/level/Respect reward hooks, history completion and optimistic reroll paths",
+    "Audit profile image URL/account settings, Settings Center versions and portable preferences",
+    "Audit browser IndexedDB/localStorage migrations, PWA background sync and service-worker actions",
+    "Audit import/restore/automatic backup destinations and rollback across all v410 wrappers"
+  ],
+  "threatScenarios": [
+    {
+      "id": "lost-update-web-native",
+      "expected": "reject stale base revision even if web and Android write different subtrees"
+    },
+    {
+      "id": "same-time-changed-wire",
+      "expected": "reject stale payload when updated_at collides"
+    },
+    {
+      "id": "retry-lost-ack",
+      "expected": "return identical receipt once; never duplicate History/XP"
+    },
+    {
+      "id": "operation-id-reuse",
+      "expected": "reject same id with changed intent"
+    },
+    {
+      "id": "foreign-owner",
+      "expected": "require auth.uid owner regardless of payload owner id"
+    },
+    {
+      "id": "old-web-direct-upsert",
+      "expected": "deny legacy direct table write after coordinated cutover"
+    },
+    {
+      "id": "missing-cloud-row",
+      "expected": "refuse silent empty-account overwrite or default seed"
+    },
+    {
+      "id": "invalid-compressed-wire",
+      "expected": "reject malformed gzip/JSON and retain previous data"
+    },
+    {
+      "id": "backup-restore-race",
+      "expected": "reject stale full restore; keep previous encrypted backup and receipt"
+    },
+    {
+      "id": "offline-reconnect",
+      "expected": "quarantine replay behind owner and server revision checks"
+    },
+    {
+      "id": "atomic-logging-side-effects",
+      "expected": "all or none of Library, History, XP, task, order traversal"
+    },
+    {
+      "id": "cross-account-device-switch",
+      "expected": "old draft cannot attach to signed-in different account"
+    }
+  ],
+  "stagingReadiness": [
+    {
+      "id": "isolated-env",
+      "verified": false,
+      "reason": "No isolated Supabase staging project provisioned; no live migration attempted"
+    },
+    {
+      "id": "writer-exhaustive",
+      "verified": false,
+      "reason": "Dynamic v410 bundled override/write-path discovery remains open"
+    },
+    {
+      "id": "schema-rls",
+      "verified": false,
+      "reason": "No live production/staging schema or RLS audit performed"
+    },
+    {
+      "id": "backup-restore",
+      "verified": false,
+      "reason": "No real owner-scoped, restorable staging backup tested"
+    },
+    {
+      "id": "durable-transactions",
+      "verified": false,
+      "reason": "Only in-memory model tests exist; no PostgreSQL version/receipt transaction deployed"
+    },
+    {
+      "id": "all-client-compat",
+      "verified": false,
+      "reason": "Original website still uses unconditional state_data UPSERT"
+    },
+    {
+      "id": "rollback-drill",
+      "verified": false,
+      "reason": "No database recovery drill or restore receipts captured"
+    },
+    {
+      "id": "cross-device-qa",
+      "verified": false,
+      "reason": "No real-device/account integration tests against staging"
+    }
+  ],
+  "cutoverAuthorized": false,
+  "serverProtocolDeployed": false,
+  "nextMilestone": 57
+}
