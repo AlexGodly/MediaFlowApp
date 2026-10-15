@@ -96,7 +96,9 @@ void main(){
     expect(rows[4].candidates,isEmpty); // completed direct skipped
     expect(queues.recommendationSequence('anime').map((v)=>v.title.id),
       ['a1','a2','b2']);
-    expect(queues.placementsForTitle('a2').single.outerPosition,3);
+    expect(queues.placementsForTitle('a2')
+      .where((entry)=>entry.assignmentId=='assignment3')
+      .single.outerPosition,3);
     expect(queues.placementsForTitle('a4'),isEmpty);
     expect(queues.placementsForTitle('not-in-order'),isEmpty);
   });
