@@ -66,7 +66,7 @@ class NativeM55ReleaseReadinessPanel extends StatelessWidget {
                 leading:Icon(Icons.lock_outline,
                   color:color.error,size:19),
                 title:Text(gate.title),
-                subtitle:Text(gate.priority+' · '+gate.id),
+                subtitle:Text('${gate.priority} · ${gate.id}'),
               ),
           ],
         ),
