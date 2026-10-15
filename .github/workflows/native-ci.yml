@@ -63,6 +63,8 @@ jobs:
         run: node tool/parity/m44_personal_order_plan_guard.mjs
       - name: Guard M45 direct Personal Order local plan and disabled cloud writes
         run: node tool/parity/m45_direct_order_guard.mjs
+      - name: Guard M46 full-catalog Personal Order picker and local-only UI
+        run: node tool/parity/m46_picker_parity_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
