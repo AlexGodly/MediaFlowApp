@@ -344,7 +344,8 @@ class _NativeM45DirectTitlePlannerState
           title:const Text('Tools & Filters'),
           initiallyExpanded:false,
           tilePadding:EdgeInsets.zero,
-          children:[Wrap(spacing:12,runSpacing:6,children:[
+          children:[SizedBox(height:176,child:SingleChildScrollView(
+            child:Wrap(spacing:12,runSpacing:6,children:[
             SizedBox(width:180,child:DropdownButtonFormField<String>(
               key:const Key('m46-status-filter'),initialValue:statusFilter,
               isExpanded:true,decoration:const InputDecoration(
@@ -435,7 +436,7 @@ class _NativeM45DirectTitlePlannerState
                   child:Text('Covers + Titles')),
               ],
               onChanged:(v)=>setState(()=>viewMode=v??_M46View.list))),
-          ])],
+          ])))],
         ),
         const SizedBox(height:8),
         TextField(
