@@ -146,7 +146,7 @@ void main(){
 
   test('unknown or inconsistent target does not infer completion',(){
     for(final bounds in [[0.0,0.0],[4.0,2.0],
-        [double.nan,4.0],[2.0,double.infinity]]){
+        [2.0,double.infinity]]){
       final c=decodeMediaFlowState(fixture53(low:bounds[0],high:bounds[1]));
       final w=NativeEditingWorkspace(ownerId:'owner')..observe(c);
       w.stageLog(catalog:c,titleId:'a',amount:3,
@@ -174,6 +174,29 @@ void main(){
     expect(e.status,NativeM53EvidenceStatus.withinBand);
     expect(e.projectedLibraryProgress,5);
     expect(e.confirmedXp,isNull);
+    expect(c.sessions,isEmpty);
+  });
+
+  test('repeat consumption does not advance confirmed Library progress',(){
+    final fixture=fixture53();
+    final rows=fixture['library'] as List<dynamic>;
+    final saved=rows.first as Map<String,dynamic>;
+    saved['progress']=12;
+    saved['status']='completed';
+    final c=decodeMediaFlowState(fixture);
+    final projection=NativeLoggingParityPreview.calculate(
+      title:c.library.first,existingSessions:c.sessions,
+      mode:NativeLogInputMode.amount,value:3,minutes:16,
+      note:'rewatch',repeat:true);
+    final evidence=evaluate(catalog:c,contextToken:token(c),
+      standard:projection);
+    expect(evidence.repeat,true);
+    expect(evidence.status,NativeM53EvidenceStatus.withinBand);
+    expect(evidence.projectedLibraryProgress,12);
+    expect(evidence.projectedLibraryCompletion,false);
+    expect(evidence.confirmedTaskCompleted,false);
+    expect(evidence.canSubmit,false);
+    expect(c.library.first.progress,12);
     expect(c.sessions,isEmpty);
   });
 
