@@ -53,7 +53,7 @@ assert(!workflow.includes('SUPABASE_URL'));
 assert(!workflow.includes('SUPABASE_SERVICE_ROLE_KEY'));
 assert(!workflow.includes('supabase db push'));
 assert(!workflow.includes('apply_migration'));
-assert(!workflow.includes('production'));
+assert(!workflow.includes('https://')); // No external database endpoint.
 must(native,'cloudWritesEnabled = false','native');
 must(native,'hasServerSideCas = false','native');
 must(native,'offlineWriteQueueEnabled = false','native');
