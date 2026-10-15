@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
@@ -75,7 +76,7 @@ class NativeM53CompletionEvidencePanel extends StatelessWidget {
           Text(e.explanation,key:Key('m53-explanation-$variant'),
             style:theme.textTheme.bodySmall),
           const SizedBox(height:5),
-          const Text('Confirmed task completion: unavailable · '
+          Text('Confirmed task completion: unavailable · '
             'XP: unavailable · Collection traversal: not applied',
             key:Key('m53-no-commit-$variant')),
         ])),
