@@ -230,6 +230,10 @@ void main() {
     await tester.enterText(find.byKey(const Key('m43-rank-search')),
       'Test Apple');
     await tester.pumpAndSettle();
+    // The ranking explorer has its own bounded scroll viewport.
+    // Bring the found row into view before the gesture is dispatched.
+    await tester.ensureVisible(find.byKey(const Key('m43-title-x')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('m43-title-x')));
     await tester.pumpAndSettle();
     expect(find.textContaining('3 saved position(s)'),findsOneWidget);
