@@ -181,7 +181,9 @@ void main(){
     )));
     await tester.pumpAndSettle();
     final button=find.byKey(const Key('m51-review-in-logging'));
-    await tester.ensureVisible(button);
+    await tester.scrollUntilVisible(button,200,
+      scrollable:find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(button).onPressed,isNotNull);
     await tester.tap(button);
     await tester.pumpAndSettle();
