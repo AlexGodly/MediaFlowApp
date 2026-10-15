@@ -33,6 +33,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
   bool localPlanMode = false;
   bool directPlanMode = false;
   bool previewLocalPlan = false;
+  bool mixedEditMode = false;
 
   @override
   void initState() {
@@ -58,6 +59,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
       previewLocalPlan=false;
       localPlanMode=false;
       directPlanMode=false;
+      mixedEditMode=false;
     }
   }
 
@@ -87,8 +89,10 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
       final data = snapshot.requireData;
       widget.plan?.observe(data,currentOwnerId:widget.currentOwnerId);
       final plan=widget.plan;
-      final showLocalPreview=previewLocalPlan && plan!=null &&
-        plan.canEdit && plan.hasChanges;
+      final editingMixed=mixedQueueMode && !localPlanMode &&
+          !directPlanMode && mixedEditMode && plan?.canEdit==true;
+      final showLocalPreview=plan!=null && plan.canEdit &&
+          (editingMixed || (previewLocalPlan && plan.hasChanges));
       final displayed=showLocalPreview?plan.previewCatalog():data;
       if (!identical(_indexedCatalog, data) || _browser == null) {
         _indexedCatalog = data;
@@ -160,7 +164,29 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
           ]),
           const SizedBox(height:12),
           if(mixedQueueMode && !localPlanMode && !directPlanMode &&
-              plan!=null &&
+              plan!=null)
+            SwitchListTile(
+              key:const Key('m47-edit-toggle'),
+              dense:true,
+              title:const Text('Edit mixed queue locally'),
+              subtitle:const Text('Device-only draft · direct titles and '
+                'Collection outer slots · never writes to Supabase'),
+              value:editingMixed,
+              onChanged:plan.canEdit ? (value)=>setState(() {
+                mixedEditMode=value;
+                if(value) previewLocalPlan=true;
+              }) : null),
+          if(mixedQueueMode && !localPlanMode && !directPlanMode &&
+              plan!=null && !plan.canEdit)
+            Row(children:[
+              const Expanded(child:Text('Queue draft quarantined: '
+                'owner or authoritative snapshot changed.',
+                key:Key('m47-stale-warning'))),
+              TextButton(onPressed:plan.discard,
+                child:const Text('Discard draft')),
+            ]),
+          if(mixedQueueMode && !localPlanMode && !directPlanMode &&
+              !editingMixed && plan!=null &&
               plan.hasChanges && plan.canEdit)
             SwitchListTile(
               key:const Key('m44-preview-toggle'),
@@ -190,8 +216,9 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
             )),
           if (mixedQueueMode && !localPlanMode && !directPlanMode)
             Expanded(child:NativeM42MixedQueuePanel(
-              key:ValueKey(displayed),
-              catalog:displayed)),
+              key:const ValueKey('m47-mixed-queue'),
+              catalog:displayed,
+              plan:editingMixed ? plan : null)),
           if (!mixedQueueMode && !localPlanMode && !directPlanMode) ...[
           TextField(
             key: const Key('personal-order-search'),

@@ -311,6 +311,82 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     setPosition(id,(from+1+delta).clamp(1,current.length).toInt());
   }
 
+
+  /// Move one v287 outer queue token to an exact 1-based category slot.
+  /// A Collection remains one slot; crossing a direct title also updates the
+  /// category's direct-title sequence in the SAME undo checkpoint so source
+  /// v287 reconciliation does not silently undo the user's mixed order.
+  /// Other categories' global direct-title slots retain their positions.
+  void positionMixedToken(String categoryId,String token,int position) {
+    _assertCategory(categoryId);
+    _validateDirectOrder();
+    if(token.startsWith('t:')) {
+      final id=token.substring(2);
+      _assertTitle(id);
+      if(_sourceTitles[id]!.categoryId!=categoryId ||
+          !_titleIds.contains(id)) {
+        throw StateError('Direct title is not in the selected category queue');
+      }
+    } else if(token.startsWith('c:')) {
+      final assignment=_assignment(token.substring(2));
+      if(assignment.categoryId!=categoryId) {
+        throw StateError('Collection block belongs to a different category');
+      }
+      _assertCollection(assignment.collectionId);
+    } else {
+      throw const FormatException('Malformed mixed queue token');
+    }
+    final current=tokens(categoryId);
+    final from=current.indexOf(token);
+    if(from<0) throw StateError('Queue token is not in the selected category');
+    if(position<1||position>current.length) {
+      throw const FormatException('Invalid mixed queue position');
+    }
+    if(position==from+1) return;
+    final ordered=List<String>.of(current);
+    ordered.removeAt(from);
+    ordered.insert(position-1,token);
+
+    // A bad/dangling direct reference must never be guessed, dropped, or
+    // silently reindexed to a different title during a mixed-queue move.
+    final directIds=[
+      for(final t in ordered)
+        if(t.startsWith('t:')) t.substring(2),
+    ];
+    final sourceIndexes=<int>[];
+    for(var i=0;i<_titleIds.length;i++) {
+      final id=_titleIds[i];
+      if(_sourceTitles[id]?.categoryId==categoryId) {
+        if(_duplicateTitleIds.contains(id)) {
+          throw StateError('Ambiguous direct title in selected category');
+        }
+        sourceIndexes.add(i);
+      }
+    }
+    if(sourceIndexes.length!=directIds.length ||
+        sourceIndexes.toSet().length!=directIds.length ||
+        directIds.toSet().length!=directIds.length) {
+      throw StateError('Unresolved direct references prevent mixed queue editing');
+    }
+    final nextTitles=List<String>.of(_titleIds);
+    for(var i=0;i<sourceIndexes.length;i++) {
+      nextTitles[sourceIndexes[i]]=directIds[i];
+    }
+    _checkpoint();
+    _titleIds=nextTitles;
+    _queues[categoryId]=ordered;
+    _changed();
+  }
+
+  void moveMixedToken(String categoryId,String token,int delta) {
+    _assertCategory(categoryId);
+    final current=tokens(categoryId);
+    final index=current.indexOf(token);
+    if(index<0) throw StateError('Queue token is not in the selected category');
+    positionMixedToken(categoryId,token,
+      (index+1+delta).clamp(1,current.length).toInt());
+  }
+
   /// v138 direct Personal Order title operations. All use the same M44
   /// owner-pinned checkpoint stack as Collection assignment mutations.
   /// Unknown legacy order references are left untouched unless specifically
