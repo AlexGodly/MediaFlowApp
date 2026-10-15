@@ -96,7 +96,10 @@ void main() {
       ))));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m55-release-blocked')), findsOneWidget);
-    await tester.ensureVisible(find.byKey(const Key('m56-sync-preflight-panel')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('m56-sync-preflight-panel')),
+      260, maxScrolls: 20);
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('m56-sync-cutover-blocked')), findsOneWidget);
     expect(NativeCloudCapabilities.cloudWritesEnabled, isFalse);
     expect(tester.takeException(), isNull);
