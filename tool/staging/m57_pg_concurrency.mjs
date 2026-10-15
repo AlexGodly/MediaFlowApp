@@ -23,16 +23,16 @@ const concurrent=(sql)=>new Promise((resolve,reject)=>{
 });
 const A='11111111-1111-4111-8111-111111111111';
 const B='22222222-2222-4222-8222-222222222222';
-const login=owner=>\`SET ROLE authenticated; SET request.jwt.claim.sub='\${owner}';\`;
+const login=owner=>`SET ROLE authenticated; SET request.jwt.claim.sub='${owner}';`;
 const read=owner=>{
-  const fields=run(\`\${login(owner)} SELECT revision||'|'||state_digest FROM public.m57_stage_read();\`);
+  const fields=run(`${login(owner)} SELECT revision||'|'||state_digest FROM public.m57_stage_read();`);
   const [revision,digest]=fields.split('|');
   return {revision:Number(revision),digest};
 };
-const commitSql=(owner,anchor,op,next)=>\`\${login(owner)}
+const commitSql=(owner,anchor,op,next)=>`${login(owner)}
   SELECT status||'|'||COALESCE(revision::text,'') FROM public.m57_stage_commit(
-    '\${op}'::uuid,\${anchor.revision},'\${anchor.digest}',
-    '\${JSON.stringify(next).replaceAll("'","''")}'::jsonb);\`;
+    '${op}'::uuid,${anchor.revision},'${anchor.digest}',
+    '${JSON.stringify(next).replaceAll("'","''")}'::jsonb);`;
 const before=read(A);
 const nextDoc={library:[{id:'A',priority:'medium',unknownFuture:{nested:[1,null,true]}}],
   sessions:[],xpLedger:{events:[]},futureRoot:'opaque',stagingOnlyVersion:'m57'};
@@ -44,11 +44,11 @@ const result=await Promise.all([
 assert.deepEqual(result.map(v=>v.split('|')[0]).sort(),['applied','conflict']);
 assert.equal(read(A).revision,before.revision+1);
 assert.equal(read(B).revision,1);
-const rows=Number(run(\`SELECT count(*) FROM m57_staging.operation_receipts
- WHERE owner_id='\${A}';\`));
+const rows=Number(run(`SELECT count(*) FROM m57_staging.operation_receipts
+ WHERE owner_id='${A}';`));
 assert.equal(rows,2,'One existing SQL test receipt and one concurrent receipt');
-const unreadable=run(\`SELECT state_data->>'futureRoot' FROM
-  m57_staging.account_states WHERE owner_id='\${A}';\`);
+const unreadable=run(`SELECT state_data->>'futureRoot' FROM
+  m57_staging.account_states WHERE owner_id='${A}';`);
 assert.equal(unreadable,'opaque');
 console.log('M57_POSTGRES_CONCURRENT_CLIENTS_PASSED',
  JSON.stringify({results:result,ownerARevision:read(A).revision,
