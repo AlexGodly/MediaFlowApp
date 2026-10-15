@@ -67,6 +67,8 @@ jobs:
         run: node tool/parity/m46_picker_parity_guard.mjs
       - name: Guard M47 mixed queue local editing and Collection member paging
         run: node tool/parity/m47_mixed_queue_guard.mjs
+      - name: Guard M48 task/recommendation preview and disabled cloud writes
+        run: node tool/parity/m48_task_coordination_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

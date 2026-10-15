@@ -218,6 +218,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
             Expanded(child:NativeM42MixedQueuePanel(
               key:const ValueKey('m47-mixed-queue'),
               catalog:displayed,
+              savedCatalog:showLocalPreview ? data : null,
               plan:editingMixed ? plan : null)),
           if (!mixedQueueMode && !localPlanMode && !directPlanMode) ...[
           TextField(

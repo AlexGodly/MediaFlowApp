@@ -5,14 +5,16 @@ import '../../services/native_m42_mixed_queue.dart';
 import '../../services/native_m43_recommendation_audit.dart';
 import '../../services/native_m44_personal_order_plan.dart';
 import 'native_m43_recommendation_audit_panel.dart';
+import 'native_m48_task_coordination_panel.dart';
 
 /// Read-only v287/v368 Personal Order queue. This is NOT the task generator:
 /// no traversal staging, assignment rule edits, or cloud changes occur here.
 class NativeM42MixedQueuePanel extends StatefulWidget {
   const NativeM42MixedQueuePanel({
-    super.key,required this.catalog,this.plan,
+    super.key,required this.catalog,this.plan,this.savedCatalog,
   });
   final MediaFlowCatalog catalog;
+  final MediaFlowCatalog? savedCatalog;
   /// Non-null only in the explicit, owner-pinned device-only editor.
   final NativeM44PersonalOrderPlan? plan;
 
@@ -358,6 +360,11 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
               audit:audit,categoryId:current,onJump:_inspectSource),
           ),
         ),
+        NativeM48TaskCoordinationPanel(
+          catalog:widget.catalog,
+          savedCatalog:widget.savedCatalog,
+          categoryId:current,
+          onJump:_inspectSource),
         if (focusedToken!=null)
           Align(
             alignment:Alignment.centerLeft,
