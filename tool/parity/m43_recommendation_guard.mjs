@@ -24,7 +24,7 @@ for(const [src,markers] of [
     'm43-jump-','m43-preview-exclusions','m43-ranking-explorer']],
   [panel,['NativeM43RecommendationAuditPanel',
     'm43-clear-focus','m43-focused-','focusedToken']],
-  [tests,['50,000','first v287 recommendation',
+  [tests,['for(var i=0;i<50000;i++)','first v287 recommendation',
     'first candidate jumps to its exact Collection queue block',
     'rank lookup shows skipped reasons']],
 ])for(const marker of markers)
