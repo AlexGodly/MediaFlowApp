@@ -79,6 +79,8 @@ jobs:
         run: node tool/parity/m52_task_draft_continuity_guard.mjs
       - name: Guard M53 task completion evidence
         run: node tool/parity/m53_completion_evidence_guard.mjs
+      - name: Guard M54 task completion transaction readiness and no-write policy
+        run: node tool/parity/m54_transaction_readiness_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
