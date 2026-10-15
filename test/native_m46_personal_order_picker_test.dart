@@ -129,6 +129,8 @@ void main() {
     await tester.tap(find.byKey(const Key('m45-available-tab')));
     await tester.pumpAndSettle();
     expect(find.textContaining('102 matching Library titles'),findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('m45-next-page')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('m45-next-page')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m45-row-id43')),findsOneWidget);
