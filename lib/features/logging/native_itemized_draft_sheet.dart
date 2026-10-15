@@ -5,6 +5,7 @@ import '../../services/native_itemized_parity.dart';
 import '../../services/native_logging_parity_preview.dart';
 import '../../services/native_m52_task_draft_context.dart';
 import 'native_m52_draft_context_panel.dart';
+import 'native_m53_completion_evidence_panel.dart';
 
 /// Strictly an in-memory preview; never submits History or awards XP.
 class NativeItemizedDraftSheet extends StatefulWidget {
@@ -133,6 +134,7 @@ class _NativeItemizedDraftSheetState extends State<NativeItemizedDraftSheet> {
               catalog:widget.catalog,titleId:widget.title.id,
               currentOwnerId:widget.currentOwnerId,
               workspace:widget.workspace,method:'itemized/season units',
+              showCompletionEvidence:false,
             ),
           ],
           const SizedBox(height: 12),
@@ -191,6 +193,15 @@ class _NativeItemizedDraftSheetState extends State<NativeItemizedDraftSheet> {
             onChanged: (_) => setState(() => error = null),
           ),
           if (_preview() case final preview?) ...[
+            if(widget.taskContext!=null)...[
+              const SizedBox(height:10),
+              NativeM53CompletionEvidencePanel(
+                taskContext:widget.taskContext!,catalog:widget.catalog,
+                titleId:widget.title.id,
+                currentOwnerId:widget.currentOwnerId,
+                workspace:widget.workspace,
+                itemizedPreview:preview,variant:'live-itemized'),
+            ],
             const SizedBox(height: 12),
             Card(child: Padding(
               padding: const EdgeInsets.all(12),
