@@ -384,7 +384,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     final index=current.indexOf(token);
     if(index<0) throw StateError('Queue token is not in the selected category');
     positionMixedToken(categoryId,token,
-      (index+1+delta).clamp(1,current.length));
+      (index+1+delta).clamp(1,current.length).toInt());
   }
 
   /// v138 direct Personal Order title operations. All use the same M44
