@@ -5,6 +5,7 @@ const model=read('lib/data/mediaflow_models.dart');
 const service=read('lib/services/native_m49_dashboard_task_audit.dart');
 const panel=read('lib/features/dashboard/native_m49_dashboard_evidence_panel.dart');
 const screen=read('lib/features/dashboard/dashboard_screen.dart');
+const taskHero=read('lib/features/dashboard/native_m50_dashboard_task_hero.dart');
 const shell=read('lib/app/mediaflow_shell.dart');
 const tests=read('test/native_m49_dashboard_task_evidence_test.dart');
 const cloud=read('lib/services/native_cas_protocol.dart');
@@ -23,7 +24,8 @@ for(const [source,markers] of [
     'm49-exclusions','m49-open-order','m49-readonly-warning',
     'identical(plan.source,widget.catalog)','expanded?[_details(context)]']],
   [screen,['NativeM49DashboardEvidencePanel(',
-    'm49-task-id-label','personalOrderPlan','openPersonalOrder']],
+    'NativeM50DashboardTaskHero(','personalOrderPlan','openPersonalOrder']],
+  [taskHero,['m49-task-id-label','m50-task-resolution']],
   [shell,['personalOrderPlan: personalOrderPlan',
     'openPersonalOrder: () => navigate(MediaFlowSection.personalOrder)']],
   [tests,['100k titles','duplicate Library IDs',
@@ -32,7 +34,7 @@ for(const [source,markers] of [
 ])for(const marker of markers){
   assert(source.includes(marker),'M49 evidence invariant missing: '+marker);
 }
-for(const source of [model,service,panel,screen,shell]){
+for(const source of [model,service,panel,screen,taskHero,shell]){
   assert(!/\.upsert\(|\.rpc\(|\.from\(\s*['"]mediaflow_states/.test(source),
     'M49 cannot write production account state');
 }
