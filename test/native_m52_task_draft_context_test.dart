@@ -198,6 +198,7 @@ void main(){
       find.byKey(const Key('native-log-draft-units')))
       .controller!.text,'1');
     expect(w.logCount,0);
+    expect(tester.takeException(),isNull);
     await tester.pumpWidget(MaterialApp(home:Scaffold(
       body:NativeItemizedDraftSheet(catalog:source,title:title,
         workspace:w,taskContext:token,currentOwnerId:'owner'))));
@@ -267,7 +268,8 @@ void main(){
     expect(find.byKey(const Key('m52-details-context')),findsOneWidget);
     expect(handoff.hasRequest,false);
     expect(workspace.logCount,0);
-    await tester.pageBack();
+    Navigator.of(tester.element(find.byKey(
+      const Key('m52-details-context')))).pop();
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m52-logging-context-card')),findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('m52-reopen-task-review')));
