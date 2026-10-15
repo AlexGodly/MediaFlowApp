@@ -5,15 +5,19 @@ import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
+import '../../services/native_m51_task_handoff.dart';
 import '../library/native_editing_sheet.dart';
 import 'native_itemized_draft_sheet.dart';
 
 /// Multi-title selection workspace. It is intentionally a read-only
 /// preview: selections never create sessions, XP, cloud writes, or drafts.
 class LoggingScreen extends StatefulWidget {
-  const LoggingScreen({super.key, required this.repository, this.workspace});
+  const LoggingScreen({super.key, required this.repository, this.workspace,
+    this.taskHandoff,this.currentOwnerId=''});
   final MediaFlowLibraryRepository repository;
   final NativeEditingWorkspace? workspace;
+  final NativeM51TaskHandoff? taskHandoff;
+  final String currentOwnerId;
 
   @override
   State<LoggingScreen> createState() => _LoggingScreenState();
@@ -48,6 +52,69 @@ class _LoggingScreenState extends State<LoggingScreen> {
     limit = 50;
     future = widget.repository.reload();
   });
+
+  Widget _handoffCard(MediaFlowCatalog catalog) {
+    final controller=widget.taskHandoff;
+    if(controller==null||!controller.hasRequest){
+      return const SizedBox.shrink();
+    }
+    final handoff=controller.inspect(catalog,
+      currentOwnerId:widget.currentOwnerId);
+    return Card(
+      key:const Key('m51-handoff-card'),
+      child:Padding(padding:const EdgeInsets.all(12),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,
+          children:[
+            Row(children:[
+              const Icon(Icons.assignment_turned_in_outlined),
+              const SizedBox(width:8),
+              const Expanded(child:Text('Dashboard task handoff',
+                style:TextStyle(fontWeight:FontWeight.w700))),
+              IconButton(
+                key:const Key('m51-dismiss-handoff'),
+                tooltip:'Dismiss task handoff',
+                onPressed:()=>setState(controller.dismiss),
+                icon:const Icon(Icons.close)),
+            ]),
+            Text(handoff.message,
+              key:const Key('m51-handoff-status')),
+            if(handoff.ready)...[
+              const SizedBox(height:5),
+              Text(handoff.title!.title,
+                key:const Key('m51-handoff-title'),
+                maxLines:2,overflow:TextOverflow.ellipsis),
+              Text('Saved task category: ${handoff.categoryId} · '
+                'target: ${handoff.taskTargetLow}–'
+                '${handoff.taskTargetHigh} ${handoff.taskUnit}',
+                key:const Key('m51-handoff-target')),
+              const SizedBox(height:7),
+              Wrap(spacing:8,runSpacing:8,children:[
+                FilledButton.tonalIcon(
+                  key:const Key('m51-review-task-title'),
+                  onPressed:(){
+                    // Handoff never edits, selects or stages any title.
+                    // The existing details sheet requires an explicit user
+                    // choice before opening optional local-only drafts.
+                    controller.dismiss();
+                    _details(context,handoff.title!,catalog);
+                  },
+                  icon:const Icon(Icons.visibility_outlined),
+                  label:const Text('Review saved title')),
+                if(_selectedIds.contains(handoff.title!.id))
+                  const Text('Already selected manually · selection preserved'),
+              ]),
+            ],
+            if(widget.workspace?.hasDrafts==true)
+              const Text('Existing local drafts are preserved. '
+                'No draft is auto-created or replaced.',
+                key:Key('m51-existing-drafts')),
+            const SizedBox(height:5),
+            const Text('Read-only navigation · No History, XP, '
+              'task completion or cloud writes.',
+              key:Key('m51-handoff-warning')),
+          ])),
+    );
+  }
 
   void _selectionChanged(String id, bool chosen) => setState(() {
     if (chosen) {
@@ -228,6 +295,10 @@ class _LoggingScreenState extends State<LoggingScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ]),
+          if(widget.taskHandoff?.hasRequest==true)...[
+            const SizedBox(height:8),
+            _handoffCard(data),
+          ],
           if (widget.workspace != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
