@@ -8,6 +8,7 @@ import '../../design_system/mediaflow_components.dart';
 import '../../services/native_m36_dashboard_tools.dart';
 import '../../services/native_m44_personal_order_plan.dart';
 import 'native_m49_dashboard_evidence_panel.dart';
+import 'native_m50_dashboard_task_hero.dart';
 import 'native_m36_dashboard_tools_panel.dart';
 
 /// Read-only Dashboard projection. Scheduler/XP mutations remain owned by
@@ -149,7 +150,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ]),
         )),
         const SizedBox(height: 8),
-        _taskCard(context, data),
+        NativeM50DashboardTaskHero(
+          catalog:data,
+          openLibrary:widget.openLibrary,
+          openPersonalOrder:widget.openPersonalOrder,
+        ),
         const SizedBox(height: 8),
         NativeM49DashboardEvidencePanel(
           catalog:data,plan:widget.personalOrderPlan,
@@ -228,53 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ),
   );
 
-  Widget _taskCard(BuildContext context, MediaFlowCatalog data) {
-    final task = data.currentTask;
-    final category = task == null ? null : data.categoryById[task.categoryId];
-    return Card(child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('NEXT TASK', style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 10),
-          if (!data.sessionActive || task == null) ...[
-            Text('No active task', style: Theme.of(context).textTheme.titleLarge),
-            const Text('Start a session on the original MediaFlow website. '
-                'The native view will show the task after cloud synchronization.'),
-          ] else ...[
-            Text(category?.name ?? task.categoryId,
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text('Target: ${_quantity(task.low)}–${_quantity(task.high)} '
-              '${task.unit}', style: Theme.of(context).textTheme.titleMedium),
-            if (task.title.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Recommended title: ' + task.title),
-            ],
-            Text(task.libraryId.isNotEmpty
-              ?'Saved exact Library ID: ' + task.libraryId
-              :'Saved exact Library ID unavailable; title text alone '
-                'cannot confirm recommendation source.',
-              key:const Key('m49-task-id-label')),
-            if (task.reasons.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(task.reasons.join(' · '),
-                  style: Theme.of(context).textTheme.bodySmall),
-            ],
-          ],
-          const SizedBox(height: 14),
-          Align(alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: widget.openLibrary,
-              icon: const Icon(Icons.local_library_outlined),
-              label: const Text('Browse Library'),
-            ),
-          ),
-        ],
-      ),
-    ));
-  }
+
 }
 
 String _quantity(double number) => number == number.roundToDouble()
