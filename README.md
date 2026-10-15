@@ -25,7 +25,13 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
-## Development status (milestone 37 local Library CRUD planning)
+## Development status — Milestone 55 release-readiness audit
+
+**Milestone 55 assessment:** [Read the release readiness report](docs/MILESTONE_55.md) and [machine-readable v410 gate ledger](docs/parity/m55_release_readiness.json). The original milestone roadmap has reached its **final assessment checkpoint**, but the Flutter app is **NOT RELEASE READY** and **NOT 100% v410 feature-parity certified**. Of the 307 inventoried source surfaces and 54 cross-device journeys, **zero have complete, recorded parity sign-off**; that does not mean the app has no working features. There are 12 explicit release blockers. Native account-state cloud writes remain disabled and M56–M70 are proposed continuation steps, not approval to change the personal website or production Supabase.
+
+Milestone 54's 393 passing automated tests and Android/Windows validation builds were engineering checks, not signed deliverables, iOS testing, or exhaustive website acceptance.
+
+### Earlier engineering milestones
 - Milestone 37 adds a real native Library **create/edit/delete/restore/bulk** local change planner with explicit preview, undo/redo and stale-source quarantine. It is owner-scoped RAM-only; cloud editing and synchronization stay OFF. [Details](docs/MILESTONE_37.md).
 - Milestone 36 adds an actual account-scoped **Stopwatch**, v256-inspired **Runtime Calculator** (carry-forward and multi-row), and read-only **Rate Your Library / Missing Covers** suggestion panels to the Flutter Dashboard. No logging, XP or cloud state is written. [Details](docs/MILESTONE_36.md).
 - Milestone 35 completes a native, responsive login/signup/password-recovery **subset** and owner-validated Supabase Auth password update path; it expands synthetic four-client CAS acceptance tests. Real password recovery deep-link registration still requires device configuration and QA, and production cloud data writes remain disabled. [Details](docs/MILESTONE_35.md).
