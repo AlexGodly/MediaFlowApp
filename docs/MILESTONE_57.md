@@ -13,7 +13,7 @@
 ## Implemented transactional contract
 
 - **Private, isolated schema** `m57_staging`; no modifications to `public.mediaflow_states`.
-- `account_states` holds owner UUID, server-assigned incrementing `bigint` revision, an opaque v410 `jsonb` state envelope (including unknown roots or compressed-string/envelope representations), and **generated SHA-256** wire digest.
+- `account_states` holds owner UUID, server-assigned incrementing `bigint` revision, an opaque v410 `jsonb` state envelope (including unknown roots or compressed-string/envelope representations), and **trigger-maintained SHA-256** wire digest.
 - `operation_receipts` keeps durable-in-a-live-database owner+operation UUID, fingerprint of full request input, committed revision/digest. Records and state are inserted/updated within one PostgreSQL function transaction.
 - `m57_staging.commit_state` is **SECURITY DEFINER**, resides in a private schema, sets empty `search_path`, uses schema-qualified objects and gets owner from **`auth.uid()`**, not a caller-supplied UUID. It takes row-level `FOR UPDATE` lock before comparing revisions/receipts.
 - For an identical lost-ack retry, return `replayed` with the **original committed receipt**, even if a later operation has changed the current revision. Reused operation ID with different payload returns `operation_id_mismatch`; stale revision or full-wire digest returns `conflict`; absent owner row returns `missing_account`.
@@ -25,7 +25,7 @@
 
 | Area | How it is tested |
 | --- | --- |
-| Real PostgreSQL constraints | Ephemeral PG17 schema creation, generated digests, row lock and receipts |
+| Real PostgreSQL constraints | Ephemeral PG17 schema creation, trigger-maintained digests, row lock and receipts |
 | Auth/owner | Two artificial owner UUIDs, `auth.uid()` mock, no owner parameter |
 | Table bypass | Authenticated/anon have no direct table modification privileges |
 | Function exposure | Private definer, public invoker and restricted grants |
