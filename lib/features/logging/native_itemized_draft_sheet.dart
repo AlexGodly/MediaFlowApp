@@ -140,13 +140,15 @@ class _NativeItemizedDraftSheetState extends State<NativeItemizedDraftSheet> {
             DropdownButtonFormField<String>(
               key: const Key('itemized-season-selector'),
               initialValue: seasonId,
+              isExpanded:true,
               decoration: const InputDecoration(
                 labelText: 'Season', border: OutlineInputBorder(),
               ),
               items: [
                 for (final season in seasons)
                   DropdownMenuItem(value: season.id,
-                      child: Text(season.name)),
+                      child: Text(season.name,maxLines:1,
+                        overflow:TextOverflow.ellipsis)),
               ],
               onChanged: (value) => setState(() {
                 seasonId = value ?? seasonId;
