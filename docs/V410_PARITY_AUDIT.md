@@ -2,6 +2,10 @@
 
 **Milestone 26 source-grounded baseline.** This is the living entry point for complete MediaFlowApp parity tracking, not a claim that Flutter has all of the website's features.
 
+## Milestone 57 — isolated atomic PostgreSQL reference (2026-10-15)
+
+[Milestone 57](MILESTONE_57.md) introduces a private ephemeral PostgreSQL transaction and test suite with revision, full-state digest, owner checks, idempotency receipts and two concurrent sessions. The tests use synthetic owners and a **local PostgreSQL CI container**, not a connected Supabase project. Supabase Auth/RLS and real website compatibility are not certified. **No real staging deployment or production changes.** Native write gates remain disabled.
+
 ## Milestone 56 — synchronization writer discovery (2026-10-15)
 
 [Source-backed writer inventory and isolated staging rehearsal](MILESTONE_56.md) and [machine-readable ledger](parity/m56_writer_inventory.json) identify **18 traceable write-related surfaces**, all labeled as direct writers, indirect save callers, state mutations, exports, read-only native paths, or test-only simulations. The v410 website still contains an unconditional account-state UPSERT and **8 writer discovery tasks plus 8 staging gates remain open**. The in-memory 12-scenario model is not a staging Supabase deployment. Production writing and release certification remain disabled.
