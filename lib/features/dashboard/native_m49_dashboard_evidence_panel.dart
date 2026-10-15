@@ -15,7 +15,7 @@ class NativeM49DashboardEvidencePanel extends StatefulWidget {
   });
   final MediaFlowCatalog catalog;
   final NativeM44PersonalOrderPlan? plan;
-  final VoidCallback openPersonalOrder;
+  final VoidCallback? openPersonalOrder;
 
   @override
   State<NativeM49DashboardEvidencePanel> createState() =>
@@ -115,7 +115,7 @@ class _NativeM49DashboardEvidencePanelState
               onChanged:(value)=>setState((){
                 categoryId=value??selected;exclusions.clear();
               })),
-            TextButton.icon(
+            if(widget.openPersonalOrder!=null)TextButton.icon(
               key:const Key('m49-open-order'),
               onPressed:widget.openPersonalOrder,
               icon:const Icon(Icons.format_list_numbered),
