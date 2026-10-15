@@ -7,12 +7,14 @@ import 'native_m42_mixed_queue.dart';
 
 class _M44Checkpoint {
   _M44Checkpoint(List<MediaFlowCollectionAssignment> assignments,
-      Map<String,List<String>> queues)
-      : assignments=List.unmodifiable(assignments),
+      Map<String,List<String>> queues,List<String> titleIds)
+      : titleIds=List.unmodifiable(titleIds),
+        assignments=List.unmodifiable(assignments),
         queues=Map.unmodifiable({
           for(final entry in queues.entries)
             entry.key:List<String>.unmodifiable(entry.value),
         });
+  final List<String> titleIds;
   final List<MediaFlowCollectionAssignment> assignments;
   final Map<String,List<String>> queues;
 }
@@ -34,6 +36,9 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
   bool _stale=false;
   int _sequence=0,_operations=0;
   List<MediaFlowCollectionAssignment> _assignments=[];
+  List<String> _titleIds=[];
+  final Map<String,MediaFlowTitle> _sourceTitles={};
+  final Set<String> _duplicateTitleIds={};
   Map<String,List<String>> _queues={};
   final List<_M44Checkpoint> _undo=[],_redo=[];
   int _revision=0,_projectedRevision=-1;
@@ -50,12 +55,14 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
   bool get canRedo => canEdit && _redo.isNotEmpty;
   int get pendingOperations => _operations;
   MediaFlowCatalog? get source => _source;
+  List<String> get directTitleIds => List.unmodifiable(_titleIds);
   List<MediaFlowCollectionAssignment> get assignments =>
       List.unmodifiable(_assignments);
 
   bool get hasChanges {
     final base=_source;
     if(base==null) return false;
+    if(!listEquals(base.personalOrderIds,_titleIds)) return true;
     if(base.collectionAssignments.length!=_assignments.length) return true;
     for(var i=0;i<_assignments.length;i++) {
       if(!_sameAssignment(base.collectionAssignments[i],_assignments[i])) {
@@ -98,6 +105,13 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     _source=catalog;
     _stale=false;
     _assignments=List.of(catalog.collectionAssignments);
+    _titleIds=List.of(catalog.personalOrderIds);
+    _sourceTitles.clear();
+    _duplicateTitleIds.clear();
+    _duplicateIds(catalog.library.map((t)=>t.id),_duplicateTitleIds);
+    for(final title in catalog.library) {
+      _sourceTitles[title.id]=title;
+    }
     _queues={
       for(final e in catalog.categoryQueues.entries)
         e.key:List.of(e.value),
@@ -186,7 +200,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     return List.unmodifiable(out);
   }
 
-  _M44Checkpoint _capture() => _M44Checkpoint(_assignments,_queues);
+  _M44Checkpoint _capture() => _M44Checkpoint(_assignments,_queues,_titleIds);
 
   void _checkpoint() {
     _ensureCurrent();
@@ -211,6 +225,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
 
   void _restore(_M44Checkpoint entry) {
     _assignments=List.of(entry.assignments);
+    _titleIds=List.of(entry.titleIds);
     _queues={
       for(final e in entry.queues.entries)
         e.key:List.of(e.value),
@@ -296,6 +311,157 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     setPosition(id,(from+1+delta).clamp(1,current.length).toInt());
   }
 
+  /// v138 direct Personal Order title operations. All use the same M44
+  /// owner-pinned checkpoint stack as Collection assignment mutations.
+  /// Unknown legacy order references are left untouched unless specifically
+  /// removed; no account payload is ever rebuilt from this projection.
+  void _assertTitle(String id) {
+    _ensureCurrent();
+    if(id.isEmpty || _duplicateTitleIds.contains(id) ||
+        !_sourceTitles.containsKey(id)) {
+      throw StateError('Missing or ambiguous Library title ID');
+    }
+  }
+
+  void _validateDirectOrder() {
+    _ensureCurrent();
+    if(_titleIds.toSet().length!=_titleIds.length) {
+      throw StateError('Duplicate saved Personal Order IDs; cannot reorder');
+    }
+  }
+
+  /// Search is capped before materialization and retains the source Library
+  /// ordering, just like v138 selected title additions.
+  List<MediaFlowTitle> browseDirectTitlePicker({
+    String categoryId='',String search='',bool alreadyOrdered=false,
+    int limit=60,
+  }) {
+    _ensureCurrent();
+    if(limit<1 || limit>200) {
+      throw const FormatException('Invalid title picker page limit');
+    }
+    if(categoryId.isNotEmpty) _assertCategory(categoryId);
+    final selected=_titleIds.toSet();
+    final needle=search.trim().toLowerCase();
+    final result=<MediaFlowTitle>[];
+    for(final title in _source!.library) {
+      if(title.id.isEmpty||_duplicateTitleIds.contains(title.id)) {
+        continue;
+      }
+      if(categoryId.isNotEmpty && title.categoryId!=categoryId) {
+        continue;
+      }
+      if(selected.contains(title.id)!=alreadyOrdered) {
+        continue;
+      }
+      if(needle.isNotEmpty && !title.searchText.contains(needle) &&
+          !title.id.toLowerCase().contains(needle)) {
+        continue;
+      }
+      result.add(title);
+      if(result.length>=limit) { break; }
+    }
+    return List.unmodifiable(result);
+  }
+
+  /// v138 selected Add follows Library order, independently of click order.
+  /// A single checked batch is one reversible checkpoint, never a cloud edit.
+  void addDirectTitles(Iterable<String> ids) {
+    _validateDirectOrder();
+    final picked=ids.toSet();
+    if(picked.isEmpty || picked.length>200) {
+      throw const FormatException('Select 1–200 Library titles');
+    }
+    for(final id in picked) { _assertTitle(id); }
+    final known=_titleIds.toSet();
+    final additions=<String>[];
+    for(final item in _source!.library) {
+      if(picked.contains(item.id) && known.add(item.id)) {
+        additions.add(item.id);
+      }
+    }
+    if(additions.isEmpty) { return; }
+    _checkpoint();
+    _titleIds=[..._titleIds,...additions];
+    _changed();
+  }
+
+  /// Removes only direct-order references; Collection member blocks and
+  /// Library titles are never deleted or modified.
+  void removeDirectTitles(Iterable<String> ids) {
+    _validateDirectOrder();
+    final picked=ids.toSet();
+    if(picked.isEmpty || picked.length>200) {
+      throw const FormatException('Select 1–200 ordered titles');
+    }
+    if(!_titleIds.toSet().containsAll(picked)) {
+      throw StateError('Selected direct titles are not in saved order');
+    }
+    // Explicit removal can clean dangling IDs, but never guessed IDs.
+    _checkpoint();
+    _titleIds=[
+      for(final id in _titleIds) if(!picked.contains(id)) id,
+    ];
+    _changed();
+  }
+
+  /// Set a 1-based position globally or among titles of a single task
+  /// category. In category mode, nonmatching titles keep their global slots.
+  void positionDirectTitle(String id,int position,{String categoryId=''}) {
+    _validateDirectOrder();
+    _assertTitle(id);
+    if(!_titleIds.contains(id)) {
+      throw StateError('Title not currently in Personal Order');
+    }
+    if(categoryId.isNotEmpty) {
+      _assertCategory(categoryId);
+      if(_sourceTitles[id]!.categoryId!=categoryId) {
+        throw StateError('Title does not belong to the chosen category');
+      }
+    }
+    final indexes=<int>[];
+    for(var i=0;i<_titleIds.length;i++) {
+      final title=_sourceTitles[_titleIds[i]];
+      if(categoryId.isEmpty || title?.categoryId==categoryId) {
+        indexes.add(i);
+      }
+    }
+    if(position<1 || position>indexes.length) {
+      throw const FormatException('Invalid direct-title order position');
+    }
+    final ordered=[for(final i in indexes) _titleIds[i]];
+    final from=ordered.indexOf(id);
+    if(from<0) throw StateError('Ordered title is missing from category');
+    if(from==position-1) { return; }
+    _checkpoint();
+    final moved=ordered.removeAt(from);
+    ordered.insert(position-1,moved);
+    final updated=List<String>.of(_titleIds);
+    for(var i=0;i<indexes.length;i++) {
+      updated[indexes[i]]=ordered[i];
+    }
+    _titleIds=updated;
+    _changed();
+  }
+
+  void moveDirectTitle(String id,int delta,{String categoryId=''}) {
+    _validateDirectOrder();
+    _assertTitle(id);
+    if(categoryId.isNotEmpty) _assertCategory(categoryId);
+    final matching=<String>[];
+    for(final item in _titleIds) {
+      if(categoryId.isEmpty || _sourceTitles[item]?.categoryId==categoryId) {
+        matching.add(item);
+      }
+    }
+    final from=matching.indexOf(id);
+    if(from<0) {
+      throw StateError('Title missing from selected direct category');
+    }
+    final next=(from+delta).clamp(0,matching.length-1).toInt();
+    positionDirectTitle(id,next+1,categoryId:categoryId);
+  }
+
   /// Removes an assignment only; original Collection and Library titles stay.
   void remove(String id) {
     final a=_assignment(id);
@@ -356,6 +522,8 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
       _stale=true;
       _source=null;
       _assignments=[];
+      _titleIds=[];
+      _sourceTitles.clear();
       _queues={};
     }
     _changed();
@@ -368,11 +536,21 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
       return _projected!;
     }
     final base=_source!;
+    // Preserve pre-M45 identity contracts when a related surface is not
+    // touched. Unchanged Library, Personal Order and assignments should still
+    // reference exactly the original authoritative catalog structures.
+    final untouchedAssignments=_assignments.length==
+        base.collectionAssignments.length &&
+        List.generate(_assignments.length,(i)=>i).every((i)=>
+          identical(_assignments[i],base.collectionAssignments[i]));
+    final sameDirectOrder=listEquals(_titleIds,base.personalOrderIds);
     _projected=MediaFlowCatalog(
       library:base.library,categories:base.categories,
       collections:base.collections,sessions:base.sessions,
-      personalOrderIds:base.personalOrderIds,
-      collectionAssignments:List.unmodifiable(_assignments),
+      personalOrderIds:sameDirectOrder ? base.personalOrderIds :
+        List.unmodifiable(_titleIds),
+      collectionAssignments:untouchedAssignments ?
+        base.collectionAssignments : List.unmodifiable(_assignments),
       categoryQueues:Map.unmodifiable({
         for(final e in _queues.entries)
           e.key:List<String>.unmodifiable(e.value),
