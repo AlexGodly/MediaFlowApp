@@ -208,8 +208,11 @@ void main(){
         openLibrary:(){},openHistory:(){}))));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m50-task-hero')),findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('m49-dashboard-evidence')),200);
     expect(find.byKey(const Key('m49-dashboard-evidence')),
       findsOneWidget);
+    await tester.scrollUntilVisible(find.text('RECENT ACTIVITY'),200);
     expect(find.text('RECENT ACTIVITY'),findsOneWidget);
     expect(catalog.sessions,isEmpty);
   });
