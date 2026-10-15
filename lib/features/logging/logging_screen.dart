@@ -278,9 +278,17 @@ class _LoggingScreenState extends State<LoggingScreen> {
       final allVisibleSelected = visible.isNotEmpty &&
           visible.every((item) => _selectedIds.contains(item.id));
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      return LayoutBuilder(builder:(context,viewport) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height:(viewport.maxHeight*0.56).clamp(0.0,520.0).toDouble(),
+              child:SingleChildScrollView(
+                key:const Key('m51-logging-controls-scroll'),
+                child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.stretch,
+                  children:[
           Row(children: [
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,6 +418,10 @@ class _LoggingScreenState extends State<LoggingScreen> {
             ),
           ]),
           const SizedBox(height: 6),
+                  ],
+                ),
+              ),
+            ),
           Expanded(child: matches.isEmpty
               ? const Center(child: Text('No matching titles.'))
               : ListView.builder(
@@ -450,7 +462,8 @@ class _LoggingScreenState extends State<LoggingScreen> {
             textAlign: TextAlign.center,
           ),
         ],
-      );
+        );
+      });
     },
   );
 
