@@ -536,11 +536,21 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
       return _projected!;
     }
     final base=_source!;
+    // Preserve pre-M45 identity contracts when a related surface is not
+    // touched. Unchanged Library, Personal Order and assignments should still
+    // reference exactly the original authoritative catalog structures.
+    final untouchedAssignments=_assignments.length==
+        base.collectionAssignments.length &&
+        List.generate(_assignments.length,(i)=>i).every((i)=>
+          identical(_assignments[i],base.collectionAssignments[i]));
+    final sameDirectOrder=listEquals(_titleIds,base.personalOrderIds);
     _projected=MediaFlowCatalog(
       library:base.library,categories:base.categories,
       collections:base.collections,sessions:base.sessions,
-      personalOrderIds:List.unmodifiable(_titleIds),
-      collectionAssignments:List.unmodifiable(_assignments),
+      personalOrderIds:sameDirectOrder ? base.personalOrderIds :
+        List.unmodifiable(_titleIds),
+      collectionAssignments:untouchedAssignments ?
+        base.collectionAssignments : List.unmodifiable(_assignments),
       categoryQueues:Map.unmodifiable({
         for(final e in _queues.entries)
           e.key:List<String>.unmodifiable(e.value),
