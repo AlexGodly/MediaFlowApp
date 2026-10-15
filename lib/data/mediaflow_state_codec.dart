@@ -70,6 +70,9 @@ MediaFlowCatalog decodeMediaFlowState(
     personalOrderIds: (rawOrderIds as List? ?? const []).map((id) => id.toString()).toSet().toList(growable: false),
     // Preserve raw queue tokens, including unknown/stale references for
     // explicit diagnostics. Never normalize or persist this projection.
+    prioritizePersonalOrder:
+      settings['prioritizePersonalOrder'] is bool
+        ? settings['prioritizePersonalOrder'] as bool : null,
     categoryQueues: Map.unmodifiable({
       if (orderPlan['categoryQueues'] is Map)
         for (final entry in (orderPlan['categoryQueues'] as Map).entries)

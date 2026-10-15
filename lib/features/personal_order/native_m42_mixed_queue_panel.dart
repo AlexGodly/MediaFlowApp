@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../data/mediaflow_models.dart';
 import '../../services/native_m42_mixed_queue.dart';
+import '../../services/native_m43_recommendation_audit.dart';
+import 'native_m43_recommendation_audit_panel.dart';
 
 /// Read-only v287/v368 Personal Order queue. This is NOT the task generator:
 /// no traversal staging, assignment rule edits, or cloud changes occur here.
@@ -16,7 +18,34 @@ class NativeM42MixedQueuePanel extends StatefulWidget {
 
 class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
   String categoryId='',search='';
+  String? focusedToken;
+  final TextEditingController queueSearch=TextEditingController();
+  late NativeM42MixedQueues reader;
+  late NativeM43RecommendationAudit audit;
   int page=0;
+
+  @override
+  void initState() {
+    super.initState();
+    reader=NativeM42MixedQueues(widget.catalog);
+    audit=NativeM43RecommendationAudit(widget.catalog,reader:reader);
+  }
+
+  @override
+  void dispose() {
+    queueSearch.dispose();
+    super.dispose();
+  }
+
+  void _inspectSource(String category,String token) {
+    queueSearch.clear();
+    setState(() {
+      categoryId=category;
+      search='';
+      focusedToken=token;
+      page=0;
+    });
+  }
   static const pageSize=30;
 
   @override
@@ -24,6 +53,9 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.catalog,widget.catalog)) {
       page=0;
+      focusedToken=null;
+      reader=NativeM42MixedQueues(widget.catalog);
+      audit=NativeM43RecommendationAudit(widget.catalog,reader:reader);
     }
   }
 
@@ -58,7 +90,10 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
     return Card(
       key:Key('m42-slot-${slot.token}'),
       child:ExpansionTile(
-        key:Key('m42-collection-${slot.token}'),
+        key:focusedToken==slot.token
+            ? Key('m43-focused-${slot.token}')
+            : Key('m42-collection-${slot.token}'),
+        initiallyExpanded:focusedToken==slot.token,
         leading:CircleAvatar(child:Text('${slot.position}')),
         title:Text(collection?.title ?? 'Unavailable Collection',
           maxLines:2,overflow:TextOverflow.ellipsis),
@@ -96,16 +131,17 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
 
   @override
   Widget build(BuildContext context) {
-    final reader=NativeM42MixedQueues(widget.catalog);
     final categories=reader.categoryIds;
     if (categories.isEmpty) {
       return const Center(child:Text('No Personal Order categories available.'));
     }
     final current=categories.contains(categoryId) ? categoryId : categories.first;
-    final all=reader.slotsForCategory(current);
+    final categoryAudit=audit.forCategory(current);
+    final all=categoryAudit.slots;
     final query=search.trim().toLowerCase();
     final visible=<NativeM42QueueSlot>[];
     for(final slot in all) {
+      if (focusedToken!=null && focusedToken!=slot.token) { continue; }
       if (query.isNotEmpty &&
           !(slot.title?.searchText.contains(query) ?? false) &&
           !(slot.collection?.title.toLowerCase().contains(query) ?? false) &&
@@ -119,7 +155,7 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
     final currentPage=page.clamp(0,pages-1);
     final shown=visible.skip(currentPage*pageSize).take(pageSize).toList();
     final diagnostics=reader.diagnosticsForCategory(current);
-    final recommendationCount=reader.recommendationSequence(current).length;
+    final recommendationCount=categoryAudit.recommendations.length;
     final name={
       for(final category in widget.catalog.categories)
         category.id:category.name,
@@ -147,7 +183,11 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
             ],
             onChanged:(v) {
               if (v!=null) {
-                setState(() { categoryId=v; page=0; });
+                queueSearch.clear();
+                setState(() {
+                  categoryId=v; page=0;
+                  search=''; focusedToken=null;
+                });
               }
             }),
           Text('${all.length} queue slots · '
@@ -155,13 +195,35 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
             key:const Key('m42-queue-count')),
         ]),
         TextField(
+          controller:queueSearch,
           key:const Key('m42-search'),
           decoration:const InputDecoration(
             labelText:'Find direct titles or Collections in this queue',
             border:OutlineInputBorder(),prefixIcon:Icon(Icons.search),
             isDense:true),
-          onChanged:(v)=>setState(() {search=v;page=0;}),
+          onChanged:(v)=>setState(() {
+            search=v;page=0;focusedToken=null;
+          }),
         ),
+        ConstrainedBox(
+          constraints:const BoxConstraints(maxHeight:230),
+          child:SingleChildScrollView(
+            child:NativeM43RecommendationAuditPanel(
+              audit:audit,categoryId:current,onJump:_inspectSource),
+          ),
+        ),
+        if (focusedToken!=null)
+          Align(
+            alignment:Alignment.centerLeft,
+            child:TextButton.icon(
+              key:const Key('m43-clear-focus'),
+              onPressed:()=>setState(() {
+                focusedToken=null;page=0;
+              }),
+              icon:const Icon(Icons.view_list_outlined),
+              label:Text('Showing queue slot ${all.where((s)=>s.token==focusedToken).firstOrNull?.position ?? "?"} · View all slots'),
+            ),
+          ),
         if (diagnostics.isNotEmpty)
           ExpansionTile(
             key:const Key('m42-queue-diagnostics'),
