@@ -334,6 +334,7 @@ class NativeM40CollectionPlan extends ChangeNotifier {
       sessions: base.sessions, personalOrderIds: base.personalOrderIds,
       collectionAssignments: base.collectionAssignments,
       categoryQueues: base.categoryQueues,
+      prioritizePersonalOrder: base.prioritizePersonalOrder,
       currentTask: base.currentTask, sessionActive: base.sessionActive,
       tasksPerDay: base.tasksPerDay, dailyMinutes: base.dailyMinutes,
       xpEvidence: base.xpEvidence, updatedAt: base.updatedAt,
