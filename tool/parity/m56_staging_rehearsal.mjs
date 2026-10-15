@@ -77,7 +77,7 @@ prove('lost-update-web-native',()=>{
   assert.equal(server.read(owner).wire.library[1].priority,'low');
 });
 prove('same-time-changed-wire',()=>{
-  const before=stagedServer.read(owner),snap=base();
+  const before=stagedServer.read(owner),snap=baseline;
   assert.equal(server.read(owner).updatedAt,before.updatedAt);
   assert.notEqual(digest(server.read(owner).wire),digest(before.wire));
   assert.equal(server.commit({actor:owner,owner,base:snap,operationId:'stale-same-timestamp',
