@@ -31,7 +31,7 @@ for(const [source,markers] of [
     'itemizedPreview:preview',"variant:'live-itemized'"]],
   [tests,['100k Library','Force Queue',
     'unknown or inconsistent','repeat consumption',
-    'itemized counts selected','task band','standard and itemized live']],
+    'itemized counts selected','saved standard draft','standard and itemized live']],
 ])for(const marker of markers){
   assert(source.includes(marker),'M53 guard missing '+marker);
 }
