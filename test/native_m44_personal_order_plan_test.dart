@@ -250,7 +250,7 @@ void main(){
     expect(()=>plan.setRules('a1',categoryRule:'force'),throwsStateError);
     plan.undo();
     expect(plan.pendingOperations,199);
-    plan.setRules('a1',categoryRule:'force');
+    plan.setRules('a1',categoryRule:'match');
     expect(plan.pendingOperations,200);
     expect(plan.canRedo,false);
     plan.dispose();
