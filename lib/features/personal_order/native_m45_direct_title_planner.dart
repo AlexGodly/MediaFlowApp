@@ -30,7 +30,19 @@ class _NativeM45DirectTitlePlannerState
   NativeM46Sort pickerSort=NativeM46Sort.library;
   _M46View viewMode=_M46View.list;
   final Set<String> selected={};
+  final ScrollController _workspaceScroll=ScrollController();
   String? error;
+
+  @override
+  void dispose() {
+    _workspaceScroll.dispose();
+    super.dispose();
+  }
+
+  void _goToPage(int next) {
+    setState(()=>page=next);
+    if(_workspaceScroll.hasClients) _workspaceScroll.jumpTo(0);
+  }
 
   void _run(void Function() action) {
     try {
@@ -279,7 +291,8 @@ class _NativeM45DirectTitlePlannerState
           .take(pageSize).toList(growable:false);
       // IDs not shown in this mode are still safely retained in a pending
       // selection; bulk validation happens again at command execution.
-      return SingleChildScrollView(child:Column(
+      return SingleChildScrollView(
+        controller:_workspaceScroll,child:Column(
         crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Text('Direct Personal Order · device-only planner',
           style:Theme.of(context).textTheme.titleMedium),
@@ -533,13 +546,13 @@ class _NativeM45DirectTitlePlannerState
           IconButton(
             key:const Key('m45-prev-page'),
             onPressed:current==0?null:
-              ()=>setState(()=>page=current-1),
+              ()=>_goToPage(current-1),
             icon:const Icon(Icons.chevron_left)),
           Text('Page ${current+1} of $pages'),
           IconButton(
             key:const Key('m45-next-page'),
             onPressed:current+1>=pages?null:
-              ()=>setState(()=>page=current+1),
+              ()=>_goToPage(current+1),
             icon:const Icon(Icons.chevron_right)),
         ]),
       ]));
