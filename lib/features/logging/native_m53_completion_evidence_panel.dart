@@ -96,7 +96,7 @@ class NativeM53CompletionEvidencePanel extends StatelessWidget {
                 audit.checks.length.toString()+' prerequisites blocked',
                 key:Key('m54-blockers-$variant')),
               children:[
-                const Text('Source-backed audit only. No History, XP, '
+                Text('Source-backed audit only. No History, XP, '
                   'Collection traversal, next task or cloud write is '
                   'committed.',key:Key('m54-no-write-$variant')),
                 if(audit.mightSkipRecommendation)
