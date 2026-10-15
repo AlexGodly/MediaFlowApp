@@ -3,16 +3,21 @@ import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import '../../services/native_itemized_parity.dart';
 import '../../services/native_logging_parity_preview.dart';
+import '../../services/native_m52_task_draft_context.dart';
+import 'native_m52_draft_context_panel.dart';
 
 /// Strictly an in-memory preview; never submits History or awards XP.
 class NativeItemizedDraftSheet extends StatefulWidget {
   const NativeItemizedDraftSheet({
     super.key, required this.catalog, required this.title,
     required this.workspace,
+    this.taskContext,this.currentOwnerId='',
   });
   final MediaFlowCatalog catalog;
   final MediaFlowTitle title;
   final NativeEditingWorkspace workspace;
+  final NativeM52TaskDraftContext? taskContext;
+  final String currentOwnerId;
   @override
   State<NativeItemizedDraftSheet> createState() => _NativeItemizedDraftSheetState();
 }
@@ -121,6 +126,15 @@ class _NativeItemizedDraftSheetState extends State<NativeItemizedDraftSheet> {
           const Text('Read-only v252/v369/v394 preview. A gap in unit numbers '
               'does not advance confirmed progress. No History, XP or '
               'cloud changes are submitted.'),
+          if(widget.taskContext!=null)...[
+            const SizedBox(height:10),
+            NativeM52DraftContextPanel(
+              contextToken:widget.taskContext!,
+              catalog:widget.catalog,titleId:widget.title.id,
+              currentOwnerId:widget.currentOwnerId,
+              workspace:widget.workspace,method:'itemized/season units',
+            ),
+          ],
           const SizedBox(height: 12),
           if (seasons.isNotEmpty && validIds)
             DropdownButtonFormField<String>(
