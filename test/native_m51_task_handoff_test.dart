@@ -196,6 +196,8 @@ void main(){
     await tester.tap(find.byKey(const Key('m51-review-task-title')));
     await tester.pumpAndSettle();
     expect(find.text('Draft logging locally'),findsOneWidget);
+    expect(handoff.hasRequest,false);
+    expect(find.byKey(const Key('m51-handoff-card')),findsNothing);
     expect(workspace.logCount,0);
     expect(source.sessions,isEmpty);
   });
