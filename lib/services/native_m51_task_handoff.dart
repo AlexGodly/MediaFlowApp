@@ -61,16 +61,22 @@ class NativeM51TaskHandoff extends ChangeNotifier {
 
   NativeM51TaskHandoffView inspect(MediaFlowCatalog catalog,{
       required String currentOwnerId}){
-    if(_titleId==null)return const NativeM51TaskHandoffView(
-      status:NativeM51HandoffStatus.absent,
-      message:'No Dashboard task handoff is pending.');
-    if(ownerId!=currentOwnerId)return const NativeM51TaskHandoffView(
-      status:NativeM51HandoffStatus.differentOwner,
-      message:'Account changed. Task handoff cannot be used.');
-    if(!identical(catalog,_source))return const NativeM51TaskHandoffView(
-      status:NativeM51HandoffStatus.replacedSnapshot,
-      message:'Library snapshot changed. Return to the Dashboard to '
-        'select the current saved task again. Existing drafts were preserved.');
+    if(_titleId==null){
+      return const NativeM51TaskHandoffView(
+        status:NativeM51HandoffStatus.absent,
+        message:'No Dashboard task handoff is pending.');
+    }
+    if(ownerId!=currentOwnerId){
+      return const NativeM51TaskHandoffView(
+        status:NativeM51HandoffStatus.differentOwner,
+        message:'Account changed. Task handoff cannot be used.');
+    }
+    if(!identical(catalog,_source)){
+      return const NativeM51TaskHandoffView(
+        status:NativeM51HandoffStatus.replacedSnapshot,
+        message:'Library snapshot changed. Return to the Dashboard to '
+          'select the current saved task again. Existing drafts were preserved.');
+    }
     final task=catalog.sessionActive?catalog.currentTask:null;
     if(task==null||task.libraryId!=_titleId||
        task.categoryId!=_categoryId||task.unit!=_unit||
@@ -81,15 +87,19 @@ class NativeM51TaskHandoff extends ChangeNotifier {
     }
     MediaFlowTitle? resolved;
     for(final item in catalog.library){
-      if(item.id!=_titleId)continue;
-      if(resolved!=null)return const NativeM51TaskHandoffView(
-        status:NativeM51HandoffStatus.missingOrAmbiguousTitle,
-        message:'Duplicate Library title IDs block this handoff.');
+      if(item.id!=_titleId){continue;}
+      if(resolved!=null){
+        return const NativeM51TaskHandoffView(
+          status:NativeM51HandoffStatus.missingOrAmbiguousTitle,
+          message:'Duplicate Library title IDs block this handoff.');
+      }
       resolved=item;
     }
-    if(resolved==null)return const NativeM51TaskHandoffView(
-      status:NativeM51HandoffStatus.missingOrAmbiguousTitle,
-      message:'Saved task Library title is missing.');
+    if(resolved==null){
+      return const NativeM51TaskHandoffView(
+        status:NativeM51HandoffStatus.missingOrAmbiguousTitle,
+        message:'Saved task Library title is missing.');
+    }
     return NativeM51TaskHandoffView(
       status:NativeM51HandoffStatus.ready,
       message:'Review the saved task title. No progress or History '
