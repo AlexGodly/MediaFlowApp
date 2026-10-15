@@ -6,6 +6,7 @@ import '../../services/native_logging_parity_preview.dart';
 import '../../services/native_itemized_parity.dart';
 import '../../services/native_m52_task_draft_context.dart';
 import '../../services/native_m53_task_completion_evidence.dart';
+import '../../services/native_m54_transaction_readiness_audit.dart';
 
 /// Read-only evidence only: there is deliberately no commit or award action.
 class NativeM53CompletionEvidencePanel extends StatelessWidget {
@@ -33,6 +34,8 @@ class NativeM53CompletionEvidencePanel extends StatelessWidget {
     final e=NativeM53TaskCompletionEvidence.evaluate(
       context:contextView, catalog:catalog, titleId:titleId,
       standardPreview:standardPreview,itemizedPreview:itemizedPreview);
+    final audit=NativeM54TransactionAudit.inspect(
+      catalog:catalog,titleId:titleId,evidence:e);
     final theme=Theme.of(context);
     return Card(
       key:Key('m53-evidence-$variant'),margin:EdgeInsets.zero,
@@ -79,6 +82,51 @@ class NativeM53CompletionEvidencePanel extends StatelessWidget {
           Text('Confirmed task completion: unavailable · '
             'XP: unavailable · Collection traversal: not applied',
             key:Key('m53-no-commit-$variant')),
+          const SizedBox(height:8),
+          Theme(data:theme.copyWith(dividerColor:Colors.transparent),
+            child:ExpansionTile(
+              key:Key('m54-readiness-$variant'),
+              leading:const Icon(Icons.lock_outline,size:20),
+              tilePadding:EdgeInsets.zero,
+              childrenPadding:EdgeInsets.zero,
+              title:Text('Transaction readiness · blocked',
+                style:theme.textTheme.titleSmall),
+              subtitle:Text(audit.statusLabel+' · '+
+                audit.blockedCount.toString()+' of '+
+                audit.checks.length.toString()+' prerequisites blocked',
+                key:Key('m54-blockers-$variant')),
+              children:[
+                Text('Source-backed audit only. No History, XP, '
+                  'Collection traversal, next task or cloud write is '
+                  'committed.',key:Key('m54-no-write-$variant')),
+                if(audit.mightSkipRecommendation)
+                  Text('Foreign-category draft: website may save an '
+                    'additional skipped recommendation if no other '
+                    'assigned-category units exist.',
+                    key:Key('m54-skip-$variant')),
+                for(final check in audit.checks)
+                  Padding(padding:const EdgeInsets.symmetric(vertical:5),
+                    child:Row(crossAxisAlignment:CrossAxisAlignment.start,
+                      children:[
+                        Icon(check.satisfied
+                          ?Icons.info_outline:Icons.block_outlined,
+                          color:check.satisfied
+                            ?theme.colorScheme.primary
+                            :theme.colorScheme.error,size:18),
+                        const SizedBox(width:8),
+                        Expanded(child:Column(
+                          crossAxisAlignment:CrossAxisAlignment.start,
+                          children:[
+                            Text(check.name,
+                              style:theme.textTheme.labelLarge),
+                            Text(check.finding,
+                              style:theme.textTheme.bodySmall),
+                            Text(check.reference,
+                              style:theme.textTheme.labelSmall),
+                          ])),
+                      ])),
+              ],
+            )),
         ])),
     );
   }
