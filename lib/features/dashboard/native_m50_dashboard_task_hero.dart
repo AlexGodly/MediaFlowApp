@@ -7,11 +7,12 @@ import '../../services/native_m50_task_display.dart';
 class NativeM50DashboardTaskHero extends StatelessWidget {
   const NativeM50DashboardTaskHero({
     super.key,required this.catalog,required this.openLibrary,
-    this.openPersonalOrder,
+    this.openPersonalOrder,this.onReviewTaskInLogging,
   });
   final MediaFlowCatalog catalog;
   final VoidCallback openLibrary;
   final VoidCallback? openPersonalOrder;
+  final ValueChanged<MediaFlowCatalog>? onReviewTaskInLogging;
 
   static String _amount(double value) => value.isFinite
     ?(value==value.roundToDouble()
@@ -55,7 +56,14 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
     );
   }
 
-  Widget _actions()=>Wrap(spacing:8,runSpacing:8,children:[
+  Widget _actions(NativeM50TaskDisplay display)=>Wrap(spacing:8,runSpacing:8,children:[
+    if(onReviewTaskInLogging!=null && display.active)
+      FilledButton.tonalIcon(
+        key:const Key('m51-review-in-logging'),
+        onPressed:display.resolution==NativeM50TitleResolution.exact
+          ?()=>onReviewTaskInLogging!(catalog):null,
+        icon:const Icon(Icons.playlist_add_check_outlined),
+        label:const Text('Review in Logging')),
     OutlinedButton.icon(key:const Key('m50-browse-library'),
       onPressed:openLibrary,icon:const Icon(Icons.local_library_outlined),
       label:const Text('Browse Library')),
@@ -187,7 +195,7 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
             _summary(context,data,compact:!wide),
             _metadata(context,data),
             const SizedBox(height:12),
-            _actions(),
+            _actions(data),
             const SizedBox(height:8),
             Text('Read-only snapshot · Live task actions remain on '
               'the original MediaFlow website.',
