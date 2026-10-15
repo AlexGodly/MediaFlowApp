@@ -8,7 +8,9 @@ import 'package:mediaflow_app/services/native_cas_protocol.dart';
 import 'package:mediaflow_app/services/native_m42_mixed_queue.dart';
 import 'package:mediaflow_app/services/native_m44_personal_order_plan.dart';
 
-MediaFlowCatalog m47Fixture({int members=45,bool duplicate=false}) =>
+MediaFlowCatalog m47Fixture({
+  int members=45,bool duplicate=false,int extraTitles=0,
+}) =>
     decodeMediaFlowState({
       'categories':[
         {'id':'anime','name':'Anime'},
@@ -23,6 +25,9 @@ MediaFlowCatalog m47Fixture({int members=45,bool duplicate=false}) =>
           'status':'active','total':12},
         for(var i=0;i<members;i++)
           {'id':'m$i','title':'Member $i','categoryId':'anime',
+           'status':'active','total':12},
+        for(var i=0;i<extraTitles;i++)
+          {'id':'extra$i','title':'Extra $i','categoryId':'books',
            'status':'active','total':12},
         if(duplicate) {'id':'a1','title':'Duplicate Alpha',
           'categoryId':'anime'},
@@ -147,13 +152,14 @@ void main() {
   });
 
   test('100k Library and 8k-member Collection remain unchanged on edits',(){
-    final data=m47Fixture(members:8000);
+    final data=m47Fixture(members:8000,extraTitles:92000);
     final p=_plan(data);
     p.moveMixedToken('anime','c:one',-1);
     expect(p.tokens('anime').first,'c:one');
     expect(p.previewCatalog().library,same(data.library));
     expect(p.previewCatalog().collections,same(data.collections));
     expect(p.previewCatalog().collections.first.titleIds.length,8000);
+    expect(data.library.length,100003);
     p.undo();
     expect(p.hasChanges,false);
     p.dispose();
