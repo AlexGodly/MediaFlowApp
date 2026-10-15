@@ -6,6 +6,8 @@ import '../../data/mediaflow_models.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../design_system/mediaflow_components.dart';
 import '../../services/native_m36_dashboard_tools.dart';
+import '../../services/native_m44_personal_order_plan.dart';
+import 'native_m49_dashboard_evidence_panel.dart';
 import 'native_m36_dashboard_tools_panel.dart';
 
 /// Read-only Dashboard projection. Scheduler/XP mutations remain owned by
@@ -17,11 +19,15 @@ class DashboardScreen extends StatefulWidget {
     required this.openLibrary,
     required this.openHistory,
     this.dashboardTools,
+    this.personalOrderPlan,
+    this.openPersonalOrder,
   });
 
   final MediaFlowLibraryRepository repository;
   final VoidCallback openLibrary, openHistory;
   final NativeM36DashboardToolsController? dashboardTools;
+  final NativeM44PersonalOrderPlan? personalOrderPlan;
+  final VoidCallback? openPersonalOrder;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -145,6 +151,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 8),
         _taskCard(context, data),
         const SizedBox(height: 8),
+        NativeM49DashboardEvidencePanel(
+          catalog:data,plan:widget.personalOrderPlan,
+          openPersonalOrder:widget.openPersonalOrder,
+        ),
+        const SizedBox(height: 8),
         NativeM36DashboardToolsPanel(
           controller: _tools, catalog: data,
           openLibrary: widget.openLibrary,
@@ -241,6 +252,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(height: 8),
               Text('Recommended title: ' + task.title),
             ],
+            Text(task.libraryId.isNotEmpty
+              ?'Saved exact Library ID: ' + task.libraryId
+              :'Saved exact Library ID unavailable; title text alone '
+                'cannot confirm recommendation source.',
+              key:const Key('m49-task-id-label')),
             if (task.reasons.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(task.reasons.join(' · '),
