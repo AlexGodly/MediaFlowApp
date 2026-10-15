@@ -276,6 +276,7 @@ class _NativeLogDraftSheetState extends State<NativeLogDraftSheet> {
         DropdownButtonFormField<NativeLogInputMode>(
           key: const Key('native-log-mode'),
           initialValue: mode,
+          isExpanded:true,
           decoration: const InputDecoration(
             labelText: 'Logging method', border: OutlineInputBorder(),
           ),
