@@ -69,6 +69,8 @@ jobs:
         run: node tool/parity/m47_mixed_queue_guard.mjs
       - name: Guard M48 task/recommendation preview and disabled cloud writes
         run: node tool/parity/m48_task_coordination_guard.mjs
+      - name: Guard M49 Dashboard task source evidence and no-write previews
+        run: node tool/parity/m49_dashboard_evidence_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
