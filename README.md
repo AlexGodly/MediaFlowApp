@@ -27,7 +27,7 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 
 ## Development status — Milestone 57 isolated PostgreSQL transaction
 
-**Milestone 57:** [Server-side staging transaction and integration tests](docs/MILESTONE_57.md). Added a private-schema PostgreSQL 17 reference transaction with owner-scoped revisions, generated SHA-256 wire digests, durable database receipts, private SECURITY DEFINER core and authenticated-only SECURITY INVOKER RPC wrappers. GitHub Actions creates an **ephemeral local PostgreSQL service** to run SQL, privilege, replay, and two-connection race tests. **No Supabase staging project was provisioned or contacted. Production website and native account writes remain unchanged and disabled.** This does not prove feature-level v410 side-effect parity, website compatibility, or production readiness.
+**Milestone 57:** [Server-side staging transaction and integration tests](docs/MILESTONE_57.md). Added a private-schema PostgreSQL 17 reference transaction with owner-scoped revisions, trigger-maintained SHA-256 wire digests, durable database receipts, private SECURITY DEFINER core and authenticated-only SECURITY INVOKER RPC wrappers. GitHub Actions creates an **ephemeral local PostgreSQL service** to run SQL, privilege, replay, and two-connection race tests. **No Supabase staging project was provisioned or contacted. Production website and native account writes remain unchanged and disabled.** This does not prove feature-level v410 side-effect parity, website compatibility, or production readiness.
 
 ## Development status — Milestone 56 synchronization source audit
 
