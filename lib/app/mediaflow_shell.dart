@@ -10,6 +10,7 @@ import '../services/native_m36_dashboard_tools.dart';
 import '../services/native_m37_library_plan.dart';
 import '../services/native_m40_collection_plan.dart';
 import '../services/native_m44_personal_order_plan.dart';
+import '../services/native_m51_task_handoff.dart';
 import '../features/settings/native_settings_screen.dart';
 import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
@@ -50,6 +51,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   late final NativeM37LibraryPlan? libraryPlan;
   late final NativeM40CollectionPlan? collectionPlan;
   late final NativeM44PersonalOrderPlan? personalOrderPlan;
+  late final NativeM51TaskHandoff? taskHandoff;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
@@ -64,6 +66,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         : NativeM40CollectionPlan(ownerId: ownerId);
     personalOrderPlan = ownerId == null ? null
         : NativeM44PersonalOrderPlan(ownerId: ownerId);
+    taskHandoff = ownerId == null ? null
+        : NativeM51TaskHandoff(ownerId: ownerId);
     repository = widget.client == null
         ? null : SupabaseMediaFlowLibraryRepository(widget.client!);
     unawaited(_restoreAppearance());
@@ -77,6 +81,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     libraryPlan?.dispose();
     collectionPlan?.dispose();
     personalOrderPlan?.dispose();
+    taskHandoff?.dispose();
     super.dispose();
   }
 
@@ -165,6 +170,17 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             dashboardTools: dashboardTools,
             personalOrderPlan: personalOrderPlan,
             openPersonalOrder: () => navigate(MediaFlowSection.personalOrder),
+            onReviewTaskInLogging: taskHandoff==null ? null : (catalog) {
+              try {
+                taskHandoff!.request(catalog,
+                  currentOwnerId:preferenceUserId??'');
+                navigate(MediaFlowSection.logging);
+              } on StateError {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content:Text('Task handoff unavailable. '
+                    'Refresh the Dashboard and verify the Library ID.')));
+              }
+            },
           );
         case MediaFlowSection.library:
           return LibraryScreen(
@@ -197,6 +213,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             repository: data,
             workspace: data is SupabaseMediaFlowLibraryRepository
                 ? data.editingWorkspace : null,
+            taskHandoff:taskHandoff,
+            currentOwnerId:preferenceUserId??'',
           );
         case MediaFlowSection.personalOrder:
           return PersonalOrderScreen(

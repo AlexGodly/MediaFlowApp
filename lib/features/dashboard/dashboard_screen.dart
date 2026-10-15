@@ -22,6 +22,7 @@ class DashboardScreen extends StatefulWidget {
     this.dashboardTools,
     this.personalOrderPlan,
     this.openPersonalOrder,
+    this.onReviewTaskInLogging,
   });
 
   final MediaFlowLibraryRepository repository;
@@ -29,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
   final NativeM36DashboardToolsController? dashboardTools;
   final NativeM44PersonalOrderPlan? personalOrderPlan;
   final VoidCallback? openPersonalOrder;
+  final ValueChanged<MediaFlowCatalog>? onReviewTaskInLogging;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -154,6 +156,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           catalog:data,
           openLibrary:widget.openLibrary,
           openPersonalOrder:widget.openPersonalOrder,
+          onReviewTaskInLogging:widget.onReviewTaskInLogging,
         ),
         const SizedBox(height: 8),
         NativeM49DashboardEvidencePanel(
