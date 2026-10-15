@@ -209,10 +209,12 @@ void main(){
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m50-task-hero')),findsOneWidget);
     await tester.scrollUntilVisible(
-      find.byKey(const Key('m49-dashboard-evidence')),200);
+      find.byKey(const Key('m49-dashboard-evidence')),200,
+      scrollable:find.byType(Scrollable).first);
     expect(find.byKey(const Key('m49-dashboard-evidence')),
       findsOneWidget);
-    await tester.scrollUntilVisible(find.text('RECENT ACTIVITY'),200);
+    await tester.scrollUntilVisible(find.text('RECENT ACTIVITY'),200,
+      scrollable:find.byType(Scrollable).first);
     expect(find.text('RECENT ACTIVITY'),findsOneWidget);
     expect(catalog.sessions,isEmpty);
   });
