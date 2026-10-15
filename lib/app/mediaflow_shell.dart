@@ -9,6 +9,7 @@ import '../services/native_preferences.dart';
 import '../services/native_m36_dashboard_tools.dart';
 import '../services/native_m37_library_plan.dart';
 import '../services/native_m40_collection_plan.dart';
+import '../services/native_m44_personal_order_plan.dart';
 import '../features/settings/native_settings_screen.dart';
 import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
@@ -48,6 +49,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   late final NativeM36DashboardToolsController dashboardTools;
   late final NativeM37LibraryPlan? libraryPlan;
   late final NativeM40CollectionPlan? collectionPlan;
+  late final NativeM44PersonalOrderPlan? personalOrderPlan;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
@@ -60,6 +62,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         : NativeM37LibraryPlan(ownerId: ownerId);
     collectionPlan = ownerId == null ? null
         : NativeM40CollectionPlan(ownerId: ownerId);
+    personalOrderPlan = ownerId == null ? null
+        : NativeM44PersonalOrderPlan(ownerId: ownerId);
     repository = widget.client == null
         ? null : SupabaseMediaFlowLibraryRepository(widget.client!);
     unawaited(_restoreAppearance());
@@ -72,6 +76,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     dashboardTools.dispose();
     libraryPlan?.dispose();
     collectionPlan?.dispose();
+    personalOrderPlan?.dispose();
     super.dispose();
   }
 
@@ -192,7 +197,9 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                 ? data.editingWorkspace : null,
           );
         case MediaFlowSection.personalOrder:
-          return PersonalOrderScreen(repository: data);
+          return PersonalOrderScreen(
+            repository: data,plan: personalOrderPlan,
+            currentOwnerId: preferenceUserId ?? '');
       }
     }
     return Align(
