@@ -36,6 +36,8 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
   List<MediaFlowCollectionAssignment> _assignments=[];
   Map<String,List<String>> _queues={};
   final List<_M44Checkpoint> _undo=[],_redo=[];
+  int _revision=0,_projectedRevision=-1;
+  MediaFlowCatalog? _projected;
   final Set<String> _duplicateAssignmentIds={};
   final Set<String> _duplicateCollectionIds={};
   final Set<String> _duplicateCategoryIds={};
@@ -112,6 +114,8 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     _undo.clear();
     _redo.clear();
     _operations=0;
+    _projected=null;
+    _projectedRevision=-1;
   }
 
   static void _duplicateIds(Iterable<String> ids,Set<String> duplicates) {
@@ -195,7 +199,12 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     _operations++;
   }
 
-  void _changed() => notifyListeners();
+  void _changed() {
+    _revision++;
+    _projectedRevision=-1;
+    _projected=null;
+    notifyListeners();
+  }
 
   void _restore(_M44Checkpoint entry) {
     _assignments=List.of(entry.assignments);
@@ -281,7 +290,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     final current=tokens(a.categoryId);
     final from=current.indexOf('c:$id');
     if(from<0) throw StateError('Missing Collection queue slot');
-    setPosition(id,(from+1+delta).clamp(1,current.length));
+    setPosition(id,(from+1+delta).clamp(1,current.length).toInt());
   }
 
   /// Removes an assignment only; original Collection and Library titles stay.
@@ -352,8 +361,11 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
   MediaFlowCatalog previewCatalog() {
     _ensureCurrent();
     if(!hasChanges) return _source!;
+    if(_projected!=null && _projectedRevision==_revision) {
+      return _projected!;
+    }
     final base=_source!;
-    return MediaFlowCatalog(
+    _projected=MediaFlowCatalog(
       library:base.library,categories:base.categories,
       collections:base.collections,sessions:base.sessions,
       personalOrderIds:base.personalOrderIds,
@@ -368,5 +380,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
       dailyMinutes:base.dailyMinutes,
       xpEvidence:base.xpEvidence,updatedAt:base.updatedAt,
     );
+    _projectedRevision=_revision;
+    return _projected!;
   }
 }
