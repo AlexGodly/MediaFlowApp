@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/mediaflow_models.dart';
 import '../../services/native_m44_personal_order_plan.dart';
+import '../../services/native_m46_title_picker.dart';
 
 /// Direct title order editing shares the M44 device-only, owner-pinned
 /// checkpoint stack. This widget NEVER commits account, History or XP writes.
@@ -17,14 +18,18 @@ class NativeM45DirectTitlePlanner extends StatefulWidget {
       _NativeM45DirectTitlePlannerState();
 }
 
+enum _M46View { list, compact, cards, covers, coversTitles }
+
 class _NativeM45DirectTitlePlannerState
     extends State<NativeM45DirectTitlePlanner> {
-  String categoryId='',search='';
+  String categoryId='',search='',statusFilter='',priorityFilter='';
   bool available=false;
-  int page=0;
+  int page=0, pageSize=40;
+  NativeM46Membership membership=NativeM46Membership.notAdded;
+  NativeM46Sort pickerSort=NativeM46Sort.library;
+  _M46View viewMode=_M46View.list;
   final Set<String> selected={};
   String? error;
-  static const pageSize=40;
 
   void _run(void Function() action) {
     try {
@@ -88,7 +93,9 @@ class _NativeM45DirectTitlePlannerState
     setState(() {
       for(final title in displayed) {
         if(selected.length>=200) break;
-        selected.add(title.id);
+        if(!available || !widget.plan.directTitleIds.contains(title.id)) {
+          selected.add(title.id);
+        }
       }
     });
   }
@@ -138,18 +145,22 @@ class _NativeM45DirectTitlePlannerState
       final needle=search.trim().toLowerCase();
       final orderedFiltered=[
         for(final t in orderedAll)
-          if(needle.isEmpty || t.searchText.contains(needle) ||
-             t.id.toLowerCase().contains(needle)) t,
+          if((needle.isEmpty || t.searchText.contains(needle) ||
+              t.id.toLowerCase().contains(needle)) &&
+              (statusFilter.isEmpty || t.status==statusFilter) &&
+              (priorityFilter.isEmpty || t.priority==priorityFilter)) t,
       ];
-      final availableRows=available
-        ?plan.browseDirectTitlePicker(
-          categoryId:effectiveCategory,search:search,limit:60)
-        :const <MediaFlowTitle>[];
-      final candidates=available?availableRows:orderedFiltered;
-      final pages=candidates.isEmpty?1:
-        (candidates.length+pageSize-1)~/pageSize;
-      final current=page.clamp(0,pages-1);
-      final shown=candidates.skip(current*pageSize)
+      final pickerPage=available?NativeM46TitlePicker(data,ids).browse(
+        categoryId:effectiveCategory,search:search,
+        status:statusFilter,priority:priorityFilter,
+        membership:membership,sort:pickerSort,
+        page:page,pageSize:pageSize):null;
+      final pages=available?pickerPage!.pageCount:
+        (orderedFiltered.isEmpty?1:
+          (orderedFiltered.length+pageSize-1)~/pageSize);
+      final current=available?pickerPage!.page:page.clamp(0,pages-1);
+      final shown=available?pickerPage!.titles:
+        orderedFiltered.skip(current*pageSize)
           .take(pageSize).toList(growable:false);
       // IDs not shown in this mode are still safely retained in a pending
       // selection; bulk validation happens again at command execution.
@@ -197,9 +208,11 @@ class _NativeM45DirectTitlePlannerState
             label:const Text('Add Library titles'),
             selected:available,
             onSelected:(_)=>setState(() {
-              available=true;search='';page=0;selected.clear();
+              available=true;membership=NativeM46Membership.notAdded;
+              search='';page=0;selected.clear();
             })),
-          DropdownButton<String>(
+          SizedBox(width:210,child:DropdownButton<String>(
+            isExpanded:true,
             key:const Key('m45-category-filter'),
             value:effectiveCategory,
             items:[
@@ -209,9 +222,107 @@ class _NativeM45DirectTitlePlannerState
                   child:Text(c.name,overflow:TextOverflow.ellipsis)),
             ],
             onChanged:(v)=>setState(() {
-              categoryId=v??'';search='';page=0;selected.clear();
-            })),
+              categoryId=v??'';page=0;selected.clear();
+            }))),
         ]),
+        ExpansionTile(
+          key:const Key('m46-tools-filters'),
+          title:const Text('Tools & Filters'),
+          initiallyExpanded:false,
+          tilePadding:EdgeInsets.zero,
+          children:[Wrap(spacing:12,runSpacing:6,children:[
+            SizedBox(width:180,child:DropdownButtonFormField<String>(
+              key:const Key('m46-status-filter'),initialValue:statusFilter,
+              isExpanded:true,decoration:const InputDecoration(
+                labelText:'Status',isDense:true),
+              items:const [
+                DropdownMenuItem(value:'',child:Text('All statuses')),
+                DropdownMenuItem(value:'active',child:Text('In progress')),
+                DropdownMenuItem(value:'paused',child:Text('On hold')),
+                DropdownMenuItem(value:'completed',child:Text('Completed')),
+                DropdownMenuItem(value:'planned',child:Text('Planned')),
+                DropdownMenuItem(value:'dropped',child:Text('Dropped')),
+              ],
+              onChanged:(v)=>setState(() {
+                statusFilter=v??'';page=0;selected.clear();
+              }))),
+            SizedBox(width:170,child:DropdownButtonFormField<String>(
+              key:const Key('m46-priority-filter'),initialValue:priorityFilter,
+              isExpanded:true,decoration:const InputDecoration(
+                labelText:'Priority',isDense:true),
+              items:const [
+                DropdownMenuItem(value:'',child:Text('All priorities')),
+                DropdownMenuItem(value:'high',child:Text('High')),
+                DropdownMenuItem(value:'medium',child:Text('Medium')),
+                DropdownMenuItem(value:'low',child:Text('Low')),
+              ],
+              onChanged:(v)=>setState(() {
+                priorityFilter=v??'';page=0;selected.clear();
+              }))),
+            if(available) SizedBox(width:180,
+              child:DropdownButtonFormField<NativeM46Membership>(
+              key:const Key('m46-membership-filter'),initialValue:membership,
+              isExpanded:true,decoration:const InputDecoration(
+                labelText:'Library visibility',isDense:true),
+              items:const [
+                DropdownMenuItem(value:NativeM46Membership.notAdded,
+                  child:Text('Not added')),
+                DropdownMenuItem(value:NativeM46Membership.all,
+                  child:Text('Show all')),
+                DropdownMenuItem(value:NativeM46Membership.alreadyAdded,
+                  child:Text('Already added')),
+              ],
+              onChanged:(v)=>setState(() {
+                membership=v??NativeM46Membership.notAdded;
+                page=0;selected.clear();
+              }))),
+            if(available) SizedBox(width:175,
+              child:DropdownButtonFormField<NativeM46Sort>(
+              key:const Key('m46-sort-filter'),initialValue:pickerSort,
+              isExpanded:true,decoration:const InputDecoration(
+                labelText:'Display sort',isDense:true),
+              items:const [
+                DropdownMenuItem(value:NativeM46Sort.library,
+                  child:Text('Library order')),
+                DropdownMenuItem(value:NativeM46Sort.alphabetical,
+                  child:Text('Title A–Z')),
+                DropdownMenuItem(value:NativeM46Sort.priority,
+                  child:Text('Priority')),
+                DropdownMenuItem(value:NativeM46Sort.progress,
+                  child:Text('Progress')),
+              ],
+              onChanged:(v)=>setState(() {
+                pickerSort=v??NativeM46Sort.library;
+                page=0;selected.clear();
+              }))),
+            SizedBox(width:115,child:DropdownButtonFormField<int>(
+              key:const Key('m46-page-size'),initialValue:pageSize,
+              decoration:const InputDecoration(labelText:'Per page',
+                isDense:true),
+              items:const [
+                DropdownMenuItem(value:20,child:Text('20')),
+                DropdownMenuItem(value:40,child:Text('40')),
+                DropdownMenuItem(value:60,child:Text('60')),
+                DropdownMenuItem(value:100,child:Text('100')),
+              ],
+              onChanged:(v)=>setState(() {
+                pageSize=v??40;page=0;
+              }))),
+            SizedBox(width:165,child:DropdownButtonFormField<_M46View>(
+              key:const Key('m46-view-mode'),initialValue:viewMode,
+              isExpanded:true,decoration:const InputDecoration(
+                labelText:'Display mode',isDense:true),
+              items:const [
+                DropdownMenuItem(value:_M46View.list,child:Text('List')),
+                DropdownMenuItem(value:_M46View.compact,child:Text('Compact')),
+                DropdownMenuItem(value:_M46View.cards,child:Text('Cards')),
+                DropdownMenuItem(value:_M46View.covers,child:Text('Covers')),
+                DropdownMenuItem(value:_M46View.coversTitles,
+                  child:Text('Covers + Titles')),
+              ],
+              onChanged:(v)=>setState(()=>viewMode=v??_M46View.list))),
+          ])],
+        ),
         const SizedBox(height:8),
         TextField(
           key:const Key('m45-title-search'),
@@ -227,7 +338,7 @@ class _NativeM45DirectTitlePlannerState
             style:TextStyle(color:Theme.of(context).colorScheme.error)),
         const SizedBox(height:6),
         Text('${available ? "Available" : "Ordered"} · '
-          '${available ? "${availableRows.length} shown (up to 60)" : "${orderedFiltered.length} matching"}'
+          '${available ? "${pickerPage!.total} matching Library titles" : "${orderedFiltered.length} matching"}'
           ' · ${selected.length} selected',
           key:const Key('m45-count')),
         Wrap(spacing:8,runSpacing:4,
@@ -277,8 +388,10 @@ class _NativeM45DirectTitlePlannerState
                 child:ListTile(
                   leading:Checkbox(
                     key:Key('m45-check-$id'),
+                    // Existing titles are visible but cannot be re-added.
+                    
                     value:selected.contains(id),
-                    onChanged:(value)=>setState(() {
+                    onChanged:available && ids.contains(id)?null:(value)=>setState(() {
                       if(value==true && selected.length<200) {
                         selected.add(id);
                       } else if(value!=true) {
