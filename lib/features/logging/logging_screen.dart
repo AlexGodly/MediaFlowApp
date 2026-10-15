@@ -6,6 +6,9 @@ import '../../data/mediaflow_library_index.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import '../../services/native_m51_task_handoff.dart';
+import '../../services/native_m52_task_draft_context.dart';
+import '../../services/native_m50_task_display.dart';
+import 'native_m52_draft_context_panel.dart';
 import '../library/native_editing_sheet.dart';
 import 'native_itemized_draft_sheet.dart';
 
@@ -30,6 +33,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
   MediaFlowCatalog? _indexedCatalog;
   MediaFlowLibraryIndex? _index;
   final Set<String> _selectedIds = <String>{};
+  NativeM52TaskDraftContext? _taskContext;
   String query = '', categoryId = '', status = '', priority = '';
   LibrarySort sort = LibrarySort.alphabetical;
   int limit = 50;
@@ -92,10 +96,15 @@ class _LoggingScreenState extends State<LoggingScreen> {
                 FilledButton.tonalIcon(
                   key:const Key('m51-review-task-title'),
                   onPressed:(){
-                    // Handoff never edits, selects or stages any title.
-                    // The existing details sheet requires an explicit user
-                    // choice before opening optional local-only drafts.
-                    setState(controller.dismiss);
+                    // Explicit review: carry immutable metadata into the
+                    // local editors without creating or changing any draft.
+                    final contextToken=NativeM52TaskDraftContext.fromHandoff(
+                      handoff:handoff,catalog:catalog,
+                      currentOwnerId:widget.currentOwnerId);
+                    setState((){
+                      _taskContext=contextToken;
+                      controller.dismiss();
+                    });
                     _details(context,handoff.title!,catalog);
                   },
                   icon:const Icon(Icons.visibility_outlined),
@@ -113,6 +122,59 @@ class _LoggingScreenState extends State<LoggingScreen> {
               'task completion or cloud writes.',
               key:Key('m51-handoff-warning')),
           ])),
+    );
+  }
+
+  NativeM52TaskDraftContext? _contextFor(
+      MediaFlowCatalog catalog,MediaFlowTitle title){
+    final token=_taskContext;
+    if(token==null)return null;
+    return token.inspect(catalog:catalog,
+      currentOwnerId:widget.currentOwnerId,
+      forTitleId:title.id,workspace:widget.workspace).ready
+      ?token:null;
+  }
+
+  Widget _taskContextCard(MediaFlowCatalog catalog){
+    final token=_taskContext!;
+    final view=token.inspect(catalog:catalog,
+      currentOwnerId:widget.currentOwnerId,
+      forTitleId:token.titleId,workspace:widget.workspace);
+    return Card(
+      key:const Key('m52-logging-context-card'),
+      child:Padding(padding:const EdgeInsets.all(10),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(children:[
+            const Icon(Icons.link_outlined,size:20),
+            const SizedBox(width:7),
+            const Expanded(child:Text('Task-linked draft context',
+              style:TextStyle(fontWeight:FontWeight.w700))),
+            IconButton(
+              key:const Key('m52-clear-context'),tooltip:'Clear task context',
+              onPressed:()=>setState(()=>_taskContext=null),
+              icon:const Icon(Icons.close)),
+          ]),
+          if(view.ready)...[
+            NativeM52DraftContextPanel(
+              contextToken:token,catalog:catalog,titleId:token.titleId,
+              currentOwnerId:widget.currentOwnerId,
+              workspace:widget.workspace,method:'Logging workspace'),
+            const SizedBox(height:6),
+            Align(alignment:Alignment.centerLeft,
+              child:OutlinedButton.icon(
+                key:const Key('m52-reopen-task-review'),
+                onPressed:(){
+                  final display=NativeM50TaskDisplay.fromCatalog(catalog);
+                  final title=display.title;
+                  if(display.resolution!=NativeM50TitleResolution.exact||
+                     title==null || title.id!=token.titleId)return;
+                  _details(context,title,catalog);
+                },
+                icon:const Icon(Icons.visibility_outlined),
+                label:const Text('Review task-linked title')),
+            ),
+          ]else Text(view.message,key:const Key('m52-context-invalid')),
+        ])),
     );
   }
 
@@ -183,6 +245,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
   void _details(BuildContext context, MediaFlowTitle title,
       MediaFlowCatalog catalog) {
     widget.workspace?.observe(catalog);
+    final taskContext=_contextFor(catalog,title);
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -198,6 +261,12 @@ class _LoggingScreenState extends State<LoggingScreen> {
                 '/${title.total?.toStringAsFixed(0) ?? "?"}'),
             Text('Status: ${title.status}'),
             Text('Priority: ${title.priority}'),
+            if(taskContext!=null)...[
+              const SizedBox(height:8),
+              Text('Saved task context accompanies either local draft '
+                'method; no units are filled automatically.',
+                key:const Key('m52-details-context')),
+            ],
             const SizedBox(height: 12),
             const Text(
               'Cloud logging, History writes and XP awards remain disabled '
@@ -215,6 +284,8 @@ class _LoggingScreenState extends State<LoggingScreen> {
                     builder: (_) => NativeLogDraftSheet(
                       catalog: catalog, title: title,
                       workspace: widget.workspace!,
+                      taskContext:taskContext,
+                      currentOwnerId:widget.currentOwnerId,
                     ),
                   );
                 },
@@ -232,6 +303,8 @@ class _LoggingScreenState extends State<LoggingScreen> {
                     builder: (_) => NativeItemizedDraftSheet(
                       catalog: catalog, title: title,
                       workspace: widget.workspace!,
+                      taskContext:taskContext,
+                      currentOwnerId:widget.currentOwnerId,
                     ),
                   );
                 },
@@ -306,6 +379,10 @@ class _LoggingScreenState extends State<LoggingScreen> {
           if(widget.taskHandoff?.hasRequest==true)...[
             const SizedBox(height:8),
             _handoffCard(data),
+          ],
+          if(_taskContext!=null)...[
+            const SizedBox(height:8),
+            _taskContextCard(data),
           ],
           if (widget.workspace != null)
             Padding(
