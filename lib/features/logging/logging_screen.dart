@@ -95,7 +95,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
                     // Handoff never edits, selects or stages any title.
                     // The existing details sheet requires an explicit user
                     // choice before opening optional local-only drafts.
-                    controller.dismiss();
+                    setState(controller.dismiss);
                     _details(context,handoff.title!,catalog);
                   },
                   icon:const Icon(Icons.visibility_outlined),
