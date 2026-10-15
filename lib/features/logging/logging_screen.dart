@@ -249,7 +249,9 @@ class _LoggingScreenState extends State<LoggingScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheet) => SafeArea(child: Padding(
+      isScrollControlled:true,
+      builder: (sheet) => SafeArea(child: SingleChildScrollView(
+        child:Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -319,7 +321,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
             ],
           ],
         ),
-      )),
+      ))),
     );
   }
 
