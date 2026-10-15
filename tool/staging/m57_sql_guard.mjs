@@ -17,7 +17,8 @@ const must=(value,phrase,name)=>assert(value.includes(phrase),
 for(const f of files)assert(fs.existsSync(f),f);
 must(sql,'CREATE SCHEMA IF NOT EXISTS m57_staging','SQL');
 must(sql,'m57_staging.operation_receipts','SQL');
-must(sql,'GENERATED ALWAYS','SQL');
+must(sql,'CREATE TRIGGER m57_digest_before_state_write','SQL');
+must(sql,'m57_staging.set_state_digest()','SQL');
 must(sql,'FOR UPDATE','SQL');
 must(sql,'auth.uid()','SQL');
 must(sql,'SECURITY DEFINER SET search_path =','SQL');
