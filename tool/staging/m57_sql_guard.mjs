@@ -17,6 +17,11 @@ const must=(value,phrase,name)=>assert(value.includes(phrase),
 for(const f of files)assert(fs.existsSync(f),f);
 must(sql,'CREATE SCHEMA IF NOT EXISTS m57_staging','SQL');
 must(sql,'m57_staging.operation_receipts','SQL');
+assert.equal(sql.split('CREATE TABLE IF NOT EXISTS m57_staging.operation_receipts').length,2,
+  'SQL receipts must have a single definition');
+assert.equal(sql.split('CREATE OR REPLACE FUNCTION m57_staging.commit_state').length,2,
+  'SQL commit function must have a single definition');
+must(sql,"CHECK (state_digest ~ '^[0-9a-f]{64}$'),",'SQL');
 must(sql,'CREATE TRIGGER m57_digest_before_state_write','SQL');
 must(sql,'m57_staging.set_state_digest()','SQL');
 must(sql,'FOR UPDATE','SQL');
