@@ -503,20 +503,49 @@ class MediaFlowSession {
   }
 }
 
+/// The exact v287 task annotation, when present in the saved snapshot.
+/// A source label alone is NOT proof that a queue entry still exists.
+class MediaFlowTaskOrderSource {
+  const MediaFlowTaskOrderSource({
+    required this.type,required this.categoryId,
+    required this.libraryId,required this.assignmentId,
+  });
+  final String type,categoryId,libraryId,assignmentId;
+
+  factory MediaFlowTaskOrderSource.fromJson(Map<String,dynamic> json) =>
+      MediaFlowTaskOrderSource(
+        type:mediaFlowText(json['type']),
+        categoryId:mediaFlowText(json['categoryId']),
+        libraryId:mediaFlowText(json['libraryId']),
+        assignmentId:mediaFlowText(json['assignmentId']),
+      );
+}
+
 class MediaFlowTask {
   const MediaFlowTask({
     required this.categoryId, required this.title, required this.low,
     required this.high, required this.unit, required this.reasons,
+    this.libraryId = '',this.orderSource,
   });
   final String categoryId, title, unit;
+  /// Explicit v410 currentTask.libraryId. Never infer an ID from title text.
+  final String libraryId;
+  /// Raw currentTask.v287OrderSource, if serialized by the website.
+  final MediaFlowTaskOrderSource? orderSource;
   final double low, high;
   final List<String> reasons;
 
   factory MediaFlowTask.fromJson(Map<String, dynamic> data) {
     final rawReasons = data['reasons'];
+    final rawSource=data['v287OrderSource'];
     return MediaFlowTask(
       categoryId: mediaFlowText(data['categoryId']),
       title: mediaFlowText(data['title']),
+      libraryId:mediaFlowText(data['libraryId']),
+      orderSource:rawSource is Map
+        ? MediaFlowTaskOrderSource.fromJson(
+            Map<String,dynamic>.from(rawSource))
+        : null,
       low: mediaFlowNumber(data['low'] ?? data['targetMid']) ?? 0,
       high: mediaFlowNumber(data['high'] ?? data['targetMid']) ?? 0,
       unit: mediaFlowText(data['unit'], fallback: 'units'),

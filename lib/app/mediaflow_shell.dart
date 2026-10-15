@@ -163,6 +163,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             openLibrary: () => navigate(MediaFlowSection.library),
             openHistory: () => navigate(MediaFlowSection.history),
             dashboardTools: dashboardTools,
+            personalOrderPlan: personalOrderPlan,
+            openPersonalOrder: () => navigate(MediaFlowSection.personalOrder),
           );
         case MediaFlowSection.library:
           return LibraryScreen(
