@@ -83,6 +83,10 @@ jobs:
         run: node tool/parity/m54_transaction_readiness_guard.mjs
       - name: Guard M55 feature parity and release safety assessment
         run: node tool/parity/m55_readiness_guard.mjs
+      - name: Guard M56 pinned source writer inventory and staging denial
+        run: node tool/parity/m56_sync_inventory_guard.mjs
+      - name: Rehearse 12 synthetic shared-writer staging threat cases
+        run: node tool/parity/m56_staging_rehearsal.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
