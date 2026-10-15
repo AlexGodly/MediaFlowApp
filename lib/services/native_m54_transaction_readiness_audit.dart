@@ -78,23 +78,24 @@ class NativeM54TransactionAudit {
         NativeM53EvidenceStatus.invalidContext &&
         task != null && task.libraryId == titleId && titleId.isNotEmpty;
     MediaFlowTitle? title;
+    var ambiguousTitle = false;
     if (validContext) {
       for (final item in catalog.library) {
         if (item.id != titleId) continue;
         if (title != null) {
-          title = null; // Duplicate exact ID must fail closed.
+          ambiguousTitle = true; // Exact ID must be unique.
           break;
         }
         title = item;
       }
     }
-    final usableContext = validContext && title != null;
+    final usableContext = validContext && title != null && !ambiguousTitle;
     final usableConsumption = usableContext &&
         (evidence.comparable ||
          evidence.status == NativeM53EvidenceStatus.differentCategory) &&
         evidence.amount.isFinite && evidence.amount > 0;
     final foreignCategory = usableConsumption &&
-        title.categoryId != task!.categoryId;
+        title!.categoryId != task!.categoryId;
     final status = !usableContext
         ? NativeM54AuditStatus.invalidContext
         : !usableConsumption
@@ -103,7 +104,7 @@ class NativeM54TransactionAudit {
                 ? NativeM54AuditStatus.categoryMismatch
                 : NativeM54AuditStatus.evidenceOnly;
     final assignedId = usableContext ? task!.categoryId : '';
-    final actualId = usableContext ? title.categoryId : '';
+    final actualId = usableContext ? title!.categoryId : '';
     final mightSkip = foreignCategory;
     final order = usableContext ? task!.orderSource : null;
     String traversal;
