@@ -83,9 +83,9 @@ class _NativeM43RecommendationAuditPanelState
                     icon:const Icon(Icons.near_me_outlined,size:18),
                     label:const Text('Inspect source slot'),
                     onPressed:()=>widget.onJump(widget.categoryId,
-                      ' ${first.fromCollection?'c:':'t:'}'
-                      '${first.fromCollection?first.assignmentId:first.title.id}'
-                        .trim()),
+                      first.fromCollection
+                        ? 'c:${first.assignmentId}'
+                        : 't:${first.title.id}'),
                   )),
             ],
           ),
