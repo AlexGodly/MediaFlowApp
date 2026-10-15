@@ -151,7 +151,7 @@ class _NativeM42MixedQueuePanelState extends State<NativeM42MixedQueuePanel> {
               }
             }),
           Text('${all.length} queue slots · '
-            '${recommendationCount} eligible recommendations',
+            '$recommendationCount eligible recommendations',
             key:const Key('m42-queue-count')),
         ]),
         TextField(
