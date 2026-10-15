@@ -188,6 +188,8 @@ void main(){
     await tester.tap(button);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('m51-handoff-card')),findsOneWidget);
+    expect(find.byKey(const Key('m51-logging-controls-scroll')),findsOneWidget);
+    expect(tester.takeException(),isNull);
     expect(find.text('Alpha'),findsWidgets);
     expect(find.byKey(const Key('m51-review-task-title')),findsOneWidget);
     expect(workspace.logCount,0);
@@ -196,6 +198,34 @@ void main(){
     expect(find.text('Draft logging locally'),findsOneWidget);
     expect(workspace.logCount,0);
     expect(source.sessions,isEmpty);
+  });
+
+  testWidgets('320px narrow Logging handoff remains scrollable without overflow',(
+      tester)async{
+    tester.view.physicalSize=const Size(320,720);
+    tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final source=decodeMediaFlowState(fixture51());
+    final request=NativeM51TaskHandoff(ownerId:'alex');
+    addTearDown(request.dispose);
+    request.request(source,currentOwnerId:'alex');
+    await tester.pumpWidget(MaterialApp(home:Scaffold(
+      body:LoggingScreen(repository:_Repo(source),taskHandoff:request,
+        currentOwnerId:'alex'))));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('m51-logging-controls-scroll')),
+      findsOneWidget);
+    expect(find.byKey(const Key('logging-browser-titles')),findsOneWidget);
+    expect(find.byKey(const Key('m51-handoff-card')),findsOneWidget);
+    expect(tester.takeException(),isNull);
+    await tester.ensureVisible(find.byKey(const Key('m51-review-task-title')));
+    await tester.tap(find.byKey(const Key('m51-review-task-title')));
+    await tester.pumpAndSettle();
+    expect(find.text('Draft logging locally'),findsNothing);
+    expect(find.text('Current progress: 2/12'),findsOneWidget);
+    expect(source.sessions,isEmpty);
+    expect(tester.takeException(),isNull);
   });
 
   testWidgets('Logging handoff is dismissible; stale source does not select',(
