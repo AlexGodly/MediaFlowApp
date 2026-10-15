@@ -176,12 +176,12 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     final out=<MediaFlowCollection>[];
     for(final c in _source!.collections) {
       if(c.id.isEmpty || _duplicateCollectionIds.contains(c.id) ||
-          used.contains(c.id)) continue;
+          used.contains(c.id)) { continue; }
       if(needle.isNotEmpty &&
           !c.title.toLowerCase().contains(needle) &&
-          !c.description.toLowerCase().contains(needle)) continue;
+          !c.description.toLowerCase().contains(needle)) { continue; }
       out.add(c);
-      if(out.length>=limit) break;
+      if(out.length>=limit) { break; }
     }
     return List.unmodifiable(out);
   }
@@ -258,7 +258,7 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
       throw const FormatException('Invalid Collection queue rules');
     }
     if(category==original.categoryRule &&
-        completed==original.completedRule) return;
+        completed==original.completedRule) { return; }
     _checkpoint();
     _assignments=[
       for(final a in _assignments)
