@@ -25,6 +25,10 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
+## Development status — Milestone 56 synchronization source audit
+
+**Milestone 56:** [Source-backed writer inventory and staging plan](docs/MILESTONE_56.md) · [machine-readable writer/threat ledger](docs/parity/m56_writer_inventory.json). Identified **18 source-linked writer-related surfaces** (14 website / 4 native), including the legacy direct `mediaflow_states` UPSERT and its normal/Sync Now/backup-restore callers. Ran a **12-scenario synthetic, in-memory staging safety rehearsal**, documented 8 discovery gaps and 8 blocked staging prerequisites. Added a **read-only Settings staging preflight panel** and CI guard. **No staging Supabase database was provisioned, no production data was accessed, no website/Supabase changes were made, and native cloud writes remain disabled.** This is not an exhaustive cloud-writer certification or production cutover.
+
 ## Development status — Milestone 55 release-readiness audit
 
 **Milestone 55 assessment:** [Read the release readiness report](docs/MILESTONE_55.md) and [machine-readable v410 gate ledger](docs/parity/m55_release_readiness.json). The original milestone roadmap has reached its **final assessment checkpoint**, but the Flutter app is **NOT RELEASE READY** and **NOT 100% v410 feature-parity certified**. Of the 307 inventoried source surfaces and 54 cross-device journeys, **zero have complete, recorded parity sign-off**; that does not mean the app has no working features. There are 12 explicit release blockers. Native account-state cloud writes remain disabled and M56–M70 are proposed continuation steps, not approval to change the personal website or production Supabase.
