@@ -167,7 +167,9 @@ class _LoggingScreenState extends State<LoggingScreen> {
                   final display=NativeM50TaskDisplay.fromCatalog(catalog);
                   final title=display.title;
                   if(display.resolution!=NativeM50TitleResolution.exact||
-                     title==null || title.id!=token.titleId)return;
+                      title==null || title.id!=token.titleId){
+                    return;
+                  }
                   _details(context,title,catalog);
                 },
                 icon:const Icon(Icons.visibility_outlined),
