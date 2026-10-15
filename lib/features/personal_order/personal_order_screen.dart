@@ -6,6 +6,7 @@ import 'personal_order_browser.dart';
 import 'native_m42_mixed_queue_panel.dart';
 import '../../services/native_m44_personal_order_plan.dart';
 import 'native_m44_assignment_planner.dart';
+import 'native_m45_direct_title_planner.dart';
 
 /// Saved sequence is authoritative. Sorting here only affects display.
 class PersonalOrderScreen extends StatefulWidget {
@@ -30,6 +31,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
   int page = 0;
   bool mixedQueueMode = false;
   bool localPlanMode = false;
+  bool directPlanMode = false;
   bool previewLocalPlan = false;
 
   @override
@@ -55,6 +57,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
       widget.plan?.addListener(_onPlanChanged);
       previewLocalPlan=false;
       localPlanMode=false;
+      directPlanMode=false;
     }
   }
 
@@ -128,6 +131,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
               selected:!mixedQueueMode,
               onSelected:(_)=>setState(() {
                 mixedQueueMode=false;localPlanMode=false;
+                directPlanMode=false;
               })), 
             ChoiceChip(
               key:const Key('m42-mixed-mode'),
@@ -135,16 +139,28 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
               selected:mixedQueueMode,
               onSelected:(_)=>setState(() {
                 mixedQueueMode=true;localPlanMode=false;
+                directPlanMode=false;
               })),
             if(plan!=null)
               ChoiceChip(
                 key:const Key('m44-plan-mode'),
                 label:const Text('Manage assignments locally'),
                 selected:localPlanMode,
-                onSelected:(_)=>setState(()=>localPlanMode=true)), 
+                onSelected:(_)=>setState(() {
+                  localPlanMode=true;directPlanMode=false;
+                })),
+            if(plan!=null)
+              ChoiceChip(
+                key:const Key('m45-plan-mode'),
+                label:const Text('Manage direct titles locally'),
+                selected:directPlanMode,
+                onSelected:(_)=>setState(() {
+                  directPlanMode=true;localPlanMode=false;
+                })),  
           ]),
           const SizedBox(height:12),
-          if(mixedQueueMode && !localPlanMode && plan!=null &&
+          if(mixedQueueMode && !localPlanMode && !directPlanMode &&
+              plan!=null &&
               plan.hasChanges && plan.canEdit)
             SwitchListTile(
               key:const Key('m44-preview-toggle'),
@@ -153,6 +169,15 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
               subtitle:const Text('Device only · not saved to cloud'),
               value:showLocalPreview,
               onChanged:(value)=>setState(()=>previewLocalPlan=value)),
+          if (directPlanMode && plan!=null)
+            Expanded(child:NativeM45DirectTitlePlanner(
+              plan:plan,onPreview:()=>setState(() {
+                previewLocalPlan=true;
+                mixedQueueMode=true;
+                directPlanMode=false;
+                localPlanMode=false;
+              }),
+            )),
           if (localPlanMode && plan!=null)
             Expanded(child:NativeM44AssignmentPlanner(
               plan:plan,
@@ -160,13 +185,14 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
                 previewLocalPlan=true;
                 mixedQueueMode=true;
                 localPlanMode=false;
+                directPlanMode=false;
               }),
             )),
-          if (mixedQueueMode && !localPlanMode)
+          if (mixedQueueMode && !localPlanMode && !directPlanMode)
             Expanded(child:NativeM42MixedQueuePanel(
               key:ValueKey(displayed),
               catalog:displayed)),
-          if (!mixedQueueMode && !localPlanMode) ...[
+          if (!mixedQueueMode && !localPlanMode && !directPlanMode) ...[
           TextField(
             key: const Key('personal-order-search'),
             controller: search,
