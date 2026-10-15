@@ -25,6 +25,10 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - **App icon:** original MediaFlow logo from the personal website (source-pinned, rebuilt into native Android/iOS/Windows launcher resources).
 - **Dart import/package name:** `mediaflow_app` remains internally unchanged to preserve source compatibility; it is not the installed app identifier.
 
+## Development status — Milestone 57 isolated PostgreSQL transaction
+
+**Milestone 57:** [Server-side staging transaction and integration tests](docs/MILESTONE_57.md). Added a private-schema PostgreSQL 17 reference transaction with owner-scoped revisions, generated SHA-256 wire digests, durable database receipts, private SECURITY DEFINER core and authenticated-only SECURITY INVOKER RPC wrappers. GitHub Actions creates an **ephemeral local PostgreSQL service** to run SQL, privilege, replay, and two-connection race tests. **No Supabase staging project was provisioned or contacted. Production website and native account writes remain unchanged and disabled.** This does not prove feature-level v410 side-effect parity, website compatibility, or production readiness.
+
 ## Development status — Milestone 56 synchronization source audit
 
 **Milestone 56:** [Source-backed writer inventory and staging plan](docs/MILESTONE_56.md) · [machine-readable writer/threat ledger](docs/parity/m56_writer_inventory.json). Identified **18 source-linked writer-related surfaces** (14 website / 4 native), including the legacy direct `mediaflow_states` UPSERT and its normal/Sync Now/backup-restore callers. Ran a **12-scenario synthetic, in-memory staging safety rehearsal**, documented 8 discovery gaps and 8 blocked staging prerequisites. Added a **read-only Settings staging preflight panel** and CI guard. **No staging Supabase database was provisioned, no production data was accessed, no website/Supabase changes were made, and native cloud writes remain disabled.** This is not an exhaustive cloud-writer certification or production cutover.
