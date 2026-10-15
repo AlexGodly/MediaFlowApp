@@ -68,6 +68,15 @@ MediaFlowCatalog decodeMediaFlowState(
       : const <String, dynamic>{};
   return MediaFlowCatalog(
     personalOrderIds: (rawOrderIds as List? ?? const []).map((id) => id.toString()).toSet().toList(growable: false),
+    // Preserve raw queue tokens, including unknown/stale references for
+    // explicit diagnostics. Never normalize or persist this projection.
+    categoryQueues: Map.unmodifiable({
+      if (orderPlan['categoryQueues'] is Map)
+        for (final entry in (orderPlan['categoryQueues'] as Map).entries)
+          if (entry.key is String && entry.value is List)
+            entry.key as String: List<String>.unmodifiable(
+              (entry.value as List).map((v) => v.toString())),
+    }),
     collectionAssignments: (orderPlan['collectionAssignments'] is List
       ? orderPlan['collectionAssignments'] as List : const [])
         .whereType<Map>()

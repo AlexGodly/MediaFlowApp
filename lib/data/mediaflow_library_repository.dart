@@ -134,6 +134,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
       collections: decoded.collections,
       personalOrderIds: decoded.personalOrderIds,
       collectionAssignments: decoded.collectionAssignments,
+      categoryQueues: decoded.categoryQueues,
       currentTask: decoded.currentTask,
       sessionActive: decoded.sessionActive,
       tasksPerDay: decoded.tasksPerDay,

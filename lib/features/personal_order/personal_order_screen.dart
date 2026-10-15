@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'personal_order_browser.dart';
+import 'native_m42_mixed_queue_panel.dart';
 
 /// Saved sequence is authoritative. Sorting here only affects display.
 class PersonalOrderScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
   String query = '', categoryId = '', status = '', priority = '';
   PersonalOrderDisplaySort sort = PersonalOrderDisplaySort.saved;
   int page = 0;
+  bool mixedQueueMode = false;
 
   @override
   void initState() {
@@ -89,7 +91,25 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Wrap(spacing:8,runSpacing:8,children:[
+            ChoiceChip(
+              key:const Key('m42-direct-mode'),
+              label:const Text('Direct ordered titles'),
+              selected:!mixedQueueMode,
+              onSelected:(_)=>setState(()=>mixedQueueMode=false)),
+            ChoiceChip(
+              key:const Key('m42-mixed-mode'),
+              label:const Text('Mixed title & Collection queues'),
+              selected:mixedQueueMode,
+              onSelected:(_)=>setState(()=>mixedQueueMode=true)),
+          ]),
+          const SizedBox(height:12),
+          if (mixedQueueMode)
+            Expanded(child:NativeM42MixedQueuePanel(
+              key:ValueKey(data),
+              catalog:data)),
+          if (!mixedQueueMode) ...[
           TextField(
             key: const Key('personal-order-search'),
             controller: search,
@@ -230,6 +250,7 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
             'cloud editing remain disabled until synchronization is safe.',
             textAlign: TextAlign.center,
           ),
+          ],
         ],
       );
     },
