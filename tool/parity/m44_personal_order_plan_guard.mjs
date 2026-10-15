@@ -15,7 +15,7 @@ for(const [source,markers] of [
     'void move(','void resetTraversal(','void remove(',
     'MediaFlowCatalog previewCatalog(','Maximum 200 staged']],
   [planner,['class NativeM44AssignmentPlanner',
-    'm44-plan','m44-undo','m44-redo','m44-discard',
+    'm44-undo','m44-redo','m44-discard',
     'm44-add-assignment','m44-picker-search',
     'm44-set-position-','m44-remove-',
     'm44-reset-','m44-preview','_confirm(']],
