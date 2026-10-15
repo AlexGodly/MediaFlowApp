@@ -196,6 +196,9 @@ class NativeM44PersonalOrderPlan extends ChangeNotifier {
     if(_undo.length>=30) _undo.removeAt(0);
     _undo.add(_capture());
     _redo.clear();
+    // A staged edit changes the input to queue reconciliation immediately.
+    _projected=null;
+    _projectedRevision=-1;
     _operations++;
   }
 
