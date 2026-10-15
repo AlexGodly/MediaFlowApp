@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import '../../services/native_logging_parity_preview.dart';
+import '../../services/native_m52_task_draft_context.dart';
+import '../logging/native_m52_draft_context_panel.dart';
 
 /// A deliberate local-only editor. It never receives a Supabase client or a
 /// full cloud snapshot, and can neither create History nor award XP.
@@ -169,10 +171,13 @@ class NativeLogDraftSheet extends StatefulWidget {
     required this.catalog,
     required this.title,
     required this.workspace,
+    this.taskContext,this.currentOwnerId='',
   });
   final MediaFlowCatalog catalog;
   final MediaFlowTitle title;
   final NativeEditingWorkspace workspace;
+  final NativeM52TaskDraftContext? taskContext;
+  final String currentOwnerId;
 
   @override
   State<NativeLogDraftSheet> createState() => _NativeLogDraftSheetState();
@@ -258,10 +263,20 @@ class _NativeLogDraftSheetState extends State<NativeLogDraftSheet> {
         const Text('This is a local plan, not a submitted session. '
             'It does not create a History entry, update progress, '
             'award XP, advance a streak or synchronize to cloud.'),
+        if(widget.taskContext!=null)...[
+          const SizedBox(height:10),
+          NativeM52DraftContextPanel(
+            contextToken:widget.taskContext!,
+            catalog:widget.catalog,titleId:widget.title.id,
+            currentOwnerId:widget.currentOwnerId,
+            workspace:widget.workspace,method:'standard logging',
+          ),
+        ],
         const SizedBox(height: 15),
         DropdownButtonFormField<NativeLogInputMode>(
           key: const Key('native-log-mode'),
           initialValue: mode,
+          isExpanded:true,
           decoration: const InputDecoration(
             labelText: 'Logging method', border: OutlineInputBorder(),
           ),
