@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow_app/data/mediaflow_library_repository.dart';
+import 'package:mediaflow_app/data/mediaflow_models.dart';
 import 'package:mediaflow_app/data/mediaflow_state_codec.dart';
 import 'package:mediaflow_app/features/personal_order/personal_order_screen.dart';
 import 'package:mediaflow_app/services/native_cas_protocol.dart';
@@ -55,12 +56,6 @@ Map<String,dynamic> fixture() => {
   'history':[{'id':'h1','someOriginalField':'retain'}],
 };
 
-class FixtureRepo extends MediaFlowLibraryRepository {
-  FixtureRepo(this.catalog);
-  final dynamic catalog;
-  @override
-  Future load() async => catalog;
-}
 
 void main(){
   test('raw v287 category tokens and createdAt parse without mutating state',(){
@@ -227,7 +222,7 @@ void main(){
 
 class _TypedRepo extends MediaFlowLibraryRepository {
   _TypedRepo(this.catalog);
-  final dynamic catalog;
+  final MediaFlowCatalog catalog;
   @override
-  Future load() async => catalog;
+  Future<MediaFlowCatalog> load() async => catalog;
 }
