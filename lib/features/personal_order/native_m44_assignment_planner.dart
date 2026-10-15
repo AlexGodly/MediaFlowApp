@@ -84,7 +84,7 @@ class _NativeM44AssignmentPlannerState
   Widget _ruleDropdown(String assignmentId,String key,String value,
       List<String> values,String label) =>
     SizedBox(width:190,child:DropdownButtonFormField<String>(
-      key:Key('m44-${key}-${assignmentId}'),
+      key:Key('m44-$key-$assignmentId'),
       initialValue:value,isExpanded:true,
       decoration:InputDecoration(labelText:label,isDense:true,
         border:const OutlineInputBorder()),
