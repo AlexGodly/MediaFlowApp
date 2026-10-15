@@ -141,7 +141,7 @@ void main() {
 
     final ambiguous=m47Fixture(members:2,duplicate:true);
     final bad=_plan(ambiguous);
-    expect(()=>bad.positionMixedToken('anime','c:one',1),throwsStateError);
+    expect(()=>bad.positionMixedToken('anime','c:one',2),throwsStateError);
     expect(bad.hasChanges,false);
     bad.dispose();
   });
