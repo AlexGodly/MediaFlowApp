@@ -279,7 +279,8 @@ class _NativeM45DirectTitlePlannerState
           .take(pageSize).toList(growable:false);
       // IDs not shown in this mode are still safely retained in a pending
       // selection; bulk validation happens again at command execution.
-      return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      return SingleChildScrollView(child:Column(
+        crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         Text('Direct Personal Order · device-only planner',
           style:Theme.of(context).textTheme.titleMedium),
         const Text('LOCAL DRAFT · Library, Collection blocks, History, '
@@ -488,7 +489,7 @@ class _NativeM45DirectTitlePlannerState
             label:Text(available?'Add selected locally':'Remove selected locally')),
         ]),
         const SizedBox(height:4),
-        Expanded(child:shown.isEmpty
+        shown.isEmpty
           ? Center(child:Text(available
               ? 'No matching Library titles for these filters.'
               : 'No matching directly ordered titles.'))
@@ -511,6 +512,8 @@ class _NativeM45DirectTitlePlannerState
             }
             if(gridMode) {
               return GridView.builder(
+                shrinkWrap:true,
+                physics:const NeverScrollableScrollPhysics(),
                 key:const Key('m45-direct-title-rows'),
                 gridDelegate:SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent:maxExtent,
@@ -520,10 +523,12 @@ class _NativeM45DirectTitlePlannerState
                 itemBuilder:(context,index)=>render(index));
             }
             return ListView.builder(
+              shrinkWrap:true,
+              physics:const NeverScrollableScrollPhysics(),
               key:const Key('m45-direct-title-rows'),
               itemCount:shown.length,
               itemBuilder:(context,index)=>render(index));
-          })),
+          }),
         Row(mainAxisAlignment:MainAxisAlignment.center,children:[
           IconButton(
             key:const Key('m45-prev-page'),
@@ -537,7 +542,7 @@ class _NativeM45DirectTitlePlannerState
               ()=>setState(()=>page=current+1),
             icon:const Icon(Icons.chevron_right)),
         ]),
-      ]);
+      ]));
     },
   );
 }
