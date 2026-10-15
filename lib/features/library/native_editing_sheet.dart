@@ -6,6 +6,7 @@ import '../../services/native_editing_workspace.dart';
 import '../../services/native_logging_parity_preview.dart';
 import '../../services/native_m52_task_draft_context.dart';
 import '../logging/native_m52_draft_context_panel.dart';
+import '../logging/native_m53_completion_evidence_panel.dart';
 
 /// A deliberate local-only editor. It never receives a Supabase client or a
 /// full cloud snapshot, and can neither create History nor award XP.
@@ -270,6 +271,7 @@ class _NativeLogDraftSheetState extends State<NativeLogDraftSheet> {
             catalog:widget.catalog,titleId:widget.title.id,
             currentOwnerId:widget.currentOwnerId,
             workspace:widget.workspace,method:'standard logging',
+            showCompletionEvidence:false,
           ),
         ],
         const SizedBox(height: 15),
@@ -332,6 +334,15 @@ class _NativeLogDraftSheetState extends State<NativeLogDraftSheet> {
           ),
         ),
         if (_preview() case final hypothetical?) ...[
+          if(widget.taskContext!=null)...[
+            const SizedBox(height:10),
+            NativeM53CompletionEvidencePanel(
+              taskContext:widget.taskContext!,catalog:widget.catalog,
+              titleId:widget.title.id,
+              currentOwnerId:widget.currentOwnerId,
+              workspace:widget.workspace,
+              standardPreview:hypothetical,variant:'live-standard'),
+          ],
           const SizedBox(height: 10),
           Card(child: Padding(padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

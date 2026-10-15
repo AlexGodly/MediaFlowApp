@@ -77,6 +77,8 @@ jobs:
         run: node tool/parity/m51_task_handoff_guard.mjs
       - name: Guard M52 owner-scoped task context and local draft continuity
         run: node tool/parity/m52_task_draft_continuity_guard.mjs
+      - name: Guard M53 task completion evidence
+        run: node tool/parity/m53_completion_evidence_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

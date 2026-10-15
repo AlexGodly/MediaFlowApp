@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
 import '../../services/native_editing_workspace.dart';
 import '../../services/native_m52_task_draft_context.dart';
+import 'native_m53_completion_evidence_panel.dart';
 
 /// Presentation only. Never pre-populates, converts, stages, saves or
 /// advances a native or website draft. The existing editors own those fields.
@@ -9,12 +10,13 @@ class NativeM52DraftContextPanel extends StatelessWidget {
   const NativeM52DraftContextPanel({
     super.key,required this.contextToken,required this.catalog,
     required this.titleId,required this.currentOwnerId,
-    this.workspace,this.method='review',
+    this.workspace,this.method='review',this.showCompletionEvidence=true,
   });
   final NativeM52TaskDraftContext contextToken;
   final MediaFlowCatalog catalog;
   final String titleId,currentOwnerId,method;
   final NativeEditingWorkspace? workspace;
+  final bool showCompletionEvidence;
 
   static String _amount(double value) => value.isFinite
     ? value==value.roundToDouble()
@@ -61,6 +63,13 @@ class NativeM52DraftContextPanel extends StatelessWidget {
             const Text('Context only: no automatic method conversion, '
               'timestamp reset, unit prefill, or task completion.',
               key:Key('m52-no-autofill')),
+            if(showCompletionEvidence)...[
+              const SizedBox(height:10),
+              NativeM53CompletionEvidencePanel(
+                taskContext:contextToken,catalog:catalog,titleId:titleId,
+                currentOwnerId:currentOwnerId,workspace:workspace,
+                variant:'saved'),
+            ],
           ],
         ])),
     );
