@@ -12,6 +12,7 @@ import 'draft_sandbox_panel.dart';
 import 'native_priority_review_panel.dart';
 import 'native_m33_offline_draft_panel.dart';
 import 'native_m34_conflict_center_panel.dart';
+import 'native_m55_release_readiness_panel.dart';
 
 /// These settings are device-local. The original MediaFlow cloud preference
 /// schema remains untouched until full settings parity is tested.
@@ -34,6 +35,8 @@ class NativeSettingsScreen extends StatelessWidget {
     const MfPageHeader(title: 'Settings',
       subtitle: 'Native application preferences'),
     const SizedBox(height: 16),
+    const NativeM55ReleaseReadinessPanel(),
+    const SizedBox(height: 12),
     MfPanel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Appearance', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 6),
