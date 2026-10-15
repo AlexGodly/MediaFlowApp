@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import '../data/mediaflow_models.dart';
 import 'native_cas_protocol.dart';
 import 'native_m30_shared_sync.dart';
@@ -95,7 +96,7 @@ class NativeM54TransactionAudit {
          evidence.status == NativeM53EvidenceStatus.differentCategory) &&
         evidence.amount.isFinite && evidence.amount > 0;
     final foreignCategory = usableConsumption &&
-        title!.categoryId != task!.categoryId;
+        title.categoryId != task.categoryId;
     final status = !usableContext
         ? NativeM54AuditStatus.invalidContext
         : !usableConsumption
@@ -103,10 +104,10 @@ class NativeM54TransactionAudit {
             : foreignCategory
                 ? NativeM54AuditStatus.categoryMismatch
                 : NativeM54AuditStatus.evidenceOnly;
-    final assignedId = usableContext ? task!.categoryId : '';
-    final actualId = usableContext ? title!.categoryId : '';
+    final assignedId = usableContext ? task.categoryId : '';
+    final actualId = usableContext ? title.categoryId : '';
     final mightSkip = foreignCategory;
-    final order = usableContext ? task!.orderSource : null;
+    final order = usableContext ? task.orderSource : null;
     String traversal;
     if (order == null) {
       traversal = 'No trusted Collection source transaction is available. '
