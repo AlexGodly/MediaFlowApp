@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
-import '../../design_system/mediaflow_components.dart';
 import '../../services/native_m50_task_display.dart';
 
 /// Snapshot-only v410-style next-task presentation. Every action navigates
@@ -40,6 +39,22 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
     );
   }
 
+  Widget _tag(BuildContext context,String label,IconData icon) {
+    final colors=Theme.of(context).colorScheme;
+    return Container(
+      padding:const EdgeInsets.symmetric(horizontal:9,vertical:5),
+      decoration:BoxDecoration(
+        color:colors.primary.withValues(alpha:0.09),
+        borderRadius:BorderRadius.circular(16),
+        border:Border.all(color:colors.outlineVariant)),
+      child:Row(mainAxisSize:MainAxisSize.min,children:[
+        Icon(icon,size:14,color:colors.primary),
+        const SizedBox(width:5),
+        Text(label,style:Theme.of(context).textTheme.labelSmall),
+      ]),
+    );
+  }
+
   Widget _actions()=>Wrap(spacing:8,runSpacing:8,children:[
     OutlinedButton.icon(key:const Key('m50-browse-library'),
       onPressed:openLibrary,icon:const Icon(Icons.local_library_outlined),
@@ -60,8 +75,7 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
           key:const Key('m50-hero-heading'),
           style:theme.textTheme.labelLarge?.copyWith(
             fontWeight:FontWeight.w700,letterSpacing:0.8))),
-        if(task!=null)const MfBadge(
-          label:'Saved task',icon:Icons.visibility_outlined),
+        if(task!=null)_tag(context,'Saved task',Icons.visibility_outlined),
       ]),
       const SizedBox(height:10),
       Row(children:[
@@ -82,7 +96,9 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
         Text(data.resolutionNote,key:const Key('m50-task-resolution')),
       ]else...[
         const SizedBox(height:12),
-        Text('Recommended title: ${data.recommendedName}',
+        Text('Recommended title',
+          style:theme.textTheme.labelMedium),
+        Text(data.recommendedName,
           key:const Key('m50-recommendation-title'),
           maxLines:3,overflow:TextOverflow.ellipsis,
           style:theme.textTheme.titleLarge),
@@ -118,11 +134,10 @@ class NativeM50DashboardTaskHero extends StatelessWidget {
       if(item!=null)...[
         const SizedBox(height:10),
         Wrap(spacing:6,runSpacing:6,children:[
-          MfBadge(label:item.status.isEmpty?'Unknown':item.status,
-            icon:Icons.bookmark_outline),
+          _tag(context,item.status.isEmpty?'Unknown':item.status,
+            Icons.bookmark_outline),
           if(item.priority.isNotEmpty)
-            MfBadge(label:'${item.priority} priority',
-              icon:Icons.flag_outlined),
+            _tag(context,'${item.priority} priority',Icons.flag_outlined),
         ]),
         if(data.progressPercent!=null)...[
           const SizedBox(height:12),
