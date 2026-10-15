@@ -305,6 +305,7 @@ class MediaFlowCatalog {
     this.personalOrderIds = const [],
     this.collectionAssignments = const [],
     this.categoryQueues = const {},
+    this.prioritizePersonalOrder,
     this.currentTask,
     this.sessionActive = false,
     this.tasksPerDay,
@@ -321,6 +322,8 @@ class MediaFlowCatalog {
   final List<MediaFlowCollectionAssignment> collectionAssignments;
   /// Raw v287 per-category t:/c: tokens, never a cloud-write payload.
   final Map<String, List<String>> categoryQueues;
+  /// Null if the snapshot did not explicitly state the website toggle.
+  final bool? prioritizePersonalOrder;
   final MediaFlowTask? currentTask;
   final bool sessionActive;
   final double? tasksPerDay, dailyMinutes;
