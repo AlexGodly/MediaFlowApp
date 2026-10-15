@@ -26,7 +26,7 @@ for(const [source,markers] of [
     'm49-task-id-label','personalOrderPlan','openPersonalOrder']],
   [shell,['personalOrderPlan: personalOrderPlan',
     'openPersonalOrder: () => navigate(MediaFlowSection.personalOrder)']],
-  [tests,['100k titles','ambiguous Library IDs',
+  [tests,['100k titles','duplicate Library IDs',
     'saved annotation and queue source','source mismatches',
     'Dashboard displays saved vs local draft']],
 ])for(const marker of markers){
