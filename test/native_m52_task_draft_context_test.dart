@@ -6,7 +6,6 @@ import 'package:mediaflow_app/data/mediaflow_state_codec.dart';
 import 'package:mediaflow_app/features/logging/logging_screen.dart';
 import 'package:mediaflow_app/features/logging/native_itemized_draft_sheet.dart';
 import 'package:mediaflow_app/features/library/native_editing_sheet.dart';
-import 'package:mediaflow_app/features/logging/native_m52_draft_context_panel.dart';
 import 'package:mediaflow_app/services/native_cas_protocol.dart';
 import 'package:mediaflow_app/services/native_editing_workspace.dart';
 import 'package:mediaflow_app/services/native_logging_parity_preview.dart';
