@@ -59,6 +59,8 @@ jobs:
         run: node tool/parity/m42_mixed_queue_guard.mjs
       - name: Guard M43 ranking audit and disabled cloud writes
         run: node tool/parity/m43_recommendation_guard.mjs
+      - name: Guard M44 owner-pinned local Personal Order changes
+        run: node tool/parity/m44_personal_order_plan_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:

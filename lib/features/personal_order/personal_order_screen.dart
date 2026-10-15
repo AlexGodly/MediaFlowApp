@@ -4,11 +4,16 @@ import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'personal_order_browser.dart';
 import 'native_m42_mixed_queue_panel.dart';
+import '../../services/native_m44_personal_order_plan.dart';
+import 'native_m44_assignment_planner.dart';
 
 /// Saved sequence is authoritative. Sorting here only affects display.
 class PersonalOrderScreen extends StatefulWidget {
-  const PersonalOrderScreen({super.key, required this.repository});
+  const PersonalOrderScreen({super.key, required this.repository,
+    this.plan, this.currentOwnerId = ''});
   final MediaFlowLibraryRepository repository;
+  final NativeM44PersonalOrderPlan? plan;
+  final String currentOwnerId;
 
   @override
   State<PersonalOrderScreen> createState() => _PersonalOrderScreenState();
@@ -24,18 +29,37 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
   PersonalOrderDisplaySort sort = PersonalOrderDisplaySort.saved;
   int page = 0;
   bool mixedQueueMode = false;
+  bool localPlanMode = false;
+  bool previewLocalPlan = false;
 
   @override
   void initState() {
     super.initState();
     future = widget.repository.load();
+    widget.plan?.addListener(_onPlanChanged);
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     search.dispose();
+    widget.plan?.removeListener(_onPlanChanged);
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant PersonalOrderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.plan!=widget.plan) {
+      oldWidget.plan?.removeListener(_onPlanChanged);
+      widget.plan?.addListener(_onPlanChanged);
+      previewLocalPlan=false;
+      localPlanMode=false;
+    }
+  }
+
+  void _onPlanChanged() {
+    if(mounted) setState(() {});
   }
 
   void _changed() => setState(() => page = 0);
@@ -58,6 +82,11 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
         ));
       }
       final data = snapshot.requireData;
+      widget.plan?.observe(data,currentOwnerId:widget.currentOwnerId);
+      final plan=widget.plan;
+      final showLocalPreview=previewLocalPlan && plan!=null &&
+        plan.canEdit && plan.hasChanges;
+      final displayed=showLocalPreview?plan.previewCatalog():data;
       if (!identical(_indexedCatalog, data) || _browser == null) {
         _indexedCatalog = data;
         _browser = PersonalOrderBrowser(data);
@@ -97,19 +126,47 @@ class _PersonalOrderScreenState extends State<PersonalOrderScreen> {
               key:const Key('m42-direct-mode'),
               label:const Text('Direct ordered titles'),
               selected:!mixedQueueMode,
-              onSelected:(_)=>setState(()=>mixedQueueMode=false)),
+              onSelected:(_)=>setState(() {
+                mixedQueueMode=false;localPlanMode=false;
+              })), 
             ChoiceChip(
               key:const Key('m42-mixed-mode'),
               label:const Text('Mixed title & Collection queues'),
               selected:mixedQueueMode,
-              onSelected:(_)=>setState(()=>mixedQueueMode=true)),
+              onSelected:(_)=>setState(() {
+                mixedQueueMode=true;localPlanMode=false;
+              })),
+            if(plan!=null)
+              ChoiceChip(
+                key:const Key('m44-plan-mode'),
+                label:const Text('Manage assignments locally'),
+                selected:localPlanMode,
+                onSelected:(_)=>setState(()=>localPlanMode=true)), 
           ]),
           const SizedBox(height:12),
-          if (mixedQueueMode)
+          if(mixedQueueMode && !localPlanMode && plan!=null &&
+              plan.hasChanges && plan.canEdit)
+            SwitchListTile(
+              key:const Key('m44-preview-toggle'),
+              dense:true,
+              title:const Text('View local queue preview'),
+              subtitle:const Text('Device only · not saved to cloud'),
+              value:showLocalPreview,
+              onChanged:(value)=>setState(()=>previewLocalPlan=value)),
+          if (localPlanMode && plan!=null)
+            Expanded(child:NativeM44AssignmentPlanner(
+              plan:plan,
+              onPreview:()=>setState(() {
+                previewLocalPlan=true;
+                mixedQueueMode=true;
+                localPlanMode=false;
+              }),
+            )),
+          if (mixedQueueMode && !localPlanMode)
             Expanded(child:NativeM42MixedQueuePanel(
-              key:ValueKey(data),
-              catalog:data)),
-          if (!mixedQueueMode) ...[
+              key:ValueKey(displayed),
+              catalog:displayed)),
+          if (!mixedQueueMode && !localPlanMode) ...[
           TextField(
             key: const Key('personal-order-search'),
             controller: search,
