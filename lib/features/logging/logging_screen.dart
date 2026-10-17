@@ -11,6 +11,7 @@ import '../../services/native_m50_task_display.dart';
 import 'native_m52_draft_context_panel.dart';
 import '../library/native_editing_sheet.dart';
 import 'native_itemized_draft_sheet.dart';
+import 'native_logging_recommends_card.dart';
 
 /// Multi-title selection workspace. It is intentionally a read-only
 /// preview: selections never create sessions, XP, cloud writes, or drafts.
@@ -380,6 +381,17 @@ class _LoggingScreenState extends State<LoggingScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ]),
+          const SizedBox(height:8),
+          NativeLoggingRecommendsCard(
+            catalog:data,
+            selectedIds:_selectedIds,
+            onUse:(recommended){
+              // Mirrors v382 direct-add intent while deliberately staying
+              // within the native RAM-only selection/draft boundary.
+              setState(()=>_selectedIds.add(recommended.id));
+              _details(context,recommended,data);
+            },
+          ),
           if(widget.taskHandoff?.hasRequest==true)...[
             const SizedBox(height:8),
             _handoffCard(data),
