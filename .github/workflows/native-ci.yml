@@ -89,6 +89,8 @@ jobs:
         run: node tool/parity/m56_staging_rehearsal.mjs
       - name: Verify Logging MediaFlow Recommends exact-ID safety
         run: node tool/parity/logging_recommends_guard.mjs
+      - name: Guard Beta 3 Logging queue filters and release metadata
+        run: node tool/parity/logging_recommends_beta3_guard.mjs
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
