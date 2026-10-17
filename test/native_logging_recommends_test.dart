@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mediaflow_app/data/mediaflow_models.dart';
 import 'package:mediaflow_app/data/mediaflow_state_codec.dart';
 import 'package:mediaflow_app/features/logging/native_logging_recommends_card.dart';
 import 'package:mediaflow_app/services/native_logging_recommends.dart';
