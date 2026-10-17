@@ -109,8 +109,9 @@ jobs:
         run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=ios .
       - name: Apply MediaFlow iOS branding
         run: |
-          python3 -m pip install pillow
-          python3 tool/branding/apply_branding.py --platforms=ios
+          python3 -m venv .release-venv
+          .release-venv/bin/python -m pip install pillow
+          .release-venv/bin/python tool/branding/apply_branding.py --platforms=ios
       - name: Resolve and build unsigned iOS app
         run: |
           flutter pub get
