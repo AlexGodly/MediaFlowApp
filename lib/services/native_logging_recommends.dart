@@ -22,6 +22,69 @@ class NativeLoggingRecommendation {
   bool get canUse=>title!=null &&
     source!=NativeLoggingRecommendSource.unavailable;
 
+  /// Additional source-grounded queue suggestions for the Logging picker.
+  /// These are *not* the website's live task rerolls, provider results, or
+  /// fallback recommendations. It is safe to show only an explicit v287
+  /// Personal Order queue when prioritization is enabled.
+  ///
+  /// Work is deferred until the user expands the picker. It never mutates
+  /// traversal state or drafts, and it cannot turn an unresolved saved task
+  /// into an apparently verified recommendation.
+  static List<NativeLoggingRecommendation> browseQueue(
+    MediaFlowCatalog catalog,String categoryId,{
+    NativeM43RecommendationAudit? audit,
+    Set<String> excludedIds=const {},
+    int limit=5,
+  }){
+    if(limit<1||limit>8){
+      throw const FormatException('Choose between 1 and 8 suggestions');
+    }
+    if(categoryId.isEmpty||
+        !catalog.categories.any((category)=>category.id==categoryId)||
+        catalog.prioritizePersonalOrder!=true){
+      return const [];
+    }
+    final display=NativeM50TaskDisplay.fromCatalog(catalog);
+    if(display.task?.categoryId==categoryId &&
+        display.resolution!=NativeM50TitleResolution.exact){
+      return const [];
+    }
+    final entries=(audit??NativeM43RecommendationAudit(catalog))
+      .forCategory(categoryId).recommendations;
+    if(entries.isEmpty)return const [];
+
+    // Queue parsing itself rejects ambiguous IDs. Verify again here so
+    // older/imported Library snapshots cannot surface duplicate references.
+    final candidateIds={for(final entry in entries)entry.title.id};
+    final seen=<String>{};
+    final duplicates=<String>{};
+    for(final item in catalog.library){
+      if(candidateIds.contains(item.id)&&!seen.add(item.id)){
+        duplicates.add(item.id);
+      }
+    }
+    final results=<NativeLoggingRecommendation>[];
+    final displayed=<String>{};
+    for(final entry in entries){
+      final id=entry.title.id;
+      if(id.isEmpty||duplicates.contains(id)||excludedIds.contains(id)||
+          !displayed.add(id)||id==display.title?.id){
+        continue;
+      }
+      results.add(NativeLoggingRecommendation(
+        source:NativeLoggingRecommendSource.personalOrderPreview,
+        categoryId:categoryId,title:entry.title,
+        queuePosition:entry.recommendationIndex,
+        fromCollection:entry.fromCollection,
+        message:'Additional Personal Order queue preview · not a '
+          'confirmed live recommendation. No queue traversal or '
+          'saved task is changed.',
+      ));
+      if(results.length>=limit)break;
+    }
+    return List.unmodifiable(results);
+  }
+
   static NativeLoggingRecommendation forCategory(
     MediaFlowCatalog catalog,String categoryId,{
     NativeM43RecommendationAudit? audit,
