@@ -59,7 +59,8 @@ abstract final class NativeLoggingRecommendQueue {
       .forCategory(categoryId).recommendations;
     // Bounded: inspect the requested page plus one item to establish
     // hasMore. Never materialize a whole 100k-title Library into the UI.
-    final last=(offset+pageSize+1).clamp(0,entries.length);
+    final last=offset+pageSize+1<entries.length
+      ?offset+pageSize+1:entries.length;
     final candidates=entries.skip(offset).take(last-offset).toList();
     // Count IDs only for the bounded candidates; an ambiguous ID cannot be
     // selected even if v287 resolved its first occurrence.
