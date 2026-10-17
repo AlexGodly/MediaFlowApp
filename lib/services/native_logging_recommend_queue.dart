@@ -78,7 +78,7 @@ abstract final class NativeLoggingRecommendQueue {
         title:entry.title,rank:entry.recommendationIndex,
         fromCollection:entry.fromCollection,
         collectionName:entry.fromCollection
-          ?entry.collection?.title??'Collection':'',
+          ?'Collection assignment':'',
       ));
     }
     return NativeLoggingQueuePage(
