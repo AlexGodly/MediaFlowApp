@@ -33,6 +33,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
   Timer? _debounce;
   MediaFlowCatalog? _indexedCatalog;
   MediaFlowLibraryIndex? _index;
+  List<String> _statusOptions=const [];
   final Set<String> _selectedIds = <String>{};
   NativeM52TaskDraftContext? _taskContext;
   String query = '', categoryId = '', status = '', priority = '';
@@ -345,6 +346,10 @@ class _LoggingScreenState extends State<LoggingScreen> {
       if (!identical(_indexedCatalog, data) || _index == null) {
         _indexedCatalog = data;
         _index = MediaFlowLibraryIndex(data.library);
+        // Refresh once per snapshot; mapping all 100k Library statuses on
+        // each selection tap made the mobile Logging picker stutter.
+        _statusOptions=data.library.map((t)=>t.status).toSet().toList()
+          ..sort();
         final availableIds = {for (final item in data.library) item.id};
         _selectedIds.removeWhere((id) => !availableIds.contains(id));
       }
@@ -460,7 +465,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
               ], (v) { categoryId = v; _filterChanged(); }),
               _dropdown<String>(w, 'Status', status, [
                 const DropdownMenuItem(value: '', child: Text('All statuses')),
-                for (final value in data.library.map((t) => t.status).toSet())
+                for (final value in _statusOptions)
                   DropdownMenuItem(value: value, child: Text(value,
                       overflow: TextOverflow.ellipsis)),
               ], (v) { status = v; _filterChanged(); }),
