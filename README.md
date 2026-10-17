@@ -1,6 +1,12 @@
 # MediaFlowApp
 
-Native Flutter application for Android, iOS, and Windows, based on MediaFlow web v410.
+Native Flutter application for Android, iOS, and Windows. The historical parity inventory remains pinned to personal MediaFlow **v410**, while new incremental feature work follows the **latest verified personal MediaFlow** (v478 at the start of the first feature release).
+
+## New development direction — feature-by-feature releases
+
+Rather than treating the old milestone plan as proof of complete parity, app updates now implement focused slices of the latest personal MediaFlow. The first update introduces **MediaFlow Recommends inside native Logging** (saved task exact-ID selection and clearly labeled Personal Order queue preview), based on the v478 experience. These are local-only previews; authenticated production Library/History/XP writes remain disabled.
+
+Feature releases use independent app tags (starting `app-v1.0.0-beta.1`) with named GitHub prereleases and detailed change descriptions. The new `.github/workflows/native-feature-release.yml` pipeline runs Flutter analysis/tests, creates an Android debug APK, a Windows x64 application ZIP, and an **unsigned** iOS IPA developer archive, then publishes only if all packages pass. **Unsigned iOS is not installable on a normal iPhone**; an Apple Developer account, certificates and provisioning are needed for a signed IPA/TestFlight build. See `tool/releases/current.json` and `docs/releases/`. Each future release needs a new tag and changelog.
 
 ## Goals
 - Reimplement the MediaFlow v410 interface and functionality in native Flutter (not WebView).
@@ -10,10 +16,10 @@ Native Flutter application for Android, iOS, and Windows, based on MediaFlow web
 - Validate functionality against an explicit v410 parity inventory before production releases.
 
 ## Release policy
-- Public tags and release names: `v410`, `v411`, etc.
+- Public feature release tags: `app-v1.0.0-beta.1`, `app-v1.0.0-beta.2`, etc. (separate from personal website's numeric version).
 - Each release includes changelogs and verified platform build artifacts.
 - Android APK and Windows packages are distributed through GitHub Releases.
-- iOS IPA requires macOS/Xcode and valid Apple signing/provisioning; installation/distribution depends on Apple rules.
+- Unsigned iOS developer IPA can be built on a macOS runner, but signed device distribution requires valid Apple Developer signing and provisioning. Do not present an unsigned archive as an installable iPhone app.
 - Do not publish a production release until required build and parity checks pass.
 
 ## Native app identity
