@@ -4,6 +4,8 @@ import '../../data/mediaflow_models.dart';
 import '../../services/native_logging_recommends.dart';
 import '../../services/native_m43_recommendation_audit.dart';
 
+enum NativeRecommendationSelectionFilter { notAdded, all, alreadyAdded }
+
 /// v478-inspired MediaFlow Recommends shortcut in native Logging.
 /// Adding a recommendation only changes the transient local title selection.
 class NativeLoggingRecommendsCard extends StatefulWidget {
@@ -26,6 +28,11 @@ class _NativeLoggingRecommendsCardState
   String categoryId='';
   bool showQueue=false;
   List<NativeLoggingRecommendation>? _queueCandidates;
+  NativeRecommendationSelectionFilter _queueFilter=
+    NativeRecommendationSelectionFilter.notAdded;
+  String _queueQuery='';
+  int _queuePage=0;
+  static const int _queuePageSize=5;
 
   @override
   void initState(){
@@ -50,6 +57,9 @@ class _NativeLoggingRecommendsCardState
       _audit=NativeM43RecommendationAudit(widget.catalog);
       showQueue=false;
       _queueCandidates=null;
+      _queuePage=0;
+      _queueQuery='';
+      _queueFilter=NativeRecommendationSelectionFilter.notAdded;
       if(!widget.catalog.categories.any((c)=>c.id==categoryId)){
         categoryId=_initialCategory();
       }
@@ -76,14 +86,30 @@ class _NativeLoggingRecommendsCardState
     // this account snapshot/category, even when selections change. Never
     // scan a 100k-title Library again for each checkbox interaction.
     if(showQueue){
-      _queueCandidates??=NativeLoggingRecommendation.browseQueue(
-        widget.catalog,categoryId,audit:_audit,limit:8);
+      _queueCandidates??=NativeLoggingRecommendation.browseQueueCatalog(
+        widget.catalog,categoryId,audit:_audit,maxCandidates:500);
     }
-    final suggestions=showQueue
+    final needle=_queueQuery.trim().toLowerCase();
+    final filtered=showQueue
       ? (_queueCandidates??const <NativeLoggingRecommendation>[])
-          .where((entry)=>!widget.selectedIds.contains(entry.title!.id))
-          .take(5).toList(growable:false)
+          .where((entry){
+            final isAdded=widget.selectedIds.contains(entry.title!.id);
+            final matchesFilter=switch(_queueFilter){
+              NativeRecommendationSelectionFilter.notAdded=>!isAdded,
+              NativeRecommendationSelectionFilter.all=>true,
+              NativeRecommendationSelectionFilter.alreadyAdded=>isAdded,
+            };
+            return matchesFilter&&(needle.isEmpty||
+              entry.title!.title.toLowerCase().contains(needle)||
+              entry.title!.id.toLowerCase().contains(needle));
+          }).toList(growable:false)
       : const <NativeLoggingRecommendation>[];
+    final pages=filtered.isEmpty
+      ?1:(filtered.length+_queuePageSize-1)~/_queuePageSize;
+    final page=_queuePage.clamp(0,pages-1).toInt();
+    final suggestions=filtered
+      .skip(page*_queuePageSize).take(_queuePageSize)
+      .toList(growable:false);
     return Card(
       key:const Key('logging-recommends-card'),
       child:Padding(padding:const EdgeInsets.all(12),
@@ -116,6 +142,9 @@ class _NativeLoggingRecommendsCardState
                 categoryId=id;
                 showQueue=false;
                 _queueCandidates=null;
+                _queuePage=0;
+                _queueQuery='';
+                _queueFilter=NativeRecommendationSelectionFilter.notAdded;
               });}
             },
           ),
@@ -177,7 +206,10 @@ class _NativeLoggingRecommendsCardState
           if(widget.catalog.prioritizePersonalOrder==true)
             OutlinedButton.icon(
               key:const Key('logging-browse-queue'),
-              onPressed:()=>setState(()=>showQueue=!showQueue),
+              onPressed:()=>setState((){
+                showQueue=!showQueue;
+                _queuePage=0;
+              }),
               icon:Icon(showQueue?Icons.expand_less:Icons.format_list_bulleted),
               label:Text(showQueue?'Hide queue suggestions':
                 'Browse more recommendations'),
@@ -190,6 +222,45 @@ class _NativeLoggingRecommendsCardState
             const Text('Queue previews, not live task rerolls. '
               'Selecting one never changes the saved task, History or XP.',
               key:Key('logging-queue-disclaimer')),
+            const SizedBox(height:8),
+            TextField(
+              key:const Key('logging-queue-search'),
+              onChanged:(value)=>setState((){
+                _queueQuery=value;
+                _queuePage=0;
+              }),
+              decoration:const InputDecoration(
+                labelText:'Search queue titles or Library IDs',
+                prefixIcon:Icon(Icons.search),
+                isDense:true,border:OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height:7),
+            Wrap(spacing:6,runSpacing:5,children:[
+              for(final option in NativeRecommendationSelectionFilter.values)
+                ChoiceChip(
+                  key:ValueKey('logging-queue-filter-${option.name}'),
+                  selected:_queueFilter==option,
+                  label:Text(switch(option){
+                    NativeRecommendationSelectionFilter.notAdded=>'Not added',
+                    NativeRecommendationSelectionFilter.all=>'All',
+                    NativeRecommendationSelectionFilter.alreadyAdded=>'Already added',
+                  }),
+                  onSelected:(_)=>setState((){
+                    _queueFilter=option;
+                    _queuePage=0;
+                  }),
+                ),
+            ]),
+            const SizedBox(height:5),
+            Text('Showing ${suggestions.length} of ${filtered.length} '
+              'matching verified queue previews · page ${page+1}/$pages',
+              key:const Key('logging-queue-count'),
+              style:theme.textTheme.bodySmall),
+            if((_queueCandidates?.length??0)>=500)
+              const Text('Showing only the first 500 verified queue '
+                'candidates; later entries are not checked in this beta.',
+                key:Key('logging-queue-limit-note')),
             if(suggestions.isEmpty)
               const Padding(
                 padding:EdgeInsets.symmetric(vertical:10),
@@ -224,17 +295,40 @@ class _NativeLoggingRecommendsCardState
                       const SizedBox(width:6),
                       IconButton(
                         key:ValueKey('logging-use-queue-${suggestion.title!.id}'),
-                        tooltip:'Use ${suggestion.title!.title} in Logging',
+                        tooltip:widget.selectedIds.contains(
+                          suggestion.title!.id)
+                          ?'Review ${suggestion.title!.title} in Logging'
+                          :'Use ${suggestion.title!.title} in Logging',
                         onPressed:()=>widget.onUse(suggestion.title!),
-                        icon:const Icon(Icons.playlist_add_outlined),
+                        icon:Icon(widget.selectedIds.contains(
+                          suggestion.title!.id)
+                          ?Icons.check_circle_outline
+                          :Icons.playlist_add_outlined),
                       ),
                     ]),
                   ),
                 ),
               ),
+            if(pages>1)
+              Row(children:[
+                IconButton(
+                  key:const Key('logging-queue-previous-page'),
+                  onPressed:page>0?()=>setState(()=>_queuePage=page-1):null,
+                  icon:const Icon(Icons.chevron_left),
+                  tooltip:'Previous queue page'),
+                Expanded(child:Text('Page ${page+1} of $pages',
+                  key:const Key('logging-queue-page-label'),
+                  textAlign:TextAlign.center)),
+                IconButton(
+                  key:const Key('logging-queue-next-page'),
+                  onPressed:page+1<pages
+                    ?()=>setState(()=>_queuePage=page+1):null,
+                  icon:const Icon(Icons.chevron_right),
+                  tooltip:'Next queue page'),
+              ]),
           ],
           const SizedBox(height:4),
-          Text('Like MediaFlow v478 Logging: adds an exact title to '
+          Text('Like MediaFlow v478 Logging: adds an exact title to 
             'your workspace. Native logs remain local previews; '
             'History, XP and cloud writes are disabled.',
             style:theme.textTheme.bodySmall),
