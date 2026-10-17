@@ -85,6 +85,57 @@ class NativeLoggingRecommendation {
     return List.unmodifiable(results);
   }
 
+  /// Build a bounded, verified queue browser once per expanded category.
+  /// The widget filters/searches/pages this immutable list without repeating
+  /// 100k-Library duplicate checks whenever a checkbox changes. All entries
+  /// remain unconfirmed Personal Order *previews*, not generated live tasks.
+  static List<NativeLoggingRecommendation> browseQueueCatalog(
+    MediaFlowCatalog catalog,String categoryId,{
+    NativeM43RecommendationAudit? audit,int maxCandidates=500,
+  }){
+    if(maxCandidates<1||maxCandidates>500){
+      throw const FormatException('Queue browser limit must be 1–500');
+    }
+    if(categoryId.isEmpty||
+        !catalog.categories.any((category)=>category.id==categoryId)||
+        catalog.prioritizePersonalOrder!=true){
+      return const [];
+    }
+    final display=NativeM50TaskDisplay.fromCatalog(catalog);
+    if(display.task?.categoryId==categoryId&&
+        display.resolution!=NativeM50TitleResolution.exact){
+      return const [];
+    }
+    final entries=(audit??NativeM43RecommendationAudit(catalog))
+      .forCategory(categoryId).recommendations;
+    if(entries.isEmpty){return const [];}
+    final candidates={for(final entry in entries)entry.title.id};
+    final seen=<String>{};
+    final duplicates=<String>{};
+    for(final title in catalog.library){
+      if(candidates.contains(title.id)&&!seen.add(title.id)){
+        duplicates.add(title.id);
+      }
+    }
+    final results=<NativeLoggingRecommendation>[];
+    final listed=<String>{};
+    for(final entry in entries){
+      final id=entry.title.id;
+      if(id.isEmpty||duplicates.contains(id)||!listed.add(id)||
+          id==display.title?.id){continue;}
+      results.add(NativeLoggingRecommendation(
+        source:NativeLoggingRecommendSource.personalOrderPreview,
+        categoryId:categoryId,title:entry.title,
+        queuePosition:entry.recommendationIndex,
+        fromCollection:entry.fromCollection,
+        message:'Personal Order queue preview only · not a confirmed '
+          'live recommendation. No queue traversal or task change.',
+      ));
+      if(results.length>=maxCandidates){break;}
+    }
+    return List.unmodifiable(results);
+  }
+
   static NativeLoggingRecommendation forCategory(
     MediaFlowCatalog catalog,String categoryId,{
     NativeM43RecommendationAudit? audit,
