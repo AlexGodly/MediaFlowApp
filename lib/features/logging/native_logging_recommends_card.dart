@@ -25,6 +25,7 @@ class _NativeLoggingRecommendsCardState
   late NativeM43RecommendationAudit _audit;
   String categoryId='';
   bool showQueue=false;
+  List<NativeLoggingRecommendation>? _queueCandidates;
 
   @override
   void initState(){
@@ -48,6 +49,7 @@ class _NativeLoggingRecommendsCardState
     if(!identical(old.catalog,widget.catalog)){
       _audit=NativeM43RecommendationAudit(widget.catalog);
       showQueue=false;
+      _queueCandidates=null;
       if(!widget.catalog.categories.any((c)=>c.id==categoryId)){
         categoryId=_initialCategory();
       }
@@ -70,9 +72,18 @@ class _NativeLoggingRecommendsCardState
     final title=result.title;
     final already=title!=null&&widget.selectedIds.contains(title.id);
     final cover=title==null?null:_safeCover(title);
-    final suggestions=showQueue?NativeLoggingRecommendation.browseQueue(
-      widget.catalog,categoryId,audit:_audit,
-      excludedIds:widget.selectedIds,limit:5):const <NativeLoggingRecommendation>[];
+    // Calculate queue evidence only after expansion and only once for
+    // this account snapshot/category, even when selections change. Never
+    // scan a 100k-title Library again for each checkbox interaction.
+    if(showQueue){
+      _queueCandidates??=NativeLoggingRecommendation.browseQueue(
+        widget.catalog,categoryId,audit:_audit,limit:8);
+    }
+    final suggestions=showQueue
+      ? (_queueCandidates??const <NativeLoggingRecommendation>[])
+          .where((entry)=>!widget.selectedIds.contains(entry.title!.id))
+          .take(5).toList(growable:false)
+      : const <NativeLoggingRecommendation>[];
     return Card(
       key:const Key('logging-recommends-card'),
       child:Padding(padding:const EdgeInsets.all(12),
@@ -101,7 +112,11 @@ class _NativeLoggingRecommendsCardState
                     overflow:TextOverflow.ellipsis)),
             ],
             onChanged:(id){
-              if(id!=null){setState((){categoryId=id;showQueue=false;});}
+              if(id!=null){setState((){
+                categoryId=id;
+                showQueue=false;
+                _queueCandidates=null;
+              });}
             },
           ),
           const SizedBox(height:8),
