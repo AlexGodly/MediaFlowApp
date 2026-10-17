@@ -56,7 +56,7 @@ class _NativeLoggingRecommendsCardState
     final raw=title.coverUrl.trim();
     final uri=Uri.tryParse(raw);
     if(uri==null||uri.scheme!='https'||uri.host.isEmpty||
-      uri.userInfo.isNotEmpty)return null;
+      uri.userInfo.isNotEmpty){return null;}
     return raw;
   }
 
