@@ -42,7 +42,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Select visible'), 160,
       scrollable: find.descendant(
         of: find.byKey(const Key('m51-logging-controls-scroll')),
-        matching: find.byType(Scrollable)));
+        matching: find.byType(Scrollable)).first;
     await tester.tap(find.text('Select visible'));
     await tester.pump();
     expect(find.textContaining('2 selected'), findsOneWidget);
@@ -58,7 +58,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Clear selection'), 160,
       scrollable: find.descendant(
         of: find.byKey(const Key('m51-logging-controls-scroll')),
-        matching: find.byType(Scrollable)));
+        matching: find.byType(Scrollable)).first;
     await tester.tap(find.text('Clear selection'));
     await tester.pump();
     expect(find.textContaining('0 selected'), findsOneWidget);
