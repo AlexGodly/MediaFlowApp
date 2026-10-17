@@ -26,7 +26,9 @@ jobs:
           print(info['tag'], info['name'])
           PY
       - name: Check recommendation safety and production write gates
-        run: node tool/parity/logging_recommends_guard.mjs
+        run: |
+          node tool/parity/logging_recommends_guard.mjs
+          node tool/parity/logging_recommend_queue_guard.mjs
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

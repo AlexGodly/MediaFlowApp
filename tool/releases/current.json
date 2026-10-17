@@ -1,8 +1,8 @@
 {
-  "tag": "app-v1.0.0-beta.1",
-  "name": "MediaFlowApp v1.0.0 Beta — Logging + MediaFlow Recommends",
-  "notesFile": "docs/releases/app-v1.0.0-beta.1.md",
+  "tag": "app-v1.0.0-beta.2",
+  "name": "MediaFlowApp v1.0.0 Beta 2 — Logging Recommendation Queue Browser",
+  "notesFile": "docs/releases/app-v1.0.0-beta.2.md",
   "basedOnMediaFlow": "478",
   "releaseType": "beta-preview",
-  "packagingRevision": 2
+  "packagingRevision": 3
 }
