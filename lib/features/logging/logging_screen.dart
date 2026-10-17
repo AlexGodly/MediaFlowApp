@@ -381,6 +381,14 @@ class _LoggingScreenState extends State<LoggingScreen> {
               icon: const Icon(Icons.refresh),
             ),
           ]),
+          if(widget.taskHandoff?.hasRequest==true)...[
+            const SizedBox(height:8),
+            _handoffCard(data),
+          ],
+          if(_taskContext!=null)...[
+            const SizedBox(height:8),
+            _taskContextCard(data),
+          ],
           const SizedBox(height:8),
           NativeLoggingRecommendsCard(
             catalog:data,
@@ -392,14 +400,7 @@ class _LoggingScreenState extends State<LoggingScreen> {
               _details(context,recommended,data);
             },
           ),
-          if(widget.taskHandoff?.hasRequest==true)...[
-            const SizedBox(height:8),
-            _handoffCard(data),
-          ],
-          if(_taskContext!=null)...[
-            const SizedBox(height:8),
-            _taskContextCard(data),
-          ],
+
           if (widget.workspace != null)
             Padding(
               padding: const EdgeInsets.only(top: 6),
