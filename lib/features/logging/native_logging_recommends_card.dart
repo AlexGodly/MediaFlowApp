@@ -328,7 +328,7 @@ class _NativeLoggingRecommendsCardState
               ]),
           ],
           const SizedBox(height:4),
-          Text('Like MediaFlow v478 Logging: adds an exact title to 
+          Text('Like MediaFlow v478 Logging: adds an exact title to '
             'your workspace. Native logs remain local previews; '
             'History, XP and cloud writes are disabled.',
             style:theme.textTheme.bodySmall),
