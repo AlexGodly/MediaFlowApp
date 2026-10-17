@@ -24,6 +24,8 @@ class _NativeLoggingRecommendsCardState
     extends State<NativeLoggingRecommendsCard> {
   late NativeM43RecommendationAudit _audit;
   String categoryId='';
+  bool showQueue=false;
+  List<NativeLoggingRecommendation>? _queueCandidates;
 
   @override
   void initState(){
@@ -46,6 +48,8 @@ class _NativeLoggingRecommendsCardState
     super.didUpdateWidget(old);
     if(!identical(old.catalog,widget.catalog)){
       _audit=NativeM43RecommendationAudit(widget.catalog);
+      showQueue=false;
+      _queueCandidates=null;
       if(!widget.catalog.categories.any((c)=>c.id==categoryId)){
         categoryId=_initialCategory();
       }
@@ -68,6 +72,18 @@ class _NativeLoggingRecommendsCardState
     final title=result.title;
     final already=title!=null&&widget.selectedIds.contains(title.id);
     final cover=title==null?null:_safeCover(title);
+    // Calculate queue evidence only after expansion and only once for
+    // this account snapshot/category, even when selections change. Never
+    // scan a 100k-title Library again for each checkbox interaction.
+    if(showQueue){
+      _queueCandidates??=NativeLoggingRecommendation.browseQueue(
+        widget.catalog,categoryId,audit:_audit,limit:8);
+    }
+    final suggestions=showQueue
+      ? (_queueCandidates??const <NativeLoggingRecommendation>[])
+          .where((entry)=>!widget.selectedIds.contains(entry.title!.id))
+          .take(5).toList(growable:false)
+      : const <NativeLoggingRecommendation>[];
     return Card(
       key:const Key('logging-recommends-card'),
       child:Padding(padding:const EdgeInsets.all(12),
@@ -96,7 +112,11 @@ class _NativeLoggingRecommendsCardState
                     overflow:TextOverflow.ellipsis)),
             ],
             onChanged:(id){
-              if(id!=null){setState(()=>categoryId=id);}
+              if(id!=null){setState((){
+                categoryId=id;
+                showQueue=false;
+                _queueCandidates=null;
+              });}
             },
           ),
           const SizedBox(height:8),
@@ -153,6 +173,66 @@ class _NativeLoggingRecommendsCardState
               const Text('Selected locally · not submitted',
                 key:Key('logging-recommends-selected')),
           ]),
+          const SizedBox(height:8),
+          if(widget.catalog.prioritizePersonalOrder==true)
+            OutlinedButton.icon(
+              key:const Key('logging-browse-queue'),
+              onPressed:()=>setState(()=>showQueue=!showQueue),
+              icon:Icon(showQueue?Icons.expand_less:Icons.format_list_bulleted),
+              label:Text(showQueue?'Hide queue suggestions':
+                'Browse more recommendations'),
+            ),
+          if(showQueue)...[
+            const SizedBox(height:6),
+            const Text('More from Personal Order',
+              key:Key('logging-queue-heading'),
+              style:TextStyle(fontWeight:FontWeight.w600)),
+            const Text('Queue previews, not live task rerolls. '
+              'Selecting one never changes the saved task, History or XP.',
+              key:Key('logging-queue-disclaimer')),
+            if(suggestions.isEmpty)
+              const Padding(
+                padding:EdgeInsets.symmetric(vertical:10),
+                child:Text('No additional verified, unselected queue '
+                  'titles are available for this category.',
+                  key:Key('logging-queue-empty')),
+              ),
+            for(final suggestion in suggestions)
+              Padding(
+                key:ValueKey('logging-queue-row-${suggestion.title!.id}'),
+                padding:const EdgeInsets.symmetric(vertical:3),
+                child:DecoratedBox(
+                  decoration:BoxDecoration(
+                    color:theme.colorScheme.surfaceContainerLow,
+                    borderRadius:BorderRadius.circular(10)),
+                  child:Padding(
+                    padding:const EdgeInsets.fromLTRB(10,8,7,8),
+                    child:Row(children:[
+                      Expanded(child:Column(
+                        crossAxisAlignment:CrossAxisAlignment.start,
+                        children:[
+                          Text(suggestion.title!.title,
+                            maxLines:2,overflow:TextOverflow.ellipsis,
+                            style:theme.textTheme.bodyMedium),
+                          Text('Queue #${suggestion.queuePosition}'
+                            '${suggestion.fromCollection?" · Collection":""}'
+                            ' · ${suggestion.title!.status}',
+                            maxLines:2,overflow:TextOverflow.ellipsis,
+                            style:theme.textTheme.bodySmall),
+                        ],
+                      )),
+                      const SizedBox(width:6),
+                      IconButton(
+                        key:ValueKey('logging-use-queue-${suggestion.title!.id}'),
+                        tooltip:'Use ${suggestion.title!.title} in Logging',
+                        onPressed:()=>widget.onUse(suggestion.title!),
+                        icon:const Icon(Icons.playlist_add_outlined),
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height:4),
           Text('Like MediaFlow v478 Logging: adds an exact title to '
             'your workspace. Native logs remain local previews; '
