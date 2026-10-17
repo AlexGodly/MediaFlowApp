@@ -39,6 +39,10 @@ void main() {
     expect(find.text('Alpha'), findsOneWidget);
     expect(find.text('Beta'), findsOneWidget);
     expect(find.text('Preview selection'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Select visible'), 160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('m51-logging-controls-scroll')),
+        matching: find.byType(Scrollable)));
     await tester.tap(find.text('Select visible'));
     await tester.pump();
     expect(find.textContaining('2 selected'), findsOneWidget);
@@ -51,6 +55,10 @@ void main() {
     expect(find.text('Save'), findsNothing);
     await tester.tap(find.text('Close preview'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Clear selection'), 160,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('m51-logging-controls-scroll')),
+        matching: find.byType(Scrollable)));
     await tester.tap(find.text('Clear selection'));
     await tester.pump();
     expect(find.textContaining('0 selected'), findsOneWidget);
