@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings, curly_braces_in_flow_control_structures
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
@@ -304,7 +305,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       ValueChanged<T> changed) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: DropdownButtonFormField<T>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       decoration: InputDecoration(
         labelText: label, border: const OutlineInputBorder(), isDense: true),
@@ -399,7 +400,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
     final cap = draft.allowedQuantity(title);
     if (cap == 0) return const Text('No remaining units in this season.');
     final selected = draft.currentUnits;
-    final highest = selected.isEmpty ? start : selected.lastKey();
+    final highest = selected.isEmpty ? start : (selected.lastKey() ?? start);
     final displayed = (highest - start + 6).clamp(8, 40);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Wrap(spacing: 7, runSpacing: 6, children: [
