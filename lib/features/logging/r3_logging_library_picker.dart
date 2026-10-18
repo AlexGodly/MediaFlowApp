@@ -298,7 +298,8 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
             },
           ),
           const SizedBox(height: 9),
-          SegmentedButton<R3AddedFilter>(
+          SingleChildScrollView(scrollDirection: Axis.horizontal,
+            child: SegmentedButton<R3AddedFilter>(
             key: const Key('r3-picker-added-filter'),
             showSelectedIcon: false,
             segments: const [
@@ -312,7 +313,7 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
             onSelectionChanged: (v) => setState(() {
               added = v.first; page = 0;
             }),
-          ),
+          )),
           const SizedBox(height: 10),
           Wrap(alignment: WrapAlignment.spaceBetween,
             spacing: 7, runSpacing: 6,
