@@ -17,4 +17,15 @@ if permission not in text:
         raise SystemExit('Generated Android manifest missing <application>')
     text = text.replace(marker, '    ' + permission + '\n    ' + marker, 1)
     manifest.write_text(text, encoding='utf-8')
-print('MediaFlow production website Android INTERNET permission verified')
+# Forge Android WebView uses AndroidX WebKit 1.16 and requires API level 24+.
+for build_file in [
+    Path('android/app/build.gradle.kts'),
+    Path('android/app/build.gradle'),
+]:
+    if not build_file.exists():
+        continue
+    gradle = build_file.read_text(encoding='utf-8')
+    gradle = gradle.replace('minSdk = flutter.minSdkVersion', 'minSdk = 24')
+    gradle = gradle.replace('minSdkVersion flutter.minSdkVersion', 'minSdkVersion 24')
+    build_file.write_text(gradle, encoding='utf-8')
+print('MediaFlow WebView Android INTERNET and min SDK 24 verified')

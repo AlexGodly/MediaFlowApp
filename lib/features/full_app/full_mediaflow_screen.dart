@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_inappwebview_forge/flutter_inappwebview_forge.dart';
 
 /// The production MediaFlow website is the sole authority for business rules,
 /// account changes, History/XP, Logging, and Supabase synchronization.

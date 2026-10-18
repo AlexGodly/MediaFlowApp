@@ -16,6 +16,7 @@ WebView, not 100% native rewritten Flutter parity.
   No duplicate Library, History, XP or native state mutations are added.
 - HTTPS trusted-origin guard, full-screen viewport, mobile back navigation,
   loading indicator, recoverable top-level loading-error screen.
+- Updated to maintained Flutter InAppWebView Forge 2.1.77, Android API 24 minimum and iOS 15 minimum so current platform build tools can compile the WebView implementation.
 - Legacy Flutter native development UI remains selectable with
   `MEDIAFLOW_APP_MODE=native-preview` (cloud writes remain disabled there).
 - Android generated manifests gain INTERNET permission.

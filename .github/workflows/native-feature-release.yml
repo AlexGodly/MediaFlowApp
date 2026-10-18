@@ -117,6 +117,8 @@ jobs:
           python3 -m venv .release-venv
           .release-venv/bin/python -m pip install pillow
           .release-venv/bin/python tool/branding/apply_branding.py --platforms=ios
+      - name: Set supported iOS WebView deployment target
+        run: python3 tool/platform/configure_webview_ios.py
       - name: Resolve and build unsigned iOS app
         run: |
           flutter pub get

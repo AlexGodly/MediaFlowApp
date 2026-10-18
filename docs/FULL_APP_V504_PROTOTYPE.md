@@ -57,3 +57,7 @@ generating the Android project, then `flutter run`. Native-preview only:
 
 Production URL is locked to the personal MediaFlow HTTPS origin. A
 misconfigured `MEDIAFLOW_SITE_URL` falls back to that trusted URL.
+
+## Platform package compatibility
+
+Flutter InAppWebView Forge 2.1.77 replaces the old InAppWebView package, whose bundled Android Gradle script uses a ProGuard default disallowed by modern AGP. The Forge Android package uses the optimized ProGuard default. Android minimum API is 24 and iOS deployment target is 15. The generated templates are patched by `tool/platform/configure_webview_android.py` and `tool/platform/configure_webview_ios.py` respectively. Device validation remains required.
