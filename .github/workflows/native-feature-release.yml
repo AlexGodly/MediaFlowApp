@@ -89,6 +89,7 @@ jobs:
       - name: Resolve and build Windows x64 release
         run: |
           flutter pub get
+          python tool/platform/configure_webview_windows.py
           flutter build windows --release
       - name: Package complete Windows application directory
         shell: pwsh

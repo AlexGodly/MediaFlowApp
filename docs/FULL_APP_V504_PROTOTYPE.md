@@ -61,3 +61,7 @@ misconfigured `MEDIAFLOW_SITE_URL` falls back to that trusted URL.
 ## Platform package compatibility
 
 Flutter InAppWebView Forge 2.1.77 replaces the old InAppWebView package, whose bundled Android Gradle script uses a ProGuard default disallowed by modern AGP. The Forge Android package uses the optimized ProGuard default. Android minimum API is 24 and iOS deployment target is 15. The generated templates are patched by `tool/platform/configure_webview_android.py` and `tool/platform/configure_webview_ios.py` respectively. Device validation remains required.
+
+## Windows compatibility note
+
+Forge 2.1.77 currently publishes a Windows CMake plugin target name that differs from the name expected by Flutter's generated registrant on the October 2026 runner. The Windows build runs an idempotent source-checked compatibility patch in `tool/platform/configure_webview_windows.py` before CMake configuration. This modifies only the runner's local downloaded plugin package, never the MediaFlow website or cloud account.
