@@ -202,7 +202,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   Widget _picker(MediaFlowCatalog catalog) {
     final all = _filtered(catalog);
     final pages = (all.length / _pageSize).ceil();
-    final current = _page.clamp(0, pages > 0 ? pages - 1 : 0);
+    final current = _page.clamp(0, pages > 0 ? pages - 1 : 0).toInt();
     final start = current * _pageSize;
     final visible = all.skip(start).take(_pageSize).toList();
     return _panel('Choose from your Library', Column(children: [
