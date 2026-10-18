@@ -226,8 +226,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                     repository: data,
                     workspace: data is SupabaseMediaFlowLibraryRepository
                         ? data.editingWorkspace : null,
-                    taskHandoff: taskHandoff,
-                    currentOwnerId: preferenceUserId ?? '',
+                    taskHandoff:taskHandoff,
+                    currentOwnerId:preferenceUserId ?? '',
                   ),
                 ),
               )),
