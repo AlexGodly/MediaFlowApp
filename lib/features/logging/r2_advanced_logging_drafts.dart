@@ -36,11 +36,11 @@ class R2DraftTitle {
   void chooseSeason(String id) => seasonId = id;
 
   int startFor(MediaFlowTitle title) {
-    if (seasonId.isEmpty) return title.progress.floor().clamp(0, 100000000);
+    if (seasonId.isEmpty) return title.progress.floor().clamp(0, 100000000).toInt();
     for (var i = 0; i < title.seasons.length; i++) {
       final season = title.seasons[i];
       final key = season.id.isNotEmpty ? season.id : 'season_$i';
-      if (key == seasonId) return season.progress.floor().clamp(0, 100000000);
+      if (key == seasonId) return season.progress.floor().clamp(0, 100000000).toInt();
     }
     return title.progress.floor().clamp(0, 100000000);
   }
@@ -64,7 +64,7 @@ class R2DraftTitle {
   int allowedQuantity(MediaFlowTitle title) {
     final cap = totalFor(title);
     final remaining = cap == null ? 2000 : cap - startFor(title);
-    return remaining.clamp(0, 2000);
+    return remaining.clamp(0, 2000).toInt();
   }
 
   /// Keep timestamps for all surviving unit numbers (v400-style behavior).
@@ -167,6 +167,11 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
       ..clear()
       ..addEntries(ids.map((key) => MapEntry(key, previous[key]!)));
     notifyListeners();
+  }
+
+  void setNote(String id, String value) {
+    final entry = _entries[id];
+    if (entry != null) entry.note = value;
   }
 
   void setKeepTitles(bool value) {
