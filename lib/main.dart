@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app/mediaflow_shell.dart';
 import 'design_system/mediaflow_theme.dart';
 import 'features/auth/auth_gate.dart';
+import 'features/full_app/full_mediaflow_screen.dart';
 import 'services/mediaflow_auth.dart';
 
 Future<void> main() async {
@@ -31,8 +32,10 @@ class MediaFlowApp extends StatelessWidget {
     title: 'MediaFlow',
     debugShowCheckedModeBanner: false,
     theme: MediaFlowTheme.build(MediaFlowAppearance.dark),
-    home: configured
-        ? AuthGate(auth: MediaFlowAuth(Supabase.instance.client))
-        : const MediaFlowShell(),
+    home: const String.fromEnvironment('MEDIAFLOW_APP_MODE') == 'native-preview'
+        ? (configured
+            ? AuthGate(auth: MediaFlowAuth(Supabase.instance.client))
+            : const MediaFlowShell())
+        : const FullMediaFlowScreen(),
   );
 }
