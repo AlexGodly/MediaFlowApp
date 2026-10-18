@@ -121,7 +121,7 @@ class _FullMediaFlowScreenState extends State<FullMediaFlowScreen> {
                 });
               },
               onReceivedError: (controller, request, error) {
-                if (!mounted || !request.isForMainFrame) return;
+                if (!mounted || request.isForMainFrame != true) return;
                 setState(() {
                   _mainFrameFailed = true;
                   _loading = false;
