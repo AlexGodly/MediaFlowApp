@@ -1,5 +1,42 @@
 # MediaFlowApp
 
+## Full MediaFlow interactive application — v504 baseline
+
+**Default application mode:** full live MediaFlow, not the incomplete native
+Logging/Personal Order rewrite. Android, Windows, and iOS use an embedded
+platform WebView to load the **real, complete** personal MediaFlow website at
+`https://alexgodly.github.io/MediaFlow/`. The app uses MediaFlow's actual
+UI, design tokens, current features, application state, original
+authentication, backups and Supabase writer. There is no second Library,
+History, XP or Logging writer in Flutter.
+
+This is an intentionally **hybrid** implementation. It gives an interactive
+full-app prototype and a useful cross-platform app without pretending all
+features have been independently rewritten in Flutter. An embedded WebView
+does not by itself certify that every device capability (downloads,
+clipboard, OAuth popups, offline caching, import/export, file picking) works
+identically to a system browser. Those require real-device testing.
+**Do not call this a 100% verified native implementation.**
+
+The earlier Flutter UI remains available for development via
+`--dart-define=MEDIAFLOW_APP_MODE=native-preview`; it still has **no
+production cloud writes**. The default mode has production writes because
+it runs the actual existing website in its own WebView profile: do not
+experiment with live data unless you intend those website changes.
+Website updates are served from the production URL, so the live interface
+may advance beyond the v504 source baseline.
+
+Platform notes: Android release builds need INTERNET permission; the
+automated packaging script injects it into the generated template.
+Windows needs the Microsoft Edge WebView2 runtime and NuGet for builds.
+iOS uses WKWebView; unsigned iOS archives are not installable on standard
+iPhones without signing. A network connection is expected for first launch;
+existing website PWA caching may work offline but is **not guaranteed**
+inside every embedded WebView.
+
+For QA/review see `docs/FULL_APP_V504_PROTOTYPE.md`.
+
+
 Native Flutter application for Android, iOS, and Windows. The historical parity inventory remains pinned to personal MediaFlow **v410**, while new incremental feature work follows the **latest verified personal MediaFlow** (v478 at the start of the first feature release).
 
 ## New development direction — feature-by-feature releases

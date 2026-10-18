@@ -29,6 +29,8 @@ jobs:
         run: node tool/parity/logging_recommends_guard.mjs
       - name: Verify Beta 3 Logging queue filters and release metadata
         run: node tool/parity/logging_recommends_beta3_guard.mjs
+      - name: Verify full v504 website application integration
+        run: node tool/parity/full_app_v504_guard.mjs
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -56,6 +58,7 @@ jobs:
         run: |
           python3 -m pip install pillow
           python3 tool/branding/apply_branding.py --platforms=android
+          python3 tool/platform/configure_webview_android.py
       - name: Resolve and build debug-signed Android APK
         run: |
           flutter pub get
