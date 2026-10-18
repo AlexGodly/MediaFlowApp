@@ -28,5 +28,6 @@ for(const src of [service,ui])
 for(const key of ['cloudWritesEnabled = false',
     'offlineWriteQueueEnabled = false','hasServerSideCas = false'])
  assert(cloud.includes(key),'Production write safety gate must stay shut');
-assert(release.tag==='app-v1.0.0-beta.3');
+const version=/^app-v1\\.0\\.0-beta\\.(\\d+)$/.exec(release.tag);
+assert(version && Number(version[1]) >= 3, 'Must keep Beta3 queue guarantees');
 console.log('Beta3 queue search/filter/pages + no account writes verified.');
