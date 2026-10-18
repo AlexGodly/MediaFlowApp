@@ -140,7 +140,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
 
   Future<void> _editAmount(R2DraftTitle entry, MediaFlowTitle title,
       {required bool last}) async {
-    final current = last ? entry.startFor(title) + entry.currentUnits.length
+    final current = last ? (entry.currentUnits.lastKey() ?? entry.startFor(title))
         : entry.currentUnits.length;
     final field = TextEditingController(text: current.toString());
     final result = await showDialog<int>(
@@ -170,7 +170,8 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   Widget _stepper(R2DraftTitle draft, MediaFlowTitle title) {
     final last = draft.method == R2LoggingMethod.lastUnit;
     final base = draft.startFor(title);
-    final number = draft.currentUnits.length + (last ? base : 0);
+    final number = last ? (draft.currentUnits.lastKey() ?? base)
+        : draft.currentUnits.length;
     final lower = last ? base : 0;
     final upper = draft.allowedQuantity(title) + (last ? base : 0);
     return Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 7, children: [
