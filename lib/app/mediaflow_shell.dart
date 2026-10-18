@@ -16,6 +16,8 @@ import '../features/collections/collections_screen.dart';
 import '../features/statistics/statistics_screen.dart';
 import '../features/personal_order/personal_order_screen.dart';
 import '../features/logging/logging_screen.dart';
+import '../features/logging/r2_advanced_logging_drafts.dart';
+import '../features/logging/r2_advanced_logging_screen.dart';
 import '../features/library/library_screen.dart';
 import '../design_system/mediaflow_theme.dart';
 import '../design_system/mediaflow_components.dart';
@@ -52,6 +54,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   late final NativeM40CollectionPlan? collectionPlan;
   late final NativeM44PersonalOrderPlan? personalOrderPlan;
   late final NativeM51TaskHandoff? taskHandoff;
+  late final R2AdvancedLoggingDrafts r2Drafts;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
@@ -59,6 +62,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   void initState() {
     super.initState();
     dashboardTools = NativeM36DashboardToolsController();
+    r2Drafts = R2AdvancedLoggingDrafts();
     final ownerId = widget.client?.auth.currentUser?.id;
     libraryPlan = ownerId == null ? null
         : NativeM37LibraryPlan(ownerId: ownerId);
@@ -78,6 +82,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     final current = repository;
     if (current is SupabaseMediaFlowLibraryRepository) current.dispose();
     dashboardTools.dispose();
+    r2Drafts.dispose();
     libraryPlan?.dispose();
     collectionPlan?.dispose();
     personalOrderPlan?.dispose();
@@ -209,12 +214,24 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
         case MediaFlowSection.statistics:
           return StatisticsScreen(repository: data);
         case MediaFlowSection.logging:
-          return LoggingScreen(
+          return R2AdvancedLoggingScreen(
             repository: data,
-            workspace: data is SupabaseMediaFlowLibraryRepository
-                ? data.editingWorkspace : null,
-            taskHandoff:taskHandoff,
-            currentOwnerId:preferenceUserId??'',
+            drafts: r2Drafts,
+            openLegacyBrowser: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => Scaffold(
+                appBar: AppBar(title: const Text('Logging Library Browser')),
+                body: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: LoggingScreen(
+                    repository: data,
+                    workspace: data is SupabaseMediaFlowLibraryRepository
+                        ? data.editingWorkspace : null,
+                    taskHandoff:taskHandoff,
+                    currentOwnerId:preferenceUserId ?? '',
+                  ),
+                ),
+              )),
+            ),
           );
         case MediaFlowSection.personalOrder:
           return PersonalOrderScreen(
