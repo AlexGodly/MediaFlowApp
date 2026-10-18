@@ -1,4 +1,4 @@
-// ignore_for_file: prefer_interpolation_to_compose_strings
+// ignore_for_file: prefer_interpolation_to_compose_strings, curly_braces_in_flow_control_structures
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/mediaflow_models.dart';
@@ -101,8 +101,6 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
     });
     return result;
   }
-
-  void _refresh() => setState(() => page = 0);
 
   void _addTitle(MediaFlowTitle title, Map<String, int> counts) {
     if (counts[title.id] != 1) {
