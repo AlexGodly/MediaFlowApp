@@ -1,8 +1,8 @@
 {
-  "tag": "app-v1.0.0-beta.3",
-  "name": "MediaFlowApp v1.0.0 Beta 3 — Searchable Logging Recommendations",
-  "notesFile": "docs/releases/app-v1.0.0-beta.3.md",
-  "basedOnMediaFlow": "478",
+  "tag": "app-v1.0.0-beta.4",
+  "name": "MediaFlowApp v1.0.0 Beta 4 — Native R2 Advanced Logging",
+  "notesFile": "docs/releases/app-v1.0.0-beta.4.md",
+  "basedOnMediaFlow": "504",
   "releaseType": "beta-preview",
-  "packagingRevision": 4
+  "packagingRevision": 5
 }
