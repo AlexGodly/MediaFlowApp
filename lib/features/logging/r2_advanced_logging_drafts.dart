@@ -155,11 +155,13 @@ class R2DraftTitle {
       if (units != null && units.isNotEmpty) hasSeasonUnits = true;
       sum += contiguous(season.progress.floor(), units?.keys ?? const <int>[]);
     }
-    if (!hasSeasonUnits) {
-      sum += contiguous(title.progress.floor(),
-          _seasonUnits['_whole_title']?.keys ?? const <int>[]);
-    }
-    return sum;
+    final globalIncrement = contiguous(title.progress.floor(),
+        _seasonUnits['_whole_title']?.keys ?? const <int>[]);
+    // Some legacy Library snapshots have an aggregate progress value that
+    // differs from the imported season subtotals. Whole-title logging must
+    // retain the authoritative aggregate as its baseline.
+    if (!hasSeasonUnits) return title.progress.floor() + globalIncrement;
+    return sum + globalIncrement;
   }
 
   bool willReplaceDetailedUnits(MediaFlowTitle title, int amount) {
