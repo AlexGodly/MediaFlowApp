@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'r2_advanced_logging_drafts.dart';
+import 'r3_logging_library_picker.dart';
+import 'native_logging_recommends_card.dart';
 
 /// Native Flutter implementation of the approved R2 Logging design.
 /// It reads the signed-in Library through the existing safe repository.
@@ -23,13 +25,9 @@ class R2AdvancedLoggingScreen extends StatefulWidget {
 
 class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   late Future<MediaFlowCatalog> _future;
-  final TextEditingController _search = TextEditingController();
-  String _query = '';
-  String _category = 'all', _status = 'all', _priority = 'all';
-  String _sort = 'priority-desc';
-  bool _filters = false;
-  int _page = 0;
-  static const int _pageSize = 12;
+  final Map<String, int> _unitPages = {};
+  String _draftSort = 'custom';
+  bool _draftDescending = false;
 
   @override
   void initState() {
@@ -39,72 +37,12 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
 
   @override
   void dispose() {
-    _search.dispose();
     super.dispose();
   }
 
   void _reload() => setState(() {
     _future = widget.repository.reload();
-    _page = 0;
   });
-
-  List<MediaFlowTitle> _filtered(MediaFlowCatalog catalog) {
-    final rows = catalog.library.where((title) {
-      if (_query.isNotEmpty &&
-          !(title.searchText.contains(_query.toLowerCase()))) return false;
-      if (_category != 'all' && title.categoryId != _category) return false;
-      if (_status != 'all' && title.status != _status) return false;
-      if (_priority != 'all' && title.priority != _priority) return false;
-      return true;
-    }).toList();
-    int priority(String value) => const {'low': 0, 'medium': 1, 'high': 2}[value] ?? 1;
-    int compare(MediaFlowTitle a, MediaFlowTitle b) {
-      int cmp = 0;
-      switch (_sort) {
-        case 'title-asc':
-          cmp = a.title.compareTo(b.title);
-          break;
-        case 'title-desc':
-          cmp = b.title.compareTo(a.title);
-          break;
-        case 'priority-asc':
-          cmp = priority(a.priority).compareTo(priority(b.priority));
-          break;
-        case 'rating-desc':
-          cmp = (b.rating ?? 0).compareTo(a.rating ?? 0);
-          break;
-        case 'rating-asc':
-          cmp = (a.rating ?? 0).compareTo(b.rating ?? 0);
-          break;
-        case 'progress-desc':
-          cmp = b.progress.compareTo(a.progress);
-          break;
-        case 'progress-asc':
-          cmp = a.progress.compareTo(b.progress);
-          break;
-        case 'total-desc':
-          cmp = (b.total ?? 0).compareTo(a.total ?? 0);
-          break;
-        case 'total-asc':
-          cmp = (a.total ?? 0).compareTo(b.total ?? 0);
-          break;
-        case 'added-desc':
-          cmp = (b.addedAt ?? DateTime(1970))
-              .compareTo(a.addedAt ?? DateTime(1970));
-          break;
-        case 'added-asc':
-          cmp = (a.addedAt ?? DateTime(1970))
-              .compareTo(b.addedAt ?? DateTime(1970));
-          break;
-        default:
-          cmp = priority(b.priority).compareTo(priority(a.priority));
-          break;
-      }
-      return cmp != 0 ? cmp : a.title.compareTo(b.title);
-    }
-    rows.sort(compare);
-    return rows;
-  }
 
   Widget _panel(String title, Widget child, {String? subtitle, Widget? action}) {
     return Card(
@@ -127,178 +65,6 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
         ]),
       ),
     );
-  }
-
-  Widget _recommendation(MediaFlowCatalog catalog) {
-    final task = catalog.currentTask;
-    final matches = catalog.library.where((title) =>
-        task != null && task.libraryId.isNotEmpty &&
-        title.id == task.libraryId);
-    final exact = matches.isEmpty ? null : matches.first;
-    return _panel('MediaFlow recommends', Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (task == null)
-          const Text('No active recommendation in the current account snapshot.')
-        else if (exact == null) ...[
-          Text(task.title.isEmpty ? 'Category-only task' : task.title),
-          const SizedBox(height: 6),
-          const Text('The saved task does not resolve to an exact Library ID. '
-              'Choose a title manually; name matches are never assumed.'),
-        ] else ...[
-          Row(children: [
-            _cover(exact, catalog, 68),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(exact.title, maxLines: 3, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              Text(_progressText(exact)),
-              const SizedBox(height: 6),
-              if (task.reasons.isNotEmpty)
-                Text(task.reasons.take(3).join(' · '),
-                    style: Theme.of(context).textTheme.bodySmall),
-            ])),
-          ]),
-          const SizedBox(height: 10),
-          FilledButton.tonalIcon(
-            key: const Key('r2-add-recommended'),
-            onPressed: widget.drafts.contains(exact.id) ? null
-                : () => widget.drafts.add(exact),
-            icon: const Icon(Icons.add),
-            label: Text(widget.drafts.contains(exact.id)
-                ? 'Already in session' : 'Add recommended title'),
-          ),
-        ],
-      ],
-    ), subtitle: 'Only exact saved MediaFlow task IDs are actionable.');
-  }
-
-  String _progressText(MediaFlowTitle title) {
-    final current = title.progress.toStringAsFixed(0);
-    final total = title.total?.toStringAsFixed(0) ?? '?';
-    return current + ' / ' + total + ' consumed · ' + title.priority + ' priority';
-  }
-
-  Widget _cover(MediaFlowTitle title, MediaFlowCatalog catalog, double size) {
-    final category = catalog.categoryById[title.categoryId];
-    final url = Uri.tryParse(title.coverUrl);
-    final usable = url != null && (url.scheme == 'https' || url.scheme == 'http');
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(9),
-      child: Container(
-        width: size * .72, height: size,
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: usable
-          ? Image.network(title.coverUrl, fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Center(
-                child: Text(category?.icon ?? '◈',
-                  style: TextStyle(fontSize: size * .42))))
-          : Center(child: Text(category?.icon ?? '◈',
-              style: TextStyle(fontSize: size * .42))),
-      ),
-    );
-  }
-
-  Widget _picker(MediaFlowCatalog catalog) {
-    final all = _filtered(catalog);
-    final pages = (all.length / _pageSize).ceil();
-    final current = _page.clamp(0, pages > 0 ? pages - 1 : 0).toInt();
-    final start = current * _pageSize;
-    final visible = all.skip(start).take(_pageSize).toList();
-    return _panel('Choose from your Library', Column(children: [
-      TextField(
-        key: const Key('r2-library-search'),
-        controller: _search,
-        decoration: const InputDecoration(
-          prefixIcon: Icon(Icons.search),
-          hintText: 'Search your Library titles or tags',
-          border: OutlineInputBorder(),
-          isDense: true,
-        ),
-        onChanged: (value) => setState(() { _query = value.trim(); _page = 0; }),
-      ),
-      const SizedBox(height: 8),
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(
-        onPressed: () => setState(() => _filters = !_filters),
-        icon: Icon(_filters ? Icons.tune : Icons.filter_list),
-        label: Text(_filters ? 'Hide filters & sorting' : 'Filters & sorting'),
-      )),
-      if (_filters) ...[
-        _select('Category', _category, [
-          const DropdownMenuItem(value: 'all', child: Text('All categories')),
-          for (final category in catalog.categories)
-            DropdownMenuItem(value: category.id, child: Text(category.name)),
-        ], (value) => setState(() { _category = value; _page = 0; })),
-        _select('Status', _status, [
-          for (final choice in const ['all','planned','active','paused','completed','dropped'])
-            DropdownMenuItem(value: choice, child: Text(choice == 'all' ? 'All statuses' : choice)),
-        ], (value) => setState(() { _status = value; _page = 0; })),
-        _select('Priority', _priority, [
-          for (final choice in const ['all','high','medium','low'])
-            DropdownMenuItem(value: choice, child: Text(choice == 'all' ? 'All priorities' : choice)),
-        ], (value) => setState(() { _priority = value; _page = 0; })),
-        _select('Sort by', _sort, const [
-          DropdownMenuItem(value: 'priority-desc', child: Text('Priority · high first')),
-          DropdownMenuItem(value: 'priority-asc', child: Text('Priority · low first')),
-          DropdownMenuItem(value: 'title-asc', child: Text('Title · A–Z')),
-          DropdownMenuItem(value: 'title-desc', child: Text('Title · Z–A')),
-          DropdownMenuItem(value: 'rating-desc', child: Text('Rating · highest')),
-          DropdownMenuItem(value: 'rating-asc', child: Text('Rating · lowest')),
-          DropdownMenuItem(value: 'progress-desc', child: Text('Progress · most')),
-          DropdownMenuItem(value: 'progress-asc', child: Text('Progress · least')),
-          DropdownMenuItem(value: 'total-desc', child: Text('Total · highest')),
-          DropdownMenuItem(value: 'total-asc', child: Text('Total · lowest')),
-          DropdownMenuItem(value: 'added-desc', child: Text('Date added · newest')),
-          DropdownMenuItem(value: 'added-asc', child: Text('Date added · oldest')),
-        ], (value) => setState(() { _sort = value; _page = 0; })),
-        Align(alignment: Alignment.centerRight, child: TextButton(
-          onPressed: () => setState(() {
-            _category = 'all'; _status = 'all';
-            _priority = 'all'; _sort = 'priority-desc'; _page = 0;
-          }),
-          child: const Text('Reset filters'),
-        )),
-      ],
-      for (final title in visible)
-        ListTile(
-          key: ValueKey('r2-library-' + title.id),
-          contentPadding: EdgeInsets.zero,
-          leading: _cover(title, catalog, 52),
-          title: Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-          subtitle: Text(_progressText(title), maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          trailing: IconButton(
-            tooltip: widget.drafts.contains(title.id) ? 'Added' : 'Add to draft',
-            onPressed: widget.drafts.contains(title.id) ? null
-              : () => widget.drafts.add(title),
-            icon: Icon(widget.drafts.contains(title.id)
-                ? Icons.check_circle_outline : Icons.add_circle_outline),
-          ),
-          onTap: () => widget.drafts.add(title),
-        ),
-      if (visible.isEmpty) const Padding(
-        padding: EdgeInsets.symmetric(vertical: 22),
-        child: Text('No titles match these filters.'),
-      ),
-      if (pages > 1)
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          IconButton(
-            tooltip: 'Previous page',
-            onPressed: current == 0 ? null
-                : () => setState(() => _page = current - 1),
-            icon: const Icon(Icons.chevron_left),
-          ),
-          Text('Page ' + (current + 1).toString() +
-              ' / ' + pages.toString() + ' · ' + all.length.toString() + ' titles'),
-          IconButton(
-            tooltip: 'Next page',
-            onPressed: current >= pages - 1 ? null
-                : () => setState(() => _page = current + 1),
-            icon: const Icon(Icons.chevron_right),
-          ),
-        ]),
-    ]), subtitle: all.length.toString() + ' matching titles · full account Library');
   }
 
   Widget _select<T>(String label, T value, List<DropdownMenuItem<T>> options,
@@ -638,7 +404,19 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   Widget _loaded(MediaFlowCatalog catalog) {
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 950;
-      final left = Column(children: [_recommendation(catalog), _picker(catalog)]);
+      final left = Column(children: [
+        NativeLoggingRecommendsCard(
+          key: const Key('beta5-recommendations'),
+          catalog: catalog,
+          selectedIds: widget.drafts.entries.map((draft) => draft.titleId).toSet(),
+          onUse: widget.drafts.add,
+        ),
+        R3LoggingLibraryPicker(
+          key: const Key('beta5-library-picker'),
+          catalog: catalog,
+          drafts: widget.drafts,
+        ),
+      ]);
       final right = _session(catalog);
       return ListView(children: [
         Wrap(alignment: WrapAlignment.spaceBetween, spacing: 8, runSpacing: 6,
