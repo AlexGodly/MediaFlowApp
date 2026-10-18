@@ -31,6 +31,10 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
   bool toolsOpen = false;
   int page = 0, perPage = 12;
   double coverHeight = 75;
+  MediaFlowCatalog? _cachedCatalog;
+  Map<String, int>? _cachedIdCounts;
+  List<MediaFlowTitle>? _cachedResults;
+  String? _cachedResultsKey;
 
   @override
   void dispose() {
@@ -44,6 +48,10 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
     super.didUpdateWidget(old);
     if (!identical(old.catalog, widget.catalog)) {
       chosen.clear();
+      _cachedCatalog = null;
+      _cachedIdCounts = null;
+      _cachedResults = null;
+      _cachedResultsKey = null;
       page = 0;
       if (!widget.catalog.categories.any((cat) => cat.id == category)) {
         category = 'all';
@@ -54,10 +62,14 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
   bool _added(MediaFlowTitle title) => widget.drafts.contains(title.id);
 
   Map<String, int> get _idCounts {
+    if (identical(_cachedCatalog, widget.catalog) &&
+        _cachedIdCounts != null) return _cachedIdCounts!;
     final counts = <String, int>{};
     for (final title in widget.catalog.library) {
       counts[title.id] = (counts[title.id] ?? 0) + 1;
     }
+    _cachedCatalog = widget.catalog;
+    _cachedIdCounts = counts;
     return counts;
   }
 
@@ -65,6 +77,12 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
       const {'low': 0, 'medium': 1, 'high': 2}[value] ?? 1;
 
   List<MediaFlowTitle> get _results {
+    final key = '$query|$category|$status|$priority|$sort|$added|'
+        '${widget.drafts.entries.map((entry) => entry.titleId).join(",")}';
+    if (identical(_cachedCatalog, widget.catalog) &&
+        _cachedResultsKey == key && _cachedResults != null) {
+      return _cachedResults!;
+    }
     final word = query.toLowerCase().trim();
     final result = widget.catalog.library.where((title) {
       if (title.id.isEmpty) return false;
@@ -99,6 +117,9 @@ class _R3LoggingLibraryPickerState extends State<R3LoggingLibraryPicker> {
       return n == 0 ? a.title.toLowerCase().compareTo(b.title.toLowerCase())
           : n * dir;
     });
+    _cachedCatalog = widget.catalog;
+    _cachedResultsKey = key;
+    _cachedResults = result;
     return result;
   }
 
