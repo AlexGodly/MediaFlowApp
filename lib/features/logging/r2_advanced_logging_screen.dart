@@ -99,6 +99,45 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
     });
   }
 
+  Future<bool> _confirmDetailedChange(R2DraftTitle draft,
+      MediaFlowTitle title, int quantity) async {
+    if (!draft.willReplaceDetailedUnits(title, quantity)) return true;
+    final approved = await showDialog<bool>(context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Replace detailed unit selection?'),
+        content: const Text('These units contain a nonconsecutive selection, '
+          'different timestamps, or custom runtimes. Changing the quantity '
+          'will rebuild the current season’s unit list. Units in other '
+          'seasons remain untouched. Continue?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Keep original units')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Replace units')),
+        ],
+      ),
+    );
+    return approved == true;
+  }
+
+  Future<void> _applyQuantity(R2DraftTitle draft, MediaFlowTitle title,
+      int value, {required bool last}) async {
+    final quantity = last ? value - draft.startFor(title) : value;
+    if (quantity < 0 || quantity > draft.allowedQuantity(title)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Value must be between ${last ? draft.startFor(title) : 0} '
+          'and ${(last ? draft.startFor(title) : 0) + draft.allowedQuantity(title)}.'),
+      ));
+      return;
+    }
+    if (quantity != draft.currentUnits.length &&
+        !await _confirmDetailedChange(draft, title, quantity)) return;
+    widget.drafts.update(draft.titleId, (entry) {
+      if (last) { entry.setLastUnit(title, value); }
+      else { entry.setAmount(title, value); }
+    });
+  }
+
   Future<void> _editAmount(R2DraftTitle entry, MediaFlowTitle title,
       {required bool last}) async {
     final current = last ? entry.startFor(title) + entry.currentUnits.length
@@ -123,11 +162,9 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       ),
     );
     field.dispose();
-    if (result == null) return;
-    widget.drafts.update(entry.titleId, (draft) {
-      if (last) { draft.setLastUnit(title, result); }
-      else { draft.setAmount(title, result); }
-    });
+    if (result != null && mounted) {
+      await _applyQuantity(entry, title, result, last: last);
+    }
   }
 
   Widget _stepper(R2DraftTitle draft, MediaFlowTitle title) {
@@ -136,14 +173,11 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
     final number = draft.currentUnits.length + (last ? base : 0);
     final lower = last ? base : 0;
     final upper = draft.allowedQuantity(title) + (last ? base : 0);
-    void set(int value) => widget.drafts.update(draft.titleId, (entry) {
-      if (last) { entry.setLastUnit(title, value); }
-      else { entry.setAmount(title, value); }
-    });
     return Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 7, children: [
       OutlinedButton.icon(
         key: ValueKey('r2-minus-' + draft.titleId),
-        onPressed: number <= lower ? null : () => set(number - 1),
+        onPressed: number <= lower ? null
+            : () => _applyQuantity(draft, title, number - 1, last: last),
         icon: const Icon(Icons.remove, size: 16),
         label: const Text('Less'),
       ),
@@ -154,38 +188,136 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       ),
       FilledButton.tonalIcon(
         key: ValueKey('r2-plus-' + draft.titleId),
-        onPressed: number >= upper ? null : () => set(number + 1),
+        onPressed: number >= upper ? null
+            : () => _applyQuantity(draft, title, number + 1, last: last),
         icon: const Icon(Icons.add, size: 16),
         label: const Text('More'),
       ),
     ]);
   }
 
+  Future<void> _editUnitRuntime(R2DraftTitle draft, int unit) async {
+    final field = TextEditingController(
+        text: draft.secondsForUnit(unit).toString());
+    final result = await showDialog<int>(context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('Runtime for unit $unit'),
+        content: TextField(
+          controller: field, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Seconds', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, int.tryParse(field.text)),
+            child: const Text('Save')),
+        ],
+      ));
+    field.dispose();
+    if (result != null && mounted) {
+      widget.drafts.update(draft.titleId,
+        (entry) => entry.setUnitSeconds(unit, result));
+    }
+  }
+
   Widget _units(R2DraftTitle draft, MediaFlowTitle title) {
     final start = draft.startFor(title);
     final cap = draft.allowedQuantity(title);
-    if (cap == 0) return const Text('No remaining units in this season.');
-    final selected = draft.currentUnits;
-    final highest = selected.isEmpty ? start : (selected.lastKey() ?? start);
-    final displayed = (highest - start + 6).clamp(8, 40);
+    if (cap == 0) return const Text('No units available in this season.');
+    final pageKey = '${draft.titleId}:${draft.seasonKey}';
+    final pages = (cap + 29) ~/ 30;
+    final page = (_unitPages[pageKey] ?? 0).clamp(0, pages - 1).toInt();
+    final chosen = draft.currentUnits;
+    final firstOffset = page * 30 + 1;
+    final lastOffset = (firstOffset + 29).clamp(1, cap).toInt();
+    final selected = chosen.keys.toList();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Wrap(spacing: 6, runSpacing: 5, children: [
+        OutlinedButton.icon(
+          onPressed: draft.quantityForSeason(draft.seasonKey) >= cap ? null
+              : () {
+                  final next = chosen.isEmpty ? start + 1
+                      : (chosen.lastKey() ?? start) + 1;
+                  if (next > start + cap) return;
+                  widget.drafts.update(draft.titleId,
+                    (entry) => entry.toggleUnit(title, next));
+                  setState(() => _unitPages[pageKey] =
+                      ((next - start - 1) ~/ 30));
+                },
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Next unit'),
+        ),
+        OutlinedButton.icon(
+          onPressed: selected.isEmpty ? null : () => widget.drafts.update(
+            draft.titleId, (entry) => entry.toggleUnit(title, selected.last)),
+          icon: const Icon(Icons.remove, size: 16),
+          label: const Text('Remove last'),
+        ),
+        TextButton(
+          onPressed: () => _applyQuantity(draft, title, 0, last: false),
+          child: const Text('Clear season'),
+        ),
+      ]),
+      const SizedBox(height: 6),
+      Text('Select individual units · page ${page + 1} of $pages'),
       Wrap(spacing: 7, runSpacing: 6, children: [
-        for (var offset = 1; offset <= displayed && offset <= cap; offset++)
+        for (var offset = firstOffset; offset <= lastOffset; offset++)
           InputChip(
-            key: ValueKey('r2-unit-' + draft.titleId + '-' + offset.toString()),
-            selected: selected.containsKey(start + offset),
+            key: ValueKey('r2-unit-${draft.titleId}-${start + offset}'),
+            selected: chosen.containsKey(start + offset),
             label: Text((start + offset).toString()),
             onPressed: () => widget.drafts.update(draft.titleId,
               (entry) => entry.toggleUnit(title, start + offset)),
-            onDeleted: selected.containsKey(start + offset)
+            onDeleted: chosen.containsKey(start + offset)
                 ? () => _chooseTime(draft, unit: start + offset) : null,
             deleteIcon: const Icon(Icons.schedule, size: 16),
             deleteButtonTooltipMessage: 'Edit unit timestamp',
           ),
       ]),
-      const SizedBox(height: 7),
-      const Text('Tap a unit to select it. Use its clock icon to edit the '
-          'individual logged-at timestamp.'),
+      if (pages > 1) Row(children: [
+        IconButton(
+          tooltip: 'Previous 30 units',
+          onPressed: page == 0 ? null
+              : () => setState(() => _unitPages[pageKey] = page - 1),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        Expanded(child: Text('Units ${start + firstOffset}–${start + lastOffset}',
+          textAlign: TextAlign.center)),
+        IconButton(
+          tooltip: 'Next 30 units',
+          onPressed: page >= pages - 1 ? null
+              : () => setState(() => _unitPages[pageKey] = page + 1),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ]),
+      if (selected.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text('Selected unit details',
+          style: Theme.of(context).textTheme.titleSmall),
+        for (final number in selected.reversed.take(5))
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text('Unit $number · ${draft.secondsForUnit(number)} seconds'),
+            subtitle: Text(chosen[number]!.toLocal().toString()),
+            trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: 'Edit unit runtime',
+                icon: const Icon(Icons.timer_outlined),
+                onPressed: () => _editUnitRuntime(draft, number),
+              ),
+              IconButton(
+                tooltip: 'Edit logged-at date',
+                icon: const Icon(Icons.event_outlined),
+                onPressed: () => _chooseTime(draft, unit: number),
+              ),
+            ]),
+          ),
+        if (selected.length > 5)
+          Text('Showing 5 newest selections of ${selected.length}. '
+            'All selected units remain in your draft.'),
+      ],
     ]);
   }
 
