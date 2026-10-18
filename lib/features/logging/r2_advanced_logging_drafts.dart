@@ -45,7 +45,7 @@ class R2DraftTitle {
       final key = season.id.isNotEmpty ? season.id : 'season_$i';
       if (key == seasonId) return season.progress.floor().clamp(0, 100000000).toInt();
     }
-    return title.progress.floor().clamp(0, 100000000);
+    return title.progress.floor().clamp(0, 100000000).toInt();
   }
 
   int startFor(MediaFlowTitle title) =>
