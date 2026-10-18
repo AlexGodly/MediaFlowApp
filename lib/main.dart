@@ -163,7 +163,7 @@ class _SignInPageState extends State<SignInPage> {
             Text('Uses your existing account. No new library or database is created.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center),
-          ])))))),
+          ]))))),
     ));
 }
 
