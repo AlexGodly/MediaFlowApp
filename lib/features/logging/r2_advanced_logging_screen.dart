@@ -321,6 +321,53 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
     ]);
   }
 
+  Future<void> _editTotalRuntime(R2DraftTitle draft) async {
+    final field = TextEditingController(
+        text: draft.effectiveRuntimeSeconds.toString());
+    final result = await showDialog<int>(
+      context: context, builder: (dialog) => AlertDialog(
+        title: const Text('Custom total runtime'),
+        content: TextField(
+          controller: field, keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Total seconds (all selected units)',
+            border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialog,
+              int.tryParse(field.text)), child: const Text('Save runtime')),
+        ],
+      ),
+    );
+    field.dispose();
+    if (result == null || result < 0 || !mounted) return;
+    widget.drafts.update(draft.titleId, (value) {
+      value.manualRuntime = true;
+      value.customTotalRuntimeSeconds = result;
+    });
+  }
+
+  Widget _titleCover(MediaFlowTitle title, MediaFlowCatalog catalog) {
+    final raw = title.coverUrl.trim();
+    final uri = Uri.tryParse(raw);
+    final icon = catalog.categoryById[title.categoryId]?.icon ?? '◈';
+    Widget fallback() => Center(child: Text(icon,
+        style: const TextStyle(fontSize: 28)));
+    final valid = uri != null && (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host.isNotEmpty && uri.userInfo.isEmpty;
+    return ClipRRect(borderRadius: BorderRadius.circular(9),
+      child: SizedBox(width: 56, height: 78,
+        child: ColoredBox(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: valid ? Image.network(raw, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => fallback()) : fallback(),
+        ),
+      ),
+    );
+  }
+
   Widget _editor(R2DraftTitle draft, MediaFlowTitle title,
       MediaFlowCatalog catalog) {
     final start = draft.startFor(title);
@@ -331,6 +378,19 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
     return _panel(title.title, Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _titleCover(title, catalog),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title.title, maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium),
+              Text(catalog.categoryById[title.categoryId]?.name ?? 'Library'),
+              Text('Saved: ${title.progress.floor()} / ${title.total?.floor() ?? "?"}',
+                style: Theme.of(context).textTheme.bodySmall),
+            ])),
+        ]),
+        const SizedBox(height: 9),
         Wrap(spacing: 8, runSpacing: 4, children: [
           Chip(label: Text(title.priority + ' priority')),
           Chip(label: Text(title.status)),
@@ -371,9 +431,9 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           _stepper(draft, title),
         ],
         const SizedBox(height: 14),
-        Text('Progress preview · ' + title.progress.floor().toString() +
-            ' → ' + after.toString() +
-            (total == null ? '' : ' / ' + total.toString())),
+        Text('Progress preview · ${title.progress.floor()} → $after'
+            '${total == null ? '' : ' / $total'} · +${after - title.progress.floor()}'
+            ' progress · ${draft.quantity} consumed'),
         const SizedBox(height: 6),
         LinearProgressIndicator(value: total == null ? null : safePercent,
           minHeight: 6, borderRadius: BorderRadius.circular(12)),
@@ -393,7 +453,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           ),
         ]),
         Row(children: [
-          const Text('Runtime (min)'),
+          const Text('Per-unit min'),
           const SizedBox(width: 8),
           IconButton(
             onPressed: draft.runtimeMinutes == 0 ? null
@@ -408,6 +468,25 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             icon: const Icon(Icons.add_circle_outline),
           ),
         ]),
+        SwitchListTile.adaptive(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Manual total runtime'),
+          subtitle: Text('Effective runtime: ${draft.effectiveRuntimeSeconds} seconds'),
+          value: draft.manualRuntime,
+          onChanged: (checked) => widget.drafts.update(draft.titleId, (entry) {
+            entry.manualRuntime = checked;
+            if (checked && entry.customTotalRuntimeSeconds == 0) {
+              entry.customTotalRuntimeSeconds = entry.automaticRuntimeSeconds;
+            }
+          }),
+        ),
+        if (draft.manualRuntime)
+          OutlinedButton.icon(
+            onPressed: () => _editTotalRuntime(draft),
+            icon: const Icon(Icons.timer_outlined),
+            label: Text('Edit manual total · ${draft.customTotalRuntimeSeconds}s'),
+          ),
+        const SizedBox(height: 8),
         TextFormField(
           key: ValueKey('r2-note-' + title.id),
           initialValue: draft.note,
@@ -420,7 +499,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           onChanged: (value) => widget.drafts.setNote(draft.titleId, value),
         ),
         const SizedBox(height: 7),
-        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+        Wrap(alignment: WrapAlignment.end, children: [
           IconButton(
             tooltip: 'Move up', onPressed: () => widget.drafts.move(title.id, -1),
             icon: const Icon(Icons.arrow_upward)),
