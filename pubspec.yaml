@@ -1,7 +1,7 @@
 name: mediaflow_app
-description: Native Flutter application for MediaFlow
+description: MediaFlow native fresh start — cloud sign-in and Logging only
 publish_to: none
-version: 410.0.1+411
+version: 0.1.0+1
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -10,11 +10,6 @@ dependencies:
   flutter:
     sdk: flutter
   supabase_flutter: ^2.9.0
-  shared_preferences: ^2.5.3
-  path_provider: ^2.1.5
-  crypto: ^3.0.6
-  cryptography: ^2.9.0
-  flutter_secure_storage: ^10.3.4
 
 dev_dependencies:
   flutter_test:
@@ -23,5 +18,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/branding/mediaflow-launcher-512.png
