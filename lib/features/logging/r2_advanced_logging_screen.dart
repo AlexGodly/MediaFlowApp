@@ -592,6 +592,47 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             onPressed: entries.isEmpty ? null : _clear),
         ]),
         const SizedBox(height: 9),
+        if (entries.length > 1) ...[
+          DropdownButtonFormField<String>(
+            key: const Key('r3-logging-draft-sort'),
+            initialValue: _draftSort,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Sort added titles',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'custom', child: Text('Custom order · drag / arrows')),
+              DropdownMenuItem(value: 'logAdded', child: Text('Added to Logging')),
+              DropdownMenuItem(value: 'progress', child: Text('Current progress')),
+              DropdownMenuItem(value: 'total', child: Text('Total episodes / chapters')),
+              DropdownMenuItem(value: 'priority', child: Text('Priority')),
+              DropdownMenuItem(value: 'title', child: Text('Alphabetical')),
+              DropdownMenuItem(value: 'added', child: Text('Date added to Library')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _draftSort = value);
+              widget.drafts.sortBy(value, titles,
+                  descending: _draftDescending);
+            },
+          ),
+          Row(children: [
+            TextButton.icon(
+              onPressed: _draftSort == 'custom' ? null : () {
+                setState(() => _draftDescending = !_draftDescending);
+                widget.drafts.sortBy(_draftSort, titles,
+                    descending: _draftDescending);
+              },
+              icon: const Icon(Icons.swap_vert),
+              label: Text(_draftDescending ? 'Descending' : 'Ascending'),
+            ),
+            const Spacer(),
+            Text('${entries.length} titles'),
+          ]),
+          const SizedBox(height: 7),
+        ],
         if (entries.isEmpty)
           const Padding(padding: EdgeInsets.all(20),
             child: Text('Add a recommended title or choose one from your Library '
@@ -637,7 +678,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             icon: const Icon(Icons.refresh), label: const Text('Refresh Library')),
         ]),
         const SizedBox(height: 4),
-        Text('Native R2 · based on MediaFlow v504 · Advanced Logging first',
+        Text('Native Beta 5 · MediaFlow v505 · Advanced Logging with full selection tools',
           style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
         Card(color: Theme.of(context).colorScheme.secondaryContainer,
