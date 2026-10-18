@@ -302,7 +302,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             dense: true,
             title: Text('Unit $number · ${draft.secondsForUnit(number)} seconds'),
             subtitle: Text(chosen[number]!.toLocal().toString()),
-            trailing: Wrap(mainAxisSize: MainAxisSize.min, children: [
+            trailing: Wrap(spacing: 0, children: [
               IconButton(
                 tooltip: 'Edit unit runtime',
                 icon: const Icon(Icons.timer_outlined),
