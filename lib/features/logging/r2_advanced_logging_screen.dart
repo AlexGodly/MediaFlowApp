@@ -62,30 +62,42 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       switch (_sort) {
         case 'title-asc':
           cmp = a.title.compareTo(b.title);
+          break;
         case 'title-desc':
           cmp = b.title.compareTo(a.title);
+          break;
         case 'priority-asc':
           cmp = priority(a.priority).compareTo(priority(b.priority));
+          break;
         case 'rating-desc':
           cmp = (b.rating ?? 0).compareTo(a.rating ?? 0);
+          break;
         case 'rating-asc':
           cmp = (a.rating ?? 0).compareTo(b.rating ?? 0);
+          break;
         case 'progress-desc':
           cmp = b.progress.compareTo(a.progress);
+          break;
         case 'progress-asc':
           cmp = a.progress.compareTo(b.progress);
+          break;
         case 'total-desc':
           cmp = (b.total ?? 0).compareTo(a.total ?? 0);
+          break;
         case 'total-asc':
           cmp = (a.total ?? 0).compareTo(b.total ?? 0);
+          break;
         case 'added-desc':
           cmp = (b.addedAt ?? DateTime(1970))
               .compareTo(a.addedAt ?? DateTime(1970));
+          break;
         case 'added-asc':
           cmp = (a.addedAt ?? DateTime(1970))
               .compareTo(b.addedAt ?? DateTime(1970));
+          break;
         default:
           cmp = priority(b.priority).compareTo(priority(a.priority));
+          break;
       }
       return cmp != 0 ? cmp : a.title.compareTo(b.title);
     }
@@ -426,7 +438,8 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           Chip(label: Text(draft.quantity.toString() + ' draft units')),
         ]),
         const SizedBox(height: 7),
-        SegmentedButton<R2LoggingMethod>(
+        SingleChildScrollView(scrollDirection: Axis.horizontal,
+          child: SegmentedButton<R2LoggingMethod>(
           showSelectedIcon: false,
           multiSelectionEnabled: false,
           segments: const [
@@ -437,7 +450,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           selected: {draft.method},
           onSelectionChanged: (methods) => widget.drafts.update(
             draft.titleId, (entry) => entry.chooseMethod(methods.first)),
-        ),
+        )),
         const SizedBox(height: 12),
         if (title.seasons.isNotEmpty) _select<String>('Season',
           draft.seasonId, [
@@ -505,8 +518,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             isDense: true,
           ),
           maxLines: 2,
-          onChanged: (value) => draft.note = value,
-          onEditingComplete: () => widget.drafts.notifyListeners(),
+          onChanged: (value) => widget.drafts.setNote(draft.titleId, value),
         ),
         const SizedBox(height: 7),
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
