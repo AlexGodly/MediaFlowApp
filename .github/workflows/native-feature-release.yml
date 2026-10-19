@@ -27,6 +27,8 @@ jobs:
           PY
       - name: Check recommendation safety and production write gates
         run: node tool/parity/logging_recommends_guard.mjs
+      - name: Guard real native cloud Logging draft isolation
+        run: node tool/parity/native_logging_drafts_guard.mjs
       - name: Verify Beta 3 Logging queue filters and release metadata
         run: node tool/parity/logging_recommends_beta3_guard.mjs
       - uses: subosito/flutter-action@v2
