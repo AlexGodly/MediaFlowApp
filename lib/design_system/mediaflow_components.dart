@@ -7,10 +7,29 @@ class MfPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   @override
-  Widget build(BuildContext context) => Card(
-    margin: EdgeInsets.zero,
-    child: Padding(padding: padding, child: child),
-  );
+  Widget build(BuildContext context) {
+    final t = MediaFlowTokens.of(context);
+    final light = Theme.of(context).brightness == Brightness.light;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [t.panel, Color.alphaBlend(
+            t.raised.withValues(alpha: light ? 0.24 : 0.50), t.panel)],
+        ),
+        border: Border.all(color: t.borderSoft),
+        borderRadius: BorderRadius.circular(MediaFlowRadius.large),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: light ? 0.045 : 0.16),
+            blurRadius: 21, offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(padding: padding, child: child),
+    );
+  }
 }
 
 class MfPageHeader extends StatelessWidget {
@@ -24,6 +43,14 @@ class MfPageHeader extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
+      Container(
+        width: 3, height: 38,
+        decoration: BoxDecoration(
+          color: MediaFlowTokens.of(context).accent,
+          borderRadius: BorderRadius.circular(3),
+        ),
+      ),
+      const SizedBox(width: 12),
       if (leading != null) ...[leading!, const SizedBox(width: MediaFlowSpacing.xs)],
       Expanded(child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
