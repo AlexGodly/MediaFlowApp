@@ -53,9 +53,10 @@ class MediaFlowShell extends StatefulWidget {
   State<MediaFlowShell> createState() => _MediaFlowShellState();
 }
 
-class _MediaFlowShellState extends State<MediaFlowShell> {
+class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObserver {
   MediaFlowSection selected = MediaFlowSection.dashboard;
   int _refreshEpoch = 0;
+  DateTime? _lastForegroundRead;
   MediaFlowAppearance appearance = MediaFlowAppearance.dark;
   final NativePreferences preferences = NativePreferences();
   late final MediaFlowLibraryRepository? repository;
@@ -71,6 +72,8 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _lastForegroundRead = DateTime.now();
     dashboardTools = NativeM36DashboardToolsController();
     r2Drafts = R2AdvancedLoggingDrafts();
     final ownerId = widget.client?.auth.currentUser?.id;
@@ -89,6 +92,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     final current = repository;
     if (current is SupabaseMediaFlowLibraryRepository) current.dispose();
     dashboardTools.dispose();
@@ -98,6 +102,20 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     personalOrderPlan?.dispose();
     taskHandoff?.dispose();
     super.dispose();
+  }
+
+  /// Resume refresh is read-only, bounded and never replaces an active edit
+  /// surface. It does not upload drafts or synchronize cloud writes.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || repository == null) return;
+    final now = DateTime.now();
+    if (_lastForegroundRead != null &&
+        now.difference(_lastForegroundRead!) < const Duration(minutes: 15)) {
+      return;
+    }
+    _lastForegroundRead = now;
+    unawaited(_syncCurrentPage(silent: true));
   }
 
   Future<void> _restoreAppearance() async {
@@ -131,13 +149,20 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     MediaFlowSection.personalOrder,
   ];
 
-  Future<void> _syncCurrentPage() async {
+  Future<void> _syncCurrentPage({bool silent = false}) async {
     final data = repository;
     if (data == null) return;
     try {
       await data.reload();
       if (!mounted) return;
-      setState(() => _refreshEpoch++);
+      // Never unmount an in-progress form during an automatic foreground read.
+      final draftSurface = selected == MediaFlowSection.logging ||
+          selected == MediaFlowSection.library ||
+          selected == MediaFlowSection.collections ||
+          selected == MediaFlowSection.personalOrder ||
+          selected == MediaFlowSection.settings;
+      if (!silent || !draftSurface) setState(() => _refreshEpoch++);
+      if (silent) return;
       final cloud = data is SupabaseMediaFlowLibraryRepository &&
           nativeCloudSourceOnline(data.source.value);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -146,7 +171,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
             : 'Cloud unavailable; showing a protected device copy.'),
       ));
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || silent) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Cloud refresh failed; no account data was overwritten.')));
     }
