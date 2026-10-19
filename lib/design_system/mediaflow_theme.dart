@@ -339,7 +339,26 @@ abstract final class MediaFlowTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colors.raised,
         contentTextStyle: TextStyle(color: colors.text),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MediaFlowRadius.medium),
+          side: BorderSide(color: colors.border),
+        ),
       ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(
+          colors.accent.withValues(alpha: 0.35)),
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.all(6),
+      ),
+      dividerTheme: DividerThemeData(color: colors.borderSoft, thickness: 1),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      }),
     );
   }
 }
