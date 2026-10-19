@@ -31,13 +31,15 @@ void main() {
     expect(find.text('Collections'), findsWidgets);
   });
 
-  testWidgets('tablet shows scrollable full navigation rail', (tester) async {
+  testWidgets('v507 tablet uses bottom navigation, not desktop rail', (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await size(tester, 820, 560);
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(find.byKey(const Key('tablet-navigation-rail')), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    expect(find.text('Fresh Episodes'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
