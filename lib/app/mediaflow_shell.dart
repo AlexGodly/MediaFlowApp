@@ -289,6 +289,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
             appearance: appearance,
             repository: data,
             nativeRepository: data is SupabaseMediaFlowLibraryRepository ? data : null,
+            onCloudRefresh: () => unawaited(_syncCurrentPage()),
             onAppearanceChanged: (value) => unawaited(_changeAppearance(value)),
           );
         case MediaFlowSection.collections:
