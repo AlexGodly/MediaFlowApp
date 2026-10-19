@@ -119,10 +119,12 @@ class NativeSettingsScreen extends StatelessWidget {
             'access to your existing Supabase account. Refreshing a view '
             'reloads the original cloud snapshot.'),
         const SizedBox(height: 8),
-        const Text('Local title and logging drafts are available, but '
-            'saving them to cloud, awarding XP and updating History, '
-            'automatic offline synchronization, imports and backup '
-            'restoration are not enabled yet. '
+        const Text('Advanced Logging drafts can be automatically saved '
+            'and restored in a separate owner-scoped Supabase table. '
+            'This does not submit watched/read consumption. '
+            'Saving Library changes, writing History, awarding XP, '
+            'restoring full backups and full website-compatible '
+            'cloud mutation sync are not enabled. '
             'The original MediaFlow website remains authoritative.'),
       ]))),
   ]);
