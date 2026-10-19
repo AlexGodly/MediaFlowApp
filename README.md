@@ -1,6 +1,10 @@
 # MediaFlowApp
 
-## Current feature release: Beta 7 (MediaFlow v507 reference)
+## Current feature release: Beta 8 — account-owned cloud Logging drafts (MediaFlow v507)
+
+[Beta 8 implementation and limitations](docs/releases/app-v1.0.0-beta.8.md). Advanced Logging drafts now have an actual separate, RLS-protected Supabase store, lossless itemized draft restore, automatic and manual Save, and cross-device revision conflict protection. The native app still does **not** submit consumption History, XP, tasks or overwrite the website's authoritative Library. The newly added `mediaflow_native_logging_drafts` table has no pathway into `mediaflow_states`; this is a functional cloud draft backup, not complete account sync.
+
+## Previous feature release: Beta 7 (MediaFlow v507 reference)
 
 [Native experience and cloud safety audit](docs/BETA7_NATIVE_EXPERIENCE_AUDIT.md) · [Beta 7 release notes](docs/releases/app-v1.0.0-beta.7.md)
 
