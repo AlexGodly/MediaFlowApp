@@ -62,21 +62,19 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(home: MediaFlowShell()));
     await tester.pump();
-    expect(find.byType(MfNavigationTile), findsNWidgets(9));
+    expect(find.byType(MfNavigationTile), findsNWidgets(14));
     expect(find.byKey(const ValueKey('nav-settings')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('nav-settings')));
     await tester.pump();
     expect(find.text('Native application preferences'), findsOneWidget);
-    await tester.tap(find.byTooltip('Appearance'));
-    await tester.pumpAndSettle();
-    expect(find.text('amoled'), findsOneWidget);
-    await tester.tap(find.text('amoled').last);
+    expect(find.text('Appearance'), findsWidgets);
+    await tester.tap(find.text('AMOLED').last);
     await tester.pump();
     expect(find.byType(MfPanel), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('1080 wide uses tablet rail, 1081 wide uses sidebar',
+  testWidgets('v507 1080 uses bottom bar; 1081 uses website sidebar',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 840);
     tester.view.devicePixelRatio = 1;
@@ -84,10 +82,12 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(const MaterialApp(home: MediaFlowShell()));
     await tester.pump();
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
     tester.view.physicalSize = const Size(1081, 840);
     await tester.pump();
     expect(find.byType(MfNavigationTile), findsNWidgets(9));
     expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
   });
 }
