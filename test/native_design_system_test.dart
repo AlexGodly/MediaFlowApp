@@ -83,7 +83,7 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     tester.view.physicalSize = const Size(1081, 840);
     await tester.pump();
-    expect(find.byType(MfNavigationTile), findsNWidgets(9));
+    expect(find.byType(MfNavigationTile), findsNWidgets(14));
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
   });
