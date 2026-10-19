@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings, prefer_adjacent_string_concatenation, curly_braces_in_flow_control_structures
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../data/mediaflow_library_repository.dart';
