@@ -75,8 +75,15 @@ class MediaFlowTokens extends ThemeExtension<MediaFlowTokens> {
   final Color text, muted, quiet, accent, accentDim;
   final Color healthy, neglect, overused, due;
 
-  static MediaFlowTokens of(BuildContext context) =>
-      Theme.of(context).extension<MediaFlowTokens>()!;
+  /// Standalone dialogs, previews and widget tests can use a plain
+  /// MaterialApp without the MediaFlow theme extension. Fall back to a
+  /// readable palette instead of crashing an otherwise valid native screen.
+  static MediaFlowTokens of(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<MediaFlowTokens>() ??
+        MediaFlowTheme.palette(theme.brightness == Brightness.light
+            ? MediaFlowAppearance.light : MediaFlowAppearance.dark);
+  }
 
   @override
   MediaFlowTokens copyWith({
