@@ -131,15 +131,19 @@ class MfNavigationTile extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
               child: Row(children: [
+                if (selected) ...[
+                  Container(width: 3, height: 20,
+                    decoration: BoxDecoration(color: t.accent,
+                      borderRadius: BorderRadius.circular(3))),
+                  const SizedBox(width: 10),
+                ],
                 Icon(icon, color: selected ? t.accent : t.muted),
                 const SizedBox(width: 12),
                 Expanded(child: Text(label,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: selected ? t.text : t.muted,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500))),
-                if (selected) Container(width: 3, height: 18,
-                  decoration: BoxDecoration(color: t.accent,
-                    borderRadius: BorderRadius.circular(3))),
+
               ]),
             ),
           ),
