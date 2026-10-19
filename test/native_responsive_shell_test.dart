@@ -39,7 +39,7 @@ void main() {
     expect(find.byType(NavigationRail), findsNothing);
     await tester.tap(find.byIcon(Icons.more_horiz));
     await tester.pumpAndSettle();
-    expect(find.text('Fresh Episodes'), findsWidgets);
+    expect(find.text('Collections'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
