@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 
 /// Values pinned to the personal MediaFlow v410 foundation stylesheet.
 /// This is the baseline palette, not a claim of full custom/dynamic theme parity.
@@ -74,8 +75,15 @@ class MediaFlowTokens extends ThemeExtension<MediaFlowTokens> {
   final Color text, muted, quiet, accent, accentDim;
   final Color healthy, neglect, overused, due;
 
-  static MediaFlowTokens of(BuildContext context) =>
-      Theme.of(context).extension<MediaFlowTokens>()!;
+  /// Standalone dialogs, previews and widget tests can use a plain
+  /// MaterialApp without the MediaFlow theme extension. Fall back to a
+  /// readable palette instead of crashing an otherwise valid native screen.
+  static MediaFlowTokens of(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.extension<MediaFlowTokens>() ??
+        MediaFlowTheme.palette(theme.brightness == Brightness.light
+            ? MediaFlowAppearance.light : MediaFlowAppearance.dark);
+  }
 
   @override
   MediaFlowTokens copyWith({
@@ -339,7 +347,26 @@ abstract final class MediaFlowTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colors.raised,
         contentTextStyle: TextStyle(color: colors.text),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MediaFlowRadius.medium),
+          side: BorderSide(color: colors.border),
+        ),
       ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStateProperty.all(
+          colors.accent.withValues(alpha: 0.35)),
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.all(6),
+      ),
+      dividerTheme: DividerThemeData(color: colors.borderSoft, thickness: 1),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      }),
     );
   }
 }

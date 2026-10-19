@@ -1,5 +1,12 @@
 # MediaFlowApp
 
+## Current feature release: Beta 7 (MediaFlow v507 reference)
+
+[Native experience and cloud safety audit](docs/BETA7_NATIVE_EXPERIENCE_AUDIT.md) · [Beta 7 release notes](docs/releases/app-v1.0.0-beta.7.md)
+
+Beta 7 refreshes **the existing Flutter app** with an atmospheric, token-based visual system, layered shared panels, search across all 14 native destinations, cloud read-status visibility on desktop/mobile/Settings, manual cloud snapshot refresh and bounded foreground refresh. Existing account snapshots remain owner-scoped with protected offline recovery. **This does not enable bidirectional cloud account-data writes**, including Advanced Logging submissions/History/XP; these require coordinated website-native atomic sync validation. Android/Windows/iOS release artifacts are gated by CI; the iOS developer archive is unsigned.
+
+
 Native Flutter application for Android, iOS, and Windows. The historical parity inventory remains pinned to personal MediaFlow **v410**, while new incremental feature work follows the **latest verified personal MediaFlow** (v478 at the start of the first feature release).
 
 ## New development direction — feature-by-feature releases
