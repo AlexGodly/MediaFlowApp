@@ -441,7 +441,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
                     border: Border(right: BorderSide(
                       color: MediaFlowTokens.of(context).borderSoft)),
                   ),
-                  child: ListView(children: [
+                  child: SingleChildScrollView(child: Column(children: [
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -478,7 +478,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
                         selected: selected == section,
                         onTap: () => navigate(section),
                       ),
-                  ]),
+                  ])),
                 ),
               ),
             Expanded(child: Column(children: [
