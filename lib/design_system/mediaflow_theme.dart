@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 
 /// Values pinned to the personal MediaFlow v410 foundation stylesheet.
 /// This is the baseline palette, not a claim of full custom/dynamic theme parity.
