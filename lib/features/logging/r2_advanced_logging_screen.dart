@@ -1,10 +1,12 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings, curly_braces_in_flow_control_structures
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../data/mediaflow_library_repository.dart';
 import '../../data/mediaflow_models.dart';
 import 'r2_advanced_logging_drafts.dart';
 import 'r3_logging_library_picker.dart';
+import '../../services/native_logging_draft_cloud_store.dart';
 import 'native_logging_recommends_card.dart';
 
 /// Native Flutter implementation of the approved R2 Logging design.
@@ -14,10 +16,12 @@ class R2AdvancedLoggingScreen extends StatefulWidget {
   const R2AdvancedLoggingScreen({
     super.key, required this.repository, required this.drafts,
     this.openLegacyBrowser,
+    this.cloudStore,
   });
   final MediaFlowLibraryRepository repository;
   final R2AdvancedLoggingDrafts drafts;
   final VoidCallback? openLegacyBrowser;
+  final NativeLoggingDraftCloudStore? cloudStore;
 
   @override
   State<R2AdvancedLoggingScreen> createState() => _R2AdvancedLoggingScreenState();
@@ -28,17 +32,192 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   final Map<String, int> _unitPages = {};
   String _draftSort = 'custom';
   bool _draftDescending = false;
+  NativeCloudLoggingDraft? _cloudDraft;
+  bool _cloudChecked = false;
+  bool _cloudBusy = false;
+  bool _cloudNeedsReview = false;
+  bool _restoring = false;
+  String _cloudStatus = 'Connecting to cloud drafts…';
+  Timer? _autoSave;
+  int _editEpoch = 0;
+
 
   @override
   void initState() {
     super.initState();
     _future = widget.repository.load();
+    widget.drafts.addListener(_draftChanged);
+    if (widget.cloudStore != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_readCloudDraft(autoRestore: true));
+      });
+    }
   }
 
   @override
   void dispose() {
+    _autoSave?.cancel();
+    widget.drafts.removeListener(_draftChanged);
     super.dispose();
   }
+
+  void _draftChanged() {
+    if (_restoring) return;
+    _editEpoch++;
+    if (_cloudChecked && !_cloudBusy && !_cloudNeedsReview) _queueCloudSave();
+  }
+
+  void _queueCloudSave() {
+    _autoSave?.cancel();
+    if (widget.cloudStore == null || !_cloudChecked ||
+        _cloudNeedsReview) return;
+    _autoSave = Timer(const Duration(seconds: 3), () {
+      if (mounted) unawaited(_saveCloudDraft(automatic: true));
+    });
+  }
+
+  Future<void> _readCloudDraft({bool autoRestore = false}) async {
+    final store = widget.cloudStore;
+    if (store == null || _cloudBusy) return;
+    _autoSave?.cancel();
+    setState(() { _cloudBusy = true; _cloudStatus = 'Checking cloud drafts…'; });
+    try {
+      final remote = await store.load();
+      if (!mounted) return;
+      final hasLocal = widget.drafts.titleCount > 0;
+      final remoteEntries = remote?.data['entries'];
+      final remoteHasEntries = remoteEntries is List && remoteEntries.isNotEmpty;
+      var restored = false;
+      if (autoRestore && !hasLocal && remote != null && remoteHasEntries) {
+        _restoring = true;
+        try {
+          widget.drafts.restoreFromCloud(remote.data);
+          restored = true;
+        } finally { _restoring = false; }
+      }
+      setState(() {
+        _cloudDraft = remote;
+        _cloudChecked = true;
+        _cloudNeedsReview = hasLocal && remoteHasEntries && !restored;
+        _cloudStatus = restored
+            ? 'Restored saved cloud draft'
+            : remote == null ? 'Cloud draft storage ready'
+            : _cloudNeedsReview
+                ? 'Two drafts found · review before replacing'
+                : 'Cloud draft loaded · revision ' + remote.revision.toString();
+      });
+      if (remote == null && widget.drafts.titleCount > 0) _queueCloudSave();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _cloudChecked = false;
+        _cloudStatus = 'Could not load cloud draft. Local changes are retained.';
+      });
+    } finally {
+      if (mounted) setState(() => _cloudBusy = false);
+    }
+  }
+
+  Future<void> _saveCloudDraft({bool automatic = false}) async {
+    final store = widget.cloudStore;
+    if (store == null || _cloudBusy || !_cloudChecked) return;
+    if (_cloudNeedsReview) {
+      if (automatic) return;
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialog) => AlertDialog(
+          title: const Text('Replace a different cloud draft?'),
+          content: const Text('Your account has a saved draft from another '
+              'device. Saving this local draft replaces it. Restore the cloud '
+              'draft instead if you want to keep that work.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Keep both for now')),
+            FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Replace cloud draft')),
+          ],
+        ),
+      );
+      if (!mounted || replace != true) return;
+    }
+    _autoSave?.cancel();
+    final snapshot = widget.drafts.toCloudPayload();
+    final epoch = _editEpoch;
+    setState(() {
+      _cloudBusy = true;
+      _cloudStatus = 'Saving draft to MediaFlow cloud…';
+    });
+    try {
+      final saved = await store.save(snapshot,
+        expectedRevision: _cloudDraft?.revision);
+      if (!mounted) return;
+      setState(() {
+        _cloudDraft = saved;
+        _cloudNeedsReview = false;
+        _cloudStatus = 'Draft saved to cloud · revision ' +
+            saved.revision.toString();
+      });
+      // Edits made while a network request was pending still need saving.
+      if (_editEpoch != epoch) {
+        _autoSave?.cancel();
+        _autoSave = Timer(const Duration(seconds: 4), () {
+          if (mounted) unawaited(_saveCloudDraft(automatic: true));
+        });
+      }
+    } on NativeDraftCloudConflict {
+      if (!mounted) return;
+      setState(() {
+        _cloudChecked = false;
+        _cloudNeedsReview = true;
+        _cloudStatus = 'Cloud draft changed on another device. '
+            'Refresh to review; no data was overwritten.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _cloudStatus = 'Cloud draft save failed. This device still has your draft.';
+      });
+    } finally {
+      if (mounted) setState(() => _cloudBusy = false);
+    }
+  }
+
+  Future<void> _restoreCloudDraft() async {
+    final remote = _cloudDraft;
+    if (remote == null || _cloudBusy) return;
+    if (widget.drafts.titleCount > 0) {
+      final approved = await showDialog<bool>(
+        context: context, builder: (dialog) => AlertDialog(
+          title: const Text('Restore saved cloud draft?'),
+          content: const Text('The downloaded cloud draft will replace '
+              'the current local draft. Your live Library and History '
+              'will not be changed.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialog, false),
+              child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialog, true),
+              child: const Text('Restore draft')),
+          ],
+        ),
+      );
+      if (!mounted || approved != true) return;
+    }
+    try {
+      _autoSave?.cancel();
+      _restoring = true;
+      widget.drafts.restoreFromCloud(remote.data);
+      setState(() {
+        _cloudNeedsReview = false;
+        _cloudChecked = true;
+        _cloudStatus = 'Cloud draft restored · revision ' +
+            remote.revision.toString();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cloudStatus = 'Cloud draft invalid. Local data kept.');
+    } finally { _restoring = false; }
+  }
+
 
   void _reload() => setState(() {
     _future = widget.repository.reload();
@@ -679,14 +858,43 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             icon: const Icon(Icons.refresh), label: const Text('Refresh Library')),
         ]),
         const SizedBox(height: 4),
-        Text('Native Beta 5 · MediaFlow v505 · Advanced Logging with full selection tools',
+        Text('MediaFlow v507 · Native Advanced Logging',
           style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
         Card(color: Theme.of(context).colorScheme.secondaryContainer,
           child: const Padding(padding: EdgeInsets.all(13),
-            child: Text('SAFE DRAFT MODE — Your real Library is read-only. '
-              'Unit selection, timestamps and quantities are editable locally, '
-              'but Confirm Logging and automatic synchronization are not enabled.'))),
+            child: Text('Your real Library and History are protected. '
+              'Advanced Logging drafts can sync separately to your account, '
+              'but submitting completed consumption logs is not yet enabled.'))),
+        const SizedBox(height: 12),
+        if (widget.cloudStore != null) _panel(
+          'Advanced Logging · Cloud drafts',
+          Wrap(spacing: 9, runSpacing: 9,
+            crossAxisAlignment: WrapCrossAlignment.center, children: [
+            Chip(avatar: Icon(_cloudChecked
+                ? Icons.cloud_done_outlined : Icons.cloud_off_outlined, size: 17),
+              label: Text(_cloudStatus)),
+            OutlinedButton.icon(
+              onPressed: _cloudBusy ? null : () =>
+                  unawaited(_readCloudDraft()),
+              icon: const Icon(Icons.cloud_download_outlined, size: 18),
+              label: const Text('Check cloud')),
+            OutlinedButton.icon(
+              onPressed: _cloudBusy || !_cloudChecked ? null : () =>
+                  unawaited(_saveCloudDraft()),
+              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+              label: const Text('Save draft')),
+            if (_cloudDraft != null)
+              TextButton.icon(
+                onPressed: _cloudBusy ? null : () =>
+                    unawaited(_restoreCloudDraft()),
+                icon: const Icon(Icons.restore, size: 18),
+                label: const Text('Restore saved draft')),
+          ]),
+          subtitle: 'Draft changes save automatically after editing '
+              'when this device is connected, unless another '
+              'device has changed the cloud draft.',
+        ),
         const SizedBox(height: 14),
         if (wide) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(flex: 4, child: left),
