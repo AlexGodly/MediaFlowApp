@@ -1,0 +1,27 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const src = fs.readFileSync('lib/services/native_logging_draft_cloud_store.dart','utf8');
+const sql = fs.readFileSync('supabase/migrations/20261019020000_native_logging_drafts.sql','utf8');
+const drafts = fs.readFileSync('lib/features/logging/r2_advanced_logging_drafts.dart','utf8');
+const app = fs.readFileSync('lib/features/logging/r2_advanced_logging_screen.dart','utf8');
+const canonical = fs.readFileSync('lib/data/mediaflow_library_repository.dart','utf8');
+assert.match(src, /static const table = 'mediaflow_native_logging_drafts'/);
+assert.match(src, /\.eq\('user_id', ownerId\)/);
+assert.match(src, /\.eq\('revision', expectedRevision\)/);
+assert.match(src, /NativeDraftCloudConflict/);
+assert.doesNotMatch(src, /from\(['"]mediaflow_states['"]\)/);
+assert.doesNotMatch(src, /service_role|serviceRoleKey/);
+assert.match(sql, /ENABLE ROW LEVEL SECURITY/i);
+assert.match(sql, /FOR SELECT TO authenticated/i);
+assert.match(sql, /FOR INSERT TO authenticated/i);
+assert.match(sql, /FOR UPDATE TO authenticated/i);
+assert.match(sql, /USING \(\(select auth\.uid\(\)\) = user_id\)/i);
+assert.match(sql, /WITH CHECK \(\(select auth\.uid\(\)\) = user_id\)/i);
+assert.doesNotMatch(sql.replaceAll('-- NEVER touches public.mediaflow_states',''), /(?:UPDATE|INSERT INTO|DELETE FROM|ALTER TABLE|DROP TABLE)\s+(?:public\.)?mediaflow_states/i);
+assert.match(drafts, /restoreFromCloud\(/);
+assert.match(drafts, /notifyListeners\(\)/);
+assert.match(app, /_cloudNeedsReview/);
+assert.match(app, /_saveCloudDraft/);
+assert.match(canonical, /\.from\('mediaflow_states'\)\s*\.select/);
+console.log('Native cloud drafts: separate owner-scoped table, optimistic revision, read-only canonical MediaFlow state — PASS');
