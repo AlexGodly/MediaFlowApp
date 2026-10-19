@@ -33,6 +33,73 @@ def sha256(path):
     return h.hexdigest()
 
 
+
+def patch_android_backup_bundle(path):
+    """Patch the four v507 functions in the Android COPY only, failing closed
+    if the verified release changes its expected source structure."""
+    javascript = path.read_text("utf-8")
+    hooks = {
+        "async function openBackupFolder(){": r"""
+  if (window.__mfAndroidBackup) {
+    try {
+      const folder = await window.__mfAndroidBackup.choose();
+      if (folder.selected) { await saveBackupNow(true); render(); }
+    } catch (error) {
+      if (error?.code !== 'cancelled') alert('Cannot access Android backup folder: ' + (error?.message || error));
+    }
+    return;
+  }
+""",
+        "async function restoreBackupFolder(){": r"""
+  if (window.__mfAndroidBackup) {
+    try { await window.__mfAndroidBackup.status(); }
+    catch (error) { console.warn('Android backup folder check', error); }
+    return;
+  }
+""",
+        "async function saveBackupNow(manual=false){": r"""
+  if (window.__mfAndroidBackup) {
+    if (!S.settings?.backup?.enabled && !manual) return;
+    try {
+      const folder = await window.__mfAndroidBackup.status();
+      if (!folder.selected) { if (manual) await openBackupFolder(); return; }
+      const filename = S.settings.backup.mode === 'single'
+        ? (S.settings.backup.fileName || 'mediaflow-backup.json')
+        : backupFilename();
+      // Use v507's FINAL wrapped full-backup pipeline, not a stripped-down export.
+      await window.__mfAndroidBackup.save(filename, JSON.stringify(backupSnapshot(), null, 2));
+      S.settings.backup.lastBackup = Date.now();
+      if (!manual) await persistSettings();
+      if (manual) showToast('Backup saved to Android folder ✓');
+    } catch (error) {
+      console.warn('Android folder backup failed', error);
+      if (manual) alert('Backup could not be written: ' + (error?.message || error));
+    }
+    return;
+  }
+""",
+        "function restartBackupTimer(){": r"""
+  if (window.__mfAndroidBackup && !window.__mfAndroidBackupWakeBound) {
+    window.__mfAndroidBackupWakeBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !S.settings?.backup?.enabled) return;
+      const interval = Math.max(1, Number(S.settings.backup.interval) || 60) * 60000;
+      const previous = Number(S.settings.backup.lastBackup) || 0;
+      if (Date.now() - previous >= interval && !window.__mfAndroidBackup.isWriting()) {
+        saveBackupNow(false);
+      }
+    });
+  }
+"""
+    }
+    for marker, addition in hooks.items():
+        if javascript.count(marker) != 1:
+            raise ValueError(f"Refusing to patch unexpected v507 backup structure: {marker}")
+        javascript = javascript.replace(marker, marker + addition, 1)
+    path.write_text(javascript, "utf-8")
+    return len(hooks)
+
+
 def package(archive, output, skip_vendor=False, verify=True):
     archive, output = Path(archive), Path(output)
     if verify and sha256(archive) != ARCHIVE_SHA256:
@@ -71,6 +138,8 @@ def package(archive, output, skip_vendor=False, verify=True):
                 shutil.copyfileobj(source, target)
             copied.append(rel)
 
+    patch_count = patch_android_backup_bundle(output / "assets/js/mediaflow-v507.bundle.js")
+
     index = output / "index.html"
     html = index.read_text("utf-8")
     if not re.search(r'<meta name="mediaflow-version" content="507">', html):
@@ -85,8 +154,14 @@ def package(archive, output, skip_vendor=False, verify=True):
     target.mkdir(parents=True, exist_ok=True)
     shutil.copy2(android_assets / "performance-settings.js", target / "performance-settings.js")
     shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
+    shutil.copy2(android_assets / "backup-bridge.js", target / "backup-bridge.js")
     if "</head>" not in html or "</body>" not in html:
         raise ValueError("Cannot safely mount Android-specific UI resources")
+    runtime_script = '<script src="assets/js/mediaflow-v507.bundle.js"></script>'
+    if html.count(runtime_script) != 1:
+        raise ValueError("Missing exact MediaFlow v507 application script")
+    html = html.replace(runtime_script,
+                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script, 1)
     html = html.replace("</head>",
                         '<link rel="stylesheet" href="assets/android/mobile-performance.css">\\n</head>', 1)
     html = html.replace("</body>",
@@ -115,7 +190,8 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v507.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume"],
+        "patchedBackupFunctions": patch_count,
     }
     (output / "mediaflow-android-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))

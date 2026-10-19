@@ -3,7 +3,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from tool.package_mediaflow import package, CDN
+from tool.package_mediaflow import package, CDN, patch_android_backup_bundle
 
 class PackageMediaFlowTest(unittest.TestCase):
     def test_layout_and_vendor_rewrite(self):
@@ -13,8 +13,14 @@ class PackageMediaFlowTest(unittest.TestCase):
             with zipfile.ZipFile(source, "w") as z:
                 z.writestr("archive/index.html", '<meta name="mediaflow-version" content="507">' +
                     "".join('<script src="' + u + '"></script>' for u in CDN) +
-                    '<script src="assets/js/mediaflow-v507.bundle.js"></script>')
-                z.writestr("archive/assets/js/mediaflow-v507.bundle.js", "console.log('ready')")
+                    '<script src="assets/js/mediaflow-v507.bundle.js"></script>' +
+                    '</head><body></body>')
+                z.writestr("archive/assets/js/mediaflow-v507.bundle.js", "\n".join((
+                    "async function openBackupFolder(){",
+                    "async function restoreBackupFolder(){",
+                    "async function saveBackupNow(manual=false){",
+                    "function restartBackupTimer(){",
+                )))
                 z.writestr("archive/assets/css/demo.css", "body{}")
                 z.writestr("archive/legacy/old/index.html", "old")
             output = root / "assets"
@@ -31,6 +37,12 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertTrue((output / "assets/android/performance-settings.js").is_file())
             self.assertTrue((output / "assets/android/mobile-performance.css").is_file())
             self.assertIn("chunked-downloads", result["androidEnhancements"])
+            self.assertIn("native-saf-folder-picker", result["androidEnhancements"])
+            self.assertEqual(result["patchedBackupFunctions"], 4)
+            self.assertIn("assets/android/backup-bridge.js", html)
+            self.assertIn("window.__mfAndroidBackup.choose()",
+                          (output / "assets/js/mediaflow-v507.bundle.js").read_text())
+            self.assertTrue((output / "assets/android/backup-bridge.js").is_file())
             self.assertTrue((output / "assets/css/demo.css").exists())
             self.assertFalse((output / "legacy").exists())
 

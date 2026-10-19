@@ -42,6 +42,7 @@ class MediaFlowActivity : Activity() {
     private var selectedFiles: android.webkit.ValueCallback<Array<Uri>>? = null
     private lateinit var webView: WebView
     private lateinit var loader: WebViewAssetLoader
+    private lateinit var backupBridge: NativeBackupBridge
     private var exportSession: ExportSession? = null
     private data class ExportSession(
         val token: String,
@@ -96,6 +97,8 @@ class MediaFlowActivity : Activity() {
             setSupportMultipleWindows(false)
         }
 
+        backupBridge = NativeBackupBridge(this)
+
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
 
@@ -111,6 +114,18 @@ class MediaFlowActivity : Activity() {
                     } catch (_: Exception) {
                         discardExport()
                     }
+                }
+            }
+        }
+
+        // SAF folder access is available only to the first-party main-frame document.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(
+                webView, "MediaFlowNativeBackup", setOf("https://$appHost")
+            ) { _, message, origin, isMainFrame, reply ->
+                if (isMainFrame && origin.scheme == "https" && origin.host == appHost) {
+                    try { backupBridge.handle(JSONObject(message.data ?: "{}"), reply) }
+                    catch (_: Exception) { toast("Android backup operation failed") }
                 }
             }
         }
@@ -289,6 +304,10 @@ class MediaFlowActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == NativeBackupBridge.PICK_DIRECTORY) {
+            backupBridge.onFolderPickerResult(resultCode, data)
+            return
+        }
         if (requestCode == pickerRequestCode) {
             val result = WebChromeClient.FileChooserParams.parseResult(resultCode, data)
             selectedFiles?.onReceiveValue(result)
@@ -330,6 +349,7 @@ class MediaFlowActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::backupBridge.isInitialized) backupBridge.close()
         discardExport()
         if (::webView.isInitialized) {
             webView.stopLoading()

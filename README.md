@@ -37,3 +37,9 @@ The verification script refuses archives whose SHA-256 differs from v507's offic
 The original website is completely unchanged. Supabase secrets, project configuration, database and policies are not touched. Cloud writes, when made through the site logic, remain subject to its existing authenticated guardrails.
 
 The generated APK is **debug-signed** for installation/testing and may conflict with the signature of an earlier separately built APK. Do not call it production-signed or Play Store ready.
+
+## Android folder auto-backup (Beta 3)
+
+MediaFlow v507's browser-only `showDirectoryPicker()` is not supported by Android WebView. This release patches only the packaged Android copy of the v507 backup functions: **Choose backup folder** uses Android's Storage Access Framework picker, retains the permitted folder across app restarts, and streams the website's real Full Backup JSON to that location. The existing **Back up now**, **Single file** and **Multiple files** options continue using the v507 settings. The app must be running for timed automatic backups; if reopened after an elapsed interval, a catch-up save may occur after MediaFlow becomes active. Android does **not** schedule background cloud exports when the app is terminated. If a storage provider cannot safely replace a single-file backup, the app reports an error rather than deleting an existing backup.
+
+This is an Android beta: compilation and source-level tests are automated, but provider-specific folder operations, device FPS, logins and every v507 feature require real-device testing.

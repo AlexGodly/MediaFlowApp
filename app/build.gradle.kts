@@ -11,8 +11,8 @@ android {
         applicationId = "com.alexgodly.mediaflow"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.0-beta.2"
+        versionCode = 3
+        versionName = "1.0.0-beta.3"
     }
 
     buildTypes {
@@ -31,4 +31,5 @@ android {
 
 dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
+    implementation("androidx.documentfile:documentfile:1.0.1")
 }
