@@ -381,10 +381,9 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
 
   void setNote(String id, String value) {
     final entry = _entries[id];
-    if (entry != null && entry.note != value) {
-      entry.note = value;
-      notifyListeners();
-    }
+    // Avoid rebuilding a potentially huge Library on every keystroke.
+    // The Logging editor explicitly queues cloud save after note changes.
+    if (entry != null) entry.note = value;
   }
 
   void setKeepTitles(bool value) {
