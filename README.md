@@ -52,3 +52,13 @@ Every commit updating `main` must bump the Android application version and updat
 CI now compares the archive byte-for-byte against the release source **before** packaging and publishing. For every passing release, upload the installable Android APK, full version-specific source ZIP, SHA-256 checksums, source manifest and detailed release notes to GitHub Releases. No successful APK build should remain only as a workflow artifact. If a release cannot be built or published, it is not a released version. Updating source without a new archive and tag fails the release checks.
 
 Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-discipline update; it does not claim that the Android app is fully feature-verified or that scrolling problems have been measured and resolved.
+
+
+## Beta 5 Android phone-first optimization
+
+- Android 15+ system-bar safe insets and improved mobile tab/label readability.
+- Reuses unchanged mobile navigation HTML instead of replacing tabbar buttons on every unrelated rerender.
+- Avoids desktop sidebar layout work on phones.
+- Four local-only performance presets: Original, Balanced, Smooth, Ultra light. Auto-selects Ultra light on phones with four or fewer CPU threads or at most 3 GiB reported RAM; Smooth otherwise.
+- Ultra light temporarily caps Library page rendering at 48 entries, skips offscreen row painting, and cuts visual effects without changing saved Library/cloud preferences.
+- Provides Android-only long task counters in Settings; benchmarking requires a real device. No guaranteed FPS.

@@ -100,6 +100,46 @@ def patch_android_backup_bundle(path):
     return len(hooks)
 
 
+
+def patch_android_mobile_render(path):
+    """Avoid unnecessary mobile navigation DOM, desktop layout on phones,
+    and cap only Ultra light Library page rendering without changing settings."""
+    js = path.read_text("utf-8")
+    edits = {
+        "const mobileBar=document.querySelector('.mobile-tabbar'); if(mobileBar) mobileBar.innerHTML=renderMobileTabs();":
+            """const mobileBar=document.querySelector('.mobile-tabbar');
+  if(mobileBar){
+    const nextMobileHtml=renderMobileTabs();
+    if(mobileBar.__mfAndroidLastHtml!==nextMobileHtml){
+      mobileBar.innerHTML=nextMobileHtml;
+      mobileBar.__mfAndroidLastHtml=nextMobileHtml;
+    }
+  }""",
+        "renderShell(); bindSidebarResizer(); autoFitSidebarToProfile(); return;":
+            """renderShell();
+    if(window.innerWidth>1080){bindSidebarResizer();autoFitSidebarToProfile();}
+    return;""",
+        "  bindSidebarResizer();\n\n  // update sidebar active states":
+            """  if(window.innerWidth>1080)bindSidebarResizer();
+
+  // update sidebar active states""",
+        "  autoFitSidebarToProfile();\n\n  renderView();":
+            """  if(window.innerWidth>1080)autoFitSidebarToProfile();
+
+  renderView();""",
+        "const PAGE = v175PageSize('library');":
+            """const PAGE = window.__mfAndroidPerf
+      ? window.__mfAndroidPerf.pageSize('library',v175PageSize('library'))
+      : v175PageSize('library');"""
+    }
+    for before, after in edits.items():
+        if js.count(before) != 1:
+            raise ValueError(f"Unexpected v507 mobile render source contract: {before[:100]}")
+        js = js.replace(before, after, 1)
+    path.write_text(js, "utf-8")
+    return len(edits)
+
+
 def package(archive, output, skip_vendor=False, verify=True):
     archive, output = Path(archive), Path(output)
     if verify and sha256(archive) != ARCHIVE_SHA256:
@@ -139,6 +179,7 @@ def package(archive, output, skip_vendor=False, verify=True):
             copied.append(rel)
 
     patch_count = patch_android_backup_bundle(output / "assets/js/mediaflow-v507.bundle.js")
+    mobile_patch_count = patch_android_mobile_render(output / "assets/js/mediaflow-v507.bundle.js")
 
     index = output / "index.html"
     html = index.read_text("utf-8")
@@ -155,6 +196,7 @@ def package(archive, output, skip_vendor=False, verify=True):
     shutil.copy2(android_assets / "performance-settings.js", target / "performance-settings.js")
     shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
     shutil.copy2(android_assets / "backup-bridge.js", target / "backup-bridge.js")
+    shutil.copy2(android_assets / "performance-boot.js", target / "performance-boot.js")
     if "</head>" not in html or "</body>" not in html:
         raise ValueError("Cannot safely mount Android-specific UI resources")
     runtime_script = '<script src="assets/js/mediaflow-v507.bundle.js"></script>'
@@ -163,9 +205,11 @@ def package(archive, output, skip_vendor=False, verify=True):
     html = html.replace(runtime_script,
                         '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script, 1)
     html = html.replace("</head>",
-                        '<link rel="stylesheet" href="assets/android/mobile-performance.css">\\n</head>', 1)
+                        '<script src="assets/android/performance-boot.js"></script>\n</head>', 1)
+    html = html.replace("</head>",
+                        '<link rel="stylesheet" href="assets/android/mobile-performance.css">\n</head>', 1)
     html = html.replace("</body>",
-                        '<script src="assets/android/performance-settings.js"></script>\\n</body>', 1)
+                        '<script src="assets/android/performance-settings.js"></script>\n</body>', 1)
     index.write_text(html, "utf-8")
     for local in re.findall(r'(?:src|href)="(assets/[^"]+)"', html):
         if not (output / local.split("?")[0]).exists() and local not in CDN.values():
@@ -190,8 +234,9 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v507.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix"],
         "patchedBackupFunctions": patch_count,
+        "patchedMobileRenderSites": mobile_patch_count,
     }
     (output / "mediaflow-android-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))

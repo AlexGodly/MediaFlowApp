@@ -3,7 +3,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from tool.package_mediaflow import package, CDN, patch_android_backup_bundle
+from tool.package_mediaflow import package, CDN, patch_android_backup_bundle, patch_android_mobile_render
 
 class PackageMediaFlowTest(unittest.TestCase):
     def test_layout_and_vendor_rewrite(self):
@@ -20,6 +20,11 @@ class PackageMediaFlowTest(unittest.TestCase):
                     "async function restoreBackupFolder(){",
                     "async function saveBackupNow(manual=false){",
                     "function restartBackupTimer(){",
+                    "const mobileBar=document.querySelector('.mobile-tabbar'); if(mobileBar) mobileBar.innerHTML=renderMobileTabs();",
+                    "renderShell(); bindSidebarResizer(); autoFitSidebarToProfile(); return;",
+                    "  bindSidebarResizer();\n\n  // update sidebar active states",
+                    "  autoFitSidebarToProfile();\n\n  renderView();",
+                    "const PAGE = v175PageSize('library');",
                 )))
                 z.writestr("archive/assets/css/demo.css", "body{}")
                 z.writestr("archive/legacy/old/index.html", "old")
@@ -40,6 +45,10 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertIn("native-saf-folder-picker", result["androidEnhancements"])
             self.assertEqual(result["patchedBackupFunctions"], 4)
             self.assertIn("assets/android/backup-bridge.js", html)
+            self.assertIn("assets/android/performance-boot.js", html)
+            self.assertTrue((output / "assets/android/performance-boot.js").exists())
+            self.assertEqual(result["patchedMobileRenderSites"], 5)
+            self.assertIn("__mfAndroidLastHtml", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
             self.assertIn("window.__mfAndroidBackup.choose()",
                           (output / "assets/js/mediaflow-v507.bundle.js").read_text())
             self.assertTrue((output / "assets/android/backup-bridge.js").is_file())

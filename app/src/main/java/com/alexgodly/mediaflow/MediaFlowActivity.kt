@@ -13,6 +13,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.view.WindowInsets
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Base64
@@ -81,6 +83,19 @@ class MediaFlowActivity : Activity() {
         webView.overScrollMode = WebView.OVER_SCROLL_NEVER
         webView.layoutParams = ViewGroup.LayoutParams(-1, -1)
         setContentView(webView)
+
+        // Android 15+ targets SDK 35 edge-to-edge by default. Keep WebView UI
+        // outside status/navigation bars and display cutouts on all sides.
+        if (Build.VERSION.SDK_INT >= 35) {
+            webView.setOnApplyWindowInsetsListener { view, insets ->
+                val safe = insets.getInsets(
+                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+                )
+                view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
+                insets
+            }
+            webView.requestApplyInsets()
+        }
 
         with(webView.settings) {
             javaScriptEnabled = true
