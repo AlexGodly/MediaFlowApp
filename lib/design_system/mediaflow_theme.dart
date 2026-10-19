@@ -31,7 +31,7 @@ abstract final class MediaFlowSpacing {
 
 abstract final class MediaFlowRadius {
   static const small = 6.0;
-  static const medium = 12.0;
+  static const medium = 13.0;
   static const large = 20.0;
 }
 
@@ -208,11 +208,11 @@ abstract final class MediaFlowTheme {
         bodyColor: colors.text,
         displayColor: colors.text,
       ).copyWith(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w700,
+        headlineLarge: TextStyle(fontSize: 36, fontFamily: 'Georgia', fontWeight: FontWeight.w700,
           color: colors.text, letterSpacing: -0.7),
-        headlineMedium: TextStyle(fontSize: 26, fontWeight: FontWeight.w700,
+        headlineMedium: TextStyle(fontSize: 29, fontFamily: 'Georgia', fontWeight: FontWeight.w700,
           color: colors.text, letterSpacing: -0.4),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w700,
+        titleLarge: TextStyle(fontSize: 20, fontFamily: 'Georgia', fontWeight: FontWeight.w700,
           color: colors.text),
         titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
           color: colors.text),
