@@ -1,0 +1,1006 @@
+{
+  "schemaVersion": 1,
+  "baseline": "MediaFlow v410",
+  "audit": "MediaFlowApp Milestone 55",
+  "assessmentDate": "2026-10-15",
+  "nativeBaselineCommit": "456a0d4546861834681c4080b02f7fd22fe1b594",
+  "provenance": {
+    "featureInventory": "docs/parity/v410_feature_inventory.json",
+    "interactionMatrix": "docs/parity/v410_interaction_matrix.json",
+    "settingsContract": "docs/parity/v410_settings_data_contract.json",
+    "sourceManifest": "docs/parity/v410_source_manifest.json",
+    "pinScope": "M26 source manifest with identified Git blobs; not proof that all current compiled web runtime behavior equals those sources.",
+    "previousValidation": {
+      "commit": "94ea854bbd837c6c23175c6729b5a9c860d6f32c",
+      "flutterRun": "https://github.com/AlexGodly/MediaFlowApp/actions/runs/38693658083",
+      "platformRun": "https://github.com/AlexGodly/MediaFlowApp/actions/runs/38693658120",
+      "flutterAnalyze": "passed",
+      "automatedTestsPassed": 393,
+      "androidDebugValidation": "passed",
+      "windowsValidation": "passed",
+      "iosSignedBuild": "not run",
+      "status": "previous milestone only, not Milestone 55 sign-off"
+    }
+  },
+  "decision": "blocked",
+  "productionReleaseAuthorized": false,
+  "fullWebsiteParityCertified": false,
+  "realProductionCloudWritesEnabled": false,
+  "featureEvidence": {
+    "surfaces": 307,
+    "domains": 21,
+    "certifiedSurfaces": 0,
+    "scaffoldStatusCounts": {
+      "foundation": 15,
+      "read_only": 149,
+      "draft_only": 58,
+      "partial": 69,
+      "missing": 16
+    },
+    "statusCaveat": "Native status is a coarse domain scaffold label, not a capability-by-capability completion judgment."
+  },
+  "journeyEvidence": {
+    "total": 54,
+    "certified": 0,
+    "pendingIds": [
+      "FLOW-001",
+      "FLOW-002",
+      "FLOW-003",
+      "FLOW-004",
+      "FLOW-005",
+      "FLOW-006",
+      "FLOW-007",
+      "FLOW-008",
+      "FLOW-009",
+      "FLOW-010",
+      "FLOW-011",
+      "FLOW-012",
+      "FLOW-013",
+      "FLOW-014",
+      "FLOW-015",
+      "FLOW-016",
+      "FLOW-017",
+      "FLOW-018",
+      "FLOW-019",
+      "FLOW-020",
+      "FLOW-021",
+      "FLOW-022",
+      "FLOW-023",
+      "FLOW-024",
+      "FLOW-025",
+      "FLOW-026",
+      "FLOW-027",
+      "FLOW-028",
+      "FLOW-029",
+      "FLOW-030",
+      "FLOW-031",
+      "FLOW-032",
+      "FLOW-033",
+      "FLOW-034",
+      "FLOW-035",
+      "FLOW-036",
+      "FLOW-037",
+      "FLOW-038",
+      "FLOW-039",
+      "FLOW-040",
+      "FLOW-041",
+      "FLOW-042",
+      "FLOW-043",
+      "FLOW-044",
+      "FLOW-045",
+      "FLOW-046",
+      "FLOW-047",
+      "FLOW-048",
+      "FLOW-049",
+      "FLOW-050",
+      "FLOW-051",
+      "FLOW-052",
+      "FLOW-053",
+      "FLOW-054"
+    ],
+    "threeFormFactorsStillRequired": [
+      "phone",
+      "tablet",
+      "desktop"
+    ],
+    "note": "Passing isolated Flutter tests does not set journey.verified."
+  },
+  "dataEvidence": {
+    "baseSettingsKeys": 38,
+    "settingsCenterSections": 10,
+    "candidateStateRoots": 30,
+    "verifiedCloudRoots": 0,
+    "originalWebNativeWritesCompatible": false,
+    "serverAtomicCasDeployed": false
+  },
+  "screenshotEvidence": {
+    "referenceSourceImages": 5,
+    "stillRequired": [
+      "v410 Dashboard phone/tablet/desktop dark/light/dynamic",
+      "v410 Library all five modes/filters and empty/100k states",
+      "v410 Logging quick/advanced/itemized and modal overlays",
+      "v410 Collections and Personal Order pickers",
+      "v410 Settings Center all sections and themes",
+      "v410 cloud conflict/offline/error/backup flows"
+    ]
+  },
+  "domainReviews": [
+    {
+      "id": "authentication",
+      "surfaceCount": 11,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "partial": 11
+      },
+      "pendingFeatureIds": [
+        "authentication.001",
+        "authentication.002",
+        "authentication.003",
+        "authentication.004",
+        "authentication.005",
+        "authentication.006",
+        "authentication.007",
+        "authentication.008",
+        "authentication.009",
+        "authentication.010",
+        "authentication.011"
+      ],
+      "journeyIds": [
+        "FLOW-001",
+        "FLOW-002",
+        "FLOW-003"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "shell-navigation",
+      "surfaceCount": 13,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "partial": 13
+      },
+      "pendingFeatureIds": [
+        "shell-navigation.001",
+        "shell-navigation.002",
+        "shell-navigation.003",
+        "shell-navigation.004",
+        "shell-navigation.005",
+        "shell-navigation.006",
+        "shell-navigation.007",
+        "shell-navigation.008",
+        "shell-navigation.009",
+        "shell-navigation.010",
+        "shell-navigation.011",
+        "shell-navigation.012",
+        "shell-navigation.013"
+      ],
+      "journeyIds": [
+        "FLOW-004",
+        "FLOW-005"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "dashboard",
+      "surfaceCount": 17,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 17
+      },
+      "pendingFeatureIds": [
+        "dashboard.001",
+        "dashboard.002",
+        "dashboard.003",
+        "dashboard.004",
+        "dashboard.005",
+        "dashboard.006",
+        "dashboard.007",
+        "dashboard.008",
+        "dashboard.009",
+        "dashboard.010",
+        "dashboard.011",
+        "dashboard.012",
+        "dashboard.013",
+        "dashboard.014",
+        "dashboard.015",
+        "dashboard.016",
+        "dashboard.017"
+      ],
+      "journeyIds": [
+        "FLOW-006",
+        "FLOW-007",
+        "FLOW-008",
+        "FLOW-009",
+        "FLOW-010"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "library-crud",
+      "surfaceCount": 16,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "draft_only": 16
+      },
+      "pendingFeatureIds": [
+        "library-crud.001",
+        "library-crud.002",
+        "library-crud.003",
+        "library-crud.004",
+        "library-crud.005",
+        "library-crud.006",
+        "library-crud.007",
+        "library-crud.008",
+        "library-crud.009",
+        "library-crud.010",
+        "library-crud.011",
+        "library-crud.012",
+        "library-crud.013",
+        "library-crud.014",
+        "library-crud.015",
+        "library-crud.016"
+      ],
+      "journeyIds": [
+        "FLOW-011",
+        "FLOW-012",
+        "FLOW-013"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "library-views",
+      "surfaceCount": 20,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 20
+      },
+      "pendingFeatureIds": [
+        "library-views.001",
+        "library-views.002",
+        "library-views.003",
+        "library-views.004",
+        "library-views.005",
+        "library-views.006",
+        "library-views.007",
+        "library-views.008",
+        "library-views.009",
+        "library-views.010",
+        "library-views.011",
+        "library-views.012",
+        "library-views.013",
+        "library-views.014",
+        "library-views.015",
+        "library-views.016",
+        "library-views.017",
+        "library-views.018",
+        "library-views.019",
+        "library-views.020"
+      ],
+      "journeyIds": [
+        "FLOW-014",
+        "FLOW-015",
+        "FLOW-016"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "seasons-metadata",
+      "surfaceCount": 13,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "draft_only": 13
+      },
+      "pendingFeatureIds": [
+        "seasons-metadata.001",
+        "seasons-metadata.002",
+        "seasons-metadata.003",
+        "seasons-metadata.004",
+        "seasons-metadata.005",
+        "seasons-metadata.006",
+        "seasons-metadata.007",
+        "seasons-metadata.008",
+        "seasons-metadata.009",
+        "seasons-metadata.010",
+        "seasons-metadata.011",
+        "seasons-metadata.012",
+        "seasons-metadata.013"
+      ],
+      "journeyIds": [
+        "FLOW-017",
+        "FLOW-018"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "logging",
+      "surfaceCount": 17,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "draft_only": 17
+      },
+      "pendingFeatureIds": [
+        "logging.001",
+        "logging.002",
+        "logging.003",
+        "logging.004",
+        "logging.005",
+        "logging.006",
+        "logging.007",
+        "logging.008",
+        "logging.009",
+        "logging.010",
+        "logging.011",
+        "logging.012",
+        "logging.013",
+        "logging.014",
+        "logging.015",
+        "logging.016",
+        "logging.017"
+      ],
+      "journeyIds": [
+        "FLOW-019",
+        "FLOW-020",
+        "FLOW-021",
+        "FLOW-022"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "batch-log",
+      "surfaceCount": 12,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "draft_only": 12
+      },
+      "pendingFeatureIds": [
+        "batch-log.001",
+        "batch-log.002",
+        "batch-log.003",
+        "batch-log.004",
+        "batch-log.005",
+        "batch-log.006",
+        "batch-log.007",
+        "batch-log.008",
+        "batch-log.009",
+        "batch-log.010",
+        "batch-log.011",
+        "batch-log.012"
+      ],
+      "journeyIds": [
+        "FLOW-023",
+        "FLOW-024"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "history",
+      "surfaceCount": 17,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 17
+      },
+      "pendingFeatureIds": [
+        "history.001",
+        "history.002",
+        "history.003",
+        "history.004",
+        "history.005",
+        "history.006",
+        "history.007",
+        "history.008",
+        "history.009",
+        "history.010",
+        "history.011",
+        "history.012",
+        "history.013",
+        "history.014",
+        "history.015",
+        "history.016",
+        "history.017"
+      ],
+      "journeyIds": [
+        "FLOW-025",
+        "FLOW-026",
+        "FLOW-027"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "progression",
+      "surfaceCount": 16,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 16
+      },
+      "pendingFeatureIds": [
+        "progression.001",
+        "progression.002",
+        "progression.003",
+        "progression.004",
+        "progression.005",
+        "progression.006",
+        "progression.007",
+        "progression.008",
+        "progression.009",
+        "progression.010",
+        "progression.011",
+        "progression.012",
+        "progression.013",
+        "progression.014",
+        "progression.015",
+        "progression.016"
+      ],
+      "journeyIds": [
+        "FLOW-028",
+        "FLOW-029",
+        "FLOW-030"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "statistics",
+      "surfaceCount": 15,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 15
+      },
+      "pendingFeatureIds": [
+        "statistics.001",
+        "statistics.002",
+        "statistics.003",
+        "statistics.004",
+        "statistics.005",
+        "statistics.006",
+        "statistics.007",
+        "statistics.008",
+        "statistics.009",
+        "statistics.010",
+        "statistics.011",
+        "statistics.012",
+        "statistics.013",
+        "statistics.014",
+        "statistics.015"
+      ],
+      "journeyIds": [
+        "FLOW-031",
+        "FLOW-032"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "collections",
+      "surfaceCount": 15,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 15
+      },
+      "pendingFeatureIds": [
+        "collections.001",
+        "collections.002",
+        "collections.003",
+        "collections.004",
+        "collections.005",
+        "collections.006",
+        "collections.007",
+        "collections.008",
+        "collections.009",
+        "collections.010",
+        "collections.011",
+        "collections.012",
+        "collections.013",
+        "collections.014",
+        "collections.015"
+      ],
+      "journeyIds": [
+        "FLOW-033",
+        "FLOW-034",
+        "FLOW-035"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "personal-order",
+      "surfaceCount": 16,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 16
+      },
+      "pendingFeatureIds": [
+        "personal-order.001",
+        "personal-order.002",
+        "personal-order.003",
+        "personal-order.004",
+        "personal-order.005",
+        "personal-order.006",
+        "personal-order.007",
+        "personal-order.008",
+        "personal-order.009",
+        "personal-order.010",
+        "personal-order.011",
+        "personal-order.012",
+        "personal-order.013",
+        "personal-order.014",
+        "personal-order.015",
+        "personal-order.016"
+      ],
+      "journeyIds": [
+        "FLOW-036",
+        "FLOW-037",
+        "FLOW-038"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "settings",
+      "surfaceCount": 17,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "partial": 17
+      },
+      "pendingFeatureIds": [
+        "settings.001",
+        "settings.002",
+        "settings.003",
+        "settings.004",
+        "settings.005",
+        "settings.006",
+        "settings.007",
+        "settings.008",
+        "settings.009",
+        "settings.010",
+        "settings.011",
+        "settings.012",
+        "settings.013",
+        "settings.014",
+        "settings.015",
+        "settings.016",
+        "settings.017"
+      ],
+      "journeyIds": [
+        "FLOW-039",
+        "FLOW-040"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "themes",
+      "surfaceCount": 13,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "partial": 13
+      },
+      "pendingFeatureIds": [
+        "themes.001",
+        "themes.002",
+        "themes.003",
+        "themes.004",
+        "themes.005",
+        "themes.006",
+        "themes.007",
+        "themes.008",
+        "themes.009",
+        "themes.010",
+        "themes.011",
+        "themes.012",
+        "themes.013"
+      ],
+      "journeyIds": [
+        "FLOW-041"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "data-management",
+      "surfaceCount": 18,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 18
+      },
+      "pendingFeatureIds": [
+        "data-management.001",
+        "data-management.002",
+        "data-management.003",
+        "data-management.004",
+        "data-management.005",
+        "data-management.006",
+        "data-management.007",
+        "data-management.008",
+        "data-management.009",
+        "data-management.010",
+        "data-management.011",
+        "data-management.012",
+        "data-management.013",
+        "data-management.014",
+        "data-management.015",
+        "data-management.016",
+        "data-management.017",
+        "data-management.018"
+      ],
+      "journeyIds": [
+        "FLOW-042",
+        "FLOW-043",
+        "FLOW-044"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "cloud-sync",
+      "surfaceCount": 15,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "read_only": 15
+      },
+      "pendingFeatureIds": [
+        "cloud-sync.001",
+        "cloud-sync.002",
+        "cloud-sync.003",
+        "cloud-sync.004",
+        "cloud-sync.005",
+        "cloud-sync.006",
+        "cloud-sync.007",
+        "cloud-sync.008",
+        "cloud-sync.009",
+        "cloud-sync.010",
+        "cloud-sync.011",
+        "cloud-sync.012",
+        "cloud-sync.013",
+        "cloud-sync.014",
+        "cloud-sync.015"
+      ],
+      "journeyIds": [
+        "FLOW-045",
+        "FLOW-046",
+        "FLOW-047"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "scheduler",
+      "surfaceCount": 12,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "missing": 12
+      },
+      "pendingFeatureIds": [
+        "scheduler.001",
+        "scheduler.002",
+        "scheduler.003",
+        "scheduler.004",
+        "scheduler.005",
+        "scheduler.006",
+        "scheduler.007",
+        "scheduler.008",
+        "scheduler.009",
+        "scheduler.010",
+        "scheduler.011",
+        "scheduler.012"
+      ],
+      "journeyIds": [
+        "FLOW-048"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "old-system",
+      "surfaceCount": 4,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "missing": 4
+      },
+      "pendingFeatureIds": [
+        "old-system.001",
+        "old-system.002",
+        "old-system.003",
+        "old-system.004"
+      ],
+      "journeyIds": [
+        "FLOW-049"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "platform-native",
+      "surfaceCount": 15,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "partial": 15
+      },
+      "pendingFeatureIds": [
+        "platform-native.001",
+        "platform-native.002",
+        "platform-native.003",
+        "platform-native.004",
+        "platform-native.005",
+        "platform-native.006",
+        "platform-native.007",
+        "platform-native.008",
+        "platform-native.009",
+        "platform-native.010",
+        "platform-native.011",
+        "platform-native.012",
+        "platform-native.013",
+        "platform-native.014",
+        "platform-native.015"
+      ],
+      "journeyIds": [
+        "FLOW-050",
+        "FLOW-051",
+        "FLOW-052"
+      ],
+      "certifiedJourneys": 0
+    },
+    {
+      "id": "performance-security",
+      "surfaceCount": 15,
+      "certifiedSurfaceCount": 0,
+      "scaffoldStatuses": {
+        "foundation": 15
+      },
+      "pendingFeatureIds": [
+        "performance-security.001",
+        "performance-security.002",
+        "performance-security.003",
+        "performance-security.004",
+        "performance-security.005",
+        "performance-security.006",
+        "performance-security.007",
+        "performance-security.008",
+        "performance-security.009",
+        "performance-security.010",
+        "performance-security.011",
+        "performance-security.012",
+        "performance-security.013",
+        "performance-security.014",
+        "performance-security.015"
+      ],
+      "journeyIds": [
+        "FLOW-053",
+        "FLOW-054"
+      ],
+      "certifiedJourneys": 0
+    }
+  ],
+  "releaseGates": [
+    {
+      "id": "feature-certification",
+      "priority": "P0",
+      "name": "307 source-backed feature certifications",
+      "status": "blocked",
+      "reason": "Each feature needs its own tested acceptance evidence, not a domain scaffold or generic unit test.",
+      "exitCriteria": "Sign off every required feature with source comparison, native implementation, saved-state roundtrip (where applicable), and platform evidence."
+    },
+    {
+      "id": "journey-certification",
+      "priority": "P0",
+      "name": "54 full end-to-end workflows",
+      "status": "blocked",
+      "reason": "The 54 original interaction cases remain uncertified; automated tests do not substitute for scenario-level acceptance.",
+      "exitCriteria": "Certify all 54 flows on phone, tablet and desktop with retained test, failure and data-state evidence."
+    },
+    {
+      "id": "shared-sync",
+      "priority": "P0",
+      "name": "Atomic shared website/native synchronization",
+      "status": "blocked",
+      "reason": "Production native cloud writes are OFF; server CAS is absent and the existing website can still issue unconditional full-state UPSERTs.",
+      "exitCriteria": "Deploy and test a single server-authoritative owner-scoped revision/idempotency protocol for all website and native writers, explicitly gated and approved."
+    },
+    {
+      "id": "logging-history-xp",
+      "priority": "P0",
+      "name": "Logging, History, XP and Respect transaction parity",
+      "status": "blocked",
+      "reason": "M54 verifies readiness blockers only. Native drafts do not commit complete multi-category/itemized logging, XP or task advancement.",
+      "exitCriteria": "Verify one atomic idempotent account transaction including library, history, XP, streak/respect, task, Collections, and crash/retry semantics."
+    },
+    {
+      "id": "collections-order",
+      "priority": "P0",
+      "name": "Collections and Personal Order persisted editing",
+      "status": "blocked",
+      "reason": "Local planners/read-only traversal previews do not commit saved Collection assignments or direct-title order changes.",
+      "exitCriteria": "Implement owner-safe real edits, ordering/traversal, undo behavior and consistent task generation with cross-device tests."
+    },
+    {
+      "id": "import-export",
+      "priority": "P0",
+      "name": "Import, export and restore safety",
+      "status": "blocked",
+      "reason": "Native data portability is not certified against v410 backups, MAL/SIMKL file formats, gzip and unknown fields.",
+      "exitCriteria": "Prove lossless backup, import/export, recovery, conflict detection, and rollback with fixture/device tests."
+    },
+    {
+      "id": "settings-themes",
+      "priority": "P1",
+      "name": "Settings persistence and dynamic theme parity",
+      "status": "blocked",
+      "reason": "Thirty candidate state roots and 38 base setting keys are inventoried, not full key/setting/device persistence certification.",
+      "exitCriteria": "Audit all nested/versioned settings and verify user themes, custom colors, appearance, icons, and settings roundtrips."
+    },
+    {
+      "id": "screen-parity",
+      "priority": "P1",
+      "name": "Exact responsive v410 screen/interaction parity",
+      "status": "blocked",
+      "reason": "Current native UI has partial/read-only/draft-only surfaces; 6 exact v410 screenshot groups remain to be captured.",
+      "exitCriteria": "Capture current v410 reference screenshots and compare against Android/iOS/Windows phone/tablet/desktop per mode and theme."
+    },
+    {
+      "id": "scheduler-old-system",
+      "priority": "P1",
+      "name": "Scheduler and legacy feature coverage",
+      "status": "blocked",
+      "reason": "The source inventory records 12 scheduler and 4 old-system surfaces in a coarse 'missing' domain status.",
+      "exitCriteria": "Implement or formally disposition every source-backed scheduler and old-system behavior with acceptance and fallback tests."
+    },
+    {
+      "id": "offline-conflicts",
+      "priority": "P1",
+      "name": "Offline write queue and recovery",
+      "status": "blocked",
+      "reason": "Encrypted snapshots and review-only drafts exist; safe multi-writer offline replay is not enabled.",
+      "exitCriteria": "Verify encrypted durable drafts, account isolation, replay/idempotency, conflict UI and interrupted recovery against staging server."
+    },
+    {
+      "id": "performance-security",
+      "priority": "P1",
+      "name": "Production performance, accessibility and security",
+      "status": "blocked",
+      "reason": "Synthetic 100K-title tests do not establish measured Android/iOS/Windows performance or production security.",
+      "exitCriteria": "Run physical-device 100K tests, offline/accessibility/keyboard QA, authenticated isolation/RLS audits, telemetry and crash drills."
+    },
+    {
+      "id": "signed-distribution",
+      "priority": "P0",
+      "name": "Signed production packages and device certification",
+      "status": "blocked",
+      "reason": "The preceding Android debug and Windows validation builds passed, but no signed production Android/Windows/iOS release is certified.",
+      "exitCriteria": "Produce signed Android, tested Windows distribution, and an Apple-signed iOS build with reproducible provenance and device QA."
+    }
+  ],
+  "nextMilestones": [
+    {
+      "milestone": 56,
+      "title": "All-writer sync inventory and staging preparation",
+      "scope": "Complete website/native writer map, backups, auth/RLS tests and migration dry-run; production data untouched without separate authorization.",
+      "relatedGateIds": [
+        "shared-sync"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 57,
+      "title": "Revisioned server transaction in staging",
+      "scope": "Build owner-scoped CAS, durable idempotency receipts and lossless v410 state storage against test data.",
+      "relatedGateIds": [
+        "shared-sync",
+        "performance-security"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 58,
+      "title": "Website shared-writer migration",
+      "scope": "Move website save/restore writers behind the shared endpoint with compatibility tests and a controlled, separately approved cutover.",
+      "relatedGateIds": [
+        "shared-sync"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 59,
+      "title": "Native account transactions and sync",
+      "scope": "Complete native safe write client, conflict handling, retry/dedup, snapshot preservation and cross-device staging coverage.",
+      "relatedGateIds": [
+        "shared-sync",
+        "offline-conflicts"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 60,
+      "title": "Full Standard and Advanced Logging commit",
+      "scope": "Implement website group semantics, itemized per-unit timestamps, repeat handling and exact task target semantics.",
+      "relatedGateIds": [
+        "logging-history-xp"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 61,
+      "title": "History, XP, streak and Respect events",
+      "scope": "Atomic History, Library completion, XP ledger/event metadata and exactly-once System Respect, with rollback tests.",
+      "relatedGateIds": [
+        "logging-history-xp"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 62,
+      "title": "Scheduler, task engine and legacy coverage",
+      "scope": "Reproduce task generation, Force Queue, dashboard task lifecycle and inventoried old-system behaviors.",
+      "relatedGateIds": [
+        "scheduler-old-system"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 63,
+      "title": "Collections and Personal Order persistence",
+      "scope": "Save/reorder assignments and direct titles, conditional traversal and reliable collection queues.",
+      "relatedGateIds": [
+        "collections-order"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 64,
+      "title": "Complete Library CRUD and display parity",
+      "scope": "Finish persisted Library creation/edit/delete, all five modes, overlays, filtering and responsive bulk operations.",
+      "relatedGateIds": [
+        "feature-certification",
+        "screen-parity"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 65,
+      "title": "Seasons and provider metadata parity",
+      "scope": "Verify season metadata, external IDs, smart recovery integration boundaries, and per-category data contracts.",
+      "relatedGateIds": [
+        "feature-certification"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 66,
+      "title": "Settings, appearance and account parity",
+      "scope": "Cover all 10 settings sections, nested settings, dynamic themes, account/profile UX and device restoration.",
+      "relatedGateIds": [
+        "settings-themes"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 67,
+      "title": "Import/export and reversible recovery",
+      "scope": "Implement v410-compatible import/export, backups and account-safe restore with no-loss tests.",
+      "relatedGateIds": [
+        "import-export"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 68,
+      "title": "Offline first writable continuity",
+      "scope": "Encrypted queued writes with shared protocol, conflict resolution, crash recovery and no duplicate XP/History.",
+      "relatedGateIds": [
+        "offline-conflicts"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 69,
+      "title": "Full cross-platform acceptance sweep",
+      "scope": "Run 307 feature sign-offs and 54 scenario suites with true v410 screenshots, accessibility and physical 100K metrics.",
+      "relatedGateIds": [
+        "feature-certification",
+        "journey-certification",
+        "screen-parity",
+        "performance-security"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    },
+    {
+      "milestone": 70,
+      "title": "Signed release candidate gate",
+      "scope": "Verify reproducible signed Android/Windows/iOS releases, owner-safe staging, rollback and distribution checklist.",
+      "relatedGateIds": [
+        "signed-distribution"
+      ],
+      "kind": "proposed_follow_on_not_authorized_production_rollout"
+    }
+  ],
+  "certificationPolicy": "No feature/journey may be marked parityVerified/verified by inference from filenames, code existence, source scaffolds, passing isolated tests, or unsigned builds. Require reproducible source-specific functional, persistent, cross-device and visual evidence.",
+  "signOff": "HOLD: Milestone 55 closes the original planning sequence only. MediaFlowApp is not complete or production ready."
+}

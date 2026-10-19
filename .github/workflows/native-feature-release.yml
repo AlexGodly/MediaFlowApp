@@ -1,0 +1,171 @@
+name: MediaFlowApp feature release — Android Windows iOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tool/releases/current.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current version metadata
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re
+          info=json.loads(pathlib.Path('tool/releases/current.json').read_text())
+          assert re.fullmatch(r'app-v[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+', info['tag'])
+          assert pathlib.Path(info['notesFile']).is_file()
+          print(info['tag'], info['name'])
+          PY
+      - name: Check recommendation safety and production write gates
+        run: node tool/parity/logging_recommends_guard.mjs
+      - name: Verify Beta 3 Logging queue filters and release metadata
+        run: node tool/parity/logging_recommends_beta3_guard.mjs
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Flutter platform templates
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android,ios,windows .
+      - name: Resolve packages
+        run: flutter pub get
+      - name: Analyze Flutter
+        run: flutter analyze
+      - name: Run full regression suite
+        run: flutter test
+
+  android:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Android project
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android .
+      - name: Apply MediaFlow app branding
+        run: |
+          python3 -m pip install pillow
+          python3 tool/branding/apply_branding.py --platforms=android
+      - name: Resolve and build debug-signed Android APK
+        run: |
+          flutter pub get
+          flutter build apk --debug
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-debug.apk dist/MediaFlowApp-Android-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-release-android
+          path: dist/MediaFlowApp-Android-debug.apk
+          if-no-files-found: error
+
+  windows:
+    needs: checks
+    runs-on: windows-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Windows project
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=windows .
+      - name: Apply MediaFlow app branding
+        run: |
+          python -m pip install pillow
+          python tool/branding/apply_branding.py --platforms=windows
+      - name: Resolve and build Windows x64 release
+        run: |
+          flutter pub get
+          flutter build windows --release
+      - name: Package complete Windows application directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "dist/MediaFlowApp-Windows-x64.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-release-windows
+          path: dist/MediaFlowApp-Windows-x64.zip
+          if-no-files-found: error
+
+  ios:
+    needs: checks
+    runs-on: macos-15
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate iOS project
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=ios .
+      - name: Apply MediaFlow iOS branding
+        run: |
+          python3 -m venv .release-venv
+          .release-venv/bin/python -m pip install pillow
+          .release-venv/bin/python tool/branding/apply_branding.py --platforms=ios
+      - name: Resolve and build unsigned iOS app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
+      - name: Package unsigned iOS developer archive
+        run: |
+          test -d build/ios/iphoneos/Runner.app
+          mkdir -p dist/Payload
+          cp -R build/ios/iphoneos/Runner.app dist/Payload/Runner.app
+          cd dist
+          zip -qry MediaFlowApp-iOS-unsigned.ipa Payload
+          rm -rf Payload
+          test -s MediaFlowApp-iOS-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-release-ios-unsigned
+          path: dist/MediaFlowApp-iOS-unsigned.ipa
+          if-no-files-found: error
+
+  publish:
+    needs: [checks, android, windows, ios]
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-release-*
+          path: dist
+          merge-multiple: true
+      - name: Verify all packages and write checksums
+        run: |
+          test -s dist/MediaFlowApp-Android-debug.apk
+          test -s dist/MediaFlowApp-Windows-x64.zip
+          test -s dist/MediaFlowApp-iOS-unsigned.ipa
+          (cd dist && sha256sum MediaFlowApp-* > SHA256SUMS.txt)
+          ls -lh dist
+      - name: Publish unique versioned GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=$(python3 -c "import json;print(json.load(open('tool/releases/current.json'))['tag'])")
+          TITLE=$(python3 -c "import json;print(json.load(open('tool/releases/current.json'))['name'])")
+          NOTES=$(python3 -c "import json;print(json.load(open('tool/releases/current.json'))['notesFile'])")
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Refusing to overwrite."
+            exit 0
+          fi
+          gh release create "$TAG" dist/MediaFlowApp-Android-debug.apk \
+            dist/MediaFlowApp-Windows-x64.zip \
+            dist/MediaFlowApp-iOS-unsigned.ipa dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "$TITLE" \
+            --notes-file "$NOTES" --prerelease

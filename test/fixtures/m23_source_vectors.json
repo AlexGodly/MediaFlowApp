@@ -1,0 +1,281 @@
+{
+  "history": [
+    {
+      "name": "session-and-batch-groups",
+      "sessions": [
+        {
+          "id": "h1",
+          "date": "2026-10-10",
+          "status": "logged",
+          "xp": 100,
+          "sessionGroupId": "group-a"
+        },
+        {
+          "id": "h2",
+          "date": "2026-10-10",
+          "status": "logged",
+          "xp": 50,
+          "sessionGroupId": "group-a"
+        },
+        {
+          "id": "h3",
+          "date": "2026-10-11",
+          "status": "logged",
+          "xp": 10,
+          "batchGroupId": "batch-a"
+        },
+        {
+          "id": "h4",
+          "date": "2026-10-11",
+          "status": "logged",
+          "xp": 10,
+          "batchGroupId": "batch-a"
+        },
+        {
+          "id": "h5",
+          "date": "2026-10-12",
+          "status": "skipped",
+          "xp": 0
+        },
+        {
+          "id": "h6",
+          "date": "2026-10-13",
+          "status": "logged",
+          "xp": 30
+        }
+      ],
+      "expectedLogical": 4,
+      "expectedKnownBase": 200,
+      "expectedKnownStreakBonus": 2,
+      "expectedUnresolved": 0,
+      "expectedSkipped": 1
+    },
+    {
+      "name": "unverified-zero-xp",
+      "sessions": [
+        {
+          "id": "x1",
+          "date": "2026-10-01",
+          "status": "logged",
+          "xp": 0
+        },
+        {
+          "id": "x2",
+          "date": "2026-10-02",
+          "status": "skipped",
+          "xp": 0
+        },
+        {
+          "id": "x3",
+          "date": "2026-10-03",
+          "status": "logged",
+          "xp": 99
+        }
+      ],
+      "expectedLogical": 3,
+      "expectedKnownBase": 99,
+      "expectedKnownStreakBonus": 0,
+      "expectedUnresolved": 1,
+      "expectedSkipped": 1
+    },
+    {
+      "name": "consecutive-three-days",
+      "sessions": [
+        {
+          "id": "s1",
+          "date": "2026-10-10",
+          "status": "logged",
+          "xp": 10
+        },
+        {
+          "id": "s2",
+          "date": "2026-10-11",
+          "status": "logged",
+          "xp": 10
+        },
+        {
+          "id": "s3",
+          "date": "2026-10-12",
+          "status": "logged",
+          "xp": 10
+        }
+      ],
+      "expectedLogical": 3,
+      "expectedKnownBase": 30,
+      "expectedKnownStreakBonus": 3,
+      "expectedUnresolved": 0,
+      "expectedSkipped": 0
+    }
+  ],
+  "grouping": [
+    {
+      "name": "two-categories",
+      "assigned": "anime",
+      "target": 3,
+      "minutes": 61,
+      "entries": [
+        {
+          "categoryId": "anime",
+          "qty": 2,
+          "minutesPerUnit": 20
+        },
+        {
+          "categoryId": "books",
+          "qty": 1,
+          "minutesPerUnit": 45
+        }
+      ],
+      "expected": [
+        {
+          "categoryId": "anime",
+          "quantity": 2,
+          "minutes": 29,
+          "status": "partial"
+        },
+        {
+          "categoryId": "books",
+          "quantity": 1,
+          "minutes": 32,
+          "status": "logged"
+        }
+      ]
+    },
+    {
+      "name": "other-only-skipped",
+      "assigned": "anime",
+      "target": 3,
+      "minutes": 31,
+      "entries": [
+        {
+          "categoryId": "books",
+          "qty": 2,
+          "minutesPerUnit": 30
+        }
+      ],
+      "expected": [
+        {
+          "categoryId": "books",
+          "quantity": 2,
+          "minutes": 31,
+          "status": "logged"
+        },
+        {
+          "categoryId": "anime",
+          "quantity": 0,
+          "minutes": 0,
+          "status": "skipped"
+        }
+      ]
+    },
+    {
+      "name": "exact-and-over",
+      "assigned": "anime",
+      "target": 2,
+      "minutes": 29,
+      "entries": [
+        {
+          "categoryId": "anime",
+          "qty": 2,
+          "minutesPerUnit": 20
+        },
+        {
+          "categoryId": "books",
+          "qty": 2,
+          "minutesPerUnit": 10
+        }
+      ],
+      "expected": [
+        {
+          "categoryId": "anime",
+          "quantity": 2,
+          "minutes": 19,
+          "status": "complete"
+        },
+        {
+          "categoryId": "books",
+          "quantity": 2,
+          "minutes": 10,
+          "status": "logged"
+        }
+      ]
+    },
+    {
+      "name": "over-target",
+      "assigned": "anime",
+      "target": 2,
+      "minutes": 9,
+      "entries": [
+        {
+          "categoryId": "anime",
+          "qty": 4,
+          "minutesPerUnit": 20
+        }
+      ],
+      "expected": [
+        {
+          "categoryId": "anime",
+          "quantity": 4,
+          "minutes": 9,
+          "status": "over"
+        }
+      ]
+    }
+  ],
+  "completion": [
+    {
+      "status": "active",
+      "progress": 12,
+      "total": 12,
+      "expected": true
+    },
+    {
+      "status": "completed",
+      "progress": 1,
+      "total": 12,
+      "expected": true
+    },
+    {
+      "status": "dropped",
+      "progress": 3,
+      "total": 12,
+      "expected": false
+    },
+    {
+      "status": "active",
+      "progress": 2,
+      "total": null,
+      "expected": false
+    }
+  ],
+  "contiguous": [
+    {
+      "start": 3,
+      "units": [
+        4,
+        6
+      ],
+      "total": 12,
+      "expected": 4
+    },
+    {
+      "start": 3,
+      "units": [
+        6,
+        5,
+        4
+      ],
+      "total": 12,
+      "expected": 6
+    },
+    {
+      "start": 9,
+      "units": [
+        10,
+        11,
+        12
+      ],
+      "total": 10,
+      "expected": 10
+    }
+  ]
+}
