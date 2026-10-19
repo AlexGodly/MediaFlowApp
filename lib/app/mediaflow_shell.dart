@@ -18,6 +18,7 @@ import '../features/statistics/statistics_screen.dart';
 import '../features/personal_order/personal_order_screen.dart';
 import '../features/logging/logging_screen.dart';
 import '../features/logging/r2_advanced_logging_drafts.dart';
+import '../services/native_logging_draft_cloud_store.dart';
 import '../features/logging/r2_advanced_logging_screen.dart';
 import '../features/library/library_screen.dart';
 import '../features/website/native_website_workspaces.dart';
@@ -66,6 +67,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
   late final NativeM44PersonalOrderPlan? personalOrderPlan;
   late final NativeM51TaskHandoff? taskHandoff;
   late final R2AdvancedLoggingDrafts r2Drafts;
+  late final NativeLoggingDraftCloudStore? draftCloudStore;
 
   String? get preferenceUserId => widget.client?.auth.currentUser?.id;
 
@@ -76,6 +78,9 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
     _lastForegroundRead = DateTime.now();
     dashboardTools = NativeM36DashboardToolsController();
     r2Drafts = R2AdvancedLoggingDrafts();
+    draftCloudStore = widget.client?.auth.currentUser?.id == null ? null
+      : NativeLoggingDraftCloudStore(client: widget.client!,
+          ownerId: widget.client!.auth.currentUser!.id);
     final ownerId = widget.client?.auth.currentUser?.id;
     libraryPlan = ownerId == null ? null
         : NativeM37LibraryPlan(ownerId: ownerId);
@@ -300,6 +305,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> with WidgetsBindingObse
           return R2AdvancedLoggingScreen(
             repository: data,
             drafts: r2Drafts,
+            cloudStore: draftCloudStore,
             openLegacyBrowser: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => Scaffold(
                 appBar: AppBar(title: const Text('Logging Library Browser')),
