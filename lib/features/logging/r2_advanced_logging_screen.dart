@@ -676,7 +676,10 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             isDense: true,
           ),
           maxLines: 2,
-          onChanged: (value) => widget.drafts.setNote(draft.titleId, value),
+          onChanged: (value) {
+            widget.drafts.setNote(draft.titleId, value);
+            _draftChanged();
+          },
         ),
         const SizedBox(height: 7),
         Wrap(alignment: WrapAlignment.end, children: [
@@ -871,9 +874,14 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           'Advanced Logging · Cloud drafts',
           Wrap(spacing: 9, runSpacing: 9,
             crossAxisAlignment: WrapCrossAlignment.center, children: [
-            Chip(avatar: Icon(_cloudChecked
-                ? Icons.cloud_done_outlined : Icons.cloud_off_outlined, size: 17),
-              label: Text(_cloudStatus)),
+            ConstrainedBox(constraints: const BoxConstraints(maxWidth: 300),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(_cloudChecked ? Icons.cloud_done_outlined
+                    : Icons.cloud_off_outlined, size: 18),
+                const SizedBox(width: 7),
+                Flexible(child: Text(_cloudStatus,
+                  softWrap: true, style: Theme.of(context).textTheme.bodySmall)),
+              ])),
             OutlinedButton.icon(
               onPressed: _cloudBusy ? null : () =>
                   unawaited(_readCloudDraft()),
