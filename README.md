@@ -8,7 +8,10 @@
 - Bundles the HTML, CSS, media and compiled application JavaScript in the Android APK. Supabase, React and ReactDOM CDN scripts are copied into the APK during CI, avoiding a network-dependent initial interface load.
 - Renders on Android's hardware-accelerated System WebView, with local HTTPS-like origin provided by `WebViewAssetLoader`. No `file://` privilege bypass or broad cleartext networking.
 - Runs MediaFlow's **existing authenticated cloud logic and logging code**, not the old Flutter beta's read-only repository. This does **not** modify Supabase or claim new native data sync semantics.
-- Works with on-device file imports, external links in the browser, network downloads, and local MediaFlow blob exports to Android Downloads.
+- Works with on-device file imports, external links in the browser, network downloads, and **chunked** local MediaFlow blob exports to Android Downloads (up to 750 MB of output without constructing a single Base64 copy of the backup in Kotlin).
+- Provides a new Android-only **Performance** card at the top of MediaFlow Settings: Original, Balanced (default), Smooth. Phone rendering settings are not synced to your account.
+- Android Back closes MediaFlow's native-state modal first, then navigates back to Dashboard rather than accidentally exiting a single-page app.
+- Intercepts service-worker asset requests from the same pinned local frontend, and recovers from Android WebView renderer restarts without deleting account storage.
 - Uses the existing MediaFlow launcher artwork and package ID `com.alexgodly.mediaflow`.
 
 ## Build

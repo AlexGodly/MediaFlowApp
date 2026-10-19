@@ -26,6 +26,11 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertEqual(result["basedOnMediaFlow"], "507")
             html = (output / "index.html").read_text()
             self.assertNotIn("cdn.jsdelivr.net", html)
+            self.assertIn("assets/android/performance-settings.js", html)
+            self.assertIn("assets/android/mobile-performance.css", html)
+            self.assertTrue((output / "assets/android/performance-settings.js").is_file())
+            self.assertTrue((output / "assets/android/mobile-performance.css").is_file())
+            self.assertIn("chunked-downloads", result["androidEnhancements"])
             self.assertTrue((output / "assets/css/demo.css").exists())
             self.assertFalse((output / "legacy").exists())
 

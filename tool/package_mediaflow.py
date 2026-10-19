@@ -79,6 +79,18 @@ def package(archive, output, skip_vendor=False, verify=True):
         if source not in html:
             raise ValueError(f"Expected upstream runtime library absent: {source}")
         html = html.replace(source, target)
+    # Only the Android build gains these resources; v507 website is unchanged.
+    android_assets = Path(__file__).resolve().parent / "android_assets"
+    target = output / "assets/android"
+    target.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(android_assets / "performance-settings.js", target / "performance-settings.js")
+    shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
+    if "</head>" not in html or "</body>" not in html:
+        raise ValueError("Cannot safely mount Android-specific UI resources")
+    html = html.replace("</head>",
+                        '<link rel="stylesheet" href="assets/android/mobile-performance.css">\\n</head>', 1)
+    html = html.replace("</body>",
+                        '<script src="assets/android/performance-settings.js"></script>\\n</body>', 1)
     index.write_text(html, "utf-8")
     for local in re.findall(r'(?:src|href)="(assets/[^"]+)"', html):
         if not (output / local.split("?")[0]).exists() and local not in CDN.values():
@@ -103,6 +115,7 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v507.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker"],
     }
     (output / "mediaflow-android-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))

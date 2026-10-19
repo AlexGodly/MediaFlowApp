@@ -3,6 +3,12 @@ package com.alexgodly.mediaflow
 import android.app.Activity
 import android.app.DownloadManager
 import android.content.ContentValues
+import java.io.OutputStream
+import java.util.UUID
+import android.webkit.RenderProcessGoneDetail
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.ServiceWorkerControllerCompat
+import androidx.webkit.ServiceWorkerClientCompat
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -36,6 +42,15 @@ class MediaFlowActivity : Activity() {
     private var selectedFiles: android.webkit.ValueCallback<Array<Uri>>? = null
     private lateinit var webView: WebView
     private lateinit var loader: WebViewAssetLoader
+    private var exportSession: ExportSession? = null
+    private data class ExportSession(
+        val token: String,
+        val uri: Uri,
+        val stream: OutputStream,
+        val expectedBytes: Long,
+        var bytesWritten: Long = 0L
+    )
+    private val maxExportBytes = 750_000_000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,6 +61,18 @@ class MediaFlowActivity : Activity() {
             .setDomain(appHost)
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
+
+        // A service worker must see the same packaged HTTPS assets as regular WebView
+        // requests. Without this, v507's PWA shell cannot install or refresh reliably.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE) &&
+            WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)) {
+            ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(
+                object : ServiceWorkerClientCompat() {
+                    override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                        loader.shouldInterceptRequest(request.url)
+                }
+            )
+        }
 
         webView = WebView(this)
         webView.setBackgroundColor(Color.rgb(9, 12, 20))
@@ -72,26 +99,32 @@ class MediaFlowActivity : Activity() {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
 
-        // The listener is restricted to the locally packaged MediaFlow origin AND its main frame.
-        // Unlike addJavascriptInterface, third-party iframes cannot send arbitrary exports.
+        // Only the first-party main document may export to Android Downloads.
+        // There is no addJavascriptInterface exposed to third-party frames.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
                 webView, "MediaFlowNativeFiles", setOf("https://$appHost")
-            ) { _, message, origin, isMainFrame, _ ->
-                if (isMainFrame && origin.host == appHost) {
+            ) { _, message, origin, isMainFrame, reply ->
+                if (isMainFrame && origin.scheme == "https" && origin.host == appHost) {
                     try {
-                        val payload = JSONObject(message.data ?: "")
-                        if (payload.optString("kind") == "export") {
-                            saveExport(payload.optString("name"), payload.optString("dataUrl"))
-                        }
+                        handleExportMessage(JSONObject(message.data ?: "{}"), reply)
                     } catch (_: Exception) {
-                        runOnUiThread { toast("Unable to save MediaFlow export") }
+                        discardExport()
                     }
                 }
             }
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                // Recover the shell after WebView renderer memory pressure without
+                // deleting Android storage or overwriting the Supabase account.
+                try { (view?.parent as? ViewGroup)?.removeView(view) } catch (_: Exception) {}
+                discardExport()
+                recreate()
+                return true
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView?, request: WebResourceRequest?
             ): WebResourceResponse? =
@@ -141,22 +174,14 @@ class MediaFlowActivity : Activity() {
         webView.setDownloadListener(DownloadListener { url, userAgent, disposition, mime, _ ->
             val name = URLUtil.guessFileName(url, disposition, mime).replace(Regex("[^\\w.() -]"), "_").take(120)
             if (url.startsWith("blob:")) {
-                // Website JSON/CSV exports use object URLs; write them through the scoped Storage API.
-                val js = """
-                    (async function() {
-                      try {
-                        const response = await fetch(${JSONObject.quote(url)});
-                        const blob = await response.blob();
-                        const reader = new FileReader();
-                        reader.onload = () => window.MediaFlowNativeFiles?.postMessage(JSON.stringify({
-                          kind: 'export', name: ${JSONObject.quote(name)},
-                          dataUrl: reader.result
-                        }));
-                        reader.readAsDataURL(blob);
-                      } catch (error) { console.error('MediaFlow Android export', error); }
-                    })();
-                """.trimIndent()
-                webView.evaluateJavascript(js, null)
+                // Stream a Blob in bounded chunks; never allocate an entire large
+                // cloud backup twice as a Base64 string in Android memory.
+                try {
+                    val script = assets.open("export-bridge.js").bufferedReader().use { it.readText() }
+                        .replace("__BLOB_URL__", JSONObject.quote(url))
+                        .replace("__SUGGESTED_NAME__", JSONObject.quote(name))
+                    webView.evaluateJavascript(script, null)
+                } catch (_: Exception) { toast("MediaFlow export could not start") }
             } else if (url.startsWith("https://")) {
                 try {
                     val req = DownloadManager.Request(Uri.parse(url))
@@ -178,37 +203,84 @@ class MediaFlowActivity : Activity() {
         } else webView.loadUrl(homeUrl)
     }
 
-    private fun saveExport(name: String, dataUrl: String) {
+    private fun handleExportMessage(req: JSONObject, reply: JavaScriptReplyProxy) {
+        val requestId = req.optInt("id", -1)
+        val ack = JSONObject().put("id", requestId)
         try {
-            // Bound the base64 bridge to avoid catastrophic memory pressure on low-RAM phones.
-            if (!dataUrl.startsWith("data:") || dataUrl.length > 140_000_000) {
-                toast("Export is too large for Android share bridge"); return
+            when (req.optString("kind")) {
+                "start" -> {
+                    if (exportSession != null) throw IllegalStateException("Another export is active")
+                    val size = req.optLong("size", -1L)
+                    if (size < 0 || size > maxExportBytes) {
+                        throw IllegalArgumentException("This backup exceeds the supported export size")
+                    }
+                    val mime = req.optString("mime", "application/octet-stream").take(120)
+                    val fileName = req.optString("name", "MediaFlow-export.json")
+                        .replace(Regex("[^\\w.() -]"), "_").take(120)
+                        .ifEmpty { "MediaFlow-export.json" }
+                    val values = ContentValues().apply {
+                        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                        put(MediaStore.Downloads.MIME_TYPE, mime)
+                        put(MediaStore.Downloads.IS_PENDING, 1)
+                        put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/")
+                    }
+                    val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                        ?: throw IllegalStateException("Could not create Download entry")
+                    val stream = try {
+                        contentResolver.openOutputStream(uri)
+                            ?: throw IllegalStateException("Could not open Download output")
+                    } catch (error: Exception) {
+                        contentResolver.delete(uri, null, null)
+                        throw error
+                    }
+                    val token = UUID.randomUUID().toString()
+                    exportSession = ExportSession(token, uri, stream, size)
+                    ack.put("token", token)
+                }
+                "chunk" -> {
+                    val session = exportSession ?: throw IllegalStateException("No active export")
+                    if (req.optString("token") != session.token) throw SecurityException("Invalid export token")
+                    val encoded = req.optString("data")
+                    if (encoded.length > 500_000) throw IllegalArgumentException("Oversized export chunk")
+                    val bytes = Base64.decode(encoded, Base64.DEFAULT)
+                    if (session.bytesWritten + bytes.size > session.expectedBytes) {
+                        throw IllegalArgumentException("Export exceeds declared size")
+                    }
+                    session.stream.write(bytes)
+                    session.bytesWritten += bytes.size
+                }
+                "finish" -> {
+                    val session = exportSession ?: throw IllegalStateException("No active export")
+                    if (req.optString("token") != session.token) throw SecurityException("Invalid export token")
+                    if (session.bytesWritten != session.expectedBytes) {
+                        throw IllegalStateException("Incomplete export")
+                    }
+                    session.stream.flush()
+                    session.stream.close()
+                    contentResolver.update(session.uri,
+                        ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
+                    exportSession = null
+                    toast("MediaFlow export saved to Downloads")
+                }
+                "abort" -> {
+                    if (req.optString("token") == exportSession?.token) discardExport()
+                }
+                else -> throw IllegalArgumentException("Unknown export request")
             }
-            val pos = dataUrl.indexOf(',')
-            if (pos < 5) return
-            val mime = dataUrl.substring(5, pos).substringBefore(';').ifBlank { "application/octet-stream" }
-            val bytes = Base64.decode(dataUrl.substring(pos + 1), Base64.DEFAULT)
-            val safeName = name.replace(Regex("[^\\w.() -]"), "_").take(120).ifEmpty { "MediaFlow-export.json" }
-            val values = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, safeName)
-                put(MediaStore.Downloads.MIME_TYPE, mime)
-                put(MediaStore.Downloads.IS_PENDING, 1)
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/")
-            }
-            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: throw IllegalStateException("Cannot create download")
-            try {
-                contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                    ?: throw IllegalStateException("Cannot write download")
-                values.clear()
-                values.put(MediaStore.Downloads.IS_PENDING, 0)
-                contentResolver.update(uri, values, null, null)
-                toast("Saved to Downloads: $safeName")
-            } catch (error: Exception) {
-                contentResolver.delete(uri, null, null)
-                throw error
-            }
-        } catch (_: Exception) { toast("MediaFlow export failed") }
+            ack.put("ok", true)
+        } catch (error: Exception) {
+            if (req.optString("kind") != "start" || exportSession != null) discardExport()
+            ack.put("ok", false)
+            ack.put("error", error.message ?: "Export failed")
+        }
+        reply.postMessage(ack.toString())
+    }
+
+    private fun discardExport() {
+        val session = exportSession ?: return
+        exportSession = null
+        try { session.stream.close() } catch (_: Exception) {}
+        try { contentResolver.delete(session.uri, null, null) } catch (_: Exception) {}
     }
 
     private fun toast(text: String) {
@@ -224,10 +296,32 @@ class MediaFlowActivity : Activity() {
         }
     }
 
-    @Deprecated("Deprecated in Android Activity but needed for WebView back navigation")
+    @Deprecated("Compatibility with Android back navigation")
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack()
-        else super.onBackPressed()
+        if (!::webView.isInitialized) { super.onBackPressed(); return }
+        // v507 uses in-memory S.view rather than URL history. First close genuine
+        // MediaFlow dialogs, then return to Dashboard; only then leave the app.
+        val action = """
+            (function() {
+              try {
+                if (typeof S !== 'undefined' && window.App) {
+                  if (S.modal && typeof App.closeModal === 'function') {
+                    App.closeModal(); return true;
+                  }
+                  if (S.view && S.view !== 'dashboard' && typeof App.setView === 'function') {
+                    App.setView('dashboard'); return true;
+                  }
+                }
+              } catch (_) {}
+              return false;
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(action) { consumed ->
+            if (consumed != "true") {
+                if (webView.canGoBack()) webView.goBack()
+                else super.onBackPressed()
+            }
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -236,6 +330,7 @@ class MediaFlowActivity : Activity() {
     }
 
     override fun onDestroy() {
+        discardExport()
         if (::webView.isInitialized) {
             webView.stopLoading()
             webView.destroy()
