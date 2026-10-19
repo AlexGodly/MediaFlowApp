@@ -23,6 +23,8 @@ import '../features/library/library_screen.dart';
 import '../features/website/native_website_workspaces.dart';
 import '../design_system/mediaflow_theme.dart';
 import '../design_system/mediaflow_components.dart';
+import '../design_system/mediaflow_ambience.dart';
+import '../design_system/mediaflow_cloud_indicator.dart';
 
 enum MediaFlowSection {
   dashboard('Dashboard', Icons.space_dashboard_outlined),
@@ -136,8 +138,13 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
       await data.reload();
       if (!mounted) return;
       setState(() => _refreshEpoch++);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('MediaFlow cloud reloaded.')));
+      final cloud = data is SupabaseMediaFlowLibraryRepository &&
+          nativeCloudSourceOnline(data.source.value);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(cloud
+            ? 'Latest cloud snapshot loaded (read-only).'
+            : 'Cloud unavailable; showing a protected device copy.'),
+      ));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -148,6 +155,12 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
   void navigate(MediaFlowSection section) {
     if (selected == section) return;
     setState(() => selected = section);
+  }
+
+  Future<void> _openWorkspaceSearch() async {
+    final destination = await showSearch<MediaFlowSection?>(
+      context: context, delegate: _MediaFlowNavigationSearch());
+    if (mounted && destination != null) navigate(destination);
   }
 
   void showMore() {
@@ -164,6 +177,26 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                 letterSpacing: 1.0,
               )),
             ),
+            ListTile(
+              leading: const Icon(Icons.manage_search_outlined),
+              title: const Text('Find any workspace'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _openWorkspaceSearch();
+              },
+            ),
+            if (repository is SupabaseMediaFlowLibraryRepository)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Align(alignment: Alignment.centerLeft,
+                  child: MfCloudIndicator(
+                    repository: repository! as SupabaseMediaFlowLibraryRepository,
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      navigate(MediaFlowSection.settings);
+                    },
+                  )),
+              ),
             for (final section in MediaFlowSection.values.where((s) => !primary.contains(s)))
               ListTile(
                 leading: Icon(section.icon),
@@ -310,6 +343,18 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               const Text('MediaFlow'),
             ]),
             actions: [
+              IconButton(
+                key: const ValueKey('workspace-search-mobile'),
+                tooltip: 'Find a workspace',
+                onPressed: _openWorkspaceSearch,
+                icon: const Icon(Icons.search),
+              ),
+              if (repository != null)
+                IconButton(
+                  tooltip: 'Refresh cloud data (read-only)',
+                  onPressed: _syncCurrentPage,
+                  icon: const Icon(Icons.cloud_sync_outlined),
+                ),
               PopupMenuButton<MediaFlowAppearance>(
                 tooltip: 'Appearance',
                 icon: const Icon(Icons.palette_outlined),
@@ -321,7 +366,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               ),
             ],
           ),
-          body: Column(children: [
+          body: MfAmbientBackdrop(child: Column(children: [
             if (repository is SupabaseMediaFlowLibraryRepository)
               ValueListenableBuilder<NativeSnapshotSource>(
                 valueListenable:
@@ -390,7 +435,15 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                       ]),
                     ),
                     Divider(color: MediaFlowTokens.of(context).borderSoft),
-                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                      child: OutlinedButton.icon(
+                        key: const ValueKey('workspace-search-desktop'),
+                        onPressed: _openWorkspaceSearch,
+                        icon: const Icon(Icons.search, size: 18),
+                        label: const Text('Find workspace'),
+                      ),
+                    ),
                     for (final section in MediaFlowSection.values)
                       MfNavigationTile(
                         key: ValueKey('nav-${section.name}'),
@@ -432,10 +485,18 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                           Text('MediaFlow · native website workspace',
                             style: Theme.of(context).textTheme.bodySmall),
                         ])),
+                      if (repository is SupabaseMediaFlowLibraryRepository) ...[
+                        MfCloudIndicator(
+                          repository: repository! as SupabaseMediaFlowLibraryRepository,
+                          compact: true,
+                          onTap: () => navigate(MediaFlowSection.settings),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
                       OutlinedButton.icon(
                         onPressed: _syncCurrentPage,
                         icon: const Icon(Icons.sync, size: 17),
-                        label: const Text('Sync Now')),
+                        label: const Text('Refresh Cloud')),
                     ]),
                   ),
                 )),
@@ -454,7 +515,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               ))),
             ])),
           ])),
-          ]),
+          ])),
           bottomNavigationBar: desktop ? null : NavigationBar(
             height: narrow ? 70 : 80,
             labelBehavior: narrow
@@ -472,6 +533,60 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
           ),
         );
       }),
+    );
+  }
+}
+
+/// Search all native destinations without requiring the user to hunt through
+/// the mobile More sheet or the full-height desktop sidebar.
+class _MediaFlowNavigationSearch extends SearchDelegate<MediaFlowSection?> {
+  _MediaFlowNavigationSearch() : super(searchFieldLabel: 'Find a MediaFlow workspace');
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+    if (query.isNotEmpty)
+      IconButton(
+        tooltip: 'Clear search',
+        icon: const Icon(Icons.close),
+        onPressed: () => query = '',
+      ),
+  ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+    tooltip: 'Close search',
+    icon: const Icon(Icons.arrow_back),
+    onPressed: () => close(context, null),
+  );
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final normalized = query.trim().toLowerCase();
+    final matches = MediaFlowSection.values.where((section) =>
+        normalized.isEmpty ||
+        section.label.toLowerCase().contains(normalized)).toList();
+    if (matches.isEmpty) {
+      return const MfEmptyState(
+        title: 'No matching workspace',
+        message: 'Try Library, Logging, Collections, Theme Studio or Settings.',
+        icon: Icons.search_off_outlined,
+      );
+    }
+    return ListView.builder(
+      itemCount: matches.length,
+      itemBuilder: (context, index) {
+        final section = matches[index];
+        return ListTile(
+          key: ValueKey('search-${section.name}'),
+          leading: Icon(section.icon),
+          title: Text(section.label),
+          trailing: const Icon(Icons.arrow_outward, size: 17),
+          onTap: () => close(context, section),
+        );
+      },
     );
   }
 }
