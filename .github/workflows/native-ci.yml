@@ -1,0 +1,111 @@
+name: Flutter native validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify pinned website JavaScript parity fixtures
+        run: |
+          TZ=UTC node tool/parity/m23_website_reference.mjs
+          TZ=UTC node tool/parity/m24_website_reference.mjs
+          TZ=UTC node tool/parity/m25_website_reference.mjs
+      - name: Check source-pinned v410 feature inventory and parity matrix
+        run: node tool/parity/m26_inventory_guard.mjs
+      - name: Verify lossless v410 data contract and native write gates
+        run: node tool/parity/m28_contract_guard.mjs
+      - name: Verify pinned v410 business rule sources
+        run: TZ=UTC node tool/parity/m29_website_reference.mjs
+      - name: Verify shared sync protocol remains local-only
+        run: node tool/parity/m30_contract_guard.mjs
+      - name: Verify owner-scoped offline-first read safety
+        run: node tool/parity/m31_offline_safety_guard.mjs
+      - name: Verify priority review has no cloud write transport
+        run: node tool/parity/m32_review_safety_guard.mjs
+      - name: Guard M33 encrypted offline drafts against cloud replay
+        run: node tool/parity/m33_offline_queue_guard.mjs
+      - name: Guard M34 per-title review and disabled cloud writes
+        run: node tool/parity/m34_conflict_guard.mjs
+      - name: Guard M35 recovery and cloud-write separation
+        run: node tool/parity/m35_auth_guard.mjs
+      - name: Guard M36 Dashboard utilities and disabled account writes
+        run: node tool/parity/m36_dashboard_tools_guard.mjs
+      - name: Guard M37 local Library CRUD against cloud writes
+        run: node tool/parity/m37_library_guard.mjs
+      - name: Guard M38 local details and reversible batch metadata
+        run: node tool/parity/m38_library_guard.mjs
+      - name: Guard M39 external IDs, seasons and lossless metadata safety
+        run: node tool/parity/m39_metadata_guard.mjs
+      - name: Guard M40 reversible local Collections and write restrictions
+        run: node tool/parity/m40_collections_guard.mjs
+      - name: Guard M41 advanced Collections and v287 order reference safety
+        run: node tool/parity/m41_collections_guard.mjs
+      - name: Guard M42 read-only mixed Personal Order queues
+        run: node tool/parity/m42_mixed_queue_guard.mjs
+      - name: Guard M43 ranking audit and disabled cloud writes
+        run: node tool/parity/m43_recommendation_guard.mjs
+      - name: Guard M44 owner-pinned local Personal Order changes
+        run: node tool/parity/m44_personal_order_plan_guard.mjs
+      - name: Guard M45 direct Personal Order local plan and disabled cloud writes
+        run: node tool/parity/m45_direct_order_guard.mjs
+      - name: Guard M46 full-catalog Personal Order picker and local-only UI
+        run: node tool/parity/m46_picker_parity_guard.mjs
+      - name: Guard M47 mixed queue local editing and Collection member paging
+        run: node tool/parity/m47_mixed_queue_guard.mjs
+      - name: Guard M48 task/recommendation preview and disabled cloud writes
+        run: node tool/parity/m48_task_coordination_guard.mjs
+      - name: Guard M49 Dashboard task source evidence and no-write previews
+        run: node tool/parity/m49_dashboard_evidence_guard.mjs
+      - name: Guard M50 responsive Dashboard hero and exact-ID read safety
+        run: node tool/parity/m50_dashboard_task_hero_guard.mjs
+      - name: Guard M51 Dashboard-to-Logging owner/snapshot safety
+        run: node tool/parity/m51_task_handoff_guard.mjs
+      - name: Guard M52 owner-scoped task context and local draft continuity
+        run: node tool/parity/m52_task_draft_continuity_guard.mjs
+      - name: Guard M53 task completion evidence
+        run: node tool/parity/m53_completion_evidence_guard.mjs
+      - name: Guard M54 task completion transaction readiness and no-write policy
+        run: node tool/parity/m54_transaction_readiness_guard.mjs
+      - name: Guard M55 feature parity and release safety assessment
+        run: node tool/parity/m55_readiness_guard.mjs
+      - name: Guard M56 pinned source writer inventory and staging denial
+        run: node tool/parity/m56_sync_inventory_guard.mjs
+      - name: Rehearse 12 synthetic shared-writer staging threat cases
+        run: node tool/parity/m56_staging_rehearsal.mjs
+      - name: Verify Logging MediaFlow Recommends exact-ID safety
+        run: node tool/parity/logging_recommends_guard.mjs
+      - name: Guard Beta 3 Logging queue filters and release metadata
+        run: node tool/parity/logging_recommends_beta3_guard.mjs
+      - name: Set up Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate native platform templates on CI host
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android,ios,windows .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Validate Android, iOS, Windows MediaFlow identity and icons
+        run: python tool/branding/apply_branding.py --platforms=android,ios,windows
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Analyze Dart source
+        run: flutter analyze
+      - name: Run automated tests
+        run: flutter test
+
+# Validation only. Unconfigured or unsigned apps are not released.

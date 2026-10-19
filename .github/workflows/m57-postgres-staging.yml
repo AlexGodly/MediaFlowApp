@@ -1,0 +1,61 @@
+name: M57 isolated PostgreSQL transaction integration
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tool/staging/m57_*'
+      - 'test/staging/m57_*'
+      - 'docs/MILESTONE_57.md'
+      - '.github/workflows/m57-postgres-staging.yml'
+  pull_request:
+    paths:
+      - 'tool/staging/m57_*'
+      - 'test/staging/m57_*'
+      - 'docs/MILESTONE_57.md'
+      - '.github/workflows/m57-postgres-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m57-isolated-postgres-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: m57_ephemeral_ci
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGDATABASE: postgres
+      PGPASSWORD: m57_ephemeral_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated database test client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Refuse any production Supabase connection and inspect SQL
+        run: node tool/staging/m57_sql_guard.mjs
+      - name: Execute schema and owner/auth/RLS/idempotency tests in ephemeral Postgres 17
+        run: psql -v ON_ERROR_STOP=1 -f test/staging/m57_pg_integration.sql
+      - name: Race two separate authenticated PostgreSQL sessions
+        run: node tool/staging/m57_pg_concurrency.mjs
+
+# This CI job never connects to Supabase or user accounts and does not deploy
+# the SQL. All records and credentials are ephemeral synthetic test fixtures.

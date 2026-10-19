@@ -1,12 +1,10 @@
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
+.flutter-plugins*
 .packages
-.pub-cache/
 build/
-.idea/
-*.iml
-android/.gradle/
-ios/Pods/
+coverage/
 *.jks
+*.keystore
+*.p12
+*.mobileprovision
 .env
