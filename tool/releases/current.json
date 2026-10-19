@@ -1,8 +1,8 @@
 {
-  "tag": "app-v1.0.0-beta.7",
-  "name": "MediaFlowApp v1.0.0 Beta 7 — Living Native Workspace",
-  "notesFile": "docs/releases/app-v1.0.0-beta.7.md",
+  "tag": "app-v1.0.0-beta.8",
+  "name": "MediaFlowApp v1.0.0 Beta 8 — Real Cloud-Backed Advanced Logging Drafts",
+  "notesFile": "docs/releases/app-v1.0.0-beta.8.md",
   "basedOnMediaFlow": "507",
   "releaseType": "beta-preview",
-  "packagingRevision": 8
+  "packagingRevision": 9
 }
