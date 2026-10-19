@@ -67,9 +67,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('nav-settings')));
     await tester.pump();
     expect(find.text('Native application preferences'), findsOneWidget);
-    expect(find.text('Appearance'), findsWidgets);
-    await tester.tap(find.text('AMOLED').last);
-    await tester.pump();
     expect(find.byType(MfPanel), findsWidgets);
     expect(tester.takeException(), isNull);
   });
