@@ -407,7 +407,7 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
         payload['keepTitles'] is! bool) {
       throw const FormatException('Invalid remote Advanced Logging draft.');
     }
-    final validated = LinkedHashMap<String, R2DraftTitle>();
+    final validated = <String, R2DraftTitle>{};
     var total = 0;
     for (final record in raw) {
       if (record is! Map) {
