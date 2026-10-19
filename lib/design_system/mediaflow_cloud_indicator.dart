@@ -46,8 +46,9 @@ class MfCloudIndicator extends StatelessWidget {
                 : source == NativeSnapshotSource.checkingCloud || refreshing
                     ? tokens.due : tokens.overused;
             return Tooltip(
-              message: 'Existing MediaFlow cloud data is readable. '
-                  'This beta does not upload Library, Logging, History or XP edits.',
+              message: 'Your MediaFlow Library and History are read-only. '
+                  'Advanced Logging drafts use separate cloud backup; '
+                  'this does not submit consumption or award XP.',
               child: Material(
                 color: color.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(999),
