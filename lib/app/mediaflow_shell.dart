@@ -1,3 +1,4 @@
+// ignore_for_file: prefer_interpolation_to_compose_strings
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -400,7 +401,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                       ),
                   ]),
                 ),
-              )
+              ),
             Expanded(child: Column(children: [
               if (desktop) Padding(
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
