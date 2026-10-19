@@ -1,0 +1,26 @@
+/* Android-only opt-in performance profile. Never uploaded with cloud settings. */
+.mf-android-controls { margin: 0 0 18px; padding: 17px; }
+.mf-android-title { color: var(--text); font-size: 16px; font-weight: 800; }
+.mf-android-controls p { font-size: 12px; line-height: 1.55; color: var(--text-dim); margin: 8px 0 12px; }
+.mf-android-controls small { display: block; margin-top: 10px; color: var(--text-mute); line-height: 1.45; }
+.mf-android-modes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.mf-android-modes button { color: var(--text); cursor: pointer; padding: 10px 4px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel-raised); font: inherit; font-size: 12px; font-weight: 700; }
+.mf-android-modes button.selected { color: var(--flow); border-color: var(--flow); background: var(--panel); }
+@media (max-width: 1080px) {
+  html[data-android-perf="balanced"] :is(.modal, .mobile-tabbar, .mf476-bg-widget),
+  html[data-android-perf="smooth"] :is(.modal, .mobile-tabbar, .mf476-bg-widget, .card, .panel) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  html[data-android-perf="smooth"] body,
+  html[data-android-perf="balanced"] body { background-attachment: scroll !important; }
+  html[data-android-perf="smooth"] *:not(.mf-android-controls) {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  html[data-android-perf="smooth"] :is(.card, .panel, .modal, .mobile-tabbar) {
+    box-shadow: none !important;
+  }
+}

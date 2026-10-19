@@ -43,3 +43,12 @@ The generated APK is **debug-signed** for installation/testing and may conflict 
 MediaFlow v507's browser-only `showDirectoryPicker()` is not supported by Android WebView. This release patches only the packaged Android copy of the v507 backup functions: **Choose backup folder** uses Android's Storage Access Framework picker, retains the permitted folder across app restarts, and streams the website's real Full Backup JSON to that location. The existing **Back up now**, **Single file** and **Multiple files** options continue using the v507 settings. The app must be running for timed automatic backups; if reopened after an elapsed interval, a catch-up save may occur after MediaFlow becomes active. Android does **not** schedule background cloud exports when the app is terminated. If a storage provider cannot safely replace a single-file backup, the app reports an error rather than deleting an existing backup.
 
 This is an Android beta: compilation and source-level tests are automated, but provider-specific folder operations, device FPS, logins and every v507 feature require real-device testing.
+
+
+## Mandatory GitHub release + legacy archive policy (Beta 4 onward)
+
+Every commit updating `main` must bump the Android application version and update the release notes and GitHub workflow to a **new, unique tag**. The exact complete tracked source (excluding the shared `legacy/` directory to prevent nested copies) must be mirrored into `legacy/v/<release-tag>/`. Previous versions must remain intact. The earlier Flutter application stays under `legacy/flutter-beta7/`.
+
+CI now compares the archive byte-for-byte against the release source **before** packaging and publishing. For every passing release, upload the installable Android APK, full version-specific source ZIP, SHA-256 checksums, source manifest and detailed release notes to GitHub Releases. No successful APK build should remain only as a workflow artifact. If a release cannot be built or published, it is not a released version. Updating source without a new archive and tag fails the release checks.
+
+Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-discipline update; it does not claim that the Android app is fully feature-verified or that scrolling problems have been measured and resolved.
