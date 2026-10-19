@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../design_system/mediaflow_theme.dart';
 import '../../design_system/mediaflow_components.dart';
+import '../../design_system/mediaflow_cloud_indicator.dart';
 import '../../data/mediaflow_library_repository.dart';
 import 'cloud_safety_panel.dart';
 import 'account_health_panel.dart';
@@ -24,18 +25,46 @@ class NativeSettingsScreen extends StatelessWidget {
     required this.onAppearanceChanged,
     this.repository,
     this.nativeRepository,
+    this.onCloudRefresh,
   });
 
   final MediaFlowAppearance appearance;
   final ValueChanged<MediaFlowAppearance> onAppearanceChanged;
   final MediaFlowLibraryRepository? repository;
   final SupabaseMediaFlowLibraryRepository? nativeRepository;
+  final VoidCallback? onCloudRefresh;
 
   @override
   Widget build(BuildContext context) => ListView(children: [
     const MfPageHeader(title: 'Settings',
       subtitle: 'Native application preferences'),
     const SizedBox(height: 16),
+    if (nativeRepository != null) ...[
+      MfPanel(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Cloud connection', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text('Your existing MediaFlow cloud is authoritative. '
+              'This device can refresh a protected read-only snapshot; '
+              'native account-data uploads remain disabled.',
+            style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          Wrap(spacing: 10, runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              MfCloudIndicator(repository: nativeRepository!),
+              if (onCloudRefresh != null)
+                OutlinedButton.icon(
+                  onPressed: onCloudRefresh,
+                  icon: const Icon(Icons.cloud_sync_outlined, size: 18),
+                  label: const Text('Refresh cloud snapshot'),
+                ),
+            ]),
+        ],
+      )),
+      const SizedBox(height: 12),
+    ],
     const NativeM55ReleaseReadinessPanel(),
     const SizedBox(height: 12),
     const NativeM56SyncPreflightPanel(),
