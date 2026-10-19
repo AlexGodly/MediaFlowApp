@@ -20,6 +20,96 @@ class R2DraftTitle {
   final Map<String, Map<int, int>> _durations = {};
   final Map<String, SplayTreeMap<int, DateTime>> _seasonUnits = {};
 
+
+  /// Lossless, bounded restore of actual selected seasons, units, timestamps,
+  /// runtimes and notes. A malformed cloud draft is NEVER partially applied.
+  factory R2DraftTitle.fromLocalReview(Map<String, dynamic> data) {
+    final id = data['titleId'];
+    final methodName = data['method'];
+    final at = DateTime.tryParse(data['whenWatched']?.toString() ?? '');
+    final runtime = data['runtimeMinutes'];
+    final repeat = data['repeat'];
+    final manual = data['manualRuntime'];
+    final totalSeconds = data['customTotalRuntimeSeconds'];
+    final selectedSeason = data['seasonId'];
+    final note = data['note'];
+    if (id is! String || id.isEmpty || id.length > 256 ||
+        methodName is! String || at == null ||
+        runtime is! int || runtime < 0 || runtime > 1440 ||
+        repeat is! bool || manual is! bool ||
+        totalSeconds is! int || totalSeconds < 0 ||
+        totalSeconds > 86400 * 365 ||
+        selectedSeason is! String || selectedSeason.length > 256 ||
+        note is! String || note.length > 20000 ||
+        data['units'] is! Map || data['unitDurations'] is! Map) {
+      throw const FormatException('Invalid Advanced Logging title draft.');
+    }
+    final method = R2LoggingMethod.values.where((v) =>
+        v.name == methodName).toList();
+    if (method.length != 1) {
+      throw const FormatException('Unknown Advanced Logging method.');
+    }
+    final result = R2DraftTitle(id)
+      ..method = method.single
+      ..whenWatched = at
+      ..seasonId = selectedSeason
+      ..runtimeMinutes = runtime
+      ..isRepeat = repeat
+      ..manualRuntime = manual
+      ..customTotalRuntimeSeconds = totalSeconds
+      ..note = note;
+    final rawUnits = data['units'] as Map;
+    final rawDurations = data['unitDurations'] as Map;
+    var totalUnits = 0;
+    if (rawUnits.length > 100 || rawDurations.length > 100) {
+      throw const FormatException('Too many season rows in draft.');
+    }
+    for (final row in rawUnits.entries) {
+      if (row.key is! String || (row.key as String).isEmpty ||
+          (row.key as String).length > 256 || row.value is! Map) {
+        throw const FormatException('Invalid season draft row.');
+      }
+      final unitMap = row.value as Map;
+      if (unitMap.length > 2000) {
+        throw const FormatException('Too many selected units in one season.');
+      }
+      totalUnits += unitMap.length;
+      if (totalUnits > 10000) {
+        throw const FormatException('Too many selected units in draft.');
+      }
+      final selected = SplayTreeMap<int, DateTime>();
+      for (final unit in unitMap.entries) {
+        final number = int.tryParse(unit.key.toString());
+        final stamp = DateTime.tryParse(unit.value?.toString() ?? '');
+        if (number == null || number < 1 || number > 100000000 ||
+            stamp == null) {
+          throw const FormatException('Invalid itemized unit or timestamp.');
+        }
+        selected[number] = stamp;
+      }
+      result._seasonUnits[row.key as String] = selected;
+    }
+    for (final row in rawDurations.entries) {
+      if (row.key is! String || row.value is! Map ||
+          !result._seasonUnits.containsKey(row.key)) {
+        throw const FormatException('Orphaned unit runtime season.');
+      }
+      final durations = <int, int>{};
+      for (final duration in (row.value as Map).entries) {
+        final number = int.tryParse(duration.key.toString());
+        if (number == null ||
+            !(result._seasonUnits[row.key]!.containsKey(number)) ||
+            duration.value is! int || duration.value < 0 ||
+            duration.value > 86400 * 7) {
+          throw const FormatException('Orphaned or invalid runtime.');
+        }
+        durations[number] = duration.value as int;
+      }
+      result._durations[row.key as String] = durations;
+    }
+    return result;
+  }
+
   String get seasonKey => seasonId.isEmpty ? '_whole_title' : seasonId;
 
   SplayTreeMap<int, DateTime> get currentUnits =>
@@ -291,11 +381,54 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
 
   void setNote(String id, String value) {
     final entry = _entries[id];
-    if (entry != null) entry.note = value;
+    if (entry != null && entry.note != value) {
+      entry.note = value;
+      notifyListeners();
+    }
   }
 
   void setKeepTitles(bool value) {
     keepTitles = value;
+    notifyListeners();
+  }
+
+  /// Versioned **draft-only** cloud payload. Not a History/log submission.
+  Map<String, dynamic> toCloudPayload() => {
+    'format': 'mediaflow-native-logging-draft-v1',
+    'keepTitles': keepTitles,
+    'entries': review(),
+  };
+
+  /// Validates the entire remote payload before replacing any local draft.
+  /// Restoring a cloud draft does not submit consumption or change XP.
+  void restoreFromCloud(Map<String, dynamic> payload) {
+    final raw = payload['entries'];
+    if (payload['format'] != 'mediaflow-native-logging-draft-v1' ||
+        raw is! List || raw.length > 300 ||
+        payload['keepTitles'] is! bool) {
+      throw const FormatException('Invalid remote Advanced Logging draft.');
+    }
+    final validated = LinkedHashMap<String, R2DraftTitle>();
+    var total = 0;
+    for (final record in raw) {
+      if (record is! Map) {
+        throw const FormatException('Malformed remote draft title.');
+      }
+      final item = R2DraftTitle.fromLocalReview(
+        Map<String, dynamic>.from(record));
+      if (validated.containsKey(item.titleId)) {
+        throw const FormatException('Duplicate remote title ID.');
+      }
+      validated[item.titleId] = item;
+      total += item.quantity;
+      if (total > 50000) {
+        throw const FormatException('Remote draft exceeds safe unit limit.');
+      }
+    }
+    _entries
+      ..clear()
+      ..addAll(validated);
+    keepTitles = payload['keepTitles'] as bool;
     notifyListeners();
   }
 
