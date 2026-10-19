@@ -300,7 +300,6 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
       data: MediaFlowTheme.build(appearance),
       child: LayoutBuilder(builder: (context, constraints) {
         final desktop = constraints.maxWidth >= MediaFlowBreakpoints.desktop;
-        final tablet = false; // Website v507 uses bottom navigation at <=1080px.
         final narrow = constraints.maxWidth < MediaFlowBreakpoints.compactPhone;
         return Scaffold(
           appBar: desktop ? null : AppBar(
@@ -374,7 +373,7 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 18, 16, 16),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('ALEX GODLY', style: TextStyle(
+                        Text('CONSUMPTION ROTATION', style: TextStyle(
                           fontSize: 10, letterSpacing: 2.0, fontWeight: FontWeight.w800,
                           color: MediaFlowTokens.of(context).accent,
                         )),
@@ -402,22 +401,6 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                   ]),
                 ),
               )
-            else if (tablet)
-              SingleChildScrollView(
-                child: IntrinsicHeight(child: NavigationRail(
-                key: const Key('tablet-navigation-rail'),
-                selectedIndex: MediaFlowSection.values.indexOf(selected),
-                onDestinationSelected: (index) =>
-                    navigate(MediaFlowSection.values[index]),
-                labelType: NavigationRailLabelType.selected,
-                destinations: [
-                  for (final section in MediaFlowSection.values)
-                    NavigationRailDestination(
-                      icon: Icon(section.icon),
-                      label: Text(section.label),
-                    ),
-                ],
-              ))),
             Expanded(child: Column(children: [
               if (desktop) Padding(
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
