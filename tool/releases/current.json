@@ -1,8 +1,8 @@
 {
-  "tag": "app-v1.0.0-beta.5",
-  "name": "MediaFlowApp v1.0.0 Beta 5 — Complete Advanced Logging",
-  "notesFile": "docs/releases/app-v1.0.0-beta.5.md",
-  "basedOnMediaFlow": "505",
+  "tag": "app-v1.0.0-beta.6",
+  "name": "MediaFlowApp v1.0.0 Beta 6 — Website-Style Native Workspace",
+  "notesFile": "docs/releases/app-v1.0.0-beta.6.md",
+  "basedOnMediaFlow": "507",
   "releaseType": "beta-preview",
-  "packagingRevision": 6
+  "packagingRevision": 7
 }
