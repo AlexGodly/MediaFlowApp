@@ -19,6 +19,7 @@ import '../features/logging/logging_screen.dart';
 import '../features/logging/r2_advanced_logging_drafts.dart';
 import '../features/logging/r2_advanced_logging_screen.dart';
 import '../features/library/library_screen.dart';
+import '../features/website/native_website_workspaces.dart';
 import '../design_system/mediaflow_theme.dart';
 import '../design_system/mediaflow_components.dart';
 
@@ -31,7 +32,12 @@ enum MediaFlowSection {
   history('History', Icons.history),
   statistics('Statistics', Icons.bar_chart_outlined),
   account('Account', Icons.person_outline),
-  settings('Settings', Icons.settings_outlined);
+  settings('Settings', Icons.settings_outlined),
+  oldSystem('Old System', Icons.sync_alt_outlined),
+  freshReleases('Fresh Episodes', Icons.live_tv_outlined),
+  recovery('Background Processes', Icons.auto_fix_high_outlined),
+  themes('Theme Studio', Icons.palette_outlined),
+  about('About', Icons.info_outline);
   const MediaFlowSection(this.label, this.icon);
   final String label;
   final IconData icon;
@@ -46,6 +52,7 @@ class MediaFlowShell extends StatefulWidget {
 
 class _MediaFlowShellState extends State<MediaFlowShell> {
   MediaFlowSection selected = MediaFlowSection.dashboard;
+  int _refreshEpoch = 0;
   MediaFlowAppearance appearance = MediaFlowAppearance.dark;
   final NativePreferences preferences = NativePreferences();
   late final MediaFlowLibraryRepository? repository;
@@ -120,6 +127,22 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
     MediaFlowSection.logging,
     MediaFlowSection.personalOrder,
   ];
+
+  Future<void> _syncCurrentPage() async {
+    final data = repository;
+    if (data == null) return;
+    try {
+      await data.reload();
+      if (!mounted) return;
+      setState(() => _refreshEpoch++);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('MediaFlow cloud reloaded.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Cloud refresh failed; no account data was overwritten.')));
+    }
+  }
 
   void navigate(MediaFlowSection section) {
     if (selected == section) return;
@@ -233,6 +256,21 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
               )),
             ),
           );
+        case MediaFlowSection.oldSystem:
+          return NativeWebsiteCatalogWorkspace(
+            repository: data, kind: WebsiteWorkspaceKind.oldSystem);
+        case MediaFlowSection.freshReleases:
+          return NativeWebsiteCatalogWorkspace(
+            repository: data, kind: WebsiteWorkspaceKind.freshReleases);
+        case MediaFlowSection.recovery:
+          return NativeWebsiteCatalogWorkspace(
+            repository: data, kind: WebsiteWorkspaceKind.recovery);
+        case MediaFlowSection.themes:
+          return NativeWebsiteThemeScreen(
+            appearance: appearance,
+            onChanged: (value) => unawaited(_changeAppearance(value)));
+        case MediaFlowSection.about:
+          return const NativeWebsiteAboutScreen();
         case MediaFlowSection.personalOrder:
           return PersonalOrderScreen(
             repository: data,plan: personalOrderPlan,
@@ -262,10 +300,10 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
       data: MediaFlowTheme.build(appearance),
       child: LayoutBuilder(builder: (context, constraints) {
         final desktop = constraints.maxWidth >= MediaFlowBreakpoints.desktop;
-        final tablet = constraints.maxWidth >= MediaFlowBreakpoints.tablet && !desktop;
+        final tablet = false; // Website v507 uses bottom navigation at <=1080px.
         final narrow = constraints.maxWidth < MediaFlowBreakpoints.compactPhone;
         return Scaffold(
-          appBar: AppBar(
+          appBar: desktop ? null : AppBar(
             title: Row(mainAxisSize: MainAxisSize.min, children: [
               Image.asset('assets/branding/mediaflow-launcher-512.png', width: 25, height: 25),
               const SizedBox(width: 9),
@@ -380,19 +418,60 @@ class _MediaFlowShellState extends State<MediaFlowShell> {
                     ),
                 ],
               ))),
-            Expanded(child: Center(child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: MediaFlowBreakpoints.contentMax),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: MediaFlowBreakpoints.pagePadding(constraints.maxWidth),
-                  vertical: narrow ? 10 : 20,
+            Expanded(child: Column(children: [
+              if (desktop) Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: MediaFlowTokens.of(context).panel,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: MediaFlowTokens.of(context).border)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 8),
+                    child: Row(children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: MediaFlowTokens.of(context).accent
+                              .withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(10)),
+                        child: Icon(selected.icon,
+                          color: MediaFlowTokens.of(context).accent, size: 19)),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(selected.label, style: const TextStyle(
+                            fontWeight: FontWeight.w700)),
+                          Text('MediaFlow · native website workspace',
+                            style: Theme.of(context).textTheme.bodySmall),
+                        ])),
+                      OutlinedButton.icon(
+                        onPressed: _syncCurrentPage,
+                        icon: const Icon(Icons.sync, size: 17),
+                        label: const Text('Sync Now')),
+                    ]),
+                  ),
+                )),
+              Expanded(child: Center(child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: MediaFlowBreakpoints.contentMax),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: MediaFlowBreakpoints.pagePadding(
+                      constraints.maxWidth),
+                    vertical: narrow ? 10 : 20),
+                  child: KeyedSubtree(
+                    key: ValueKey(selected.name + '_' + _refreshEpoch.toString()),
+                    child: _page(context)),
                 ),
-                child: _page(context),
-              ),
-            ))),
+              ))),
+            ])),
           ])),
           ]),
-          bottomNavigationBar: desktop || tablet ? null : NavigationBar(
+          bottomNavigationBar: desktop ? null : NavigationBar(
             height: narrow ? 70 : 80,
             labelBehavior: narrow
                 ? NavigationDestinationLabelBehavior.onlyShowSelected
