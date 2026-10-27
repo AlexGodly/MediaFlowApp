@@ -675,10 +675,8 @@
           const localTime = Number(localDraft.savedAt) || 0;
           const localDirty = localTime > Number(localDraft.cloudSyncedAt || 0);
           const same = draftContentKey(localDraft) === draftContentKey(remoteDraft);
-          if (same && remoteTime === localTime) {
-            markLocalDraftSynced(userId, localDraft);
-            companion.draftConflict = false;
-            companion.conflictingCloudDraft = null;
+          if (same) {
+            captureCloudDraft(remote.state, userId);
             updateStatus();
             return true;
           }
@@ -1203,8 +1201,11 @@
       restoreDraft();
       render();
       updateStatus();
-      if (navigator.onLine && (companion.active || companion.pending)) {
-        setTimeout(function () { reconcile(false); }, 500);
+      if (navigator.onLine) {
+        setTimeout(async function () {
+          if (companion.active || companion.pending) await reconcile(false);
+          await syncDraftToCloud();
+        }, 650);
       }
     }
     return result;
@@ -1379,17 +1380,29 @@
     window.addEventListener('pagehide', saveDraftNow);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') saveDraftNow();
-      else if (navigator.onLine && (companion.active || companion.pending)) reconcile(false);
+      else if (navigator.onLine) {
+        if (companion.active || companion.pending) {
+          reconcile(false).then(function () { syncDraftToCloud(); });
+        } else if (companion.draftPending) syncDraftToCloud();
+      }
     });
     window.addEventListener('offline', function () {
       companion.active = true; S.offlineMode = true; updateStatus();
     });
     window.addEventListener('online', function () {
       companion.active = true; S.offlineMode = true; updateStatus();
-      setTimeout(function () { reconcile(false); }, 400);
+      setTimeout(async function () {
+        await reconcile(false);
+        await syncDraftToCloud();
+      }, 400);
     });
     setInterval(function () {
-      if (navigator.onLine && (companion.active || (companion.pending && !companion.needsAuth && !companion.attention))) reconcile(false);
+      if (!navigator.onLine) return;
+      if (companion.active || (companion.pending && !companion.needsAuth && !companion.attention)) {
+        reconcile(false).then(function () { syncDraftToCloud(); });
+      } else if (companion.draftPending && !companion.draftConflict) {
+        syncDraftToCloud();
+      }
     }, 30000);
     updateStatus();
     mountBackupTools();
