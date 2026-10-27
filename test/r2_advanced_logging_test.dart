@@ -78,7 +78,7 @@ void main() {
     expect(entry.previewProgress(title), 6);
   });
 
-  test('cloud draft serializer uses website v285/v369 shape, () {
+  test('cloud draft serializer uses website v285/v369 shape', () {
   final title = sampleTitle();
   final drafts = R2AdvancedLoggingDrafts();
   drafts.add(title);
