@@ -880,10 +880,14 @@
         stateToQueue = mergeOfflineStates(value, remote.state);
         jsonToQueue = JSON.stringify(stateToQueue);
       }
-      await uploadSnapshot(userId, stateToQueue, jsonToQueue);
+      const synced = await uploadSnapshot(
+        userId, stateToQueue, jsonToQueue, !wasPending && v115AccountLooksNew());
+      stateToQueue = synced.state;
+      jsonToQueue = JSON.stringify(stateToQueue);
       await saveLocalSnapshot(userId, stateToQueue, false, 'synced with Supabase', jsonToQueue);
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
-      if (wasPending && stateToQueue !== value && typeof v115StartWithData === 'function') {
+      if ((wasPending || synced.remoteChanged || synced.attempts > 1) &&
+          typeof v115StartWithData === 'function') {
         await v115StartWithData(stateToQueue);
       }
       updateStatus();
