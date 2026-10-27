@@ -1,0 +1,306 @@
+{
+  "schema": "m29-v410-pinned-reference-v1",
+  "scheduler": {
+    "nowMillis": 1791979200000,
+    "categories": [
+      {
+        "id": "anime",
+        "enabled": true,
+        "weight": 2,
+        "target": 4,
+        "seasonal": true
+      },
+      {
+        "id": "books",
+        "enabled": true,
+        "weight": 1,
+        "target": 3,
+        "seasonal": false
+      }
+    ],
+    "settings": {
+      "neglectCap": 30,
+      "neglectRate": 2,
+      "repetitionPenalty": 3,
+      "consecutivePenalty": 5,
+      "saturationWeight": 10,
+      "seasonalBonus": 7,
+      "seasonalFreshCount": 2,
+      "randomness": 0
+    },
+    "sessions": [
+      {
+        "id": "row1",
+        "sessionGroupId": "g1",
+        "daysAgo": 1,
+        "categoryId": "anime",
+        "minutes": 90,
+        "actualAmount": 4,
+        "status": "logged"
+      },
+      {
+        "id": "row2",
+        "sessionGroupId": "g1",
+        "daysAgo": 1,
+        "categoryId": "books",
+        "minutes": 30,
+        "actualAmount": 1,
+        "status": "logged"
+      },
+      {
+        "id": "row3",
+        "sessionGroupId": "g2",
+        "daysAgo": 4,
+        "categoryId": "anime",
+        "minutes": 60,
+        "actualAmount": 3,
+        "status": "partial"
+      },
+      {
+        "id": "row4",
+        "daysAgo": 40,
+        "categoryId": "books",
+        "minutes": 200,
+        "actualAmount": 5,
+        "status": "logged"
+      },
+      {
+        "id": "row5",
+        "daysAgo": 0.5,
+        "categoryId": "anime",
+        "minutes": 50,
+        "actualAmount": 5,
+        "status": "skipped"
+      }
+    ],
+    "expected": {
+      "logicalEventCount": 3,
+      "groupedTopCategories": [
+        "anime",
+        "books"
+      ],
+      "suggested": {
+        "anime": {
+          "low": 3,
+          "high": 5,
+          "direction": "normal"
+        },
+        "books": {
+          "low": 3,
+          "high": 3,
+          "direction": "normal"
+        }
+      },
+      "scores": {
+        "anime": {
+          "min": 16,
+          "max": 17
+        },
+        "books": {
+          "min": 1.49,
+          "max": 1.51
+        }
+      }
+    }
+  },
+  "emptyScheduler": {
+    "expected": {
+      "anime": {
+        "low": 5,
+        "high": 7,
+        "direction": "increased",
+        "score": 61
+      }
+    }
+  },
+  "seasons": {
+    "rows": [
+      {
+        "id": "s2",
+        "number": 2,
+        "name": "",
+        "progress": 9,
+        "total": 12,
+        "source": "import"
+      },
+      {
+        "id": "s1",
+        "number": 1,
+        "name": "",
+        "progress": 13,
+        "total": 12
+      },
+      {
+        "id": "sp",
+        "number": 0,
+        "name": "",
+        "progress": 2,
+        "total": 3
+      },
+      {
+        "id": "m",
+        "number": null,
+        "name": "OVA",
+        "progress": 5,
+        "total": null
+      }
+    ],
+    "expected": {
+      "ids": [
+        "sp",
+        "s1",
+        "s2",
+        "m"
+      ],
+      "numbers": [
+        0,
+        1,
+        2,
+        null
+      ],
+      "names": [
+        "Specials",
+        "Season 1",
+        "Season 2",
+        "OVA"
+      ],
+      "progress": [
+        2,
+        12,
+        9,
+        5
+      ],
+      "aggregate": {
+        "progress": 28,
+        "total": 27,
+        "knownTotals": 3,
+        "count": 4
+      },
+      "s2Offset": 15
+    }
+  },
+  "advanced": {
+    "base": 10,
+    "contiguous": [
+      {
+        "number": 11
+      },
+      {
+        "number": 12
+      },
+      {
+        "number": 13
+      }
+    ],
+    "gapped": [
+      {
+        "number": 11
+      },
+      {
+        "number": 13
+      }
+    ],
+    "units": [
+      {
+        "number": 11,
+        "durationSeconds": 120
+      },
+      {
+        "number": 12,
+        "minutes": 2.5
+      },
+      {
+        "number": 13,
+        "durationSeconds": 35.9
+      }
+    ],
+    "expected": {
+      "exact": true,
+      "gapExact": false,
+      "seconds": 305,
+      "manualSeconds": 360
+    }
+  },
+  "actions": {
+    "collection": {
+      "before": [
+        "a",
+        "b"
+      ],
+      "after": [
+        "b",
+        "a",
+        "c"
+      ],
+      "expected": [
+        [
+          "collectionAddTitleXP",
+          1
+        ],
+        [
+          "collectionReorderTitleXP",
+          1
+        ]
+      ]
+    },
+    "order": {
+      "beforeTitles": [
+        "a",
+        "b",
+        "c"
+      ],
+      "afterTitles": [
+        "b",
+        "a",
+        "c",
+        "d"
+      ],
+      "beforeAssignments": [
+        {
+          "id": "as-1",
+          "collectionId": "col1"
+        }
+      ],
+      "afterAssignments": [
+        {
+          "id": "as-1",
+          "collectionId": "col1"
+        },
+        {
+          "id": "as-2",
+          "collectionId": "col2"
+        }
+      ],
+      "beforeQueues": {
+        "anime": [
+          "c:col1",
+          "t:a"
+        ]
+      },
+      "afterQueues": {
+        "anime": [
+          "t:a",
+          "c:col1"
+        ]
+      },
+      "expected": [
+        [
+          "orderAddTitleXP",
+          1
+        ],
+        [
+          "orderReorderTitleXP",
+          1
+        ],
+        [
+          "orderAddCollectionXP",
+          1
+        ],
+        [
+          "orderReorderCollectionXP",
+          1
+        ]
+      ]
+    }
+  }
+}
