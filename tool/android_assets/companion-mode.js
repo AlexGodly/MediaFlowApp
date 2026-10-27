@@ -56,7 +56,8 @@
     if (id && companion.accountId && companion.accountId !== id) {
       // Never carry a queued marker, baseline, or draft conflict across accounts.
       companion.pending = queueMarkerExists(id);
-      companion.active = !!window.__mfAndroidOfflineMode;
+      companion.active = !navigator.onLine;
+      window.__mfAndroidOfflineMode = companion.active;
       companion.needsAuth = false;
       companion.attention = false;
       companion.draftPending = false;
