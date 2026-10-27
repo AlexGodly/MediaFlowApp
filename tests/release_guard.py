@@ -31,6 +31,7 @@ for required in (
     "tool/android_assets/cloud-state-cas.js", "tool/android_assets/backup-bridge.js",
     "tests/cloud-state-cas.test.cjs", "tests/test_package.py", "tests/release_guard.py",
     ".github/workflows/android-webview-release.yml",
+    ".github/workflows/android-webview-pr-validation.yml",
 ):
     assert (archive / required).is_file(), f"Missing archived file: {required}"
 for token in (
