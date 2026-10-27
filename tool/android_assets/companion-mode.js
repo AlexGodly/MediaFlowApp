@@ -373,28 +373,136 @@
     updateStatus();
     return true;
   }
-  async function uploadSnapshot(userId, state, serialized) {
+  function stateWithoutDraft(state) {
+    const copy = Object.assign({}, state && typeof state === 'object' ? state : {});
+    delete copy[DRAFT_FIELD];
+    return copy;
+  }
+  function mergeStateAndDraft(localState, remoteState, userId, remoteUpdatedAt) {
+    const localCore = stateWithoutDraft(localState);
+    const remoteCore = stateWithoutDraft(remoteState);
+    const versionChanged = !!(companion.lastCloudUpdatedAt && remoteUpdatedAt &&
+      remoteUpdatedAt !== companion.lastCloudUpdatedAt);
+    const base = companion.lastCloudProjection || null;
+    let coreResult;
+    if (versionChanged && base) {
+      coreResult = mergeConcurrentStates(localCore, remoteCore, base,
+        companion.conflictResolution && companion.conflictResolution.strategy);
+      if (coreResult.conflicts.length) {
+        companion.stateConflict = {
+          paths: coreResult.conflicts.slice(),
+          localState: cloneJson(localCore),
+          remoteState: cloneJson(remoteCore)
+        };
+        throw new Error('Cloud and phone changed the same account fields. '
+          + 'Both copies are safe; choose which conflicting values to keep before syncing.');
+      }
+    } else {
+      coreResult = { state: mergeOfflineStates(localCore, remoteCore), conflicts: [] };
+    }
+
+    const localDraft = readLocalDraft(userId) ||
+      (localState && localState[DRAFT_FIELD]);
+    const remoteDraft = remoteState && remoteState[DRAFT_FIELD];
+    let chosenDraft = remoteDraft;
+    let draftToMarkSynced = null;
+    if (localDraft && localDraft.userId === userId && draftIsEligible(localDraft)) {
+      const localDirty = Number(localDraft.savedAt) > Number(localDraft.cloudSyncedAt || 0);
+      const localTime = Number(localDraft.savedAt) || 0;
+      const remoteTime = Number(remoteDraft && remoteDraft.savedAt) || 0;
+      if (localDirty && remoteDraft && remoteDraft.userId === userId && remoteTime > localTime) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+        chosenDraft = remoteDraft;
+      } else if (localDirty || !remoteDraft || localTime > remoteTime) {
+        chosenDraft = cloudDraftCopy(localDraft);
+        draftToMarkSynced = localDraft;
+      } else if (remoteDraft && remoteTime === localTime &&
+          draftContentKey(localDraft) !== draftContentKey(remoteDraft)) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+        chosenDraft = remoteDraft;
+      } else {
+        chosenDraft = remoteDraft;
+        if (remoteDraft) captureCloudDraft(remoteState, userId);
+      }
+    }
+    if (chosenDraft) coreResult.state[DRAFT_FIELD] = cloudDraftCopy(chosenDraft);
+    return {
+      state: coreResult.state,
+      draftToMarkSynced: draftToMarkSynced,
+      remoteChanged: versionChanged
+    };
+  }
+
+  async function uploadSnapshot(userId, state, serialized, allowCreate) {
     if (!supabase || !userId || String(AUTH_USER && AUTH_USER.id || '') !== userId) {
       throw new Error('The saved account is not ready to sync.');
     }
-    const json = typeof serialized === 'string' ? serialized : JSON.stringify(state);
-    const payload = await encodeCloudState(state, json);
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    let timer = null;
-    let query = supabase.from('mediaflow_states').upsert({
-      user_id: userId, state_data: payload, updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-    if (controller && typeof query.abortSignal === 'function') {
-      query = query.abortSignal(controller.signal);
-      timer = setTimeout(function () { try { controller.abort(); } catch (_) {} }, 6500);
+    const assertUploadAccount = function () {
+      if (String(AUTH_USER && AUTH_USER.id || '') !== userId || uid() !== userId) {
+        throw new Error('MediaFlow account changed during sync. The other account was not modified.');
+      }
+    };
+    const candidate = Object.assign({}, state || {});
+    const localDraft = readLocalDraft(userId);
+    if (localDraft && draftIsEligible(localDraft)) candidate[DRAFT_FIELD] = cloudDraftCopy(localDraft);
+    let lastError = null;
+    let sawRemoteChange = false;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      assertUploadAccount();
+      const remote = await originalFetchCloudState();
+      assertUploadAccount();
+      if (!remote || !remote.found || !remote.state) {
+        if (!allowCreate) {
+          throw new Error('The existing MediaFlow cloud row could not be confirmed. '
+            + 'Your local copy is safe; no row was created or overwritten.');
+        }
+        const prepared = mergeStateAndDraft(candidate, {}, userId, null);
+        try {
+          const inserted = await window.MFAndroidCloudCAS.insertIfAbsent(
+            supabase, userId, prepared.state, encodeCloudState, assertUploadAccount);
+          if (inserted.written) {
+            setCloudBaseline(userId, prepared.state, inserted.updatedAt);
+            if (prepared.draftToMarkSynced) markLocalDraftSynced(userId, prepared.draftToMarkSynced);
+            companion.stateConflict = null;
+            companion.conflictResolution = null;
+            return { state: prepared.state, updatedAt: inserted.updatedAt,
+              attempts: attempt + 1, remoteChanged: false };
+          }
+        } catch (error) {
+          if (String(error && error.code || '') !== '23505') throw error;
+          lastError = error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
+        continue;
+      }
+      if (typeof remote.updatedAt !== 'string' || !remote.updatedAt) {
+        throw new Error('MediaFlow cloud version is missing. Refusing an unconditional write.');
+      }
+      if (companion.lastCloudUpdatedAt && remote.updatedAt !== companion.lastCloudUpdatedAt) {
+        sawRemoteChange = true;
+      }
+      captureCloudDraft(remote.state, userId);
+      const prepared = mergeStateAndDraft(candidate, remote.state, userId, remote.updatedAt);
+      const result = await window.MFAndroidCloudCAS.update(
+        supabase, userId, remote.updatedAt, prepared.state, encodeCloudState, assertUploadAccount);
+      if (result.written) {
+        setCloudBaseline(userId, prepared.state, result.updatedAt);
+        if (prepared.draftToMarkSynced) markLocalDraftSynced(userId, prepared.draftToMarkSynced);
+        companion.stateConflict = null;
+        companion.conflictResolution = null;
+        return {
+          state: prepared.state,
+          updatedAt: result.updatedAt,
+          attempts: attempt + 1,
+          remoteChanged: sawRemoteChange || prepared.remoteChanged
+        };
+      }
+      lastError = new Error('Cloud state changed during the update; retrying with a fresh version.');
+      await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
     }
-    try {
-      const result = await query;
-      if (result && result.error) throw result.error;
-      return true;
-    } finally {
-      if (timer !== null) clearTimeout(timer);
-    }
+    throw lastError || new Error('Cloud changed repeatedly. Local changes remain queued for a safe retry.');
   }
   function mergeOfflineStates(localState, remoteState) {
     const localTime = Number(localState && localState.savedAt) || 0;
