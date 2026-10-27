@@ -527,7 +527,8 @@
     });
     merged.completionTimeline = Array.from(unique.values());
     merged.migrations = Object.assign({}, secondary && secondary.migrations || {}, primary && primary.migrations || {});
-    merged.savedAt = Math.max(localTime, remoteTime, Date.now());
+    // A merge is not a user edit; preserve meaningful source timestamps.
+    merged.savedAt = Math.max(localTime, remoteTime);
     return merged;
   }
   function updateStatus() {
