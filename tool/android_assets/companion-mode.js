@@ -1,5 +1,5 @@
 /* MediaFlow Android Companion: recommendations, logging, local-first drafts and offline sync.
-   Uses the existing v507 application logic and authenticated mediaflow_states row.
+   Uses the existing v553 application logic and authenticated mediaflow_states row.
    No service-role key, new Supabase tables, or alternate cloud data model. */
 (function () {
   'use strict';
@@ -645,7 +645,7 @@
   };
   rawSet = rawSetWithOfflineQueue;
 
-  /* Keep only the mobile companion surfaces. The full v507 recommendation,
+  /* Keep only the mobile companion surfaces. The full v553 recommendation,
      Library, History, XP, and logging functions remain the original functions. */
   NAV_ITEMS.splice(0, NAV_ITEMS.length,
     { id: 'dashboard', label: 'Recommendations' },

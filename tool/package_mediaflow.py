@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin and package the exact MediaFlow v507 release frontend into Android assets.
+"""Pin and package the exact MediaFlow v553 release frontend into Android assets.
 
 No Supabase schema/keys/state are modified. Any downloaded CDN JavaScript becomes
 a local app asset (so weak mobile connections do not block the UI shell startup).
@@ -13,9 +13,9 @@ import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
 
-VERSION = "507"
-ARCHIVE_SHA256 = "12ea38109649b4467ba069e00ab2b1d9a1daab3c4f9af4f9d0013de693c8414a"
-ARCHIVE_URL = "https://github.com/AlexGodly/MediaFlow/releases/download/507/MediaFlow_v507_Stable.zip"
+VERSION = "553"
+ARCHIVE_SHA256 = "f752221b78bf3d9333d73ef4707491c919b73ed209383863599e8e94332070ef"
+ARCHIVE_URL = "https://github.com/AlexGodly/MediaFlow/releases/download/553/MediaFlow_v553_Stable.zip"
 CDN = {
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2": "assets/vendor/supabase-js-v2.js",
     "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js": "assets/vendor/react-18.3.1.js",
@@ -35,7 +35,7 @@ def sha256(path):
 
 
 def patch_android_backup_bundle(path):
-    """Patch the four v507 functions in the Android COPY only, failing closed
+    """Patch the four v553 functions in the Android COPY only, failing closed
     if the verified release changes its expected source structure."""
     javascript = path.read_text("utf-8")
     hooks = {
@@ -66,7 +66,7 @@ def patch_android_backup_bundle(path):
       const filename = S.settings.backup.mode === 'single'
         ? (S.settings.backup.fileName || 'mediaflow-backup.json')
         : backupFilename();
-      // Use v507's FINAL wrapped full-backup pipeline, not a stripped-down export.
+      // Use v553's FINAL wrapped full-backup pipeline, not a stripped-down export.
       await window.__mfAndroidBackup.save(filename, JSON.stringify(backupSnapshot(), null, 2));
       S.settings.backup.lastBackup = Date.now();
       if (!manual) await persistSettings();
@@ -94,7 +94,7 @@ def patch_android_backup_bundle(path):
     }
     for marker, addition in hooks.items():
         if javascript.count(marker) != 1:
-            raise ValueError(f"Refusing to patch unexpected v507 backup structure: {marker}")
+            raise ValueError(f"Refusing to patch unexpected v553 backup structure: {marker}")
         javascript = javascript.replace(marker, marker + addition, 1)
     path.write_text(javascript, "utf-8")
     return len(hooks)
@@ -134,7 +134,7 @@ def patch_android_mobile_render(path):
     }
     for before, after in edits.items():
         if js.count(before) != 1:
-            raise ValueError(f"Unexpected v507 mobile render source contract: {before[:100]}")
+            raise ValueError(f"Unexpected v553 mobile render source contract: {before[:100]}")
         js = js.replace(before, after, 1)
     path.write_text(js, "utf-8")
     return len(edits)
@@ -171,7 +171,7 @@ function mfAndroidIsNetworkFailure(error){
 """
     start_app_marker = "async function startAuthenticatedApp(){"
     if javascript.count(start_app_marker) != 1:
-        raise ValueError("Unexpected v507 authenticated app entry point")
+        raise ValueError("Unexpected v553 authenticated app entry point")
     ready_gate = r"""
 window.__mfAndroidCompanionReady = new Promise(function(resolve){
   window.__mfAndroidCompanionResolve = resolve;
@@ -185,16 +185,16 @@ window.__mfAndroidCompanionReady = new Promise(function(resolve){
     app_block = app_block.replace(start_app_marker, start_app_marker + "\n  if(window.__mfAndroidCompanionReady) await window.__mfAndroidCompanionReady;", 1)
     javascript = javascript[:app_start] + app_block + javascript[app_end:]
     if javascript.count(marker) != 1:
-        raise ValueError("Unexpected v507 saved-session restore function")
+        raise ValueError("Unexpected v553 saved-session restore function")
     handler_marker = "function v475HandleAuthEvent(event,session){"
     if javascript.count(handler_marker) != 1:
-        raise ValueError("Unexpected v507 auth event handler")
+        raise ValueError("Unexpected v553 auth event handler")
     handler_start = javascript.index(handler_marker)
     handler_end = javascript.index(marker, handler_start)
     handler_block = javascript[handler_start:handler_end]
     signed_out_marker = "if(event==='SIGNED_OUT'){"
     if handler_block.count(signed_out_marker) != 1:
-        raise ValueError("Unexpected v507 sign-out handler")
+        raise ValueError("Unexpected v553 sign-out handler")
     handler_block = handler_block.replace(
         handler_marker,
         handler_marker + "if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;",
@@ -218,7 +218,7 @@ if(!confirmed && navigator.onLine === false){
 }
 """
     if block.count(loop_marker) != 1:
-        raise ValueError("Unexpected v507 auth restore loop")
+        raise ValueError("Unexpected v553 auth restore loop")
     block = block.replace(loop_marker, loop_marker + fallback, 1)
     catch_marker = "}catch(err){lastError=err;}"
     catch_fallback = r""" }catch(err){
@@ -234,11 +234,11 @@ if(!confirmed && navigator.onLine === false){
           }
         }"""
     if block.count(catch_marker) != 1:
-        raise ValueError("Unexpected v507 auth network error handler")
+        raise ValueError("Unexpected v553 auth network error handler")
     block = block.replace(catch_marker, catch_fallback, 1)
     final_marker = "if(!confirmed&&AUTH_USER?.id)confirmed=AUTH_USER;"
     if block.count(final_marker) != 1:
-        raise ValueError("Unexpected v507 saved-session final fallback")
+        raise ValueError("Unexpected v553 saved-session final fallback")
     block = block.replace(final_marker, final_marker + r"""
       if(!confirmed && lastError && mfAndroidIsNetworkFailure(lastError)){
         const cachedUser=mfAndroidReadStoredSessionUser();
@@ -253,10 +253,38 @@ if(!confirmed && navigator.onLine === false){
     return 6
 
 
+
+def validate_android_companion_contract(path):
+    """Fail closed unless the pinned v553 bundle exposes the original features the
+    focused companion intentionally delegates to MediaFlow instead of reimplementing."""
+    javascript = path.read_text("utf-8")
+    required = {
+        "recommendation renderer": "function mf395DashboardRecommendationHtml(",
+        "single-title logging form": "function renderLogForm(",
+        "batch logging form": "function renderBatchLog(",
+        "title reroll history": "function v180EnsureRecommendationHistory(",
+        "title reroll action": "function v180RerollRecommendedTitle(",
+        "unified XP projection": "function mf537ProjectXP(",
+        "unified XP card": "function mf537XPCardMarkup(",
+        "v553 consumed-reroll units": "function mf553RerollUnitRows(",
+        "v553 reroll XP projection": "function mf553EnrichProjection(",
+        "v553 award after successful logging": "const mf553SubmitBase=App.submitLog;",
+        "v553 public XP contract": "window.MediaFlowV553=Object.freeze(",
+        "authenticated cloud save": "async function rawSet(key,value){",
+        "authenticated cloud read": "async function v115FetchCloudState(){",
+        "local recovery cache": "function v115ReadRecoveryCache(){",
+        "local state bootstrap": "async function v115StartWithData(data){",
+    }
+    missing = [name for name, marker in required.items() if marker not in javascript]
+    if missing:
+        raise ValueError("MediaFlow v553 companion contract missing: " + ", ".join(missing))
+    return list(required.keys())
+
+
 def package(archive, output, skip_vendor=False, verify=True):
     archive, output = Path(archive), Path(output)
     if verify and sha256(archive) != ARCHIVE_SHA256:
-        raise ValueError("MediaFlow v507 release archive SHA-256 mismatch")
+        raise ValueError("MediaFlow v553 release archive SHA-256 mismatch")
     output.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as z:
         files = [n for n in z.namelist() if not n.endswith("/")]
@@ -267,10 +295,10 @@ def package(archive, output, skip_vendor=False, verify=True):
                 continue
             root = str(path.parent)
             base = "" if root == "." else root + "/"
-            if base + "assets/js/mediaflow-v507.bundle.js" in files:
+            if base + "assets/js/mediaflow-v553.bundle.js" in files:
                 index_candidates.append(base)
         if not index_candidates:
-            raise ValueError("No MediaFlow v507 index + matching compiled bundle found")
+            raise ValueError("No MediaFlow v553 index + matching compiled bundle found")
         base = min(index_candidates, key=lambda p: (len(PurePosixPath(p).parts), len(p)))
         copied = []
         for member in z.infolist():
@@ -291,19 +319,20 @@ def package(archive, output, skip_vendor=False, verify=True):
                 shutil.copyfileobj(source, target)
             copied.append(rel)
 
-    patch_count = patch_android_backup_bundle(output / "assets/js/mediaflow-v507.bundle.js")
-    mobile_patch_count = patch_android_mobile_render(output / "assets/js/mediaflow-v507.bundle.js")
-    offline_auth_patch_count = patch_android_offline_session_restore(output / "assets/js/mediaflow-v507.bundle.js")
+    validated_contracts = validate_android_companion_contract(output / "assets/js/mediaflow-v553.bundle.js")
+    patch_count = patch_android_backup_bundle(output / "assets/js/mediaflow-v553.bundle.js")
+    mobile_patch_count = patch_android_mobile_render(output / "assets/js/mediaflow-v553.bundle.js")
+    offline_auth_patch_count = patch_android_offline_session_restore(output / "assets/js/mediaflow-v553.bundle.js")
 
     index = output / "index.html"
     html = index.read_text("utf-8")
-    if not re.search(r'<meta name="mediaflow-version" content="507">', html):
-        raise ValueError("Bundled index.html is not v507")
+    if not re.search(r'<meta name="mediaflow-version" content="553">', html):
+        raise ValueError("Bundled index.html is not v553")
     for source, target in CDN.items():
         if source not in html:
             raise ValueError(f"Expected upstream runtime library absent: {source}")
         html = html.replace(source, target)
-    # Only the Android build gains these resources; v507 website is unchanged.
+    # Only the Android build gains these resources; v553 website is unchanged.
     android_assets = Path(__file__).resolve().parent / "android_assets"
     target = output / "assets/android"
     target.mkdir(parents=True, exist_ok=True)
@@ -315,9 +344,9 @@ def package(archive, output, skip_vendor=False, verify=True):
     shutil.copy2(android_assets / "companion-mode.css", target / "companion-mode.css")
     if "</head>" not in html or "</body>" not in html:
         raise ValueError("Cannot safely mount Android-specific UI resources")
-    runtime_script = '<script src="assets/js/mediaflow-v507.bundle.js"></script>'
+    runtime_script = '<script src="assets/js/mediaflow-v553.bundle.js"></script>'
     if html.count(runtime_script) != 1:
-        raise ValueError("Missing exact MediaFlow v507 application script")
+        raise ValueError("Missing exact MediaFlow v553 application script")
     html = html.replace(runtime_script,
                         '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/companion-mode.js"></script>', 1)
     html = html.replace("</head>",
@@ -348,9 +377,10 @@ def package(archive, output, skip_vendor=False, verify=True):
         "sourceRelease": ARCHIVE_URL,
         "sourceSha256": ARCHIVE_SHA256 if verify else sha256(archive),
         "assets": len(copied),
-        "bundleSha256": sha256(output / "assets/js/mediaflow-v507.bundle.js"),
+        "bundleSha256": sha256(output / "assets/js/mediaflow-v553.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "reconnect-merge-sync", "single-and-batch-logging"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "reconnect-merge-sync", "single-and-batch-logging", "v553-reroll-title-xp-preview", "v553-reroll-title-xp-award", "pinned-mediaflow-v553-contract"],
+        "validatedCompanionContracts": validated_contracts,
         "patchedBackupFunctions": patch_count,
         "patchedMobileRenderSites": mobile_patch_count,
         "patchedOfflineSessionRestoreSites": offline_auth_patch_count,
@@ -362,7 +392,7 @@ def package(archive, output, skip_vendor=False, verify=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--archive", default=".downloads/MediaFlow_v507_Stable.zip")
+    parser.add_argument("--archive", default=".downloads/MediaFlow_v553_Stable.zip")
     parser.add_argument("--output", default="app/src/main/assets/www")
     parser.add_argument("--skip-vendor", action="store_true")
     parser.add_argument("--skip-hash", action="store_true")

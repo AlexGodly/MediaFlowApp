@@ -1,4 +1,4 @@
-/* Android-only first-paint performance profile. Execute before v507 application CSS/JS.
+/* Android-only first-paint performance profile. Execute before v553 application CSS/JS.
    Local preference, never stored in MediaFlow's cloud settings. */
 (function () {
   'use strict';

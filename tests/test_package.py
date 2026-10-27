@@ -11,11 +11,11 @@ class PackageMediaFlowTest(unittest.TestCase):
             root = Path(temp)
             source = root / "fixture.zip"
             with zipfile.ZipFile(source, "w") as z:
-                z.writestr("archive/index.html", '<meta name="mediaflow-version" content="507">' +
+                z.writestr("archive/index.html", '<meta name="mediaflow-version" content="553">' +
                     "".join('<script src="' + u + '"></script>' for u in CDN) +
-                    '<script src="assets/js/mediaflow-v507.bundle.js"></script>' +
+                    '<script src="assets/js/mediaflow-v553.bundle.js"></script>' +
                     '</head><body></body>')
-                z.writestr("archive/assets/js/mediaflow-v507.bundle.js", "\n".join((
+                z.writestr("archive/assets/js/mediaflow-v553.bundle.js", "\n".join((
                     "async function openBackupFolder(){",
                     "async function restoreBackupFolder(){",
                     "async function saveBackupNow(manual=false){",
@@ -36,6 +36,21 @@ class PackageMediaFlowTest(unittest.TestCase):
                     "}catch(err){lastError=err;}",
                     "if(!confirmed&&AUTH_USER?.id)confirmed=AUTH_USER;",
                     "async function init(){",
+                    "function mf395DashboardRecommendationHtml(task, cat){",
+                    "function renderLogForm(task, cat){",
+                    "function renderBatchLog(){",
+                    "function v180EnsureRecommendationHistory(task){",
+                    "function v180RerollRecommendedTitle(){",
+                    "function mf537ProjectXP(){",
+                    "function mf537XPCardMarkup(){",
+                    "function mf553RerollUnitRows(){",
+                    "function mf553EnrichProjection(base){",
+                    "const mf553SubmitBase=App.submitLog;",
+                    "window.MediaFlowV553=Object.freeze({version:MF553_VERSION});",
+                    "async function rawSet(key,value){",
+                    "async function v115FetchCloudState(){",
+                    "function v115ReadRecoveryCache(){",
+                    "async function v115StartWithData(data){",
                 )))
                 z.writestr("archive/assets/css/demo.css", "body{}")
                 z.writestr("archive/legacy/old/index.html", "old")
@@ -45,7 +60,9 @@ class PackageMediaFlowTest(unittest.TestCase):
                 file.parent.mkdir(parents=True, exist_ok=True)
                 file.write_text("function vendor(){}")
             result = package(source, output, skip_vendor=True, verify=False)
-            self.assertEqual(result["basedOnMediaFlow"], "507")
+            self.assertEqual(result["basedOnMediaFlow"], "553")
+            self.assertIn("v553 consumed-reroll units", result["validatedCompanionContracts"])
+            self.assertIn("v553 public XP contract", result["validatedCompanionContracts"])
             html = (output / "index.html").read_text()
             self.assertNotIn("cdn.jsdelivr.net", html)
             self.assertIn("assets/android/performance-settings.js", html)
@@ -54,6 +71,8 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertTrue((output / "assets/android/mobile-performance.css").is_file())
             self.assertIn("chunked-downloads", result["androidEnhancements"])
             self.assertIn("native-saf-folder-picker", result["androidEnhancements"])
+            self.assertIn("v553-reroll-title-xp-preview", result["androidEnhancements"])
+            self.assertIn("v553-reroll-title-xp-award", result["androidEnhancements"])
             self.assertEqual(result["patchedBackupFunctions"], 4)
             self.assertIn("assets/android/backup-bridge.js", html)
             self.assertIn("assets/android/performance-boot.js", html)
@@ -62,7 +81,8 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertTrue((output / "assets/android/companion-mode.js").is_file())
             self.assertTrue((output / "assets/android/companion-mode.css").is_file())
             self.assertEqual(result["patchedOfflineSessionRestoreSites"], 6)
-            self.assertIn("mfAndroidReadStoredSessionUser", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
+            self.assertIn("mfAndroidReadStoredSessionUser", (output / "assets/js/mediaflow-v553.bundle.js").read_text())
+            self.assertIn("window.MediaFlowV553", (output / "assets/js/mediaflow-v553.bundle.js").read_text())
             self.assertIn("indexedDB.open", (output / "assets/android/companion-mode.js").read_text())
             companion = (output / "assets/android/companion-mode.js").read_text()
             self.assertIn("mf395DashboardRecommendationHtml", companion)
@@ -72,9 +92,9 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertIn("mf-android-backup-tools", companion)
             self.assertTrue((output / "assets/android/performance-boot.js").exists())
             self.assertEqual(result["patchedMobileRenderSites"], 5)
-            self.assertIn("__mfAndroidLastHtml", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
+            self.assertIn("__mfAndroidLastHtml", (output / "assets/js/mediaflow-v553.bundle.js").read_text())
             self.assertIn("window.__mfAndroidBackup.choose()",
-                          (output / "assets/js/mediaflow-v507.bundle.js").read_text())
+                          (output / "assets/js/mediaflow-v553.bundle.js").read_text())
             self.assertTrue((output / "assets/android/backup-bridge.js").is_file())
             self.assertTrue((output / "assets/css/demo.css").exists())
             self.assertFalse((output / "legacy").exists())

@@ -1,13 +1,13 @@
 # MediaFlow by Alex Godly — Android
 
-**New Android project:** Kotlin + Android WebView with **the real MediaFlow v507 frontend packaged inside the APK**, not an imitation of its UI. The older Flutter native project and its workflows are preserved in [`legacy/flutter-beta7/`](legacy/flutter-beta7/).
+**New Android project:** Kotlin + Android WebView with **the real MediaFlow v553 frontend packaged inside the APK**, not an imitation of its UI. The older Flutter native project and its workflows are preserved in [`legacy/flutter-beta7/`](legacy/flutter-beta7/).
 
 ## Features and architecture
 
-- Uses the exact pinned **v507 Stable** web release archive, SHA-256 verified at build time.
+- Uses the exact pinned **v553 Stable** web release archive, SHA-256 verified at build time.
 - Bundles the HTML, CSS, media and compiled application JavaScript in the Android APK. Supabase, React and ReactDOM CDN scripts are copied into the APK during CI, avoiding a network-dependent initial interface load.
 - Renders on Android's hardware-accelerated System WebView, with local HTTPS-like origin provided by `WebViewAssetLoader`. No `file://` privilege bypass or broad cleartext networking.
-- Runs the real v507 recommendation, title-reroll/history, Library, Quick/Advanced/Progress logging, XP preview and batch logging logic. The Android companion exposes only Recommendations, Log, Library workspace and Log history.
+- Runs the real v553 recommendation, title-reroll/history, Library, Quick/Advanced/Progress logging, XP preview and batch logging logic. The Android companion exposes only Recommendations, Log, Library workspace and Log history.
 - Works with on-device file imports, external links in the browser, network downloads, and **chunked** local MediaFlow blob exports to Android Downloads (up to 750 MB of output without constructing a single Base64 copy of the backup in Kotlin).
 - Adds an Android-only **Original / Balanced / Smooth / Ultra light** performance profile. The focused companion hides unrelated website navigation and avoids rebuilding desktop-only UI on phones.
 - Android Back closes MediaFlow's native-state modal first, then navigates back to Dashboard rather than accidentally exiting a single-page app.
@@ -20,15 +20,15 @@ Requires Java 17, Android SDK 35 and Gradle 8.10.2 (CI provisions these).
 
 ```sh
 curl -fL --retry 3 \
-  https://github.com/AlexGodly/MediaFlow/releases/download/507/MediaFlow_v507_Stable.zip \
-  -o .downloads/MediaFlow_v507_Stable.zip
+  https://github.com/AlexGodly/MediaFlow/releases/download/553/MediaFlow_v553_Stable.zip \
+  -o .downloads/MediaFlow_v553_Stable.zip
 python3 tool/package_mediaflow.py
 python3 -m pip install pillow
 python3 tool/build_icons.py
 gradle :app:assembleDebug
 ```
 
-The verification script refuses archives whose SHA-256 differs from v507's official release and detects missing local CSS/JS references. APK: `app/build/outputs/apk/debug/app-debug.apk`. The GitHub Actions workflow publishes versioned prerelease APKs only if tests, packaging and compilation pass.
+The verification script refuses archives whose SHA-256 differs from v553's official release and detects missing local CSS/JS references. APK: `app/build/outputs/apk/debug/app-debug.apk`. The GitHub Actions workflow publishes versioned prerelease APKs only if tests, packaging and compilation pass.
 
 ## Scope and limitations
 
@@ -40,9 +40,9 @@ The generated APK is **debug-signed** for installation/testing and may conflict 
 
 ## Android folder auto-backup (Beta 3)
 
-MediaFlow v507's browser-only `showDirectoryPicker()` is not supported by Android WebView. This release patches only the packaged Android copy of the v507 backup functions: **Choose backup folder** uses Android's Storage Access Framework picker, retains the permitted folder across app restarts, and streams the website's real Full Backup JSON to that location. The existing **Back up now**, **Single file** and **Multiple files** options continue using the v507 settings. The app must be running for timed automatic backups; if reopened after an elapsed interval, a catch-up save may occur after MediaFlow becomes active. Android does **not** schedule background cloud exports when the app is terminated. If a storage provider cannot safely replace a single-file backup, the app reports an error rather than deleting an existing backup.
+MediaFlow v553's browser-only `showDirectoryPicker()` is not supported by Android WebView. This release patches only the packaged Android copy of the v553 backup functions: **Choose backup folder** uses Android's Storage Access Framework picker, retains the permitted folder across app restarts, and streams the website's real Full Backup JSON to that location. The existing **Back up now**, **Single file** and **Multiple files** options continue using the v553 settings. The app must be running for timed automatic backups; if reopened after an elapsed interval, a catch-up save may occur after MediaFlow becomes active. Android does **not** schedule background cloud exports when the app is terminated. If a storage provider cannot safely replace a single-file backup, the app reports an error rather than deleting an existing backup.
 
-This is an Android beta: compilation and source-level tests are automated, but provider-specific folder operations, device FPS, logins and every v507 feature require real-device testing.
+This is an Android beta: compilation and source-level tests are automated, but provider-specific folder operations, device FPS, logins and every v553 feature require real-device testing.
 
 
 ## Mandatory GitHub release + legacy archive policy (Beta 4 onward)
@@ -66,7 +66,7 @@ Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-di
 
 ## Beta 6: focused mobile companion + offline-first workflow
 
-The Android app is now intentionally scoped to four surfaces: **Recommendations**, **Log**, **Library workspace**, and **Log history**. It reuses the actual MediaFlow v507 functions rather than reimplementing its recommender or XP calculations. Exact-title recommendations can be toggled in the Recommendations screen; title rerolls and reroll history use the original MediaFlow logic. Single-title logging preserves the existing Quick/Advanced modes, per-unit/progress methods and XP preview. Batch Log remains available.
+The Android app is now intentionally scoped to four surfaces: **Recommendations**, **Log**, **Library workspace**, and **Log history**. It reuses the actual MediaFlow v553 functions rather than reimplementing its recommender or XP calculations. Exact-title recommendations can be toggled in the Recommendations screen; title rerolls and reroll history use the original MediaFlow logic. Single-title logging preserves the existing Quick/Advanced modes, per-unit/progress methods and XP preview. Batch Log remains available.
 
 ### Offline behavior
 
@@ -87,3 +87,13 @@ Beta 7 protects the cached account during offline restoration from a transient S
 ## Beta 8 backup access in the focused companion
 
 The Library workspace now exposes a compact Automatic backups panel with Choose backup folder, Back up now, and an On/Off toggle. It calls MediaFlow's existing Android folder-picker bridge and JSON backup routine, so the focused app no longer hides the backup feature when the full Settings page is omitted.
+
+## Beta 9 — MediaFlow v553 companion
+
+The Android companion now pins the official MediaFlow v553 Stable release archive and verifies its SHA-256 before packaging. It inherits v553's reroll-title XP calculation and unified XP preview instead of bundling the older v507 frontend.
+
+The focused mobile surfaces are Recommend, Log, Library workspace and History. The app delegates category rotation, title rerolls/history, all original single/batch logging modes, progress methods, XP calculations and successful-log awards to the v553 application logic. It uses the same authenticated mediaflow_states cloud row and does not require a Supabase schema change.
+
+After a successful login, account-scoped IndexedDB snapshots and single/batch drafts are kept locally. If the phone is offline, the app can reopen the last locally cached account and keep drafts and logs queued on-device. When connectivity returns, it refreshes the saved Supabase session and merges queued state with the existing cloud state before upload. It never stores access/refresh tokens separately or bypasses Supabase authentication. A session that has genuinely expired may still require reauthentication before cloud sync; local drafts remain available.
+
+Build checks require v553 recommendation, title-history, logging, unified XP-preview, reroll-unit reward and cloud save/read entry points to exist in the pinned source before an APK can be built. Real-device offline/reconnect tests remain necessary; a passing APK build alone is not proof of every network condition.

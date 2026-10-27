@@ -66,7 +66,7 @@ class MediaFlowActivity : Activity() {
             .build()
 
         // A service worker must see the same packaged HTTPS assets as regular WebView
-        // requests. Without this, v507's PWA shell cannot install or refresh reliably.
+        // requests. Without this, v553's PWA shell cannot install or refresh reliably.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE) &&
             WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)) {
             ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(
@@ -333,7 +333,7 @@ class MediaFlowActivity : Activity() {
     @Deprecated("Compatibility with Android back navigation")
     override fun onBackPressed() {
         if (!::webView.isInitialized) { super.onBackPressed(); return }
-        // v507 uses in-memory S.view rather than URL history. First close genuine
+        // v553 uses in-memory S.view rather than URL history. First close genuine
         // MediaFlow dialogs, then return to Dashboard; only then leave the app.
         val action = """
             (function() {

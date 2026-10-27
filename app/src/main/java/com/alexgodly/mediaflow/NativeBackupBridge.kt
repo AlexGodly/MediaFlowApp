@@ -13,7 +13,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 /**
- * Android Storage Access Framework bridge for v507's automatic folder backups.
+ * Android Storage Access Framework bridge for v553's automatic folder backups.
  * This NEVER reads/writes Supabase. The website supplies its canonical full JSON backup.
  * All write messages are scoped to the main MediaFlow appassets HTTPS origin by the host.
  */
