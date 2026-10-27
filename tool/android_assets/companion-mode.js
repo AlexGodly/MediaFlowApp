@@ -303,6 +303,7 @@
   }
   async function readLocalSnapshot(userId) {
     if (!userId) return null;
+    restoreCloudBaseline(userId);
     if (companion.cachedSnapshot && companion.cachedSnapshot.userId === userId) {
       return Object.assign({}, companion.cachedSnapshot, {
         pendingSync: !!companion.cachedSnapshot.pendingSync || queueMarkerExists(userId)
@@ -310,6 +311,7 @@
     }
     try {
       const record = await readIdbRecord(userId);
+      restoreCloudBaseline(userId, record);
       if (record && record.userId === userId && typeof record.stateJson === 'string') {
         const state = JSON.parse(record.stateJson);
         return {
@@ -326,6 +328,7 @@
       const cache = await originalReadRecoveryCache();
       if (cache && cache.source === 'account' && cache.state &&
           String(cache.state.userId || userId) === userId) {
+        restoreCloudBaseline(userId);
         return {
           userId: userId, state: cache.state,
           pendingSync: queueMarkerExists(userId),
@@ -344,6 +347,8 @@
     const record = {
       userId: userId, stateJson: json, pendingSync: !!pending,
       savedAt: Number(state.savedAt) || Date.now(),
+      baseUpdatedAt: companion.lastCloudUpdatedAt,
+      baseProjection: companion.lastCloudProjection,
       storedAt: Date.now(), reason: String(reason || '').slice(0, 160)
     };
     let indexedDbSaved = false;
