@@ -101,4 +101,4 @@ jobs:
             echo "Existing version tag $TAG found; refusing to overwrite."
             exit 1
           fi
-          gh release create "$TAG"             dist/MediaFlow-v553-Android-WebView-beta10.apk dist/source-manifest.json dist/MediaFlow-v553-Android-source-beta10.zip dist/SHA256SUMS.txt             --target "$GITHUB_SHA"             --title "MediaFlowApp Android v1.0.0 Beta 9 — MediaFlow v553 Companion with Offline Sync"             --notes-file docs/releases/android-webview-v1.0.0-beta.10.md --prerelease
+          gh release create "$TAG"             dist/MediaFlow-v553-Android-WebView-beta10.apk dist/source-manifest.json dist/MediaFlow-v553-Android-source-beta10.zip dist/SHA256SUMS.txt             --target "$GITHUB_SHA"             --title "MediaFlowApp Android v1.0.0 Beta 10 — MediaFlow v553 Offline Sync and Draft Safety"             --notes-file docs/releases/android-webview-v1.0.0-beta.10.md --prerelease
