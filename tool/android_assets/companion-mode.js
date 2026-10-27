@@ -747,13 +747,60 @@
     updateStatus();
     return result;
   };
+  function mountBackupTools() {
+    const root = document.getElementById('view-root');
+    if (!root) return;
+    const existing = document.getElementById('mf-android-backup-tools');
+    if (String(S.view) !== 'library') {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    const head = root.querySelector('.view-head');
+    if (!head) return;
+    const card = document.createElement('section');
+    card.id = 'mf-android-backup-tools';
+    card.className = 'card mf-android-backup-tools';
+    const heading = document.createElement('div');
+    heading.className = 'mf-android-backup-heading';
+    heading.textContent = 'Automatic backups';
+    const description = document.createElement('p');
+    description.textContent = 'Choose a folder on this phone, create a backup now, or enable scheduled backups. These controls use MediaFlow’s existing full JSON backup.';
+    const actions = document.createElement('div');
+    actions.className = 'mf-android-backup-actions';
+    function makeButton(label, handler, active) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = active ? 'btn btn-primary' : 'btn';
+      button.textContent = label;
+      button.onclick = handler;
+      return button;
+    }
+    actions.appendChild(makeButton('Choose backup folder', function () {
+      if (typeof App.chooseBackupFolder === 'function') App.chooseBackupFolder();
+    }, false));
+    actions.appendChild(makeButton('Back up now', function () {
+      if (typeof App.backupNow === 'function') App.backupNow();
+    }, false));
+    const enabled = !!(S.settings && S.settings.backup && S.settings.backup.enabled);
+    actions.appendChild(makeButton('Automatic backups: ' + (enabled ? 'On' : 'Off'), function () {
+      if (typeof App.updateBackup === 'function') App.updateBackup('enabled', !(
+        S.settings && S.settings.backup && S.settings.backup.enabled
+      ));
+    }, enabled));
+    card.append(heading, description, actions);
+    head.insertAdjacentElement('afterend', card);
+  }
+
   function initializeCompanion() {
     updateStatus();
+    mountBackupTools();
     const root = document.getElementById('view-root');
     if (root && !observer) {
       observer = new MutationObserver(function () {
         scheduleDraftSave();
         updateStatus();
+        mountBackupTools();
       });
       observer.observe(root, { childList: true, subtree: true });
     }
@@ -779,6 +826,7 @@
       if (navigator.onLine && (companion.active || (companion.pending && !companion.needsAuth && !companion.attention))) reconcile(false);
     }, 30000);
     updateStatus();
+    mountBackupTools();
   }
   const originalAuthHandler = v475HandleAuthEvent;
   v475HandleAuthEvent = function (event, session) {

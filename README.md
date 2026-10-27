@@ -82,3 +82,8 @@ This implementation does not guarantee that every phone will hold a huge library
 ## Beta 7 offline-session reliability fix
 
 Beta 7 protects the cached account during offline restoration from a transient Supabase `SIGNED_OUT` event. An early startup gate ensures the offline queue, draft restoration and account-scoped snapshot loader are installed before the authenticated app bootstrap proceeds. The guard is cleared after successful cloud communication, so normal sign-out handling resumes. Beta 6's published source archive is preserved byte-for-byte under `legacy/v/android-webview-v1.0.0-beta.6/`.
+
+
+## Beta 8 backup access in the focused companion
+
+The Library workspace now exposes a compact Automatic backups panel with Choose backup folder, Back up now, and an On/Off toggle. It calls MediaFlow's existing Android folder-picker bridge and JSON backup routine, so the focused app no longer hides the backup feature when the full Settings page is omitted.

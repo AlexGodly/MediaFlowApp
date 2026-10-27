@@ -37,3 +37,9 @@ html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="att
   html[data-mf-android-companion="1"] .mobile-tabbar .mtab { padding-left:1px!important; padding-right:1px!important; }
   html[data-mf-android-companion="1"] .mf-android-companion-status { max-width:58vw; font-size:10px!important; }
 }
+
+html[data-mf-android-companion="1"] .mf-android-backup-tools { margin:0 0 14px; padding:13px; }
+html[data-mf-android-companion="1"] .mf-android-backup-heading { color:var(--text); font-size:14px; font-weight:850; }
+html[data-mf-android-companion="1"] .mf-android-backup-tools p { color:var(--text-dim); font-size:12px; line-height:1.45; margin:5px 0 11px; }
+html[data-mf-android-companion="1"] .mf-android-backup-actions { display:flex; flex-wrap:wrap; gap:8px; }
+html[data-mf-android-companion="1"] .mf-android-backup-actions .btn { min-height:40px; flex:1 1 130px; white-space:normal; line-height:1.2; }

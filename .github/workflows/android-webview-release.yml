@@ -26,7 +26,7 @@ jobs:
       - name: Verify generated Android version and release contract
         run: python tests/release_guard.py
       - name: Require complete and byte-identical legacy source archive
-        run: python tool/verify_release_archive.py --tag android-webview-v1.0.0-beta.7
+        run: python tool/verify_release_archive.py --tag android-webview-v1.0.0-beta.8
       - name: Verify Android backup bridge JavaScript syntax
         run: node --check tool/android_assets/backup-bridge.js
       - name: Verify phone optimization JavaScript syntax
@@ -76,24 +76,24 @@ jobs:
       - name: Stage release
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/MediaFlow-v507-Android-WebView-beta7.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/MediaFlow-v507-Android-WebView-beta8.apk
           cp app/src/main/assets/www/mediaflow-android-build.json dist/source-manifest.json
-          zip -qr dist/MediaFlow-v507-Android-source-beta7.zip legacy/v/android-webview-v1.0.0-beta.7
-          test -s dist/MediaFlow-v507-Android-source-beta7.zip
-          (cd dist && sha256sum MediaFlow-v507-Android-WebView-beta7.apk source-manifest.json MediaFlow-v507-Android-source-beta7.zip > SHA256SUMS.txt)
-          test -s dist/MediaFlow-v507-Android-WebView-beta7.apk
+          zip -qr dist/MediaFlow-v507-Android-source-beta8.zip legacy/v/android-webview-v1.0.0-beta.8
+          test -s dist/MediaFlow-v507-Android-source-beta8.zip
+          (cd dist && sha256sum MediaFlow-v507-Android-WebView-beta8.apk source-manifest.json MediaFlow-v507-Android-source-beta8.zip > SHA256SUMS.txt)
+          test -s dist/MediaFlow-v507-Android-WebView-beta8.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: MediaFlow-v507-Android-WebView-beta7
+          name: MediaFlow-v507-Android-WebView-beta8
           path: dist/*
           if-no-files-found: error
       - name: Publish GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=android-webview-v1.0.0-beta.7
+          TAG=android-webview-v1.0.0-beta.8
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Existing version tag $TAG found; refusing to overwrite."
             exit 1
           fi
-          gh release create "$TAG"             dist/MediaFlow-v507-Android-WebView-beta7.apk dist/source-manifest.json dist/MediaFlow-v507-Android-source-beta7.zip dist/SHA256SUMS.txt             --target "$GITHUB_SHA"             --title "MediaFlowApp Android v1.0.0 Beta 7 — Offline Session Safety and Companion Reliability"             --notes-file docs/releases/android-webview-v1.0.0-beta.7.md --prerelease
+          gh release create "$TAG"             dist/MediaFlow-v507-Android-WebView-beta8.apk dist/source-manifest.json dist/MediaFlow-v507-Android-source-beta8.zip dist/SHA256SUMS.txt             --target "$GITHUB_SHA"             --title "MediaFlowApp Android v1.0.0 Beta 8 — Focused Companion with Backup Controls"             --notes-file docs/releases/android-webview-v1.0.0-beta.8.md --prerelease
