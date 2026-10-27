@@ -33,6 +33,11 @@ abstract class MediaFlowLibraryRepository {
 
   /// Default fallback for test repositories. Production bypasses cache.
   Future<MediaFlowCatalog> reload() => load();
+  /// Persist an explicit in-progress Logging draft to the existing account
+  /// resume root. Repositories without a writable cloud transport fail closed.
+  Future<NativeCloudCommitResult> saveLoggingDraft(
+    Map<String, dynamic> draft,
+  ) => throw UnsupportedError('Cloud draft saving is unavailable');
 }
 
 /// One signed-in owner's shared, read-only, offline-first data source.
@@ -107,6 +112,68 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
 
   @override
   Future<MediaFlowCatalog> reload() => _readCoordinator.reload();
+
+
+  @override
+  Future<NativeCloudCommitResult> saveLoggingDraft(
+    Map<String, dynamic> draft,
+  ) async {
+    if (_closed || _ownerId == null ||
+        client.auth.currentUser?.id != _ownerId) {
+      throw StateError('Sign in to the same MediaFlow account before saving drafts.');
+    }
+    if (draft.isEmpty || draft['entries'] is! List) {
+      throw const FormatException('A complete Logging draft is required');
+    }
+    final base = await loadFullStateSnapshot();
+    final full = MediaFlowFullState.parse(base.stateData);
+    final existing = full.root('resumeStateV285');
+    final resume = existing is Map
+        ? Map<String, dynamic>.from(existing)
+        : <String, dynamic>{};
+    final existingDashboard = resume['dashboard'];
+    final dashboard = existingDashboard is Map
+        ? Map<String, dynamic>.from(existingDashboard)
+        : <String, dynamic>{
+            'stopwatchCollapsed': false,
+            'runtimeCalculatorCollapsed': false,
+            'modifiedAt': 0,
+          };
+    final existingLogging = resume['logging'];
+    final logging = existingLogging is Map
+        ? Map<String, dynamic>.from(existingLogging)
+        : <String, dynamic>{};
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final nextLogging = <String, dynamic>{
+      ...logging,
+      'active': true,
+      'currentTask': logging['currentTask'] ?? full.root('currentTask'),
+      'logDraft': draft,
+      'entryDraft': <String, dynamic>{},
+      'ui': logging['ui'] is Map
+          ? Map<String, dynamic>.from(logging['ui'] as Map)
+          : <String, dynamic>{
+              'libraryOpen': true,
+              'page': 0,
+              'categories': <String>[],
+              'status': 'all',
+              'priority': 'all',
+              'sort': '',
+              'sortBase': '',
+              'sortDir': '',
+            },
+      'modifiedAt': now,
+    };
+    final nextResume = <String, dynamic>{
+      ...resume,
+      'format': 'MediaFlow_Resume_v285',
+      'dashboard': dashboard,
+      'logging': nextLogging,
+      'modifiedAt': now,
+    };
+    final next = full.simulateRootReplacement('resumeStateV285', nextResume);
+    return commitFullState(base: base, nextStateData: next.encodeForCommit());
+  }
 
 
   /// Fetches the complete cloud payload for a future explicit, reviewed save.
