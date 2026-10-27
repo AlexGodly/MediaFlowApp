@@ -48,7 +48,9 @@ jobs:
           test -s app/src/main/assets/www/assets/js/mediaflow-v553.bundle.js
           test -s app/src/main/assets/www/assets/vendor/supabase-js-v2.js
           test -s app/src/main/assets/www/assets/android/performance-boot.js
+          test -s app/src/main/assets/www/assets/android/cloud-state-cas.js
           node --check app/src/main/assets/www/assets/js/mediaflow-v553.bundle.js
+          node --check app/src/main/assets/www/assets/android/cloud-state-cas.js
           node --check app/src/main/assets/www/assets/android/companion-mode.js
           test -s app/src/main/assets/www/assets/android/companion-mode.css
       - name: Generate launcher icons from preserved original
