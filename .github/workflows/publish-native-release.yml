@@ -1,0 +1,68 @@
+name: Publish native Android and Windows build
+
+on:
+  push:
+    branches:
+      - feature/flutter-native-v553
+    paths:
+      - '.github/workflows/publish-native-release.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Android artifact from validated run
+        uses: actions/download-artifact@v4
+        with:
+          name: MediaFlow-android-debug
+          path: android-artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40507031594
+
+      - name: Download Windows artifact from validated run
+        uses: actions/download-artifact@v4
+        with:
+          name: MediaFlow-windows-validation
+          path: windows-build
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 40507031594
+
+      - name: Package assets
+        run: |
+          set -euo pipefail
+          test -f android-artifact/app-debug.apk
+          test -f windows-build/MediaFlow.exe
+          mv android-artifact/app-debug.apk MediaFlow-v553-Android-debug.apk
+          cd windows-build
+          zip -r ../MediaFlow-v553-Windows-x64-validation.zip .
+          cd ..
+          ls -lh MediaFlow-v553-Android-debug.apk MediaFlow-v553-Windows-x64-validation.zip
+
+      - name: Publish GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v1.0.0-beta.8
+          name: MediaFlowApp v1.0.0-beta.8 - Native Flutter Android & Windows
+          prerelease: true
+          make_latest: false
+          target_commitish: 57a4c097784ac964c5561184efc7c4bba195ddae
+          body: |
+            ## Native Flutter validation build
+
+            This prerelease publishes the Android and Windows artifacts from successful GitHub Actions run [40507031594](https://github.com/AlexGodly/MediaFlowApp/actions/runs/40507031594), commit `57a4c097784ac964c5561184efc7c4bba195ddae`.
+
+            - **Android:** unsigned debug APK for installation and validation.
+            - **Windows:** x64 Flutter release-mode build packaged as a ZIP.
+
+            **Important:** This is an early native-app validation release, not feature-complete MediaFlow v553 parity. Live recommendation/reroll integration, native History/XP commits, and conflict-safe bidirectional sync are not complete. Do not use it as a production replacement for the MediaFlow website.
+
+            No Supabase schema, tables, RLS policies, secrets, or account configuration were changed.
+          files: |
+            MediaFlow-v553-Android-debug.apk
+            MediaFlow-v553-Windows-x64-validation.zip

@@ -1,0 +1,322 @@
+{
+  "categories": [
+    {
+      "id": "anime",
+      "name": "Anime",
+      "icon": "📺",
+      "futureCategory": {
+        "nested": [
+          1,
+          {
+            "keep": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "books",
+      "name": "Books"
+    }
+  ],
+  "categoryOrder": [
+    "anime",
+    "books"
+  ],
+  "library": [
+    {
+      "id": "v410-1",
+      "title": "Synthetic Series",
+      "categoryId": "anime",
+      "status": "active",
+      "priority": "high",
+      "progress": 6,
+      "total": 24,
+      "rating": 8.5,
+      "tags": [
+        "scifi",
+        "ongoing"
+      ],
+      "createdAt": "2024-09-12T04:30:01+01:00",
+      "completedAt": null,
+      "seasons": [
+        {
+          "id": "s1",
+          "number": 1,
+          "name": "Season 1",
+          "progress": 6,
+          "total": 12,
+          "futureSeason": {
+            "providerIds": {
+              "one": 543
+            }
+          }
+        },
+        {
+          "id": "s2",
+          "number": 2,
+          "name": "Season 2",
+          "progress": 0,
+          "total": 12
+        }
+      ],
+      "providerMetadata": {
+        "malId": 1977,
+        "customArray": [
+          null,
+          true,
+          2.5,
+          {
+            "future": "value"
+          }
+        ]
+      },
+      "unknownMarker": 99
+    },
+    {
+      "id": "v410-2",
+      "title": "Synthetic Novel",
+      "categoryId": "books",
+      "status": "planned",
+      "priority": "low",
+      "progress": 0,
+      "total": null,
+      "extraNull": null
+    }
+  ],
+  "sessions": [
+    {
+      "id": "h1",
+      "status": "logged",
+      "categoryId": "anime",
+      "date": "2026-10-01",
+      "timestamp": "2026-10-01T12:34:56.123+01:00",
+      "actualAmount": 2,
+      "minutes": 48,
+      "xp": 5,
+      "titles": [
+        {
+          "libraryId": "v410-1",
+          "title": "Synthetic Series",
+          "qty": 2,
+          "v369Units": [
+            {
+              "id": "u1",
+              "number": 6,
+              "seasonId": "s1",
+              "isRepeat": false,
+              "loggedAt": "2026-10-01T11:00:00Z",
+              "unknownUnit": [
+                5,
+                4,
+                3
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownSession": {
+        "group": 6
+      }
+    }
+  ],
+  "settings": {
+    "theme": "dark",
+    "appearanceMode": "dark",
+    "dailyMinutes": 120,
+    "tasksPerDay": 3,
+    "v181Library": {
+      "modes": {
+        "list": true,
+        "covers": true
+      },
+      "futureView": {
+        "safe": null
+      }
+    },
+    "leveling": {
+      "enabled": true,
+      "v348ActionEvents": {
+        "unrecognized": 10
+      },
+      "collectionAddTitleXP": 8,
+      "futureLedgerConfig": {
+        "keys": [
+          "k2",
+          "k1"
+        ]
+      }
+    },
+    "backup": {
+      "automatic": true,
+      "archive": {
+        "retention": {
+          "future": null
+        }
+      }
+    },
+    "dynamicCoverTheme": {
+      "enabled": false
+    },
+    "v230ChoiceLayout": {
+      "status": [
+        "completed",
+        "planned"
+      ]
+    },
+    "unknownFutureSetting": {
+      "map": {
+        "array": [
+          1,
+          false,
+          null
+        ]
+      }
+    },
+    "v405ShowFloatingAdd": null,
+    "v405ShowFloatingTaskProgress": null,
+    "intensity": null,
+    "neglectRate": null,
+    "neglectCap": null,
+    "repetitionPenalty": null,
+    "consecutivePenalty": null,
+    "saturationWeight": null,
+    "seasonalBonus": null,
+    "randomness": null,
+    "seasonalFreshCount": null,
+    "seasonalFreshAuto": null,
+    "seasonalFreshSyncMinutes": null,
+    "seasonalFreshLastSyncAt": null,
+    "seasonalFreshLastProvider": null,
+    "seasonalFreshLastMatched": null,
+    "seasonalFreshLastEpisodeTotal": null,
+    "exactTitleRecommendations": null,
+    "prioritizePersonalOrder": null,
+    "customCategoryIcons": null,
+    "customCategoryColors": null,
+    "highlightDefaultCategories": null,
+    "mediaServicesImportInterface": null,
+    "v175PageSizes": null,
+    "historyPageSize": null,
+    "v177CoverSizes": null,
+    "v179LoggingModes": null,
+    "v181Logging": null,
+    "v181CoverSizes": null,
+    "globalAppearanceEnabled": null
+  },
+  "currentTask": {
+    "title": "Synthetic Series",
+    "categoryId": "anime",
+    "low": 2,
+    "high": 4,
+    "extra": {
+      "reasons": [
+        "today"
+      ]
+    }
+  },
+  "sessionActive": false,
+  "profilePicture": "data:image/png;base64,FAKE-SYNTHETIC",
+  "stopwatch": {
+    "running": false,
+    "startedAt": 0,
+    "elapsed": 7654,
+    "resetValue": 0,
+    "unknown": true
+  },
+  "malLink": {
+    "username": "",
+    "mode": "anime"
+  },
+  "xpLedger": {
+    "libraryAdditions": {
+      "v410-1": 10
+    },
+    "v348ActionEvents": {
+      "a1": 12
+    },
+    "v348LibraryAdditionBonus": {
+      "a2": 15
+    },
+    "completion": {
+      "nested": {
+        "when": "2026-01-15"
+      }
+    }
+  },
+  "completionTimeline": [
+    {
+      "id": "v410-1",
+      "when": "2026-09-11T00:00:00Z",
+      "extra": {
+        "a": 1
+      }
+    }
+  ],
+  "activityLog": [
+    {
+      "id": "lib-1",
+      "action": "update",
+      "xp": 3,
+      "old": {
+        "progress": 5
+      }
+    }
+  ],
+  "orderPlan": {
+    "titleIds": [
+      "v410-2",
+      "v410-1"
+    ],
+    "viewMode": "all",
+    "categoryMode": "default",
+    "categoryOrder": [
+      "anime",
+      "books"
+    ],
+    "hiddenCategories": [],
+    "modifiedAt": 123456789,
+    "lastClearedOrder": null,
+    "categoryQueues": {
+      "anime": [
+        "v410-1"
+      ]
+    },
+    "unknownQueue": {
+      "deep": {
+        "k": "v"
+      }
+    }
+  },
+  "collections": [
+    {
+      "id": "c1",
+      "title": "Favorites",
+      "description": "synthetic",
+      "titleIds": [
+        "v410-1"
+      ],
+      "coverUrl": "",
+      "futureCollection": {
+        "mode": "keep"
+      }
+    }
+  ],
+  "v410UnknownRoot": {
+    "unknownChild": {
+      "bytes": [
+        "not",
+        "actual",
+        "bytes"
+      ],
+      "nested": [
+        {
+          "hello": null
+        },
+        [
+          true,
+          false
+        ]
+      ]
+    }
+  }
+}
