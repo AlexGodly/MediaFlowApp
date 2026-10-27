@@ -1,0 +1,75 @@
+html[data-mf-android-companion="1"] .sidebar .sidebar-resizer,
+html[data-mf-android-companion="1"] .sidebar .sidebar-foot,
+html[data-mf-android-companion="1"] .sidebar .brand-sub { display:none!important; }
+html[data-mf-android-companion="1"] .sidebar .brand-name { color:var(--text)!important; font-weight:850; }
+html[data-mf-android-companion="1"] .mobile-tabbar .mtab { flex:1 1 0; min-width:0; opacity:1!important; }
+html[data-mf-android-companion="1"] .mobile-tabbar .mtab span {
+  display:block!important; visibility:visible!important; opacity:1!important;
+  font-size:12px!important; font-weight:800!important; line-height:1.2!important;
+  color:var(--text-dim)!important; text-shadow:none!important;
+}
+html[data-mf-android-companion="1"] .mobile-tabbar .mtab.active span { color:var(--flow)!important; }
+html[data-mf-android-companion="1"] .mf-android-companion-head { align-items:center; gap:10px; }
+html[data-mf-android-companion="1"] .mf-android-companion-head .view-title { font-size:clamp(20px,5vw,28px); }
+html[data-mf-android-companion="1"] .mf-android-companion-hero { padding:clamp(15px,4vw,24px); }
+html[data-mf-android-companion="1"] .mf-android-title-mode { margin:0 0 12px; padding:12px 14px; }
+html[data-mf-android-companion="1"] .mf-android-title-mode label { display:flex; align-items:flex-start; gap:10px; color:var(--text); font-size:13px; font-weight:750; }
+html[data-mf-android-companion="1"] .mf-android-title-mode input { flex:0 0 auto; margin-top:3px; }
+html[data-mf-android-companion="1"] .mf-android-title-mode small { display:block; margin-top:4px; color:var(--text-dim); font-size:12px; line-height:1.45; font-weight:500; }
+html[data-mf-android-companion="1"] .mf-android-log-switch { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0 0 12px; }
+html[data-mf-android-companion="1"] .mf-android-log-switch button { min-height:42px; }
+html[data-mf-android-companion="1"] .mf-android-companion-status {
+  position:fixed; top:8px; right:8px; z-index:99999; max-width:min(230px,65vw);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  min-height:28px; padding:5px 9px; border-radius:999px;
+  background:var(--panel-raised,#182131); color:var(--text,#fff);
+  border:1px solid var(--border,#485267); box-shadow:0 2px 8px rgba(0,0,0,.22);
+  opacity:1!important; font-size:11px!important; line-height:1.25!important;
+  font-weight:850!important; text-shadow:none!important;
+}
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="synced"] { border-color:#2c9d75; }
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="syncing"] { border-color:#d9a441; }
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="pending"],
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="offline"] { border-color:#d9a441; }
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="attention"] { border-color:#d95c67; }
+@media(max-width:360px) {
+  html[data-mf-android-companion="1"] .mobile-tabbar .mtab span { font-size:11px!important; letter-spacing:0!important; }
+  html[data-mf-android-companion="1"] .mobile-tabbar .mtab { padding-left:1px!important; padding-right:1px!important; }
+  html[data-mf-android-companion="1"] .mf-android-companion-status { max-width:58vw; font-size:10px!important; }
+}
+
+html[data-mf-android-companion="1"] .mf-android-backup-tools { margin:0 0 14px; padding:13px; }
+html[data-mf-android-companion="1"] .mf-android-backup-heading { color:var(--text); font-size:14px; font-weight:850; }
+html[data-mf-android-companion="1"] .mf-android-backup-tools p { color:var(--text-dim); font-size:12px; line-height:1.45; margin:5px 0 11px; }
+html[data-mf-android-companion="1"] .mf-android-backup-actions { display:flex; flex-wrap:wrap; gap:8px; }
+html[data-mf-android-companion="1"] .mf-android-backup-actions .btn { min-height:40px; flex:1 1 130px; white-space:normal; line-height:1.2; }
+
+
+/* Account conflict choices are an in-app themed dialog, never a JS alert. */
+html[data-mf-android-companion="1"] .mf-android-sync-conflict-overlay {
+  position:fixed; inset:0; z-index:100100; display:flex; align-items:center;
+  justify-content:center; padding:18px; background:rgba(3,7,15,.78);
+  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict {
+  width:min(520px,100%); max-height:min(82dvh,720px); overflow:auto;
+  padding:clamp(18px,5vw,26px); border:1px solid var(--border,#485267);
+  border-radius:20px; background:var(--panel,#111827); color:var(--text,#fff);
+  box-shadow:0 24px 80px rgba(0,0,0,.48);
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict h2 {
+  margin:0 0 10px; font-size:clamp(19px,5vw,24px); line-height:1.2;
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict p,
+html[data-mf-android-companion="1"] .mf-android-sync-conflict li {
+  color:var(--text-dim,#b9c3d3); font-size:14px; line-height:1.55;
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict ul {
+  margin:10px 0 18px; padding-left:20px; overflow-wrap:anywhere;
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict-actions {
+  display:flex; flex-direction:column; gap:9px; margin-top:18px;
+}
+html[data-mf-android-companion="1"] .mf-android-sync-conflict-actions .btn {
+  min-height:44px; white-space:normal;
+}
