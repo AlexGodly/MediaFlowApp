@@ -1,0 +1,112 @@
+name: Release native Android and Windows update
+
+on:
+  push:
+    branches:
+      - feature/flutter-native-v553
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'tool/branding/**'
+      - '.github/workflows/release-native-update.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-release-beta9
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Android project
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=android .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Apply MediaFlow branding
+        run: python tool/branding/apply_branding.py --platforms=android
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build Android APK
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-android-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate Windows project
+        run: flutter create --project-name mediaflow_app --org com.alexgodly --platforms=windows .
+      - name: Install logo processing library
+        run: python -m pip install pillow
+      - name: Apply MediaFlow branding
+        run: python tool/branding/apply_branding.py --platforms=windows
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Build Windows application
+        run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-windows-files
+          path: build/windows/x64/runner/Release/**
+          if-no-files-found: error
+
+  release:
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-android-apk
+          path: android-build
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-windows-files
+          path: windows-build
+      - name: Package and verify assets
+        run: |
+          set -euo pipefail
+          APK="$(find android-build -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          test -f "$APK"
+          find windows-build -type f -iname '*.exe' -print -quit | grep -q .
+          cp "$APK" MediaFlow-v553-Android-debug.apk
+          zip -qr MediaFlow-v553-Windows-x64-validation.zip windows-build
+          sha256sum MediaFlow-v553-Android-debug.apk MediaFlow-v553-Windows-x64-validation.zip
+      - name: Publish GitHub prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v1.0.0-beta.9
+          name: MediaFlowApp v1.0.0-beta.9 - Writable Logging Drafts
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: |
+            ## Native Flutter account-write milestone
+
+            Built from commit `${{ github.sha }}`.
+
+            - **Android:** unsigned debug APK.
+            - **Windows:** Flutter release-mode x64 build in a ZIP.
+            - **New:** Advanced Logging drafts are saved to the signed-in user's existing MediaFlow account using the website-compatible v285/v369 draft format, including itemized unit numbers, timestamps, durations, repeat flags, and commit identity.
+            - Cloud writes use the existing account row and compare-and-swap revision guard. No database schema, tables, RLS policies, secrets, or auth configuration are changed.
+
+            **Not yet complete:** Confirmed Logging submission that writes Library progress, History, and XP; live recommendation/reroll parity; and full bidirectional sync. This is a development prerelease, not feature-complete MediaFlow v553 parity.
+          files: |
+            MediaFlow-v553-Android-debug.apk
+            MediaFlow-v553-Windows-x64-validation.zip
