@@ -22,6 +22,7 @@
     hasSingleDraft: false,
     hasBatchDraft: false,
     booted: false,
+    cachedSnapshot: null,
     navigate: navigate,
     openLogging: openLogging,
     openBatchLogging: openBatchLogging,
@@ -102,6 +103,11 @@
   }
   async function readLocalSnapshot(userId) {
     if (!userId) return null;
+    if (companion.cachedSnapshot && companion.cachedSnapshot.userId === userId) {
+      return Object.assign({}, companion.cachedSnapshot, {
+        pendingSync: !!companion.cachedSnapshot.pendingSync || queueMarkerExists(userId)
+      });
+    }
     try {
       const record = await readIdbRecord(userId);
       if (record && record.userId === userId && typeof record.stateJson === 'string') {
@@ -153,6 +159,12 @@
     if (pending) markPending(userId, reason);
     else clearPendingMarker(userId);
     companion.pending = !!pending;
+    companion.cachedSnapshot = {
+      userId: userId, state: state, pendingSync: !!pending,
+      savedAt: Number(record.savedAt) || Date.now(),
+      source: indexedDbSaved ? 'indexeddb' : 'local-cache',
+      reason: String(reason || '')
+    };
     updateStatus();
     return true;
   }
@@ -483,17 +495,34 @@
      as a fallback only when IndexedDB cannot store the state. */
   v115ReadRecoveryCache = async function () {
     const userId = uid();
+    if (userId && companion.cachedSnapshot && companion.cachedSnapshot.userId === userId) {
+      return { state: companion.cachedSnapshot.state, source: 'account', cachedAt: companion.cachedSnapshot.savedAt };
+    }
     if (userId) {
       try {
         const record = await readIdbRecord(userId);
         if (record && record.userId === userId && typeof record.stateJson === 'string') {
           const state = JSON.parse(record.stateJson);
-          return { state: state, source: 'account', cachedAt: Number(record.savedAt) || Number(state.savedAt) || 0 };
+          companion.cachedSnapshot = {
+            userId: userId, state: state,
+            pendingSync: !!record.pendingSync || queueMarkerExists(userId),
+            savedAt: Number(record.savedAt) || Number(state.savedAt) || 0,
+            source: 'indexeddb', reason: String(record.reason || '')
+          };
+          return { state: state, source: 'account', cachedAt: companion.cachedSnapshot.savedAt };
         }
       } catch (_) {}
     }
     const cache = await originalReadRecoveryCache.apply(this, arguments);
-    return cache && cache.source === 'account' ? cache : null;
+    if (cache && cache.source === 'account' && userId) {
+      companion.cachedSnapshot = {
+        userId: userId, state: cache.state, pendingSync: queueMarkerExists(userId),
+        savedAt: Number(cache.cachedAt) || Number(cache.state && cache.state.savedAt) || 0,
+        source: 'local-cache'
+      };
+      return cache;
+    }
+    return null;
   };
   v115WriteRecoveryCache = function (state, serializedState) {
     if (window.indexedDB && uid()) return true;
@@ -508,8 +537,7 @@
     if (key !== STATE_KEY) return originalRawSet.apply(this, arguments);
     const userId = uid();
     if (!userId || !value || typeof value !== 'object') throw new Error('MediaFlow account is not ready for a local save.');
-    const previous = await readLocalSnapshot(userId);
-    const wasPending = !!(previous && previous.pendingSync) || queueMarkerExists(userId);
+    const wasPending = !!companion.pending || queueMarkerExists(userId);
     let stateToQueue = value;
     let jsonToQueue = JSON.stringify(value);
     await saveLocalSnapshot(userId, value, true, 'save pending', jsonToQueue);
