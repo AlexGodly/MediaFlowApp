@@ -7,8 +7,12 @@
   const STORE_NAME = 'snapshots';
   const DRAFT_PREFIX = 'mf_android_companion_draft_v1_';
   const QUEUE_PREFIX = 'mf_android_companion_queue_v1_';
+  const BASE_PREFIX = 'mf_android_companion_cloud_base_v1_';
+  const DRAFT_FIELD = '__mfAndroidCompanionDraftV1';
+  const MAX_DRAFT_BYTES = 1024 * 1024;
   let dbPromise = null;
   let draftTimer = null;
+  let cloudDraftTimer = null;
   let observer = null;
   const originalReadRecoveryCache = v115ReadRecoveryCache;
   const originalWriteRecoveryCache = v115WriteRecoveryCache;
@@ -18,6 +22,14 @@
     syncing: false,
     needsAuth: false,
     attention: false,
+    draftPending: false,
+    draftConflict: false,
+    draftSyncing: false,
+    conflictingCloudDraft: null,
+    stateConflict: null,
+    conflictResolution: null,
+    lastCloudUpdatedAt: null,
+    lastCloudProjection: null,
     logMode: 'single',
     hasSingleDraft: false,
     hasBatchDraft: false,
@@ -27,7 +39,11 @@
     openLogging: openLogging,
     openBatchLogging: openBatchLogging,
     toggleExactTitleRecommendations: toggleExactTitleRecommendations,
-    syncNow: function () { return reconcile(true); }
+    syncNow: async function () {
+      const stateOk = await reconcile(true);
+      const draftOk = await syncDraftToCloud();
+      return stateOk && draftOk;
+    }
   };
   document.documentElement.dataset.mfAndroidCompanion = '1';
   if (typeof S !== 'undefined') S.offlineMode = companion.active;
@@ -56,6 +72,190 @@
     try { localStorage.removeItem(queueKey(userId)); } catch (_) {}
     companion.pending = false;
   }
+
+  function sameJson(left, right) {
+    const normalize = value => value === undefined ? null : value;
+    try { return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right)); }
+    catch (_) { return left === right; }
+  }
+  function cloneJson(value) {
+    if (value === undefined) return undefined;
+    try { return JSON.parse(JSON.stringify(value)); } catch (_) { return value; }
+  }
+  function projectionFromState(state) {
+    const value = state && typeof state === 'object' ? state : {};
+    const keys = ['categories', 'categoryOrder', 'settings', 'currentTask',
+      'sessionActive', 'profilePicture', 'stopwatch', 'malLink', 'orderPlan'];
+    const result = {};
+    keys.forEach(key => { result[key] = value[key] === undefined ? null : cloneJson(value[key]); });
+    return result;
+  }
+  function baselineKey(userId) { return BASE_PREFIX + String(userId || ''); }
+  function setCloudBaseline(userId, state, updatedAt) {
+    if (!userId || !state || typeof updatedAt !== 'string' || !updatedAt) return;
+    const projection = projectionFromState(state);
+    companion.lastCloudUpdatedAt = updatedAt;
+    companion.lastCloudProjection = projection;
+    try {
+      localStorage.setItem(baselineKey(userId), JSON.stringify({
+        version: 1, userId: userId, updatedAt: updatedAt, projection: projection
+      }));
+    } catch (_) {}
+  }
+  function restoreCloudBaseline(userId, record) {
+    if (companion.lastCloudUpdatedAt && companion.lastCloudProjection) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(baselineKey(userId)) || 'null');
+      if (stored && stored.version === 1 && stored.userId === userId &&
+          typeof stored.updatedAt === 'string' && stored.projection &&
+          typeof stored.projection === 'object') {
+        companion.lastCloudUpdatedAt = stored.updatedAt;
+        companion.lastCloudProjection = stored.projection;
+        return;
+      }
+    } catch (_) {}
+    if (record && record.userId === userId &&
+        typeof record.baseUpdatedAt === 'string' &&
+        record.baseProjection && typeof record.baseProjection === 'object') {
+      companion.lastCloudUpdatedAt = record.baseUpdatedAt;
+      companion.lastCloudProjection = record.baseProjection;
+    }
+  }
+  function readLocalDraft(userId) {
+    if (!userId) return null;
+    try {
+      const value = JSON.parse(localStorage.getItem(draftKey(userId)) || 'null');
+      if (!value || value.version !== 1 || value.userId !== userId ||
+          !Number.isFinite(Number(value.savedAt)) || Number(value.savedAt) <= 0 ||
+          Date.now() - Number(value.savedAt) > 90 * 24 * 60 * 60 * 1000) return null;
+      return value;
+    } catch (_) { return null; }
+  }
+  function draftContentKey(value) {
+    if (!value || typeof value !== 'object') return '';
+    const copy = Object.assign({}, value);
+    delete copy.savedAt;
+    delete copy.cloudSyncedAt;
+    return JSON.stringify(copy);
+  }
+  function draftIsEligible(value) {
+    return !!(value && (value.everHadDraft || value.singleDraftExists ||
+      value.batchDraftExists || Number(value.cloudSyncedAt) > 0));
+  }
+  function cloudDraftCopy(value) {
+    if (!value || typeof value !== 'object') return null;
+    const copy = Object.assign({}, value);
+    delete copy.cloudSyncedAt;
+    return copy;
+  }
+  function storeLocalDraft(userId, value) {
+    if (!userId || !value || value.userId !== userId) return false;
+    try { localStorage.setItem(draftKey(userId), JSON.stringify(value)); return true; }
+    catch (_) { return false; }
+  }
+  function markLocalDraftSynced(userId, sentDraft) {
+    const current = readLocalDraft(userId);
+    if (!current || !sentDraft || Number(current.savedAt) !== Number(sentDraft.savedAt) ||
+        draftContentKey(current) !== draftContentKey(sentDraft)) return false;
+    current.cloudSyncedAt = Number(current.savedAt);
+    storeLocalDraft(userId, current);
+    companion.draftPending = false;
+    return true;
+  }
+  function captureCloudDraft(state, userId) {
+    const remote = state && state[DRAFT_FIELD];
+    if (!remote || remote.version !== 1 || remote.userId !== userId ||
+        !Number.isFinite(Number(remote.savedAt)) || Number(remote.savedAt) <= 0) return;
+    const cloud = cloudDraftCopy(remote);
+    const local = readLocalDraft(userId);
+    if (!local) {
+      cloud.cloudSyncedAt = Number(cloud.savedAt);
+      storeLocalDraft(userId, cloud);
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      companion.hasSingleDraft = !!cloud.singleDraftExists;
+      companion.hasBatchDraft = !!cloud.batchDraftExists;
+      return;
+    }
+    const localDirty = Number(local.savedAt) > Number(local.cloudSyncedAt || 0);
+    const same = draftContentKey(local) === draftContentKey(cloud);
+    if (same) {
+      local.cloudSyncedAt = Math.max(Number(local.cloudSyncedAt) || 0, Number(cloud.savedAt));
+      storeLocalDraft(userId, local);
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      return;
+    }
+    if (Number(cloud.savedAt) > Number(local.savedAt)) {
+      if (localDirty) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloud;
+        companion.draftPending = true;
+      } else {
+        cloud.cloudSyncedAt = Number(cloud.savedAt);
+        storeLocalDraft(userId, cloud);
+        companion.draftPending = false;
+        companion.draftConflict = false;
+        companion.hasSingleDraft = !!cloud.singleDraftExists;
+        companion.hasBatchDraft = !!cloud.batchDraftExists;
+        if (companion.booted) {
+          restoreDraft();
+          render();
+        }
+      }
+    } else if (Number(cloud.savedAt) === Number(local.savedAt)) {
+      companion.draftConflict = true;
+      companion.conflictingCloudDraft = cloud;
+      companion.draftPending = true;
+    } else {
+      companion.draftPending = localDirty || Number(local.savedAt) > Number(cloud.savedAt);
+      if (companion.draftPending) scheduleCloudDraftSync();
+    }
+  }
+
+  function mergeThreeWay(local, remote, base, path, conflicts, strategy) {
+    const localChanged = !sameJson(local, base);
+    const remoteChanged = !sameJson(remote, base);
+    if (!localChanged && remoteChanged) return cloneJson(remote);
+    if (localChanged && !remoteChanged) return cloneJson(local);
+    if (!localChanged && !remoteChanged) return cloneJson(local === undefined ? remote : local);
+    if (sameJson(local, remote)) return cloneJson(local);
+    const objectLike = value => value && typeof value === 'object' && !Array.isArray(value);
+    if (objectLike(local) && objectLike(remote) && objectLike(base)) {
+      const result = {};
+      const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
+      keys.forEach(key => {
+        result[key] = mergeThreeWay(local[key], remote[key], base[key],
+          path ? path + '.' + key : key, conflicts, strategy);
+      });
+      return result;
+    }
+    if (strategy === 'local') return cloneJson(local);
+    if (strategy === 'remote') return cloneJson(remote);
+    conflicts.push(path);
+    return cloneJson(local);
+  }
+  function mergeConcurrentStates(localState, remoteState, baseProjection, strategy) {
+    const merged = mergeOfflineStates(localState, remoteState);
+    const conflicts = [];
+    const fields = ['categories', 'categoryOrder', 'currentTask', 'sessionActive',
+      'profilePicture', 'stopwatch', 'malLink', 'orderPlan'];
+    fields.forEach(key => {
+      merged[key] = mergeThreeWay(localState[key], remoteState[key],
+        baseProjection[key], key, conflicts, strategy);
+    });
+    merged.settings = mergeThreeWay(localState.settings || {}, remoteState.settings || {},
+      baseProjection.settings || {}, 'settings', conflicts, strategy);
+    return { state: merged, conflicts: conflicts };
+  }
+  function scheduleCloudDraftSync() {
+    if (cloudDraftTimer !== null) clearTimeout(cloudDraftTimer);
+    cloudDraftTimer = setTimeout(function () {
+      cloudDraftTimer = null;
+      if (navigator.onLine && uid()) syncDraftToCloud();
+    }, 1800);
+  }
+
   function isNetworkError(error) {
     const message = String(error && (error.message || error) || '');
     return navigator.onLine === false ||
