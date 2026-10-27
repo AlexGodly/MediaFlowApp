@@ -772,6 +772,7 @@
       const local = await readLocalSnapshot(userId);
       const queued = !!(local && local.pendingSync) || queueMarkerExists(userId);
       const remote = await originalFetchCloudState();
+      if (remote && remote.found && remote.state) captureCloudDraft(remote.state, userId);
       const pending = queued || !!(local && local.state &&
         (Number(local.state.savedAt) || 0) > (Number(remote && remote.state && remote.state.savedAt) || 0) + 1000);
       if (!remote || !remote.found || !remote.state) {
@@ -788,9 +789,12 @@
       if (pending) {
         const json = JSON.stringify(state);
         await saveLocalSnapshot(userId, state, true, 'syncing offline changes', json);
-        await uploadSnapshot(userId, state, json);
+        const synced = await uploadSnapshot(userId, state, json, false);
+        state = synced.state;
+      } else {
+        setCloudBaseline(userId, remote.state, remote.updatedAt);
       }
-      await saveLocalSnapshot(userId, state, false, 'synced with Supabase');
+      await saveLocalSnapshot(userId, state, false, 'synced with Supabase', JSON.stringify(state));
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       if (typeof v115StartWithData === 'function') await v115StartWithData(state);
       updateStatus();
