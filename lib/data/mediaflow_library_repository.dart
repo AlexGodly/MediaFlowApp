@@ -130,7 +130,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     // Parse strictly now, before the snapshot can be used as a save anchor.
     MediaFlowFullState.parse(row['state_data']);
     return NativeCloudStateSnapshot(
-      ownerId: _ownerId!,
+      ownerId: _ownerId,
       stateData: row['state_data'],
       updatedAt: row['updated_at'].toString(),
     );
@@ -148,7 +148,7 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
     }
     return NativeCloudStateCommitter(
       client: client,
-      ownerId: _ownerId!,
+      ownerId: _ownerId,
     ).commit(
       expectedStateData: base.stateData,
       expectedUpdatedAt: base.updatedAt,
