@@ -146,3 +146,15 @@ class NativeCloudStateConflict implements Exception {
   @override
   String toString() => message;
 }
+
+class NativeCloudStateSnapshot {
+  const NativeCloudStateSnapshot({
+    required this.ownerId,
+    required this.stateData,
+    required this.updatedAt,
+  });
+
+  final String ownerId;
+  final Object stateData;
+  final String updatedAt;
+}
