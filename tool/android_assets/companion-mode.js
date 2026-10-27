@@ -916,6 +916,7 @@
       const remote = await originalFetchCloudState.apply(this, arguments);
       if (!remote || !remote.found || !remote.state) return remote;
       const local = await readLocalSnapshot(userId);
+      captureCloudDraft(remote.state, userId);
       const localIsNewer = !!(local && local.state &&
         (Number(local.state.savedAt) || 0) > (Number(remote.state.savedAt) || 0) + 1000);
       if (local && local.state && (local.pendingSync || localIsNewer)) {
@@ -923,10 +924,10 @@
         const json = JSON.stringify(merged);
         try {
           await saveLocalSnapshot(userId, merged, true, 'syncing offline changes', json);
-          await uploadSnapshot(userId, merged, json);
-          await saveLocalSnapshot(userId, merged, false, 'synced with Supabase', json);
+          const synced = await uploadSnapshot(userId, merged, json, false);
+          await saveLocalSnapshot(userId, synced.state, false, 'synced with Supabase', JSON.stringify(synced.state));
           companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
-          return Object.assign({}, remote, { state: merged });
+          return Object.assign({}, remote, { state: synced.state, updatedAt: synced.updatedAt });
         } catch (error) {
           await saveLocalSnapshot(userId, merged, true, String(error && (error.message || error) || 'sync deferred'), json);
           companion.active = isNetworkError(error) || navigator.onLine === false; companion.pending = true; S.offlineMode = true;
@@ -936,6 +937,7 @@
           return { found: true, state: merged, updatedAt: null, offline: true };
         }
       }
+      setCloudBaseline(userId, remote.state, remote.updatedAt);
       await saveLocalSnapshot(userId, remote.state, false, 'synced with Supabase');
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       return remote;
@@ -947,6 +949,7 @@
         } catch (storageError) {
           console.warn('MediaFlow Companion: could not seed IndexedDB from the previous local cache.', storageError);
         }
+        captureCloudDraft(local.state, userId);
         companion.active = true; companion.pending = !!local.pendingSync; S.offlineMode = true;
         companion.needsAuth = false; companion.attention = false;
         if (local.pendingSync) markPending(userId, 'waiting for network');
