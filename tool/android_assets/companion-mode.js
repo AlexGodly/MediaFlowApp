@@ -28,6 +28,8 @@
     conflictingCloudDraft: null,
     stateConflict: null,
     conflictResolution: null,
+    accountId: null,
+    lastCloudUserId: null,
     lastCloudUpdatedAt: null,
     lastCloudProjection: null,
     logMode: 'single',
@@ -49,7 +51,26 @@
   if (typeof S !== 'undefined') S.offlineMode = companion.active;
 
   function uid() {
-    try { return String(AUTH_USER && AUTH_USER.id || ''); } catch (_) { return ''; }
+    let id = '';
+    try { id = String(AUTH_USER && AUTH_USER.id || ''); } catch (_) {}
+    if (id && companion.accountId && companion.accountId !== id) {
+      // Never carry a queued marker, baseline, or draft conflict across accounts.
+      companion.pending = queueMarkerExists(id);
+      companion.active = !!window.__mfAndroidOfflineMode;
+      companion.needsAuth = false;
+      companion.attention = false;
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      companion.conflictingCloudDraft = null;
+      companion.stateConflict = null;
+      companion.conflictResolution = null;
+      companion.cachedSnapshot = null;
+      companion.lastCloudUserId = null;
+      companion.lastCloudUpdatedAt = null;
+      companion.lastCloudProjection = null;
+    }
+    if (id) companion.accountId = id;
+    return id;
   }
   function queueKey(userId) { return QUEUE_PREFIX + String(userId || ''); }
   function draftKey(userId) { return DRAFT_PREFIX + String(userId || ''); }
@@ -94,6 +115,7 @@
   function setCloudBaseline(userId, state, updatedAt) {
     if (!userId || !state || typeof updatedAt !== 'string' || !updatedAt) return;
     const projection = projectionFromState(state);
+    companion.lastCloudUserId = userId;
     companion.lastCloudUpdatedAt = updatedAt;
     companion.lastCloudProjection = projection;
     try {
@@ -103,12 +125,17 @@
     } catch (_) {}
   }
   function restoreCloudBaseline(userId, record) {
-    if (companion.lastCloudUpdatedAt && companion.lastCloudProjection) return;
+    if (companion.lastCloudUserId === userId &&
+        companion.lastCloudUpdatedAt && companion.lastCloudProjection) return;
+    companion.lastCloudUserId = userId;
+    companion.lastCloudUpdatedAt = null;
+    companion.lastCloudProjection = null;
     try {
       const stored = JSON.parse(localStorage.getItem(baselineKey(userId)) || 'null');
       if (stored && stored.version === 1 && stored.userId === userId &&
           typeof stored.updatedAt === 'string' && stored.projection &&
           typeof stored.projection === 'object') {
+        companion.lastCloudUserId = userId;
         companion.lastCloudUpdatedAt = stored.updatedAt;
         companion.lastCloudProjection = stored.projection;
         return;
@@ -117,6 +144,7 @@
     if (record && record.userId === userId &&
         typeof record.baseUpdatedAt === 'string' &&
         record.baseProjection && typeof record.baseProjection === 'object') {
+      companion.lastCloudUserId = userId;
       companion.lastCloudUpdatedAt = record.baseUpdatedAt;
       companion.lastCloudProjection = record.baseProjection;
     }
@@ -241,8 +269,13 @@
     const fields = ['categories', 'categoryOrder', 'currentTask', 'sessionActive',
       'profilePicture', 'stopwatch', 'malLink', 'orderPlan'];
     fields.forEach(key => {
-      merged[key] = mergeThreeWay(localState[key], remoteState[key],
-        baseProjection[key], key, conflicts, strategy);
+      // Some website snapshots intentionally omit derived/optional keys such
+      // as orderPlan. Missing locally means "unchanged", not "delete cloud".
+      const baseValue = baseProjection[key];
+      const localValue = localState[key] === undefined ? baseValue : localState[key];
+      const remoteValue = remoteState[key] === undefined ? baseValue : remoteState[key];
+      merged[key] = mergeThreeWay(localValue, remoteValue,
+        baseValue, key, conflicts, strategy);
     });
     merged.settings = mergeThreeWay(localState.settings || {}, remoteState.settings || {},
       baseProjection.settings || {}, 'settings', conflicts, strategy);
