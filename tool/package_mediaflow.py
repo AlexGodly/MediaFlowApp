@@ -197,7 +197,18 @@ window.__mfAndroidCompanionReady = new Promise(function(resolve){
         raise ValueError("Unexpected v553 sign-out handler")
     handler_block = handler_block.replace(
         handler_marker,
-        handler_marker + "if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;",
+        handler_marker + r"""
+if(event==='SIGNED_OUT'&&!V475_AUTH.logoutRequested&&
+   (navigator.onLine===false||window.__mfAndroidOfflineMode)){
+  const cachedUser=mfAndroidReadStoredSessionUser();
+  if(cachedUser&&cachedUser.id&&(!AUTH_USER?.id||AUTH_USER.id===cachedUser.id)){
+    AUTH_USER=cachedUser;
+    window.__mfAndroidOfflineMode=true;
+    return;
+  }
+}
+if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;
+""",
         1
     )
     javascript = javascript[:handler_start] + handler_block + javascript[handler_end:]
