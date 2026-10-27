@@ -1017,8 +1017,7 @@
         updateStatus();
         return true;
       }
-      let state = remote.state;
-      if (pending && local && local.state) state = mergeOfflineStates(local.state, remote.state);
+      let state = pending && local && local.state ? local.state : remote.state;
       if (pending) {
         const json = JSON.stringify(state);
         await saveLocalSnapshot(userId, state, true, 'syncing offline changes', json);
@@ -1110,8 +1109,8 @@
         if (!remote || !remote.found || !remote.state) {
           throw new Error('The cloud state could not be confirmed. The local copy is queued safely.');
         }
-        stateToQueue = mergeOfflineStates(value, remote.state);
-        jsonToQueue = JSON.stringify(stateToQueue);
+        // Keep the original local version for the three-way merge against the
+        // saved cloud baseline. Pre-merging here would hide overlapping edits.
       }
       const synced = await uploadSnapshot(
         userId, stateToQueue, jsonToQueue, !wasPending && v115AccountLooksNew());
@@ -1153,21 +1152,21 @@
       const localIsNewer = !!(local && local.state &&
         (Number(local.state.savedAt) || 0) > (Number(remote.state.savedAt) || 0) + 1000);
       if (local && local.state && (local.pendingSync || localIsNewer)) {
-        const merged = mergeOfflineStates(local.state, remote.state);
-        const json = JSON.stringify(merged);
+        const localState = local.state;
+        const json = JSON.stringify(localState);
         try {
-          await saveLocalSnapshot(userId, merged, true, 'syncing offline changes', json);
-          const synced = await uploadSnapshot(userId, merged, json, false);
+          await saveLocalSnapshot(userId, localState, true, 'syncing offline changes', json);
+          const synced = await uploadSnapshot(userId, localState, json, false);
           await saveLocalSnapshot(userId, synced.state, false, 'synced with Supabase', JSON.stringify(synced.state));
           companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
           return Object.assign({}, remote, { state: synced.state, updatedAt: synced.updatedAt });
         } catch (error) {
-          await saveLocalSnapshot(userId, merged, true, String(error && (error.message || error) || 'sync deferred'), json);
+          await saveLocalSnapshot(userId, localState, true, String(error && (error.message || error) || 'sync deferred'), json);
           companion.active = isNetworkError(error) || navigator.onLine === false; companion.pending = true; S.offlineMode = true;
           companion.needsAuth = requiresReauthentication(error);
           companion.attention = !companion.needsAuth && !isNetworkError(error);
           updateStatus();
-          return { found: true, state: merged, updatedAt: null, offline: true };
+          return { found: true, state: localState, updatedAt: null, offline: true };
         }
       }
       setCloudBaseline(userId, remote.state, remote.updatedAt);
