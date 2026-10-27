@@ -7,9 +7,9 @@
 - Uses the exact pinned **v507 Stable** web release archive, SHA-256 verified at build time.
 - Bundles the HTML, CSS, media and compiled application JavaScript in the Android APK. Supabase, React and ReactDOM CDN scripts are copied into the APK during CI, avoiding a network-dependent initial interface load.
 - Renders on Android's hardware-accelerated System WebView, with local HTTPS-like origin provided by `WebViewAssetLoader`. No `file://` privilege bypass or broad cleartext networking.
-- Runs MediaFlow's **existing authenticated cloud logic and logging code**, not the old Flutter beta's read-only repository. This does **not** modify Supabase or claim new native data sync semantics.
+- Runs the real v507 recommendation, title-reroll/history, Library, Quick/Advanced/Progress logging, XP preview and batch logging logic. The Android companion exposes only Recommendations, Log, Library workspace and Log history.
 - Works with on-device file imports, external links in the browser, network downloads, and **chunked** local MediaFlow blob exports to Android Downloads (up to 750 MB of output without constructing a single Base64 copy of the backup in Kotlin).
-- Provides a new Android-only **Performance** card at the top of MediaFlow Settings: Original, Balanced (default), Smooth. Phone rendering settings are not synced to your account.
+- Adds an Android-only **Original / Balanced / Smooth / Ultra light** performance profile. The focused companion hides unrelated website navigation and avoids rebuilding desktop-only UI on phones.
 - Android Back closes MediaFlow's native-state modal first, then navigates back to Dashboard rather than accidentally exiting a single-page app.
 - Intercepts service-worker asset requests from the same pinned local frontend, and recovers from Android WebView renderer restarts without deleting account storage.
 - Uses the existing MediaFlow launcher artwork and package ID `com.alexgodly.mediaflow`.
@@ -62,3 +62,18 @@ Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-di
 - Four local-only performance presets: Original, Balanced, Smooth, Ultra light. Auto-selects Ultra light on phones with four or fewer CPU threads or at most 3 GiB reported RAM; Smooth otherwise.
 - Ultra light temporarily caps Library page rendering at 48 entries, skips offscreen row painting, and cuts visual effects without changing saved Library/cloud preferences.
 - Provides Android-only long task counters in Settings; benchmarking requires a real device. No guaranteed FPS.
+
+
+## Beta 6: focused mobile companion + offline-first workflow
+
+The Android app is now intentionally scoped to four surfaces: **Recommendations**, **Log**, **Library workspace**, and **Log history**. It reuses the actual MediaFlow v507 functions rather than reimplementing its recommender or XP calculations. Exact-title recommendations can be toggled in the Recommendations screen; title rerolls and reroll history use the original MediaFlow logic. Single-title logging preserves the existing Quick/Advanced modes, per-unit/progress methods and XP preview. Batch Log remains available.
+
+### Offline behavior
+
+- Supabase's existing persisted session stays in the Android WebView's app-local storage. If the phone is offline, the app can restore the locally stored account identity and the matching account-scoped local snapshot instead of forcing a new login.
+- Full state snapshots are stored in **IndexedDB**, keyed by the signed-in Supabase user ID. This avoids writing a multi-megabyte library to localStorage on every save. The existing local recovery cache remains a fallback.
+- Drafts for single-title and batch logging, the selected companion screen, and the open logging mode are autosaved locally.
+- When offline, log submissions and recommendation changes are stored locally and marked pending. Once online, the app refreshes the saved session, merges queued state with the existing cloud state, and uploads using MediaFlow's existing `mediaflow_states` record. A missing cloud row is **not** auto-created or overwritten; the local copy remains available and the status button reports that sync needs attention.
+- A tappable status pill shows offline, pending, syncing, or synced state. No Supabase schema or backend policies are changed.
+
+This implementation does not guarantee that every phone will hold a huge library within available device storage or that all background sync will run while Android has suspended the app. Pending changes sync when the app is active and connectivity is restored. Real-device tests are still required for offline sign-in, conflict handling and long-session logging.

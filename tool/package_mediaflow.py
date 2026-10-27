@@ -140,6 +140,104 @@ def patch_android_mobile_render(path):
     return len(edits)
 
 
+
+def patch_android_offline_session_restore(path):
+    """Allow a previously saved Supabase user to open the account-scoped local
+    workspace when the phone is offline. Cloud writes remain queued until auth
+    can refresh online; this does not authorize offline cloud requests."""
+    javascript = path.read_text("utf-8")
+    marker = "async function v475RestoreSavedSession(){"
+    helper = r"""
+function mfAndroidReadStoredSessionUser(){
+  try{
+    const project = new URL(SUPABASE_URL).hostname.split('.')[0];
+    const keys = ['sb-' + project + '-auth-token'];
+    for(const key of keys){
+      const raw = localStorage.getItem(key);
+      if(!raw) continue;
+      const stored = JSON.parse(raw);
+      const session = stored && (stored.currentSession || stored.session || stored);
+      const user = session && session.user || stored && stored.user;
+      if(user && user.id) return user;
+    }
+  }catch(_){}
+  return null;
+}
+function mfAndroidIsNetworkFailure(error){
+  const message = String(error && (error.message || error) || '');
+  return navigator.onLine === false ||
+    /failed to fetch|network|offline|load failed|err_internet_disconnected|connection reset|connection refused|timed out|timeout|fetch failed/i.test(message);
+}
+"""
+    start_app_marker = "async function startAuthenticatedApp(){"
+    if javascript.count(start_app_marker) != 1:
+        raise ValueError("Unexpected v507 authenticated app entry point")
+    ready_gate = r"""
+window.__mfAndroidCompanionReady = new Promise(function(resolve){
+  window.__mfAndroidCompanionResolve = resolve;
+  setTimeout(function(){ resolve(false); }, 5000);
+});
+"""
+    javascript = javascript.replace(start_app_marker, ready_gate + start_app_marker, 1)
+    app_start = javascript.index(start_app_marker)
+    app_end = javascript.index(marker, app_start)
+    app_block = javascript[app_start:app_end]
+    app_block = app_block.replace(start_app_marker, start_app_marker + "\n  if(window.__mfAndroidCompanionReady) await window.__mfAndroidCompanionReady;", 1)
+    javascript = javascript[:app_start] + app_block + javascript[app_end:]
+    if javascript.count(marker) != 1:
+        raise ValueError("Unexpected v507 saved-session restore function")
+    javascript = javascript.replace(marker, helper + marker, 1)
+    start = javascript.index(marker)
+    end = javascript.index("async function init(){", start)
+    block = javascript[start:end]
+    loop_marker = "if(V475_AUTH.logoutRequested||V475_AUTH.explicitLogout)return false;"
+    fallback = r"""
+if(!confirmed && navigator.onLine === false){
+  const cachedUser = mfAndroidReadStoredSessionUser();
+  if(cachedUser && cachedUser.id){
+    confirmed = cachedUser;
+    AUTH_USER = cachedUser;
+    window.__mfAndroidOfflineMode = true;
+    break;
+  }
+}
+"""
+    if block.count(loop_marker) != 1:
+        raise ValueError("Unexpected v507 auth restore loop")
+    block = block.replace(loop_marker, loop_marker + fallback, 1)
+    catch_marker = "}catch(err){lastError=err;}"
+    catch_fallback = r""" }catch(err){
+          lastError=err;
+          if(mfAndroidIsNetworkFailure(err)){
+            const cachedUser=mfAndroidReadStoredSessionUser();
+            if(cachedUser && cachedUser.id){
+              confirmed=cachedUser;
+              AUTH_USER=cachedUser;
+              window.__mfAndroidOfflineMode=true;
+              break;
+            }
+          }
+        }"""
+    if block.count(catch_marker) != 1:
+        raise ValueError("Unexpected v507 auth network error handler")
+    block = block.replace(catch_marker, catch_fallback, 1)
+    final_marker = "if(!confirmed&&AUTH_USER?.id)confirmed=AUTH_USER;"
+    if block.count(final_marker) != 1:
+        raise ValueError("Unexpected v507 saved-session final fallback")
+    block = block.replace(final_marker, final_marker + r"""
+      if(!confirmed && lastError && mfAndroidIsNetworkFailure(lastError)){
+        const cachedUser=mfAndroidReadStoredSessionUser();
+        if(cachedUser && cachedUser.id){
+          confirmed=cachedUser;
+          AUTH_USER=cachedUser;
+          window.__mfAndroidOfflineMode=true;
+        }
+      }""", 1)
+    javascript = javascript[:start] + block + javascript[end:]
+    path.write_text(javascript, "utf-8")
+    return 5
+
+
 def package(archive, output, skip_vendor=False, verify=True):
     archive, output = Path(archive), Path(output)
     if verify and sha256(archive) != ARCHIVE_SHA256:
@@ -180,6 +278,7 @@ def package(archive, output, skip_vendor=False, verify=True):
 
     patch_count = patch_android_backup_bundle(output / "assets/js/mediaflow-v507.bundle.js")
     mobile_patch_count = patch_android_mobile_render(output / "assets/js/mediaflow-v507.bundle.js")
+    offline_auth_patch_count = patch_android_offline_session_restore(output / "assets/js/mediaflow-v507.bundle.js")
 
     index = output / "index.html"
     html = index.read_text("utf-8")
@@ -197,17 +296,19 @@ def package(archive, output, skip_vendor=False, verify=True):
     shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
     shutil.copy2(android_assets / "backup-bridge.js", target / "backup-bridge.js")
     shutil.copy2(android_assets / "performance-boot.js", target / "performance-boot.js")
+    shutil.copy2(android_assets / "companion-mode.js", target / "companion-mode.js")
+    shutil.copy2(android_assets / "companion-mode.css", target / "companion-mode.css")
     if "</head>" not in html or "</body>" not in html:
         raise ValueError("Cannot safely mount Android-specific UI resources")
     runtime_script = '<script src="assets/js/mediaflow-v507.bundle.js"></script>'
     if html.count(runtime_script) != 1:
         raise ValueError("Missing exact MediaFlow v507 application script")
     html = html.replace(runtime_script,
-                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script, 1)
+                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/companion-mode.js"></script>', 1)
     html = html.replace("</head>",
                         '<script src="assets/android/performance-boot.js"></script>\n</head>', 1)
     html = html.replace("</head>",
-                        '<link rel="stylesheet" href="assets/android/mobile-performance.css">\n</head>', 1)
+                        '<link rel="stylesheet" href="assets/android/mobile-performance.css">\n<link rel="stylesheet" href="assets/android/companion-mode.css">\n</head>', 1)
     html = html.replace("</body>",
                         '<script src="assets/android/performance-settings.js"></script>\n</body>', 1)
     index.write_text(html, "utf-8")
@@ -234,9 +335,10 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v507.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "reconnect-merge-sync", "single-and-batch-logging"],
         "patchedBackupFunctions": patch_count,
         "patchedMobileRenderSites": mobile_patch_count,
+        "patchedOfflineSessionRestoreSites": offline_auth_patch_count,
     }
     (output / "mediaflow-android-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
