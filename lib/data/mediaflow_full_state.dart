@@ -137,6 +137,51 @@ class MediaFlowFullState {
     );
   }
 
+  /// Creates a complete-state draft for an explicit CAS save. The new root
+  /// is restricted to the existing account's resume-state envelope; every
+  /// other root is retained byte-for-JSON-value in the decoded payload.
+  MediaFlowFullState simulateRootReplacement(
+    String key,
+    Object nextValue,
+  ) {
+    if (key != 'resumeStateV285') {
+      throw const FormatException('Only the existing v285 resume root is writable here');
+    }
+    if (nextValue is! Map) {
+      throw const FormatException('Resume state must be a JSON object');
+    }
+    final clone = NativeSnapshotCodec.deepClone(_state);
+    clone[key] = NativeSnapshotCodec.deepClone(
+      Map<String, dynamic>.from(nextValue),
+    );
+    _validate(clone, requireCore: true);
+    for (final entry in _state.entries) {
+      if (entry.key == key) continue;
+      if (!NativeSnapshotCodec.equivalent(entry.value, clone[entry.key])) {
+        throw StateError('Unexpected account field change during resume save');
+      }
+    }
+    return MediaFlowFullState._(
+      _originalWire, clone, format, isLocalSimulation: true,
+    );
+  }
+
+  /// Encodes a validated local mutation in the account's original wire format.
+  /// Only explicitly simulated payloads may be handed to the CAS writer.
+  Object encodeForCommit() {
+    if (!isLocalSimulation) {
+      throw const FormatException('Refusing to write an unmodified cloud snapshot');
+    }
+    switch (format) {
+      case MediaFlowWireFormat.jsonString:
+        return jsonEncode(_state);
+      case MediaFlowWireFormat.gzipEnvelope:
+        return NativeSnapshotCodec.encodeLike(_state, _originalWire);
+      case MediaFlowWireFormat.jsonObject:
+        return NativeSnapshotCodec.deepClone(_state);
+    }
+  }
+
   /// v410-aware **simulation only**, not a cloud save payload.
   /// Copy the full original state and modify only a uniquely identified
   /// Library title's external IDs/manual provenance/season rows.
