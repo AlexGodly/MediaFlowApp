@@ -734,7 +734,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             icon: const Icon(Icons.refresh), label: const Text('Refresh Library')),
         ]),
         const SizedBox(height: 4),
-        Text('Native Beta 5 · MediaFlow v505 · Advanced Logging with full selection tools',
+        Text('Native Flutter · MediaFlow v553 parity work · Advanced Logging',
           style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 12),
         Card(color: Theme.of(context).colorScheme.secondaryContainer,
