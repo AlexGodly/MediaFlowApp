@@ -37,6 +37,7 @@ for required in (
 for token in (
     f"TAG={tag}", artifact, source_zip, "gh release create",
     "python tool/verify_release_archive.py",
+    "node --check tool/android_assets/cloud-state-cas.js",
     "node --check tool/android_assets/companion-mode.js",
     "node tests/cloud-state-cas.test.cjs",
     f"dist/{artifact}", f"dist/{source_zip}",
