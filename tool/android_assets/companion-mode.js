@@ -741,7 +741,11 @@
       button.className = 'mf-android-companion-status';
       button.setAttribute('aria-live', 'polite');
       button.setAttribute('aria-label', 'Account sync status. Tap to sync.');
-      button.addEventListener('click', function () { reconcile(true); });
+      button.addEventListener('click', function () {
+        if (companion.stateConflict) showStateConflictDialog();
+        else if (companion.draftConflict) showDraftConflictDialog();
+        else retrySyncNow();
+      });
       document.body.appendChild(button);
     }
     if (!button) return;
@@ -752,17 +756,29 @@
     button.hidden = false;
     let state = 'synced';
     let message = 'Synced with Supabase';
-    if (companion.syncing) {
+    if (companion.syncing || companion.draftSyncing) {
       state = 'syncing'; message = 'Syncing with Supabase…';
     } else if (!navigator.onLine || companion.active) {
       state = 'offline';
-      message = companion.pending ? 'Offline · changes saved on phone' : 'Offline · account available';
+      message = companion.pending && companion.draftPending
+        ? 'Offline · logs and draft saved on phone'
+        : companion.pending ? 'Offline · changes saved on phone'
+        : (companion.hasSingleDraft || companion.hasBatchDraft)
+          ? 'Offline · draft saved on phone' : 'Offline · account available';
     } else if (companion.needsAuth) {
-      state = 'attention'; message = 'Saved on phone · sign in to sync';
+      state = 'attention'; message = 'Saved on phone · reconnect account to sync';
+    } else if (companion.stateConflict) {
+      state = 'attention'; message = 'Account conflict · tap to review';
+    } else if (companion.draftConflict) {
+      state = 'attention'; message = 'Draft conflict · tap to choose';
     } else if (companion.attention) {
       state = 'attention'; message = 'Saved locally · sync needs attention';
+    } else if (companion.pending && companion.draftPending) {
+      state = 'pending'; message = 'Logs and draft waiting to sync';
     } else if (companion.pending) {
       state = 'pending'; message = 'Changes waiting to sync';
+    } else if (companion.draftPending) {
+      state = 'pending'; message = 'Logging draft waiting to sync';
     }
     button.dataset.state = state;
     button.textContent = message;
@@ -772,8 +788,11 @@
     const userId = uid();
     if (!userId || typeof S === 'undefined') return false;
     try {
+      const previous = readLocalDraft(userId);
       const payload = {
         version: 1, userId: userId, savedAt: Date.now(),
+        cloudSyncedAt: Number(previous && previous.cloudSyncedAt) || 0,
+        everHadDraft: !!(previous && previous.everHadDraft),
         view: ['dashboard', 'library', 'history'].includes(String(S.view)) ? String(S.view) : 'dashboard',
         logging: !!S.logging, logMode: companion.logMode === 'batch' ? 'batch' : 'single',
         singleDraftExists: !!(companion.hasSingleDraft || (S.logging && companion.logMode === 'single') ||
@@ -783,12 +802,23 @@
         batchDraftExists: !!(companion.hasBatchDraft || (S.batchDraft && Array.isArray(S.batchDraft.rows) && S.batchDraft.rows.length)),
         batchDraft: S.batchDraft && typeof S.batchDraft === 'object' ? S.batchDraft : { rows: [], note: '', date: '' }
       };
-      localStorage.setItem(draftKey(userId), JSON.stringify(payload));
+      payload.everHadDraft = !!(payload.everHadDraft || payload.singleDraftExists || payload.batchDraftExists);
+      if (previous && draftContentKey(previous) === draftContentKey(payload)) {
+        payload.savedAt = Number(previous.savedAt) || payload.savedAt;
+        payload.cloudSyncedAt = Number(previous.cloudSyncedAt) || 0;
+      }
+      if (!storeLocalDraft(userId, payload)) throw new Error('Local draft storage is unavailable.');
       companion.hasSingleDraft = payload.singleDraftExists;
       companion.hasBatchDraft = payload.batchDraftExists;
+      companion.draftPending = draftIsEligible(payload) &&
+        Number(payload.savedAt) > Number(payload.cloudSyncedAt || 0);
+      if (companion.draftPending) scheduleCloudDraftSync();
+      updateStatus();
       return true;
     } catch (error) {
       console.warn('MediaFlow Companion: draft could not be saved locally.', error);
+      companion.attention = true;
+      updateStatus();
       return false;
     }
   }
@@ -800,15 +830,18 @@
     const userId = uid();
     if (!userId) return false;
     try {
-      const payload = JSON.parse(localStorage.getItem(draftKey(userId)) || 'null');
-      if (!payload || payload.version !== 1 || payload.userId !== userId ||
-          Date.now() - (Number(payload.savedAt) || 0) > 90 * 24 * 60 * 60 * 1000) return false;
+      const payload = readLocalDraft(userId);
+      if (!payload) return false;
+      companion.draftPending = draftIsEligible(payload) &&
+        Number(payload.savedAt) > Number(payload.cloudSyncedAt || 0);
       if (payload.singleDraftExists && payload.logDraft && typeof payload.logDraft === 'object') {
         S.logDraft = payload.logDraft;
         if (payload.entryDraft && typeof payload.entryDraft === 'object') S.entryDraft = payload.entryDraft;
         companion.hasSingleDraft = true;
       } else {
         companion.hasSingleDraft = false;
+        S.logDraft = {};
+        S.entryDraft = { title: '', qty: 1 };
       }
       ensureDraftTask();
       if (payload.batchDraftExists && payload.batchDraft && typeof payload.batchDraft === 'object') {
@@ -816,6 +849,7 @@
         companion.hasBatchDraft = true;
       } else {
         companion.hasBatchDraft = false;
+        S.batchDraft = { rows: [], note: '', date: typeof todayISO === 'function' ? todayISO() : '' };
       }
       companion.logMode = payload.logMode === 'batch' ? 'batch' : 'single';
       S.view = ['dashboard', 'library', 'history'].includes(String(payload.view)) ? String(payload.view) : 'dashboard';
