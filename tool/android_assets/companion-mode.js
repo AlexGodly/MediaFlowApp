@@ -858,9 +858,9 @@
     const userId = uid();
     if (!userId || !value || typeof value !== 'object') throw new Error('MediaFlow account is not ready for a local save.');
     const wasPending = !!companion.pending || queueMarkerExists(userId);
-    let stateToQueue = value;
-    let jsonToQueue = JSON.stringify(value);
-    await saveLocalSnapshot(userId, value, true, 'save pending', jsonToQueue);
+    let stateToQueue = attachLocalDraft(value, userId);
+    let jsonToQueue = JSON.stringify(stateToQueue);
+    await saveLocalSnapshot(userId, stateToQueue, true, 'save pending', jsonToQueue);
     if (!navigator.onLine || companion.active || companion.needsAuth || companion.attention) {
       if (!navigator.onLine) companion.active = true;
       companion.pending = true; S.offlineMode = true;
