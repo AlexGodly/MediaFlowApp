@@ -534,9 +534,9 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             Text('Review Advanced Logging draft',
               style: Theme.of(sheet).textTheme.titleLarge),
             const SizedBox(height: 8),
-            const Text('This is a local preview, not a completed log. '
-              'Live History, XP, task completion and Supabase saves '
-              'remain disabled pending source-parity and sync validation.'),
+            const Text('Saving stores this draft in your existing account resume data. '
+              'It does not create a History entry, advance Library progress, or award XP. '
+              'Those actions remain disabled until native logging parity is validated.'),
             const SizedBox(height: 12),
             Expanded(child: ListView(children: [
               for (final entry in valid)
@@ -552,6 +552,16 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
                 style: const TextStyle(fontSize: 11),
               ),
             ])),
+            OutlinedButton.icon(
+              key: const Key('r2-save-cloud-draft'),
+              onPressed: () async {
+                Navigator.pop(sheet);
+                await _saveDraftToAccount();
+              },
+              icon: const Icon(Icons.cloud_upload_outlined),
+              label: const Text('Save draft to MediaFlow account'),
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: () => Navigator.pop(sheet),
               child: const Text('Return to draft'),
@@ -559,6 +569,50 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
           ]),
         ),
       )));
+  }
+
+  Future<void> _saveDraftToAccount() async {
+    final catalog = await _future;
+    if (!mounted) return;
+    final byId = {for (final title in catalog.library) title.id: title};
+    final valid = widget.drafts.entries.where((entry) =>
+      byId.containsKey(entry.titleId) && entry.quantity > 0).toList();
+    if (valid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Select at least one unit before saving a cloud draft.'),
+      ));
+      return;
+    }
+    final draft = <String, dynamic>{
+      'format': 'MediaFlow_Native_Logging_Draft_v1',
+      'source': 'MediaFlowApp',
+      'createdAt': DateTime.now().toIso8601String(),
+      'entries': valid.map((entry) => entry.toLocalReview()).toList(),
+    };
+    try {
+      final result = await widget.repository.saveLoggingDraft(draft);
+      if (!mounted) return;
+      await widget.repository.reload();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Logging draft saved to your MediaFlow account. Revision: ${result.savedRevision}'),
+      ));
+    } on UnsupportedError catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Cloud draft saving is unavailable: $error'),
+      ));
+    } on NativeCloudStateConflict catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${error.message} Refresh the Library and review your draft.'),
+      ));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not save draft. No success was reported. $error'),
+      ));
+    }
   }
 
   Future<void> _clear() async {
@@ -684,9 +738,9 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
         const SizedBox(height: 12),
         Card(color: Theme.of(context).colorScheme.secondaryContainer,
           child: const Padding(padding: EdgeInsets.all(13),
-            child: Text('SAFE DRAFT MODE — Your real Library is read-only. '
-              'Unit selection, timestamps and quantities are editable locally, '
-              'but Confirm Logging and automatic synchronization are not enabled.'))),
+            child: Text('CLOUD DRAFTS ENABLED — You can save your Logging draft to your signed-in MediaFlow account. '
+              'This does not yet submit History, update Library progress, or award XP. '
+              'Cloud saves use the existing account row with conflict checks; no schema changes are made.'))),
         const SizedBox(height: 14),
         if (wide) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(flex: 4, child: left),
