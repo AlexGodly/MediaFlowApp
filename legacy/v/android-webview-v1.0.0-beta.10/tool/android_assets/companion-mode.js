@@ -197,13 +197,14 @@
         !Number.isFinite(Number(remote.savedAt)) || Number(remote.savedAt) <= 0) return;
     const cloud = cloudDraftCopy(remote);
     const local = readLocalDraft(userId);
-    if (!local) {
+    if (!local || !draftIsEligible(local)) {
       cloud.cloudSyncedAt = Number(cloud.savedAt);
       storeLocalDraft(userId, cloud);
       companion.draftPending = false;
       companion.draftConflict = false;
       companion.hasSingleDraft = !!cloud.singleDraftExists;
       companion.hasBatchDraft = !!cloud.batchDraftExists;
+      if (companion.booted) { restoreDraft(); render(); }
       return;
     }
     const localDirty = Number(local.savedAt) > Number(local.cloudSyncedAt || 0);

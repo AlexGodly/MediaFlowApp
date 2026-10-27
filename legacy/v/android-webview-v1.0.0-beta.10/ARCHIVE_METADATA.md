@@ -5,6 +5,6 @@ This directory mirrors every tracked source file outside the shared `legacy/` di
 - Android application: `com.alexgodly.mediaflow`
 - Frontend: official MediaFlow v553 Stable archive, pinned by SHA-256.
 - Version: `1.0.0-beta.10`
-- Source snapshot before archive creation: `adf59bf6a4681948796cb421f18fb127eb237662`
+- Source snapshot before archive refresh: `36bf2609e23dd957677ed145cee0c8e917ec9676`
 
 CI verifies every mirrored file against the tracked release source byte-for-byte. This metadata file is the sole permitted additional file.
