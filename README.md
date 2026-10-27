@@ -45,3 +45,8 @@ The existing Kotlin `app/` module and its Beta 10 release are retained as histor
 ## Release policy
 
 Do not publish a new app release until the v553 recommendations and logging path, local persistence, account boundaries, XP award timing, and sync conflict behavior have automated coverage and platform builds pass. Unsigned iOS artifacts are not installable on ordinary iPhones; device distribution requires Apple signing and provisioning.
+
+
+## Historical parity audit
+
+The preserved Flutter workspace includes the **Milestone 55** native v410 release-readiness audit. Its decision remains blocked and is historical evidence only, not a claim of v553 parity or release readiness for this app.
