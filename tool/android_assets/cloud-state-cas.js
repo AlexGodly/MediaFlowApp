@@ -17,7 +17,7 @@
     assertAccount();
     const nextUpdatedAt = new Date().toISOString();
     const result = await client.from('mediaflow_states')
-      .update({ user_id: userId, state_data: stateData, updated_at: nextUpdatedAt })
+      .update({ state_data: stateData, updated_at: nextUpdatedAt })
       .eq('user_id', userId)
       .eq('updated_at', expectedUpdatedAt)
       .select('updated_at')
