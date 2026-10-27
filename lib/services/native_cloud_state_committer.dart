@@ -57,7 +57,7 @@ class NativeCloudStateCommitter {
         'The cloud payload changed without a matching revision. No data was saved.',
       );
     }
-    _validatePreservation(expected, next);
+    validatePreservation(expected, next);
     if (_digest(expected.json) == _digest(next.json)) {
       throw const FormatException('There are no account changes to save');
     }
@@ -104,7 +104,7 @@ class NativeCloudStateCommitter {
       .convert(utf8.encode(NativeSnapshotCodec.canonicalJson(value)))
       .toString();
 
-  static void _validatePreservation(
+  static void validatePreservation(
     MediaFlowFullState before,
     MediaFlowFullState after,
   ) {
