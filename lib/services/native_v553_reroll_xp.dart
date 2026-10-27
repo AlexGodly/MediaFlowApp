@@ -58,7 +58,7 @@ abstract final class NativeV553RerollXp {
       if (key.isEmpty || !rerollTitlesByKey.containsKey(key)) continue;
 
       final units = itemized
-          ? entry.itemizedUnits.where((unit) => unit is Map).length
+          ? entry.itemizedUnits.whereType<Map>().length
           : _safeNumber(entry.quantity).floor();
       if (units <= 0) continue;
 
