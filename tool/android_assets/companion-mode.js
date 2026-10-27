@@ -734,6 +734,12 @@
             return false;
           }
         }
+        const latestDraft = readLocalDraft(userId);
+        if (!latestDraft || Number(latestDraft.savedAt) !== Number(localDraft.savedAt) ||
+            draftContentKey(latestDraft) !== draftContentKey(localDraft)) {
+          localDraft = latestDraft;
+          continue;
+        }
         const nextState = Object.assign({}, remote.state);
         nextState[DRAFT_FIELD] = cloudDraftCopy(localDraft);
         const result = await window.MFAndroidCloudCAS.update(
