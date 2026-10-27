@@ -13,7 +13,6 @@ on:
       - 'tool/verify_release_archive.py'
       - 'tool/build_icons.py'
       - 'tests/**'
-      - '.github/workflows/android-webview-pr-validation.yml'
 
 permissions:
   contents: read
