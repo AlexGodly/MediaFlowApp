@@ -18,6 +18,7 @@ import '../services/native_sync_review.dart';
 import '../services/native_snapshot_codec.dart';
 import 'mediaflow_models.dart';
 import 'mediaflow_state_codec.dart';
+import '../services/native_cloud_state_committer.dart';
 
 export '../services/native_offline_read_coordinator.dart'
     show NativeSnapshotSource;
@@ -105,6 +106,54 @@ class SupabaseMediaFlowLibraryRepository extends MediaFlowLibraryRepository {
 
   @override
   Future<MediaFlowCatalog> reload() => _readCoordinator.reload();
+
+
+  /// Fetches the complete cloud payload for a future explicit, reviewed save.
+  /// Never returns the lossy catalog as a write payload.
+  Future<NativeCloudStateSnapshot> loadFullStateSnapshot() async {
+    if (_closed || _ownerId == null ||
+        client.auth.currentUser?.id != _ownerId) {
+      throw StateError('Signed-in account changed. Cloud read blocked.');
+    }
+    final row = await client.from('mediaflow_states')
+        .select('state_data,updated_at')
+        .eq('user_id', _ownerId)
+        .maybeSingle();
+    if (_closed || client.auth.currentUser?.id != _ownerId) {
+      throw StateError('Signed-in account changed while loading full state.');
+    }
+    if (row == null || row['state_data'] == null ||
+        row['updated_at'] == null) {
+      throw const FormatException('A complete existing cloud row is required');
+    }
+    // Parse strictly now, before the snapshot can be used as a save anchor.
+    MediaFlowFullState.parse(row['state_data']);
+    return NativeCloudStateSnapshot(
+      ownerId: _ownerId!,
+      stateData: row['state_data'],
+      updatedAt: row['updated_at'].toString(),
+    );
+  }
+
+  /// Explicit CAS save entry point. Callers must supply a complete payload
+  /// derived from loadFullStateSnapshot, never a rebuilt MediaFlowCatalog.
+  Future<NativeCloudCommitResult> commitFullState({
+    required NativeCloudStateSnapshot base,
+    required Object nextStateData,
+  }) {
+    if (_closed || _ownerId == null || base.ownerId != _ownerId ||
+        client.auth.currentUser?.id != _ownerId) {
+      throw StateError('Signed-in account changed. Cloud write blocked.');
+    }
+    return NativeCloudStateCommitter(
+      client: client,
+      ownerId: _ownerId!,
+    ).commit(
+      expectedStateData: base.stateData,
+      expectedUpdatedAt: base.updatedAt,
+      nextStateData: nextStateData,
+    );
+  }
 
   Future<MediaFlowCatalog> _readCloud() async {
     if (_closed || _ownerId == null ||
