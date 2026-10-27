@@ -203,6 +203,7 @@ class R2DraftTitle {
 class R2AdvancedLoggingDrafts extends ChangeNotifier {
   final LinkedHashMap<String, R2DraftTitle> _entries = LinkedHashMap();
   bool keepTitles = true;
+  String _cloudCommitId = 'native-${DateTime.now().microsecondsSinceEpoch}';
 
   List<R2DraftTitle> get entries => List.unmodifiable(_entries.values);
   int get titleCount => _entries.length;
@@ -231,6 +232,7 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
   void clear() {
     if (_entries.isEmpty) return;
     _entries.clear();
+    _cloudCommitId = 'native-${DateTime.now().microsecondsSinceEpoch}';
     notifyListeners();
   }
 
@@ -297,6 +299,65 @@ class R2AdvancedLoggingDrafts extends ChangeNotifier {
   void setKeepTitles(bool value) {
     keepTitles = value;
     notifyListeners();
+  }
+
+  /// Serializes this draft into MediaFlow's existing v285/v369 resume shape.
+  /// This saves an unfinished draft only; it does not create History or XP.
+  Map<String, Object?> toV285CloudDraft(
+    Map<String, MediaFlowTitle> library,
+  ) {
+    final selected = _entries.values.where((entry) =>
+        entry.quantity > 0 && library.containsKey(entry.titleId)).toList();
+    if (selected.isEmpty) {
+      throw const FormatException('Select at least one consumed unit before saving');
+    }
+    final rows = <Map<String, Object?>>[];
+    var seconds = 0;
+    var amount = 0;
+    final notes = <String>[];
+    for (final entry in selected) {
+      final title = library[entry.titleId]!;
+      final units = <Map<String, Object?>>[];
+      for (final season in entry._seasonUnits.entries) {
+        for (final unit in season.value.entries) {
+          final duration = entry._durations[season.key]?[unit.key] ??
+              entry.runtimeMinutes * 60;
+          seconds += duration;
+          units.add({
+            'id': 'native:${entry.titleId}:${season.key}:${unit.key}',
+            'number': unit.key,
+            'seasonId': season.key == '_whole_title' ? '' : season.key,
+            'isRepeat': entry.isRepeat,
+            'durationSeconds': duration,
+            'loggedAt': unit.value.millisecondsSinceEpoch,
+          });
+        }
+      }
+      amount += units.length;
+      if (entry.note.trim().isNotEmpty) notes.add(entry.note.trim());
+      rows.add({
+        'title': title.title,
+        'libraryId': title.id,
+        'qty': units.length,
+        'isRepeat': entry.isRepeat,
+        'loggedAt': entry.whenWatched.millisecondsSinceEpoch,
+        'v369Itemized': true,
+        'v369Units': units,
+        'v369DurationSeconds': units.fold<int>(0, (sum, unit) =>
+            sum + ((unit['durationSeconds'] as num?)?.toInt() ?? 0)),
+      });
+    }
+    final categoryId = library[selected.first.titleId]!.categoryId;
+    return {
+      'categoryId': categoryId,
+      'amount': amount,
+      'minutes': seconds / 60,
+      'note': notes.join(' · '),
+      'entries': rows,
+      'updateLibrary': true,
+      'v369Interface': 'itemized',
+      'v369CommitId': _cloudCommitId,
+    };
   }
 
   /// Exportable preview only; never passed to Supabase or History writers.
