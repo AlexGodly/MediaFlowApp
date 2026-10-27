@@ -144,7 +144,7 @@ abstract final class NativeV553RerollXp {
     // The website's canonical Library-ID path is preferred. This conservative
     // fallback is only for older rows that lack IDs; it never fuzzy-matches.
     final normalized = title.trim().toLowerCase().replaceAll(
-      RegExp(r'\\s+'),
+      RegExp(r'\s+'),
       ' ',
     );
     return normalized.isEmpty ? '' : 'title:$normalized';
