@@ -28,6 +28,9 @@ class PackageMediaFlowTest(unittest.TestCase):
                     "async function startAuthenticatedApp(){",
                     "const booted=await v115SafeBootstrap();",
                     "}",
+                    "function v475HandleAuthEvent(event,session){",
+                    "if(event==='SIGNED_OUT'){",
+                    "}",
                     "async function v475RestoreSavedSession(){",
                     "if(V475_AUTH.logoutRequested||V475_AUTH.explicitLogout)return false;",
                     "}catch(err){lastError=err;}",
@@ -58,7 +61,7 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertIn("assets/android/companion-mode.css", html)
             self.assertTrue((output / "assets/android/companion-mode.js").is_file())
             self.assertTrue((output / "assets/android/companion-mode.css").is_file())
-            self.assertEqual(result["patchedOfflineSessionRestoreSites"], 5)
+            self.assertEqual(result["patchedOfflineSessionRestoreSites"], 6)
             self.assertIn("mfAndroidReadStoredSessionUser", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
             self.assertIn("indexedDB.open", (output / "assets/android/companion-mode.js").read_text())
             self.assertIn("mf395DashboardRecommendationHtml", (output / "assets/android/companion-mode.js").read_text())

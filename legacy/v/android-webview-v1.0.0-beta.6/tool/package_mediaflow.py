@@ -186,6 +186,21 @@ window.__mfAndroidCompanionReady = new Promise(function(resolve){
     javascript = javascript[:app_start] + app_block + javascript[app_end:]
     if javascript.count(marker) != 1:
         raise ValueError("Unexpected v507 saved-session restore function")
+    handler_marker = "function v475HandleAuthEvent(event,session){"
+    if javascript.count(handler_marker) != 1:
+        raise ValueError("Unexpected v507 auth event handler")
+    handler_start = javascript.index(handler_marker)
+    handler_end = javascript.index(marker, handler_start)
+    handler_block = javascript[handler_start:handler_end]
+    signed_out_marker = "if(event==='SIGNED_OUT'){"
+    if handler_block.count(signed_out_marker) != 1:
+        raise ValueError("Unexpected v507 sign-out handler")
+    handler_block = handler_block.replace(
+        handler_marker,
+        handler_marker + "if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;",
+        1
+    )
+    javascript = javascript[:handler_start] + handler_block + javascript[handler_end:]
     javascript = javascript.replace(marker, helper + marker, 1)
     start = javascript.index(marker)
     end = javascript.index("async function init(){", start)
@@ -235,7 +250,7 @@ if(!confirmed && navigator.onLine === false){
       }""", 1)
     javascript = javascript[:start] + block + javascript[end:]
     path.write_text(javascript, "utf-8")
-    return 5
+    return 6
 
 
 def package(archive, output, skip_vendor=False, verify=True):

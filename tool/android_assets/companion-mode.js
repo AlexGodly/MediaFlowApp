@@ -459,7 +459,7 @@
           companion.attention = true;
           throw new Error('The cloud state is missing. Your local copy is safe; no automatic overwrite was attempted.');
         }
-        companion.active = false; companion.pending = false; companion.attention = false; S.offlineMode = false;
+        companion.active = false; companion.pending = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
         updateStatus();
         return true;
       }
@@ -471,7 +471,7 @@
         await uploadSnapshot(userId, state, json);
       }
       await saveLocalSnapshot(userId, state, false, 'synced with Supabase');
-      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false;
+      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       if (typeof v115StartWithData === 'function') await v115StartWithData(state);
       updateStatus();
       return true;
@@ -558,7 +558,7 @@
       }
       await uploadSnapshot(userId, stateToQueue, jsonToQueue);
       await saveLocalSnapshot(userId, stateToQueue, false, 'synced with Supabase', jsonToQueue);
-      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false;
+      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       if (wasPending && stateToQueue !== value && typeof v115StartWithData === 'function') {
         await v115StartWithData(stateToQueue);
       }
@@ -597,7 +597,7 @@
           await saveLocalSnapshot(userId, merged, true, 'syncing offline changes', json);
           await uploadSnapshot(userId, merged, json);
           await saveLocalSnapshot(userId, merged, false, 'synced with Supabase', json);
-          companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false;
+          companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
           return Object.assign({}, remote, { state: merged });
         } catch (error) {
           await saveLocalSnapshot(userId, merged, true, String(error && (error.message || error) || 'sync deferred'), json);
@@ -609,7 +609,7 @@
         }
       }
       await saveLocalSnapshot(userId, remote.state, false, 'synced with Supabase');
-      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false;
+      companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       return remote;
     } catch (error) {
       const local = await readLocalSnapshot(userId);
