@@ -7,8 +7,12 @@
   const STORE_NAME = 'snapshots';
   const DRAFT_PREFIX = 'mf_android_companion_draft_v1_';
   const QUEUE_PREFIX = 'mf_android_companion_queue_v1_';
+  const BASE_PREFIX = 'mf_android_companion_cloud_base_v1_';
+  const DRAFT_FIELD = '__mfAndroidCompanionDraftV1';
+  const MAX_DRAFT_BYTES = 1024 * 1024;
   let dbPromise = null;
   let draftTimer = null;
+  let cloudDraftTimer = null;
   let observer = null;
   const originalReadRecoveryCache = v115ReadRecoveryCache;
   const originalWriteRecoveryCache = v115WriteRecoveryCache;
@@ -18,6 +22,16 @@
     syncing: false,
     needsAuth: false,
     attention: false,
+    draftPending: false,
+    draftConflict: false,
+    draftSyncing: false,
+    conflictingCloudDraft: null,
+    stateConflict: null,
+    conflictResolution: null,
+    accountId: null,
+    lastCloudUserId: null,
+    lastCloudUpdatedAt: null,
+    lastCloudProjection: null,
     logMode: 'single',
     hasSingleDraft: false,
     hasBatchDraft: false,
@@ -27,13 +41,37 @@
     openLogging: openLogging,
     openBatchLogging: openBatchLogging,
     toggleExactTitleRecommendations: toggleExactTitleRecommendations,
-    syncNow: function () { return reconcile(true); }
+    syncNow: async function () {
+      const stateOk = await reconcile(true);
+      const draftOk = await syncDraftToCloud();
+      return stateOk && draftOk;
+    }
   };
   document.documentElement.dataset.mfAndroidCompanion = '1';
   if (typeof S !== 'undefined') S.offlineMode = companion.active;
 
   function uid() {
-    try { return String(AUTH_USER && AUTH_USER.id || ''); } catch (_) { return ''; }
+    let id = '';
+    try { id = String(AUTH_USER && AUTH_USER.id || ''); } catch (_) {}
+    if (id && companion.accountId && companion.accountId !== id) {
+      // Never carry a queued marker, baseline, or draft conflict across accounts.
+      companion.pending = queueMarkerExists(id);
+      companion.active = !navigator.onLine;
+      window.__mfAndroidOfflineMode = companion.active;
+      companion.needsAuth = false;
+      companion.attention = false;
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      companion.conflictingCloudDraft = null;
+      companion.stateConflict = null;
+      companion.conflictResolution = null;
+      companion.cachedSnapshot = null;
+      companion.lastCloudUserId = null;
+      companion.lastCloudUpdatedAt = null;
+      companion.lastCloudProjection = null;
+    }
+    if (id) companion.accountId = id;
+    return id;
   }
   function queueKey(userId) { return QUEUE_PREFIX + String(userId || ''); }
   function draftKey(userId) { return DRAFT_PREFIX + String(userId || ''); }
@@ -56,6 +94,203 @@
     try { localStorage.removeItem(queueKey(userId)); } catch (_) {}
     companion.pending = false;
   }
+
+  function sameJson(left, right) {
+    const normalize = value => value === undefined ? null : value;
+    try { return JSON.stringify(normalize(left)) === JSON.stringify(normalize(right)); }
+    catch (_) { return left === right; }
+  }
+  function cloneJson(value) {
+    if (value === undefined) return undefined;
+    try { return JSON.parse(JSON.stringify(value)); } catch (_) { return value; }
+  }
+  function projectionFromState(state) {
+    const value = state && typeof state === 'object' ? state : {};
+    const keys = ['categories', 'categoryOrder', 'settings', 'currentTask',
+      'sessionActive', 'profilePicture', 'stopwatch', 'malLink', 'orderPlan'];
+    const result = {};
+    keys.forEach(key => { result[key] = value[key] === undefined ? null : cloneJson(value[key]); });
+    return result;
+  }
+  function baselineKey(userId) { return BASE_PREFIX + String(userId || ''); }
+  function setCloudBaseline(userId, state, updatedAt) {
+    if (!userId || !state || typeof updatedAt !== 'string' || !updatedAt) return;
+    const projection = projectionFromState(state);
+    companion.lastCloudUserId = userId;
+    companion.lastCloudUpdatedAt = updatedAt;
+    companion.lastCloudProjection = projection;
+    try {
+      localStorage.setItem(baselineKey(userId), JSON.stringify({
+        version: 1, userId: userId, updatedAt: updatedAt, projection: projection
+      }));
+    } catch (_) {}
+  }
+  function restoreCloudBaseline(userId, record) {
+    if (companion.lastCloudUserId === userId &&
+        companion.lastCloudUpdatedAt && companion.lastCloudProjection) return;
+    companion.lastCloudUserId = userId;
+    companion.lastCloudUpdatedAt = null;
+    companion.lastCloudProjection = null;
+    try {
+      const stored = JSON.parse(localStorage.getItem(baselineKey(userId)) || 'null');
+      if (stored && stored.version === 1 && stored.userId === userId &&
+          typeof stored.updatedAt === 'string' && stored.projection &&
+          typeof stored.projection === 'object') {
+        companion.lastCloudUserId = userId;
+        companion.lastCloudUpdatedAt = stored.updatedAt;
+        companion.lastCloudProjection = stored.projection;
+        return;
+      }
+    } catch (_) {}
+    if (record && record.userId === userId &&
+        typeof record.baseUpdatedAt === 'string' &&
+        record.baseProjection && typeof record.baseProjection === 'object') {
+      companion.lastCloudUserId = userId;
+      companion.lastCloudUpdatedAt = record.baseUpdatedAt;
+      companion.lastCloudProjection = record.baseProjection;
+    }
+  }
+  function readLocalDraft(userId) {
+    if (!userId) return null;
+    try {
+      const value = JSON.parse(localStorage.getItem(draftKey(userId)) || 'null');
+      if (!value || value.version !== 1 || value.userId !== userId ||
+          !Number.isFinite(Number(value.savedAt)) || Number(value.savedAt) <= 0 ||
+          Date.now() - Number(value.savedAt) > 90 * 24 * 60 * 60 * 1000) return null;
+      return value;
+    } catch (_) { return null; }
+  }
+  function draftContentKey(value) {
+    if (!value || typeof value !== 'object') return '';
+    const copy = Object.assign({}, value);
+    delete copy.savedAt;
+    delete copy.cloudSyncedAt;
+    return JSON.stringify(copy);
+  }
+  function draftIsEligible(value) {
+    return !!(value && (value.everHadDraft || value.singleDraftExists ||
+      value.batchDraftExists || Number(value.cloudSyncedAt) > 0));
+  }
+  function cloudDraftCopy(value) {
+    if (!value || typeof value !== 'object') return null;
+    const copy = Object.assign({}, value);
+    delete copy.cloudSyncedAt;
+    return copy;
+  }
+  function storeLocalDraft(userId, value) {
+    if (!userId || !value || value.userId !== userId) return false;
+    try { localStorage.setItem(draftKey(userId), JSON.stringify(value)); return true; }
+    catch (_) { return false; }
+  }
+  function markLocalDraftSynced(userId, sentDraft) {
+    const current = readLocalDraft(userId);
+    if (!current || !sentDraft || Number(current.savedAt) !== Number(sentDraft.savedAt) ||
+        draftContentKey(current) !== draftContentKey(sentDraft)) return false;
+    current.cloudSyncedAt = Number(current.savedAt);
+    storeLocalDraft(userId, current);
+    companion.draftPending = false;
+    return true;
+  }
+  function captureCloudDraft(state, userId) {
+    const remote = state && state[DRAFT_FIELD];
+    if (!remote || remote.version !== 1 || remote.userId !== userId ||
+        !Number.isFinite(Number(remote.savedAt)) || Number(remote.savedAt) <= 0) return;
+    const cloud = cloudDraftCopy(remote);
+    const local = readLocalDraft(userId);
+    if (!local || !draftIsEligible(local)) {
+      cloud.cloudSyncedAt = Number(cloud.savedAt);
+      storeLocalDraft(userId, cloud);
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      companion.hasSingleDraft = !!cloud.singleDraftExists;
+      companion.hasBatchDraft = !!cloud.batchDraftExists;
+      if (companion.booted) { restoreDraft(); render(); }
+      return;
+    }
+    const localDirty = Number(local.savedAt) > Number(local.cloudSyncedAt || 0);
+    const same = draftContentKey(local) === draftContentKey(cloud);
+    if (same) {
+      local.cloudSyncedAt = Math.max(Number(local.cloudSyncedAt) || 0, Number(cloud.savedAt));
+      storeLocalDraft(userId, local);
+      companion.draftPending = false;
+      companion.draftConflict = false;
+      return;
+    }
+    if (Number(cloud.savedAt) > Number(local.savedAt)) {
+      if (localDirty) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloud;
+        companion.draftPending = true;
+      } else {
+        cloud.cloudSyncedAt = Number(cloud.savedAt);
+        storeLocalDraft(userId, cloud);
+        companion.draftPending = false;
+        companion.draftConflict = false;
+        companion.hasSingleDraft = !!cloud.singleDraftExists;
+        companion.hasBatchDraft = !!cloud.batchDraftExists;
+        if (companion.booted) {
+          restoreDraft();
+          render();
+        }
+      }
+    } else if (Number(cloud.savedAt) === Number(local.savedAt)) {
+      companion.draftConflict = true;
+      companion.conflictingCloudDraft = cloud;
+      companion.draftPending = true;
+    } else {
+      companion.draftPending = localDirty || Number(local.savedAt) > Number(cloud.savedAt);
+      if (companion.draftPending) scheduleCloudDraftSync();
+    }
+  }
+
+  function mergeThreeWay(local, remote, base, path, conflicts, strategy) {
+    const localChanged = !sameJson(local, base);
+    const remoteChanged = !sameJson(remote, base);
+    if (!localChanged && remoteChanged) return cloneJson(remote);
+    if (localChanged && !remoteChanged) return cloneJson(local);
+    if (!localChanged && !remoteChanged) return cloneJson(local === undefined ? remote : local);
+    if (sameJson(local, remote)) return cloneJson(local);
+    const objectLike = value => value && typeof value === 'object' && !Array.isArray(value);
+    if (objectLike(local) && objectLike(remote) && objectLike(base)) {
+      const result = {};
+      const keys = new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)]);
+      keys.forEach(key => {
+        result[key] = mergeThreeWay(local[key], remote[key], base[key],
+          path ? path + '.' + key : key, conflicts, strategy);
+      });
+      return result;
+    }
+    if (strategy === 'local') return cloneJson(local);
+    if (strategy === 'remote') return cloneJson(remote);
+    conflicts.push(path);
+    return cloneJson(local);
+  }
+  function mergeConcurrentStates(localState, remoteState, baseProjection, strategy) {
+    const merged = mergeOfflineStates(localState, remoteState);
+    const conflicts = [];
+    const fields = ['categories', 'categoryOrder', 'currentTask', 'sessionActive',
+      'profilePicture', 'stopwatch', 'malLink', 'orderPlan'];
+    fields.forEach(key => {
+      // Some website snapshots intentionally omit derived/optional keys such
+      // as orderPlan. Missing locally means "unchanged", not "delete cloud".
+      const baseValue = baseProjection[key];
+      const localValue = localState[key] === undefined ? baseValue : localState[key];
+      const remoteValue = remoteState[key] === undefined ? baseValue : remoteState[key];
+      merged[key] = mergeThreeWay(localValue, remoteValue,
+        baseValue, key, conflicts, strategy);
+    });
+    merged.settings = mergeThreeWay(localState.settings || {}, remoteState.settings || {},
+      baseProjection.settings || {}, 'settings', conflicts, strategy);
+    return { state: merged, conflicts: conflicts };
+  }
+  function scheduleCloudDraftSync() {
+    if (cloudDraftTimer !== null) clearTimeout(cloudDraftTimer);
+    cloudDraftTimer = setTimeout(function () {
+      cloudDraftTimer = null;
+      if (navigator.onLine && uid()) syncDraftToCloud();
+    }, 1800);
+  }
+
   function isNetworkError(error) {
     const message = String(error && (error.message || error) || '');
     return navigator.onLine === false ||
@@ -103,6 +338,7 @@
   }
   async function readLocalSnapshot(userId) {
     if (!userId) return null;
+    restoreCloudBaseline(userId);
     if (companion.cachedSnapshot && companion.cachedSnapshot.userId === userId) {
       return Object.assign({}, companion.cachedSnapshot, {
         pendingSync: !!companion.cachedSnapshot.pendingSync || queueMarkerExists(userId)
@@ -110,6 +346,7 @@
     }
     try {
       const record = await readIdbRecord(userId);
+      restoreCloudBaseline(userId, record);
       if (record && record.userId === userId && typeof record.stateJson === 'string') {
         const state = JSON.parse(record.stateJson);
         return {
@@ -126,6 +363,7 @@
       const cache = await originalReadRecoveryCache();
       if (cache && cache.source === 'account' && cache.state &&
           String(cache.state.userId || userId) === userId) {
+        restoreCloudBaseline(userId);
         return {
           userId: userId, state: cache.state,
           pendingSync: queueMarkerExists(userId),
@@ -144,6 +382,8 @@
     const record = {
       userId: userId, stateJson: json, pendingSync: !!pending,
       savedAt: Number(state.savedAt) || Date.now(),
+      baseUpdatedAt: companion.lastCloudUpdatedAt,
+      baseProjection: companion.lastCloudProjection,
       storedAt: Date.now(), reason: String(reason || '').slice(0, 160)
     };
     let indexedDbSaved = false;
@@ -168,28 +408,142 @@
     updateStatus();
     return true;
   }
-  async function uploadSnapshot(userId, state, serialized) {
+  function stateWithoutDraft(state) {
+    const copy = Object.assign({}, state && typeof state === 'object' ? state : {});
+    delete copy[DRAFT_FIELD];
+    return copy;
+  }
+  function attachLocalDraft(state, userId) {
+    const copy = Object.assign({}, state && typeof state === 'object' ? state : {});
+    const draft = readLocalDraft(userId);
+    if (draft && draftIsEligible(draft)) copy[DRAFT_FIELD] = cloudDraftCopy(draft);
+    return copy;
+  }
+  function mergeStateAndDraft(localState, remoteState, userId, remoteUpdatedAt) {
+    const localCore = stateWithoutDraft(localState);
+    const remoteCore = stateWithoutDraft(remoteState);
+    const versionChanged = !!(companion.lastCloudUpdatedAt && remoteUpdatedAt &&
+      remoteUpdatedAt !== companion.lastCloudUpdatedAt);
+    const base = companion.lastCloudProjection || null;
+    let coreResult;
+    if (versionChanged && base) {
+      coreResult = mergeConcurrentStates(localCore, remoteCore, base,
+        companion.conflictResolution && companion.conflictResolution.strategy);
+      if (coreResult.conflicts.length) {
+        companion.stateConflict = {
+          paths: coreResult.conflicts.slice(),
+          localState: cloneJson(localCore),
+          remoteState: cloneJson(remoteCore)
+        };
+        throw new Error('Cloud and phone changed the same account fields. '
+          + 'Both copies are safe; choose which conflicting values to keep before syncing.');
+      }
+    } else {
+      coreResult = { state: mergeOfflineStates(localCore, remoteCore), conflicts: [] };
+    }
+
+    const localDraft = readLocalDraft(userId) ||
+      (localState && localState[DRAFT_FIELD]);
+    const remoteDraft = remoteState && remoteState[DRAFT_FIELD];
+    let chosenDraft = remoteDraft;
+    let draftToMarkSynced = null;
+    if (localDraft && localDraft.userId === userId && draftIsEligible(localDraft)) {
+      const localDirty = Number(localDraft.savedAt) > Number(localDraft.cloudSyncedAt || 0);
+      const localTime = Number(localDraft.savedAt) || 0;
+      const remoteTime = Number(remoteDraft && remoteDraft.savedAt) || 0;
+      if (localDirty && remoteDraft && remoteDraft.userId === userId && remoteTime > localTime) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+        chosenDraft = remoteDraft;
+      } else if (localDirty || !remoteDraft || localTime > remoteTime) {
+        chosenDraft = cloudDraftCopy(localDraft);
+        draftToMarkSynced = localDraft;
+      } else if (remoteDraft && remoteTime === localTime &&
+          draftContentKey(localDraft) !== draftContentKey(remoteDraft)) {
+        companion.draftConflict = true;
+        companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+        chosenDraft = remoteDraft;
+      } else {
+        chosenDraft = remoteDraft;
+        if (remoteDraft) captureCloudDraft(remoteState, userId);
+      }
+    }
+    if (chosenDraft) coreResult.state[DRAFT_FIELD] = cloudDraftCopy(chosenDraft);
+    return {
+      state: coreResult.state,
+      draftToMarkSynced: draftToMarkSynced,
+      remoteChanged: versionChanged
+    };
+  }
+
+  async function uploadSnapshot(userId, state, serialized, allowCreate) {
     if (!supabase || !userId || String(AUTH_USER && AUTH_USER.id || '') !== userId) {
       throw new Error('The saved account is not ready to sync.');
     }
-    const json = typeof serialized === 'string' ? serialized : JSON.stringify(state);
-    const payload = await encodeCloudState(state, json);
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    let timer = null;
-    let query = supabase.from('mediaflow_states').upsert({
-      user_id: userId, state_data: payload, updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' });
-    if (controller && typeof query.abortSignal === 'function') {
-      query = query.abortSignal(controller.signal);
-      timer = setTimeout(function () { try { controller.abort(); } catch (_) {} }, 6500);
+    const assertUploadAccount = function () {
+      if (String(AUTH_USER && AUTH_USER.id || '') !== userId || uid() !== userId) {
+        throw new Error('MediaFlow account changed during sync. The other account was not modified.');
+      }
+    };
+    const candidate = Object.assign({}, state || {});
+    const localDraft = readLocalDraft(userId);
+    if (localDraft && draftIsEligible(localDraft)) candidate[DRAFT_FIELD] = cloudDraftCopy(localDraft);
+    let lastError = null;
+    let sawRemoteChange = false;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      assertUploadAccount();
+      const remote = await originalFetchCloudState();
+      assertUploadAccount();
+      if (!remote || !remote.found || !remote.state) {
+        if (!allowCreate) {
+          throw new Error('The existing MediaFlow cloud row could not be confirmed. '
+            + 'Your local copy is safe; no row was created or overwritten.');
+        }
+        const prepared = mergeStateAndDraft(candidate, {}, userId, null);
+        try {
+          const inserted = await window.MFAndroidCloudCAS.insertIfAbsent(
+            supabase, userId, prepared.state, encodeCloudState, assertUploadAccount);
+          if (inserted.written) {
+            setCloudBaseline(userId, prepared.state, inserted.updatedAt);
+            if (prepared.draftToMarkSynced) markLocalDraftSynced(userId, prepared.draftToMarkSynced);
+            companion.stateConflict = null;
+            companion.conflictResolution = null;
+            return { state: prepared.state, updatedAt: inserted.updatedAt,
+              attempts: attempt + 1, remoteChanged: false };
+          }
+        } catch (error) {
+          if (String(error && error.code || '') !== '23505') throw error;
+          lastError = error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
+        continue;
+      }
+      if (typeof remote.updatedAt !== 'string' || !remote.updatedAt) {
+        throw new Error('MediaFlow cloud version is missing. Refusing an unconditional write.');
+      }
+      if (companion.lastCloudUpdatedAt && remote.updatedAt !== companion.lastCloudUpdatedAt) {
+        sawRemoteChange = true;
+      }
+      captureCloudDraft(remote.state, userId);
+      const prepared = mergeStateAndDraft(candidate, remote.state, userId, remote.updatedAt);
+      const result = await window.MFAndroidCloudCAS.update(
+        supabase, userId, remote.updatedAt, prepared.state, encodeCloudState, assertUploadAccount);
+      if (result.written) {
+        setCloudBaseline(userId, prepared.state, result.updatedAt);
+        if (prepared.draftToMarkSynced) markLocalDraftSynced(userId, prepared.draftToMarkSynced);
+        companion.stateConflict = null;
+        companion.conflictResolution = null;
+        return {
+          state: prepared.state,
+          updatedAt: result.updatedAt,
+          attempts: attempt + 1,
+          remoteChanged: sawRemoteChange || prepared.remoteChanged
+        };
+      }
+      lastError = new Error('Cloud state changed during the update; retrying with a fresh version.');
+      await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
     }
-    try {
-      const result = await query;
-      if (result && result.error) throw result.error;
-      return true;
-    } finally {
-      if (timer !== null) clearTimeout(timer);
-    }
+    throw lastError || new Error('Cloud changed repeatedly. Local changes remain queued for a safe retry.');
   }
   function mergeOfflineStates(localState, remoteState) {
     const localTime = Number(localState && localState.savedAt) || 0;
@@ -208,9 +562,215 @@
     });
     merged.completionTimeline = Array.from(unique.values());
     merged.migrations = Object.assign({}, secondary && secondary.migrations || {}, primary && primary.migrations || {});
-    merged.savedAt = Math.max(localTime, remoteTime, Date.now());
+    // A merge is not a user edit; preserve meaningful source timestamps.
+    merged.savedAt = Math.max(localTime, remoteTime);
     return merged;
   }
+  async function retrySyncNow() {
+    const stateOk = await reconcile(true);
+    const draftOk = await syncDraftToCloud();
+    return stateOk && draftOk;
+  }
+
+  function showDraftConflictDialog() {
+    if (!companion.draftConflict || !companion.conflictingCloudDraft) return;
+    if (document.getElementById('mf-android-sync-conflict-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'mf-android-sync-conflict-overlay';
+    overlay.className = 'mf-android-sync-conflict-overlay';
+    overlay.innerHTML = '<section class="mf-android-sync-conflict" role="dialog" aria-modal="true" aria-labelledby="mf-android-sync-conflict-title">' +
+      '<h2 id="mf-android-sync-conflict-title">Two Logging drafts found</h2>' +
+      '<p>Your phone has an unsynced draft, and another device saved a different draft. Both copies are preserved. Choose which one should be kept in the cloud.</p>' +
+      '<div class="mf-android-sync-conflict-actions">' +
+      '<button type="button" class="btn btn-primary" data-choice="local">Keep this phone\'s draft</button>' +
+      '<button type="button" class="btn" data-choice="cloud">Restore the cloud draft here</button>' +
+      '<button type="button" class="btn btn-ghost" data-choice="cancel">Not now</button></div></section>';
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) { overlay.remove(); return; }
+      const button = event.target.closest && event.target.closest('[data-choice]');
+      if (!button) return;
+      const choice = button.dataset.choice;
+      overlay.remove();
+      if (choice === 'local') syncDraftToCloud({ forceLocal: true });
+      else if (choice === 'cloud') restoreCloudDraftConflict();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  function restoreCloudDraftConflict() {
+    const userId = uid();
+    const cloud = companion.conflictingCloudDraft;
+    if (!userId || !cloud || cloud.userId !== userId) return false;
+    const payload = cloudDraftCopy(cloud);
+    payload.cloudSyncedAt = Number(payload.savedAt) || 0;
+    if (!storeLocalDraft(userId, payload)) return false;
+    companion.draftPending = false;
+    companion.draftConflict = false;
+    companion.conflictingCloudDraft = null;
+    companion.hasSingleDraft = !!payload.singleDraftExists;
+    companion.hasBatchDraft = !!payload.batchDraftExists;
+    restoreDraft();
+    render();
+    updateStatus();
+    return true;
+  }
+
+  function showStateConflictDialog() {
+    if (!companion.stateConflict) return;
+    if (document.getElementById('mf-android-sync-conflict-overlay')) return;
+    const paths = (companion.stateConflict.paths || []).map(path =>
+      String(path).replace(/^settings\./, 'Settings · ').replace(/\./g, ' · '));
+    const overlay = document.createElement('div');
+    overlay.id = 'mf-android-sync-conflict-overlay';
+    overlay.className = 'mf-android-sync-conflict-overlay';
+    const section = document.createElement('section');
+    section.className = 'mf-android-sync-conflict';
+    section.setAttribute('role', 'dialog');
+    section.setAttribute('aria-modal', 'true');
+    const title = document.createElement('h2');
+    title.textContent = 'Review account sync conflict';
+    const message = document.createElement('p');
+    message.textContent = 'The cloud and this phone both changed the following fields since the last shared version:';
+    const list = document.createElement('ul');
+    paths.forEach(path => { const li = document.createElement('li'); li.textContent = path; list.appendChild(li); });
+    const actions = document.createElement('div');
+    actions.className = 'mf-android-sync-conflict-actions';
+    function action(label, choice, primary) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = primary ? 'btn btn-primary' : 'btn';
+      button.textContent = label;
+      button.addEventListener('click', function () {
+        overlay.remove();
+        companion.conflictResolution = { strategy: choice };
+        retrySyncNow();
+      });
+      actions.appendChild(button);
+    }
+    action('Keep this phone\'s values', 'local', true);
+    action('Keep cloud values', 'remote', false);
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn btn-ghost';
+    cancel.textContent = 'Not now';
+    cancel.addEventListener('click', () => overlay.remove());
+    actions.appendChild(cancel);
+    section.append(title, message, list, actions);
+    overlay.appendChild(section);
+    overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  async function syncDraftToCloud(options) {
+    const forceLocal = !!(options && options.forceLocal);
+    const userId = uid();
+    if (!userId || !supabase || !navigator.onLine || companion.draftSyncing) return false;
+    let localDraft = readLocalDraft(userId);
+    if (!localDraft || !draftIsEligible(localDraft)) return true;
+    if (JSON.stringify(cloudDraftCopy(localDraft)).length > MAX_DRAFT_BYTES) {
+      companion.draftPending = true;
+      companion.attention = true;
+      updateStatus();
+      return false;
+    }
+    companion.draftSyncing = true;
+    updateStatus();
+    try {
+      let auth = await supabase.auth.getSession();
+      let session = auth && auth.data && auth.data.session;
+      if ((auth && auth.error) || !session || !session.user || session.user.id !== userId) {
+        auth = await supabase.auth.refreshSession();
+        if (auth && auth.error) throw auth.error;
+        session = auth && auth.data && auth.data.session;
+      }
+      if (!session || !session.user || session.user.id !== userId) {
+        companion.needsAuth = true;
+        throw new Error('The saved session needs to reconnect before draft sync can continue.');
+      }
+      AUTH_USER = session.user;
+      const assertAccount = function () {
+        if (uid() !== userId || String(AUTH_USER && AUTH_USER.id || '') !== userId) {
+          throw new Error('MediaFlow account changed during draft sync. No other account was modified.');
+        }
+      };
+      for (let attempt = 0; attempt < 4; attempt++) {
+        assertAccount();
+        localDraft = readLocalDraft(userId);
+        if (!localDraft || !draftIsEligible(localDraft)) return true;
+        const remote = await originalFetchCloudState();
+        assertAccount();
+        if (!remote || !remote.found || !remote.state || !remote.updatedAt) {
+          companion.draftPending = true;
+          companion.attention = true;
+          throw new Error('The existing cloud state is unavailable. The draft remains saved on this phone.');
+        }
+        const remoteDraft = remote.state[DRAFT_FIELD];
+        if (remoteDraft && remoteDraft.userId === userId) {
+          const remoteTime = Number(remoteDraft.savedAt) || 0;
+          const localTime = Number(localDraft.savedAt) || 0;
+          const localDirty = localTime > Number(localDraft.cloudSyncedAt || 0);
+          const same = draftContentKey(localDraft) === draftContentKey(remoteDraft);
+          if (same) {
+            captureCloudDraft(remote.state, userId);
+            updateStatus();
+            return true;
+          }
+          if (remoteTime > localTime && !forceLocal) {
+            if (localDirty) {
+              companion.draftConflict = true;
+              companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+              companion.draftPending = true;
+              updateStatus();
+              return false;
+            }
+            captureCloudDraft(remote.state, userId);
+            updateStatus();
+            return true;
+          }
+          if (remoteTime === localTime && !same && !forceLocal) {
+            companion.draftConflict = true;
+            companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+            companion.draftPending = true;
+            updateStatus();
+            return false;
+          }
+        }
+        const latestDraft = readLocalDraft(userId);
+        if (!latestDraft || Number(latestDraft.savedAt) !== Number(localDraft.savedAt) ||
+            draftContentKey(latestDraft) !== draftContentKey(localDraft)) {
+          localDraft = latestDraft;
+          continue;
+        }
+        const nextState = Object.assign({}, remote.state);
+        nextState[DRAFT_FIELD] = cloudDraftCopy(localDraft);
+        const result = await window.MFAndroidCloudCAS.update(
+          supabase, userId, remote.updatedAt, nextState, encodeCloudState, assertAccount);
+        if (result.written) {
+          markLocalDraftSynced(userId, localDraft);
+          companion.draftPending = Number(localDraft.savedAt) >
+            Number((readLocalDraft(userId) || {}).cloudSyncedAt || 0);
+          companion.draftConflict = false;
+          companion.conflictingCloudDraft = null;
+          companion.attention = false;
+          updateStatus();
+          return !companion.draftPending;
+        }
+        await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
+      }
+      throw new Error('Cloud changed repeatedly while saving the draft. It remains on this phone.');
+    } catch (error) {
+      companion.draftPending = true;
+      companion.needsAuth = requiresReauthentication(error);
+      companion.attention = !companion.needsAuth && !isNetworkError(error);
+      console.warn('MediaFlow Companion: draft sync deferred; local draft is preserved.', error);
+      updateStatus();
+      return false;
+    } finally {
+      companion.draftSyncing = false;
+      updateStatus();
+    }
+  }
+
   function updateStatus() {
     let button = document.getElementById('mf-android-companion-status');
     if (!button && document.body) {
@@ -220,7 +780,11 @@
       button.className = 'mf-android-companion-status';
       button.setAttribute('aria-live', 'polite');
       button.setAttribute('aria-label', 'Account sync status. Tap to sync.');
-      button.addEventListener('click', function () { reconcile(true); });
+      button.addEventListener('click', function () {
+        if (companion.stateConflict) showStateConflictDialog();
+        else if (companion.draftConflict) showDraftConflictDialog();
+        else retrySyncNow();
+      });
       document.body.appendChild(button);
     }
     if (!button) return;
@@ -231,17 +795,29 @@
     button.hidden = false;
     let state = 'synced';
     let message = 'Synced with Supabase';
-    if (companion.syncing) {
+    if (companion.syncing || companion.draftSyncing) {
       state = 'syncing'; message = 'Syncing with Supabase…';
     } else if (!navigator.onLine || companion.active) {
       state = 'offline';
-      message = companion.pending ? 'Offline · changes saved on phone' : 'Offline · account available';
+      message = companion.pending && companion.draftPending
+        ? 'Offline · logs and draft saved on phone'
+        : companion.pending ? 'Offline · changes saved on phone'
+        : (companion.hasSingleDraft || companion.hasBatchDraft)
+          ? 'Offline · draft saved on phone' : 'Offline · account available';
     } else if (companion.needsAuth) {
-      state = 'attention'; message = 'Saved on phone · sign in to sync';
+      state = 'attention'; message = 'Saved on phone · reconnect account to sync';
+    } else if (companion.stateConflict) {
+      state = 'attention'; message = 'Account conflict · tap to review';
+    } else if (companion.draftConflict) {
+      state = 'attention'; message = 'Draft conflict · tap to choose';
     } else if (companion.attention) {
       state = 'attention'; message = 'Saved locally · sync needs attention';
+    } else if (companion.pending && companion.draftPending) {
+      state = 'pending'; message = 'Logs and draft waiting to sync';
     } else if (companion.pending) {
       state = 'pending'; message = 'Changes waiting to sync';
+    } else if (companion.draftPending) {
+      state = 'pending'; message = 'Logging draft waiting to sync';
     }
     button.dataset.state = state;
     button.textContent = message;
@@ -251,8 +827,11 @@
     const userId = uid();
     if (!userId || typeof S === 'undefined') return false;
     try {
+      const previous = readLocalDraft(userId);
       const payload = {
         version: 1, userId: userId, savedAt: Date.now(),
+        cloudSyncedAt: Number(previous && previous.cloudSyncedAt) || 0,
+        everHadDraft: !!(previous && previous.everHadDraft),
         view: ['dashboard', 'library', 'history'].includes(String(S.view)) ? String(S.view) : 'dashboard',
         logging: !!S.logging, logMode: companion.logMode === 'batch' ? 'batch' : 'single',
         singleDraftExists: !!(companion.hasSingleDraft || (S.logging && companion.logMode === 'single') ||
@@ -262,12 +841,23 @@
         batchDraftExists: !!(companion.hasBatchDraft || (S.batchDraft && Array.isArray(S.batchDraft.rows) && S.batchDraft.rows.length)),
         batchDraft: S.batchDraft && typeof S.batchDraft === 'object' ? S.batchDraft : { rows: [], note: '', date: '' }
       };
-      localStorage.setItem(draftKey(userId), JSON.stringify(payload));
+      payload.everHadDraft = !!(payload.everHadDraft || payload.singleDraftExists || payload.batchDraftExists);
+      if (previous && draftContentKey(previous) === draftContentKey(payload)) {
+        payload.savedAt = Number(previous.savedAt) || payload.savedAt;
+        payload.cloudSyncedAt = Number(previous.cloudSyncedAt) || 0;
+      }
+      if (!storeLocalDraft(userId, payload)) throw new Error('Local draft storage is unavailable.');
       companion.hasSingleDraft = payload.singleDraftExists;
       companion.hasBatchDraft = payload.batchDraftExists;
+      companion.draftPending = draftIsEligible(payload) &&
+        Number(payload.savedAt) > Number(payload.cloudSyncedAt || 0);
+      if (companion.draftPending) scheduleCloudDraftSync();
+      updateStatus();
       return true;
     } catch (error) {
       console.warn('MediaFlow Companion: draft could not be saved locally.', error);
+      companion.attention = true;
+      updateStatus();
       return false;
     }
   }
@@ -279,15 +869,18 @@
     const userId = uid();
     if (!userId) return false;
     try {
-      const payload = JSON.parse(localStorage.getItem(draftKey(userId)) || 'null');
-      if (!payload || payload.version !== 1 || payload.userId !== userId ||
-          Date.now() - (Number(payload.savedAt) || 0) > 90 * 24 * 60 * 60 * 1000) return false;
+      const payload = readLocalDraft(userId);
+      if (!payload) return false;
+      companion.draftPending = draftIsEligible(payload) &&
+        Number(payload.savedAt) > Number(payload.cloudSyncedAt || 0);
       if (payload.singleDraftExists && payload.logDraft && typeof payload.logDraft === 'object') {
         S.logDraft = payload.logDraft;
         if (payload.entryDraft && typeof payload.entryDraft === 'object') S.entryDraft = payload.entryDraft;
         companion.hasSingleDraft = true;
       } else {
         companion.hasSingleDraft = false;
+        S.logDraft = {};
+        S.entryDraft = { title: '', qty: 1 };
       }
       ensureDraftTask();
       if (payload.batchDraftExists && payload.batchDraft && typeof payload.batchDraft === 'object') {
@@ -295,6 +888,7 @@
         companion.hasBatchDraft = true;
       } else {
         companion.hasBatchDraft = false;
+        S.batchDraft = { rows: [], note: '', date: typeof todayISO === 'function' ? todayISO() : '' };
       }
       companion.logMode = payload.logMode === 'batch' ? 'batch' : 'single';
       S.view = ['dashboard', 'library', 'history'].includes(String(payload.view)) ? String(payload.view) : 'dashboard';
@@ -452,6 +1046,7 @@
       const local = await readLocalSnapshot(userId);
       const queued = !!(local && local.pendingSync) || queueMarkerExists(userId);
       const remote = await originalFetchCloudState();
+      if (remote && remote.found && remote.state) captureCloudDraft(remote.state, userId);
       const pending = queued || !!(local && local.state &&
         (Number(local.state.savedAt) || 0) > (Number(remote && remote.state && remote.state.savedAt) || 0) + 1000);
       if (!remote || !remote.found || !remote.state) {
@@ -463,14 +1058,16 @@
         updateStatus();
         return true;
       }
-      let state = remote.state;
-      if (pending && local && local.state) state = mergeOfflineStates(local.state, remote.state);
+      let state = pending && local && local.state ? local.state : remote.state;
       if (pending) {
         const json = JSON.stringify(state);
         await saveLocalSnapshot(userId, state, true, 'syncing offline changes', json);
-        await uploadSnapshot(userId, state, json);
+        const synced = await uploadSnapshot(userId, state, json, false);
+        state = synced.state;
+      } else {
+        setCloudBaseline(userId, remote.state, remote.updatedAt);
       }
-      await saveLocalSnapshot(userId, state, false, 'synced with Supabase');
+      await saveLocalSnapshot(userId, state, false, 'synced with Supabase', JSON.stringify(state));
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       if (typeof v115StartWithData === 'function') await v115StartWithData(state);
       updateStatus();
@@ -538,9 +1135,9 @@
     const userId = uid();
     if (!userId || !value || typeof value !== 'object') throw new Error('MediaFlow account is not ready for a local save.');
     const wasPending = !!companion.pending || queueMarkerExists(userId);
-    let stateToQueue = value;
-    let jsonToQueue = JSON.stringify(value);
-    await saveLocalSnapshot(userId, value, true, 'save pending', jsonToQueue);
+    let stateToQueue = attachLocalDraft(value, userId);
+    let jsonToQueue = JSON.stringify(stateToQueue);
+    await saveLocalSnapshot(userId, stateToQueue, true, 'save pending', jsonToQueue);
     if (!navigator.onLine || companion.active || companion.needsAuth || companion.attention) {
       if (!navigator.onLine) companion.active = true;
       companion.pending = true; S.offlineMode = true;
@@ -553,13 +1150,17 @@
         if (!remote || !remote.found || !remote.state) {
           throw new Error('The cloud state could not be confirmed. The local copy is queued safely.');
         }
-        stateToQueue = mergeOfflineStates(value, remote.state);
-        jsonToQueue = JSON.stringify(stateToQueue);
+        // Keep the original local version for the three-way merge against the
+        // saved cloud baseline. Pre-merging here would hide overlapping edits.
       }
-      await uploadSnapshot(userId, stateToQueue, jsonToQueue);
+      const synced = await uploadSnapshot(
+        userId, stateToQueue, jsonToQueue, !wasPending && v115AccountLooksNew());
+      stateToQueue = synced.state;
+      jsonToQueue = JSON.stringify(stateToQueue);
       await saveLocalSnapshot(userId, stateToQueue, false, 'synced with Supabase', jsonToQueue);
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
-      if (wasPending && stateToQueue !== value && typeof v115StartWithData === 'function') {
+      if ((wasPending || synced.remoteChanged || synced.attempts > 1) &&
+          typeof v115StartWithData === 'function') {
         await v115StartWithData(stateToQueue);
       }
       updateStatus();
@@ -588,26 +1189,28 @@
       const remote = await originalFetchCloudState.apply(this, arguments);
       if (!remote || !remote.found || !remote.state) return remote;
       const local = await readLocalSnapshot(userId);
+      captureCloudDraft(remote.state, userId);
       const localIsNewer = !!(local && local.state &&
         (Number(local.state.savedAt) || 0) > (Number(remote.state.savedAt) || 0) + 1000);
       if (local && local.state && (local.pendingSync || localIsNewer)) {
-        const merged = mergeOfflineStates(local.state, remote.state);
-        const json = JSON.stringify(merged);
+        const localState = local.state;
+        const json = JSON.stringify(localState);
         try {
-          await saveLocalSnapshot(userId, merged, true, 'syncing offline changes', json);
-          await uploadSnapshot(userId, merged, json);
-          await saveLocalSnapshot(userId, merged, false, 'synced with Supabase', json);
+          await saveLocalSnapshot(userId, localState, true, 'syncing offline changes', json);
+          const synced = await uploadSnapshot(userId, localState, json, false);
+          await saveLocalSnapshot(userId, synced.state, false, 'synced with Supabase', JSON.stringify(synced.state));
           companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
-          return Object.assign({}, remote, { state: merged });
+          return Object.assign({}, remote, { state: synced.state, updatedAt: synced.updatedAt });
         } catch (error) {
-          await saveLocalSnapshot(userId, merged, true, String(error && (error.message || error) || 'sync deferred'), json);
+          await saveLocalSnapshot(userId, localState, true, String(error && (error.message || error) || 'sync deferred'), json);
           companion.active = isNetworkError(error) || navigator.onLine === false; companion.pending = true; S.offlineMode = true;
           companion.needsAuth = requiresReauthentication(error);
           companion.attention = !companion.needsAuth && !isNetworkError(error);
           updateStatus();
-          return { found: true, state: merged, updatedAt: null, offline: true };
+          return { found: true, state: localState, updatedAt: null, offline: true };
         }
       }
+      setCloudBaseline(userId, remote.state, remote.updatedAt);
       await saveLocalSnapshot(userId, remote.state, false, 'synced with Supabase');
       companion.active = false; companion.pending = false; companion.needsAuth = false; companion.attention = false; S.offlineMode = false; window.__mfAndroidOfflineMode = false;
       return remote;
@@ -619,6 +1222,7 @@
         } catch (storageError) {
           console.warn('MediaFlow Companion: could not seed IndexedDB from the previous local cache.', storageError);
         }
+        captureCloudDraft(local.state, userId);
         companion.active = true; companion.pending = !!local.pendingSync; S.offlineMode = true;
         companion.needsAuth = false; companion.attention = false;
         if (local.pendingSync) markPending(userId, 'waiting for network');
@@ -637,8 +1241,11 @@
       restoreDraft();
       render();
       updateStatus();
-      if (navigator.onLine && (companion.active || companion.pending)) {
-        setTimeout(function () { reconcile(false); }, 500);
+      if (navigator.onLine) {
+        setTimeout(async function () {
+          if (companion.active || companion.pending) await reconcile(false);
+          await syncDraftToCloud();
+        }, 650);
       }
     }
     return result;
@@ -813,17 +1420,29 @@
     window.addEventListener('pagehide', saveDraftNow);
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') saveDraftNow();
-      else if (navigator.onLine && (companion.active || companion.pending)) reconcile(false);
+      else if (navigator.onLine) {
+        if (companion.active || companion.pending) {
+          reconcile(false).then(function () { syncDraftToCloud(); });
+        } else if (companion.draftPending) syncDraftToCloud();
+      }
     });
     window.addEventListener('offline', function () {
       companion.active = true; S.offlineMode = true; updateStatus();
     });
     window.addEventListener('online', function () {
       companion.active = true; S.offlineMode = true; updateStatus();
-      setTimeout(function () { reconcile(false); }, 400);
+      setTimeout(async function () {
+        await reconcile(false);
+        await syncDraftToCloud();
+      }, 400);
     });
     setInterval(function () {
-      if (navigator.onLine && (companion.active || (companion.pending && !companion.needsAuth && !companion.attention))) reconcile(false);
+      if (!navigator.onLine) return;
+      if (companion.active || (companion.pending && !companion.needsAuth && !companion.attention)) {
+        reconcile(false).then(function () { syncDraftToCloud(); });
+      } else if (companion.draftPending && !companion.draftConflict) {
+        syncDraftToCloud();
+      }
     }, 30000);
     updateStatus();
     mountBackupTools();

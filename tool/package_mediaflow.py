@@ -197,7 +197,18 @@ window.__mfAndroidCompanionReady = new Promise(function(resolve){
         raise ValueError("Unexpected v553 sign-out handler")
     handler_block = handler_block.replace(
         handler_marker,
-        handler_marker + "if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;",
+        handler_marker + r"""
+if(event==='SIGNED_OUT'&&!V475_AUTH.logoutRequested&&
+   (navigator.onLine===false||window.__mfAndroidOfflineMode)){
+  const cachedUser=mfAndroidReadStoredSessionUser();
+  if(cachedUser&&cachedUser.id&&(!AUTH_USER?.id||AUTH_USER.id===cachedUser.id)){
+    AUTH_USER=cachedUser;
+    window.__mfAndroidOfflineMode=true;
+    return;
+  }
+}
+if(event==='SIGNED_OUT'&&window.__mfAndroidOfflineMode&&AUTH_USER?.id&&!V475_AUTH.logoutRequested)return;
+""",
         1
     )
     javascript = javascript[:handler_start] + handler_block + javascript[handler_end:]
@@ -340,6 +351,7 @@ def package(archive, output, skip_vendor=False, verify=True):
     shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
     shutil.copy2(android_assets / "backup-bridge.js", target / "backup-bridge.js")
     shutil.copy2(android_assets / "performance-boot.js", target / "performance-boot.js")
+    shutil.copy2(android_assets / "cloud-state-cas.js", target / "cloud-state-cas.js")
     shutil.copy2(android_assets / "companion-mode.js", target / "companion-mode.js")
     shutil.copy2(android_assets / "companion-mode.css", target / "companion-mode.css")
     if "</head>" not in html or "</body>" not in html:
@@ -348,7 +360,7 @@ def package(archive, output, skip_vendor=False, verify=True):
     if html.count(runtime_script) != 1:
         raise ValueError("Missing exact MediaFlow v553 application script")
     html = html.replace(runtime_script,
-                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/companion-mode.js"></script>', 1)
+                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/cloud-state-cas.js"></script>\n<script src="assets/android/companion-mode.js"></script>', 1)
     html = html.replace("</head>",
                         '<script src="assets/android/performance-boot.js"></script>\n</head>', 1)
     html = html.replace("</head>",
@@ -379,7 +391,7 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v553.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "reconnect-merge-sync", "single-and-batch-logging", "v553-reroll-title-xp-preview", "v553-reroll-title-xp-award", "pinned-mediaflow-v553-contract"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "cloud-backed-draft-sync", "revision-checked-cloud-sync", "three-way-conflict-resolution", "reconnect-merge-sync", "single-and-batch-logging", "v553-reroll-title-xp-preview", "v553-reroll-title-xp-award", "pinned-mediaflow-v553-contract"],
         "validatedCompanionContracts": validated_contracts,
         "patchedBackupFunctions": patch_count,
         "patchedMobileRenderSites": mobile_patch_count,

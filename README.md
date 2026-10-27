@@ -2,6 +2,12 @@
 
 **New Android project:** Kotlin + Android WebView with **the real MediaFlow v553 frontend packaged inside the APK**, not an imitation of its UI. The older Flutter native project and its workflows are preserved in [`legacy/flutter-beta7/`](legacy/flutter-beta7/).
 
+## Current Android update: Beta 10 · MediaFlow v553
+
+Beta 10 keeps the four focused surfaces (Recommendations, Log, Library workspace, Log history) and hardens offline account continuity. Logging drafts are saved locally and synchronized through the existing account state; completed offline logs queue until reconnect. Cloud writes use updated_at compare-and-swap, independent changes are merged, and overlapping settings/task changes prompt an in-app choice instead of being silently overwritten.
+
+[Beta 10 release notes](docs/releases/android-webview-v1.0.0-beta.10.md). **No Supabase schema changes:** the earlier app-specific draft table remains deleted. Beta 10 uses only the existing mediaflow_states row and its current authenticated access policies.
+
 ## Features and architecture
 
 - Uses the exact pinned **v553 Stable** web release archive, SHA-256 verified at build time.
@@ -34,7 +40,7 @@ The verification script refuses archives whose SHA-256 differs from v553's offic
 
 **This is an Android beta, not a verified mobile performance fix.** Loading local files improves startup independence but does not inherently solve large-library DOM rendering, cover decoding, or theme effects. Measure actual frame rate/memory on a phone before calling scrolling optimized. 100% real-world feature compatibility (particularly OAuth redirects, file exporters over ~100MB, provider restrictions and background sync) still needs Android device testing. Some providers and cloud operations still require internet. Frontend changes require bundling a new website release into an updated APK.
 
-The original website is completely unchanged. Supabase secrets, project configuration, database and policies are not touched. Cloud writes, when made through the site logic, remain subject to its existing authenticated guardrails.
+The original website is completely unchanged. Beta 10 makes authenticated writes to the existing mediaflow_states row using an updated_at compare-and-swap check and the current RLS policies. It creates no tables, changes no policies, and introduces no service-role key. The previous mediaflow_native_logging_drafts table was removed and is not used.
 
 The generated APK is **debug-signed** for installation/testing and may conflict with the signature of an earlier separately built APK. Do not call it production-signed or Play Store ready.
 
@@ -97,3 +103,15 @@ The focused mobile surfaces are Recommend, Log, Library workspace and History. T
 After a successful login, account-scoped IndexedDB snapshots and single/batch drafts are kept locally. If the phone is offline, the app can reopen the last locally cached account and keep drafts and logs queued on-device. When connectivity returns, it refreshes the saved Supabase session and merges queued state with the existing cloud state before upload. It never stores access/refresh tokens separately or bypasses Supabase authentication. A session that has genuinely expired may still require reauthentication before cloud sync; local drafts remain available.
 
 Build checks require v553 recommendation, title-history, logging, unified XP-preview, reroll-unit reward and cloud save/read entry points to exist in the pinned source before an APK can be built. Real-device offline/reconnect tests remain necessary; a passing APK build alone is not proof of every network condition.
+
+
+## Beta 10 — offline account continuity and conflict-safe sync
+
+- Uses the previously saved Supabase identity and account-scoped local snapshot to reopen the same workspace when offline, without forcing sign-in solely because the network is unavailable.
+- Autosaves unfinished single and batch Logging forms, syncs draft snapshots through the namespaced `__mfAndroidCompanionDraftV1` field in the existing cloud JSON state, and queues completed offline logs until reconnection.
+- Uses compare-and-swap updates against the existing `updated_at` value instead of Android's unconditional UPSERT. If a cloud write races with another save, it retries against a fresh row or keeps the local copy queued.
+- Merges independent account changes and surfaces overlapping settings/task changes in a designed conflict dialog. Draft conflicts offer explicit phone-vs-cloud choices.
+- Persists a compact last-known cloud baseline so offline changes can be compared with the prior shared version after an app restart.
+- Adds executable tests for stale revision rejection, account fencing, insert-if-absent behavior, and the release packaging contract.
+
+No Supabase table or policy changes are part of Beta 10. A genuinely expired/revoked session can still require reauthentication once online, and Android background sync runs while the app is active rather than as a guaranteed background service. Airplane-mode and reconnect scenarios must still be exercised on a physical device.

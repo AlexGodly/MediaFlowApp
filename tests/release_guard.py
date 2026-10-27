@@ -28,14 +28,18 @@ assert (archive / "ARCHIVE_METADATA.md").is_file(), "Archive metadata missing"
 for required in (
     "app/build.gradle.kts", "README.md", "tool/package_mediaflow.py",
     "tool/android_assets/companion-mode.js", "tool/android_assets/companion-mode.css",
-    "tool/android_assets/backup-bridge.js", "tests/test_package.py", "tests/release_guard.py",
+    "tool/android_assets/cloud-state-cas.js", "tool/android_assets/backup-bridge.js",
+    "tests/cloud-state-cas.test.cjs", "tests/test_package.py", "tests/release_guard.py",
     ".github/workflows/android-webview-release.yml",
+    ".github/workflows/android-webview-pr-validation.yml",
 ):
     assert (archive / required).is_file(), f"Missing archived file: {required}"
 for token in (
     f"TAG={tag}", artifact, source_zip, "gh release create",
     "python tool/verify_release_archive.py",
+    "node --check tool/android_assets/cloud-state-cas.js",
     "node --check tool/android_assets/companion-mode.js",
+    "node tests/cloud-state-cas.test.cjs",
     f"dist/{artifact}", f"dist/{source_zip}",
 ):
     assert token in workflow, f"Release workflow missing {token!r}"
