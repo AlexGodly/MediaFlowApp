@@ -78,3 +78,37 @@ void main() {
     expect(entry.previewProgress(title), 6);
   });
 }
+
+
+test('cloud draft serializer uses website v285/v369 shape', () {
+  final title = sampleTitle();
+  final drafts = R2AdvancedLoggingDrafts();
+  drafts.add(title);
+  drafts.update(title.id, (entry) {
+    entry.chooseSeason('s1');
+    entry.setAmount(title, 2);
+    entry.setUnitTime(4, DateTime.utc(2026, 10, 20, 12));
+    entry.setUnitSeconds(4, 1500);
+    entry.isRepeat = true;
+  });
+
+  final cloud = drafts.toV285CloudDraft({title.id: title});
+  expect(cloud['categoryId'], 'anime');
+  expect(cloud['amount'], 2);
+  expect(cloud['updateLibrary'], isTrue);
+  expect(cloud['v369Interface'], 'itemized');
+  expect(cloud['v369CommitId'], startsWith('native-'));
+  final entries = cloud['entries'] as List;
+  final row = entries.single as Map;
+  expect(row['libraryId'], title.id);
+  expect(row['v369Itemized'], isTrue);
+  expect(row['qty'], 2);
+  final units = row['v369Units'] as List;
+  expect(units, hasLength(2));
+  expect((units.first as Map)['number'], 4);
+  expect((units.first as Map)['isRepeat'], isTrue);
+  expect((units.first as Map)['durationSeconds'], 1500);
+  expect((units.first as Map)['loggedAt'],
+      DateTime.utc(2026, 10, 20, 12).millisecondsSinceEpoch);
+  drafts.dispose();
+});
