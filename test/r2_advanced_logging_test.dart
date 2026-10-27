@@ -77,10 +77,8 @@ void main() {
     entry.isRepeat = true;
     expect(entry.previewProgress(title), 6);
   });
-}
 
-
-test('cloud draft serializer uses website v285/v369 shape', () {
+  test('cloud draft serializer uses website v285/v369 shape, () {
   final title = sampleTitle();
   final drafts = R2AdvancedLoggingDrafts();
   drafts.add(title);
@@ -112,3 +110,5 @@ test('cloud draft serializer uses website v285/v369 shape', () {
       DateTime.utc(2026, 10, 20, 12).millisecondsSinceEpoch);
   drafts.dispose();
 });
+
+}
