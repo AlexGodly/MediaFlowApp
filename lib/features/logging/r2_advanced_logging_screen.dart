@@ -29,6 +29,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
   final Map<String, int> _unitPages = {};
   String _draftSort = 'custom';
   bool _draftDescending = false;
+  bool _savingDraft = false;
 
   @override
   void initState() {
@@ -555,12 +556,16 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             ])),
             OutlinedButton.icon(
               key: const Key('r2-save-cloud-draft'),
-              onPressed: () async {
+              onPressed: _savingDraft ? null : () async {
                 Navigator.pop(sheet);
                 await _saveDraftToAccount();
               },
-              icon: const Icon(Icons.cloud_upload_outlined),
-              label: const Text('Save draft to MediaFlow account'),
+              icon: _savingDraft
+                  ? const SizedBox(width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.cloud_upload_outlined),
+              label: Text(_savingDraft ? 'Saving to account…'
+                  : 'Save draft to MediaFlow account'),
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -584,12 +589,17 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       ));
       return;
     }
+    if (_savingDraft) return;
+    // Persist the website's canonical v285/v369 logDraft shape, including
+    // per-unit timestamps, durations, repeats and itemized commit identity.
+    // Do not serialize the native review-only representation into the website
+    // resume slot: the website must be able to resume this draft unchanged.
     final draft = <String, dynamic>{
-      'format': 'MediaFlow_Native_Logging_Draft_v1',
+      ...widget.drafts.toV285CloudDraft(byId),
       'source': 'MediaFlowApp',
-      'createdAt': DateTime.now().toIso8601String(),
-      'entries': valid.map((entry) => entry.toLocalReview()).toList(),
+      'nativeDraftSavedAt': DateTime.now().toIso8601String(),
     };
+    setState(() => _savingDraft = true);
     try {
       final result = await widget.repository.saveLoggingDraft(draft);
       if (!mounted) return;
@@ -613,6 +623,8 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not save draft. No success was reported. $error'),
       ));
+    } finally {
+      if (mounted) setState(() => _savingDraft = false);
     }
   }
 
@@ -703,7 +715,7 @@ class _R2AdvancedLoggingScreenState extends State<R2AdvancedLoggingScreen> {
             key: const Key('r2-review-draft'),
             onPressed: () => _review(catalog),
             icon: const Icon(Icons.fact_check_outlined),
-            label: const Text('Review draft · no cloud write'),
+            label: const Text('Review and save draft to account'),
           ),
       ],
     ), subtitle: 'Per Unit · Last Watched/Read Unit · Amount Consumed');
