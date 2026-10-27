@@ -61,7 +61,7 @@ class PackageMediaFlowTest(unittest.TestCase):
             self.assertEqual(result["patchedOfflineSessionRestoreSites"], 5)
             self.assertIn("mfAndroidReadStoredSessionUser", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
             self.assertIn("indexedDB.open", (output / "assets/android/companion-mode.js").read_text())
-            self.assertIn("App.v180OpenRerollHistory", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
+            self.assertIn("mf395DashboardRecommendationHtml", (output / "assets/android/companion-mode.js").read_text())
             self.assertTrue((output / "assets/android/performance-boot.js").exists())
             self.assertEqual(result["patchedMobileRenderSites"], 5)
             self.assertIn("__mfAndroidLastHtml", (output / "assets/js/mediaflow-v507.bundle.js").read_text())
