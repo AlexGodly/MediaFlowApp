@@ -77,3 +77,8 @@ The Android app is now intentionally scoped to four surfaces: **Recommendations*
 - A tappable status pill shows offline, pending, syncing, or synced state. No Supabase schema or backend policies are changed.
 
 This implementation does not guarantee that every phone will hold a huge library within available device storage or that all background sync will run while Android has suspended the app. Pending changes sync when the app is active and connectivity is restored. Real-device tests are still required for offline sign-in, conflict handling and long-session logging.
+
+
+## Beta 7 offline-session reliability fix
+
+Beta 7 protects the cached account during offline restoration from a transient Supabase `SIGNED_OUT` event. An early startup gate ensures the offline queue, draft restoration and account-scoped snapshot loader are installed before the authenticated app bootstrap proceeds. The guard is cleared after successful cloud communication, so normal sign-out handling resumes. Beta 6's published source archive is preserved byte-for-byte under `legacy/v/android-webview-v1.0.0-beta.6/`.
