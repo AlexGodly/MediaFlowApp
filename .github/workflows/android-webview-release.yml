@@ -33,8 +33,11 @@ jobs:
         run: |
           node --check tool/android_assets/performance-boot.js
           node --check tool/android_assets/performance-settings.js
-      - name: Validate companion JavaScript syntax
-        run: node --check tool/android_assets/companion-mode.js
+      - name: Validate cloud CAS and companion JavaScript
+        run: |
+          node --check tool/android_assets/cloud-state-cas.js
+          node --check tool/android_assets/companion-mode.js
+          node tests/cloud-state-cas.test.cjs
       - name: Download immutable v553 website release
         run: |
           mkdir -p .downloads
