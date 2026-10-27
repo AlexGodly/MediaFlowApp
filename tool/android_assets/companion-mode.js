@@ -531,6 +531,207 @@
     merged.savedAt = Math.max(localTime, remoteTime);
     return merged;
   }
+  async function retrySyncNow() {
+    const stateOk = await reconcile(true);
+    const draftOk = await syncDraftToCloud();
+    return stateOk && draftOk;
+  }
+
+  function showDraftConflictDialog() {
+    if (!companion.draftConflict || !companion.conflictingCloudDraft) return;
+    if (document.getElementById('mf-android-sync-conflict-overlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'mf-android-sync-conflict-overlay';
+    overlay.className = 'mf-android-sync-conflict-overlay';
+    overlay.innerHTML = '<section class="mf-android-sync-conflict" role="dialog" aria-modal="true" aria-labelledby="mf-android-sync-conflict-title">' +
+      '<h2 id="mf-android-sync-conflict-title">Two Logging drafts found</h2>' +
+      '<p>Your phone has an unsynced draft, and another device saved a different draft. Both copies are preserved. Choose which one should be kept in the cloud.</p>' +
+      '<div class="mf-android-sync-conflict-actions">' +
+      '<button type="button" class="btn btn-primary" data-choice="local">Keep this phone\'s draft</button>' +
+      '<button type="button" class="btn" data-choice="cloud">Restore the cloud draft here</button>' +
+      '<button type="button" class="btn btn-ghost" data-choice="cancel">Not now</button></div></section>';
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) { overlay.remove(); return; }
+      const button = event.target.closest && event.target.closest('[data-choice]');
+      if (!button) return;
+      const choice = button.dataset.choice;
+      overlay.remove();
+      if (choice === 'local') syncDraftToCloud({ forceLocal: true });
+      else if (choice === 'cloud') restoreCloudDraftConflict();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  function restoreCloudDraftConflict() {
+    const userId = uid();
+    const cloud = companion.conflictingCloudDraft;
+    if (!userId || !cloud || cloud.userId !== userId) return false;
+    const payload = cloudDraftCopy(cloud);
+    payload.cloudSyncedAt = Number(payload.savedAt) || 0;
+    if (!storeLocalDraft(userId, payload)) return false;
+    companion.draftPending = false;
+    companion.draftConflict = false;
+    companion.conflictingCloudDraft = null;
+    companion.hasSingleDraft = !!payload.singleDraftExists;
+    companion.hasBatchDraft = !!payload.batchDraftExists;
+    restoreDraft();
+    render();
+    updateStatus();
+    return true;
+  }
+
+  function showStateConflictDialog() {
+    if (!companion.stateConflict) return;
+    if (document.getElementById('mf-android-sync-conflict-overlay')) return;
+    const paths = (companion.stateConflict.paths || []).map(path =>
+      String(path).replace(/^settings\./, 'Settings · ').replace(/\./g, ' · '));
+    const overlay = document.createElement('div');
+    overlay.id = 'mf-android-sync-conflict-overlay';
+    overlay.className = 'mf-android-sync-conflict-overlay';
+    const section = document.createElement('section');
+    section.className = 'mf-android-sync-conflict';
+    section.setAttribute('role', 'dialog');
+    section.setAttribute('aria-modal', 'true');
+    const title = document.createElement('h2');
+    title.textContent = 'Review account sync conflict';
+    const message = document.createElement('p');
+    message.textContent = 'The cloud and this phone both changed the following fields since the last shared version:';
+    const list = document.createElement('ul');
+    paths.forEach(path => { const li = document.createElement('li'); li.textContent = path; list.appendChild(li); });
+    const actions = document.createElement('div');
+    actions.className = 'mf-android-sync-conflict-actions';
+    function action(label, choice, primary) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = primary ? 'btn btn-primary' : 'btn';
+      button.textContent = label;
+      button.addEventListener('click', function () {
+        overlay.remove();
+        companion.conflictResolution = { strategy: choice };
+        retrySyncNow();
+      });
+      actions.appendChild(button);
+    }
+    action('Keep this phone\'s values', 'local', true);
+    action('Keep cloud values', 'remote', false);
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn btn-ghost';
+    cancel.textContent = 'Not now';
+    cancel.addEventListener('click', () => overlay.remove());
+    actions.appendChild(cancel);
+    section.append(title, message, list, actions);
+    overlay.appendChild(section);
+    overlay.addEventListener('click', event => { if (event.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  async function syncDraftToCloud(options) {
+    const forceLocal = !!(options && options.forceLocal);
+    const userId = uid();
+    if (!userId || !supabase || !navigator.onLine || companion.draftSyncing) return false;
+    let localDraft = readLocalDraft(userId);
+    if (!localDraft || !draftIsEligible(localDraft)) return true;
+    if (JSON.stringify(cloudDraftCopy(localDraft)).length > MAX_DRAFT_BYTES) {
+      companion.draftPending = true;
+      companion.attention = true;
+      updateStatus();
+      return false;
+    }
+    companion.draftSyncing = true;
+    updateStatus();
+    try {
+      let auth = await supabase.auth.getSession();
+      let session = auth && auth.data && auth.data.session;
+      if ((auth && auth.error) || !session || !session.user || session.user.id !== userId) {
+        auth = await supabase.auth.refreshSession();
+        if (auth && auth.error) throw auth.error;
+        session = auth && auth.data && auth.data.session;
+      }
+      if (!session || !session.user || session.user.id !== userId) {
+        companion.needsAuth = true;
+        throw new Error('The saved session needs to reconnect before draft sync can continue.');
+      }
+      AUTH_USER = session.user;
+      const assertAccount = function () {
+        if (uid() !== userId || String(AUTH_USER && AUTH_USER.id || '') !== userId) {
+          throw new Error('MediaFlow account changed during draft sync. No other account was modified.');
+        }
+      };
+      for (let attempt = 0; attempt < 4; attempt++) {
+        assertAccount();
+        localDraft = readLocalDraft(userId);
+        if (!localDraft || !draftIsEligible(localDraft)) return true;
+        const remote = await originalFetchCloudState();
+        assertAccount();
+        if (!remote || !remote.found || !remote.state || !remote.updatedAt) {
+          companion.draftPending = true;
+          companion.attention = true;
+          throw new Error('The existing cloud state is unavailable. The draft remains saved on this phone.');
+        }
+        const remoteDraft = remote.state[DRAFT_FIELD];
+        if (remoteDraft && remoteDraft.userId === userId) {
+          const remoteTime = Number(remoteDraft.savedAt) || 0;
+          const localTime = Number(localDraft.savedAt) || 0;
+          const localDirty = localTime > Number(localDraft.cloudSyncedAt || 0);
+          const same = draftContentKey(localDraft) === draftContentKey(remoteDraft);
+          if (same && remoteTime === localTime) {
+            markLocalDraftSynced(userId, localDraft);
+            companion.draftConflict = false;
+            companion.conflictingCloudDraft = null;
+            updateStatus();
+            return true;
+          }
+          if (remoteTime > localTime && !forceLocal) {
+            if (localDirty) {
+              companion.draftConflict = true;
+              companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+              companion.draftPending = true;
+              updateStatus();
+              return false;
+            }
+            captureCloudDraft(remote.state, userId);
+            updateStatus();
+            return true;
+          }
+          if (remoteTime === localTime && !same && !forceLocal) {
+            companion.draftConflict = true;
+            companion.conflictingCloudDraft = cloudDraftCopy(remoteDraft);
+            companion.draftPending = true;
+            updateStatus();
+            return false;
+          }
+        }
+        const nextState = Object.assign({}, remote.state);
+        nextState[DRAFT_FIELD] = cloudDraftCopy(localDraft);
+        const result = await window.MFAndroidCloudCAS.update(
+          supabase, userId, remote.updatedAt, nextState, encodeCloudState, assertAccount);
+        if (result.written) {
+          markLocalDraftSynced(userId, localDraft);
+          companion.draftPending = Number(localDraft.savedAt) >
+            Number((readLocalDraft(userId) || {}).cloudSyncedAt || 0);
+          companion.draftConflict = false;
+          companion.conflictingCloudDraft = null;
+          companion.attention = false;
+          updateStatus();
+          return !companion.draftPending;
+        }
+        await new Promise(resolve => setTimeout(resolve, 80 * (attempt + 1)));
+      }
+      throw new Error('Cloud changed repeatedly while saving the draft. It remains on this phone.');
+    } catch (error) {
+      companion.draftPending = true;
+      companion.needsAuth = requiresReauthentication(error);
+      companion.attention = !companion.needsAuth && !isNetworkError(error);
+      console.warn('MediaFlow Companion: draft sync deferred; local draft is preserved.', error);
+      updateStatus();
+      return false;
+    } finally {
+      companion.draftSyncing = false;
+      updateStatus();
+    }
+  }
+
   function updateStatus() {
     let button = document.getElementById('mf-android-companion-status');
     if (!button && document.body) {
