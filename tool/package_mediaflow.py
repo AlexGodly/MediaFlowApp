@@ -391,7 +391,7 @@ def package(archive, output, skip_vendor=False, verify=True):
         "assets": len(copied),
         "bundleSha256": sha256(output / "assets/js/mediaflow-v553.bundle.js"),
         "vendoredDependencies": {name: sha256(output / path) for name, path in CDN.items()},
-        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "reconnect-merge-sync", "single-and-batch-logging", "v553-reroll-title-xp-preview", "v553-reroll-title-xp-award", "pinned-mediaflow-v553-contract"],
+        "androidEnhancements": ["performance-settings", "chunked-downloads", "spa-back", "service-worker", "native-saf-folder-picker", "chunked-automatic-folder-backups", "foreground-timer-resume", "mobile-safe-insets", "mobile-render-dom-reuse", "desktop-layout-skip-on-phone", "low-end-paint-budget", "mobile-contrast-fix", "focused-recommendation-logging-workspace", "indexeddb-offline-snapshot-queue", "offline-session-restore", "offline-draft-autosave", "cloud-backed-draft-sync", "revision-checked-cloud-sync", "three-way-conflict-resolution", "reconnect-merge-sync", "single-and-batch-logging", "v553-reroll-title-xp-preview", "v553-reroll-title-xp-award", "pinned-mediaflow-v553-contract"],
         "validatedCompanionContracts": validated_contracts,
         "patchedBackupFunctions": patch_count,
         "patchedMobileRenderSites": mobile_patch_count,
