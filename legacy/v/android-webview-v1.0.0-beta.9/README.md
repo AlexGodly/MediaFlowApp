@@ -66,7 +66,7 @@ Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-di
 
 ## Beta 6: focused mobile companion + offline-first workflow
 
-The Android app is now intentionally scoped to four surfaces: **Recommendations**, **Log**, **Library workspace**, and **Log history**. It reuses the actual MediaFlow v553 functions rather than reimplementing its recommender or XP calculations. Exact-title recommendations can be toggled in the Recommendations screen; title rerolls and reroll history use the original MediaFlow logic. Single-title logging preserves the existing Quick/Advanced modes, per-unit/progress methods and XP preview. Batch Log remains available.
+The Android app is now intentionally scoped to four surfaces: **Recommendations**, **Log**, **Library workspace**, and **Log history**. It reuses the actual MediaFlow v507 functions rather than reimplementing its recommender or XP calculations. Exact-title recommendations can be toggled in the Recommendations screen; title rerolls and reroll history use the original MediaFlow logic. Single-title logging preserves the existing Quick/Advanced modes, per-unit/progress methods and XP preview. Batch Log remains available.
 
 ### Offline behavior
 
