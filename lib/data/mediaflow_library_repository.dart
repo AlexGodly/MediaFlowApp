@@ -17,6 +17,7 @@ import '../services/native_cas_protocol.dart';
 import '../services/native_sync_review.dart';
 import '../services/native_snapshot_codec.dart';
 import 'mediaflow_models.dart';
+import 'mediaflow_full_state.dart';
 import 'mediaflow_state_codec.dart';
 import '../services/native_cloud_state_committer.dart';
 
