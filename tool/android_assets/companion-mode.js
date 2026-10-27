@@ -378,6 +378,12 @@
     delete copy[DRAFT_FIELD];
     return copy;
   }
+  function attachLocalDraft(state, userId) {
+    const copy = Object.assign({}, state && typeof state === 'object' ? state : {});
+    const draft = readLocalDraft(userId);
+    if (draft && draftIsEligible(draft)) copy[DRAFT_FIELD] = cloudDraftCopy(draft);
+    return copy;
+  }
   function mergeStateAndDraft(localState, remoteState, userId, remoteUpdatedAt) {
     const localCore = stateWithoutDraft(localState);
     const remoteCore = stateWithoutDraft(remoteState);
