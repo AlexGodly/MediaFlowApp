@@ -340,6 +340,7 @@ def package(archive, output, skip_vendor=False, verify=True):
     shutil.copy2(android_assets / "mobile-performance.css", target / "mobile-performance.css")
     shutil.copy2(android_assets / "backup-bridge.js", target / "backup-bridge.js")
     shutil.copy2(android_assets / "performance-boot.js", target / "performance-boot.js")
+    shutil.copy2(android_assets / "cloud-state-cas.js", target / "cloud-state-cas.js")
     shutil.copy2(android_assets / "companion-mode.js", target / "companion-mode.js")
     shutil.copy2(android_assets / "companion-mode.css", target / "companion-mode.css")
     if "</head>" not in html or "</body>" not in html:
@@ -348,7 +349,7 @@ def package(archive, output, skip_vendor=False, verify=True):
     if html.count(runtime_script) != 1:
         raise ValueError("Missing exact MediaFlow v553 application script")
     html = html.replace(runtime_script,
-                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/companion-mode.js"></script>', 1)
+                        '<script src="assets/android/backup-bridge.js"></script>\n' + runtime_script + '\n<script src="assets/android/cloud-state-cas.js"></script>\n<script src="assets/android/companion-mode.js"></script>', 1)
     html = html.replace("</head>",
                         '<script src="assets/android/performance-boot.js"></script>\n</head>', 1)
     html = html.replace("</head>",
