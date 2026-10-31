@@ -24,17 +24,29 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter --version
-      - run: flutter pub get
-      - name: Static analysis
-        run: flutter analyze --no-fatal-infos
-      - name: Unit, golden (website parity) and widget tests
-        env:
-          TZ: UTC
-        run: flutter test --reporter expanded
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Static analysis
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos > analyze.log 2>&1
+          code=$?
+          cat analyze.log
+          python tool/ci_annotate.py analyze analyze.log
+          exit $code
+      - name: Unit, golden (website parity) and widget tests
+        env:
+          TZ: UTC
+        run: |
+          set +e
+          flutter test --reporter expanded > test.log 2>&1
+          code=$?
+          cat test.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py test test.log
+          exit $code
       - name: Release contract
         run: python tool/release_guard.py
 
@@ -63,7 +75,13 @@ jobs:
           python -m pip install pillow
           python tool/prepare_platforms.py android
       - name: Build release APK
-        run: flutter build apk --release
+        run: |
+          set +e
+          flutter build apk --release > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build.log
+          exit $code
       - name: Stage APK
         run: |
           mkdir -p dist
@@ -97,7 +115,14 @@ jobs:
           python -m pip install pillow
           python tool/prepare_platforms.py windows
       - name: Build Windows release
-        run: flutter build windows --release
+        shell: bash
+        run: |
+          set +e
+          flutter build windows --release > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build.log
+          exit $code
       - name: Portable zip
         shell: pwsh
         run: |
@@ -137,7 +162,13 @@ jobs:
           python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
           python3 tool/prepare_platforms.py ios
       - name: Build (no code signing)
-        run: flutter build ios --release --no-codesign
+        run: |
+          set +e
+          flutter build ios --release --no-codesign > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python3 tool/ci_annotate.py build build.log
+          exit $code
       - name: Package IPA
         run: |
           APP=build/ios/iphoneos/Runner.app
