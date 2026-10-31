@@ -83,7 +83,7 @@ void main() {
         reason: 'Run the logging golden tests with TZ=UTC (fixtures were recorded in UTC).');
   });
 
-  for (final name in ['mixed-batch', 'seasons', 'streak']) {
+  for (final name in ['mixed-batch', 'seasons', 'streak', 'first-episode']) {
     test('a native log matches the website exactly: $name', () {
       final fx = _load('log-$name.json');
       final now = (fx['now'] as num).toInt();

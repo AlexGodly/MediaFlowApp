@@ -2,18 +2,18 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../logic/log_engine.dart';
 import '../state/state_codec.dart';
 import '../util/js.dart';
+import 'account_ops.dart';
 
 /// What the app keeps on the device for one account: the last cloud copy it
-/// saw and the logs not yet uploaded.
+/// saw and the changes not yet uploaded.
 class CachedAccount {
-  CachedAccount({this.base, this.baseUpdatedAt, List<LogRequest>? pending, this.savedAt})
+  CachedAccount({this.base, this.baseUpdatedAt, List<AccountOp>? pending, this.savedAt})
       : pending = pending ?? [];
   Map<String, dynamic>? base;
   String? baseUpdatedAt;
-  final List<LogRequest> pending;
+  final List<AccountOp> pending;
   int? savedAt;
 }
 
@@ -44,7 +44,7 @@ class FileAccountCache implements AccountCache {
       return CachedAccount(
         base: asMap(m['base']),
         baseUpdatedAt: m['baseUpdatedAt'] is String ? m['baseUpdatedAt'] as String : null,
-        pending: asList(m['pending']).map((p) => LogRequest.fromJson(asMap(p) ?? const {})).toList(),
+        pending: asList(m['pending']).map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
         savedAt: jsNum(m['savedAt']).toInt(),
       );
     } catch (_) {
@@ -56,7 +56,7 @@ class FileAccountCache implements AccountCache {
   Future<void> save(String userId, CachedAccount account) async {
     final file = await _file(userId);
     final data = {
-      'version': 1,
+      'version': 2,
       'userId': userId,
       'savedAt': DateTime.now().millisecondsSinceEpoch,
       'baseUpdatedAt': account.baseUpdatedAt,

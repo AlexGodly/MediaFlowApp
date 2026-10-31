@@ -77,16 +77,25 @@ def scenarios():
                               "titles": [{"title": "Streak Manga", "libraryId": "lib_streak", "qty": 5, "repeat": False,
                                           "loggedAt": NOW - (3 - i) * 86400000}]})
     s.append(("streak", c, [{"libraryId": "lib_streak", "reached": 46, "minutes": 40}], "streak day"))
+
+    # 4. First episode of a planned episode title on a streak day: v335 first-episode,
+    #    v334 first-start and the v348 streak multiplier on both.
+    d = copy.deepcopy(c)
+    d["library"] = [item(proto, id="lib_first", title="Fresh Anime", categoryId="seasonal", progress=0, total=12,
+                         status="planned", startedAt=None, startedAtSource=None)]
+    s.append(("first-episode", d, [{"libraryId": "lib_first", "reached": 2}], ""))
     return s
 
 
-def run(www):
+def run(www, only=None):
     OUT.mkdir(parents=True, exist_ok=True)
     server = smoke.serve(pathlib.Path(www))
     url = f"http://127.0.0.1:{server.server_address[1]}/index.html"
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, **({"executable_path": __import__("os").environ["CHROME_PATH"]} if __import__("os").environ.get("CHROME_PATH") else {}))
         for name, account, rows, note in scenarios():
+            if only and name not in only:
+                continue
             account["savedAt"] = NOW - 3600000
             ctx = browser.new_context(viewport={"width": 1280, "height": 900}, timezone_id="UTC")
             ctx.route("**/assets/vendor/supabase-js-v2.js",
@@ -126,4 +135,4 @@ def run(www):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1])
+    run(sys.argv[1], set(sys.argv[2:]) or None)

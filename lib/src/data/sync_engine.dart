@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../logic/log_engine.dart';
+import 'account_ops.dart';
 
 /// The account's cloud copy: the website's `mediaflow_states` row.
 class CloudSnapshot {
@@ -27,7 +27,7 @@ class MissingCloudRow implements Exception {
 
 class CloudBusy implements Exception {
   @override
-  String toString() => 'Your account kept changing while syncing. Your logs are safe on this device; try again.';
+  String toString() => 'Your account kept changing while syncing. Your changes are safe on this device; try again.';
 }
 
 class SyncResult {
@@ -35,22 +35,21 @@ class SyncResult {
   final Map<String, dynamic> state;
   final String updatedAt;
 
-  /// Requests whose logs were written by this sync (already-present ones excluded).
+  /// Changes that were written by this sync (already-present ones excluded).
   final int uploaded;
 }
 
-/// Pulls the latest cloud copy and, if there are pending logs, replays them on
-/// top of it and writes the result with a compare-and-swap on `updated_at`.
-/// Never overwrites a newer cloud version and never duplicates a log.
-Future<SyncResult> syncOnce(CloudBackend cloud, String userId, List<LogRequest> pending,
-    {int attempts = 5}) async {
+/// Pulls the latest cloud copy and, if there are pending changes, replays them
+/// on top of it and writes the result with a compare-and-swap on `updated_at`.
+/// Never overwrites a newer cloud version and never duplicates a change.
+Future<SyncResult> syncOnce(CloudBackend cloud, String userId, List<AccountOp> pending, {int attempts = 5}) async {
   for (var attempt = 0; attempt < attempts; attempt++) {
     final remote = await cloud.fetch(userId);
     if (remote == null) throw MissingCloudRow();
     if (pending.isEmpty) return SyncResult(remote.state, remote.updatedAt, 0);
     var applied = 0;
-    for (final req in pending) {
-      if (applyLog(remote.state, req).applied) applied++;
+    for (final op in pending) {
+      if (op.apply(remote.state)) applied++;
     }
     if (applied == 0) return SyncResult(remote.state, remote.updatedAt, 0);
     final updatedAt = await cloud.compareAndSwap(userId, remote.updatedAt, remote.state);

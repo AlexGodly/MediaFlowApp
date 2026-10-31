@@ -3,7 +3,8 @@
 // wrapper chain around App.submitBatchLog:
 //
 //   base submitBatchLog (sessions + Library progress + completion timeline)
-//     └ persistLibrary hooks: v334 first-start XP, v348 award multiplier + completion bonus
+//     └ persistLibrary hooks: v335 first-episode XP, v334 first-start XP,
+//       v348 award multiplier + completion bonus
 //   v120 logged-completion XP → v121 repeat XP → v137 start dates →
 //   v252 per-season progress → v348 Batch Log bonus → v149 streak annotations
 //
@@ -13,6 +14,7 @@
 import '../state/models.dart';
 import '../util/js.dart';
 import 'leveling.dart';
+import 'library_hooks.dart';
 
 /// One title in a log. Give [reached] ("Episode reached", the website's default
 /// Progress mode) or [amount] (Amount mode).
@@ -154,10 +156,9 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
   }
   final ledger = _map(state, 'xpLedger');
 
-  // Snapshots taken before the log (v120 / v334 / v348 "known" states).
+  // What the website knows about each title as of its last Library save.
   final wasCompleted = {for (final i in library) i.id: i.isCompleted};
-  final wasStarted = {for (final i in library) i.id: _started(i.raw)};
-  final startedBefore = Map<String, dynamic>.from(_map(ledger, 'v334StartedTitles'));
+  final tracker = LibraryTracker(state);
 
   // ---- base submitBatchLog ---------------------------------------------------
   final today = isoDateUtc(now);
@@ -226,54 +227,12 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
   }
   if (newSessions.isEmpty) return LogOutcome(applied: false);
 
-  // ---- persistLibrary hooks ---------------------------------------------------
+  // ---- persistLibrary hooks: v335 first episode, v334 first start, v348 ------
   final multiplier = awardMultiplier(l, sessions, now);
   var metaSeq = 0;
   String metaUid() => '${req.eventId}_${metaSeq++}';
+  outcome.xp += tracker.save(state, l, now, metaUid);
   final meta = _map(ledger, 'v348EventMeta');
-
-  // v334: first time a title becomes "started".
-  final startedTitles = _map(ledger, 'v334StartedTitles');
-  for (final item in library) {
-    final id = item.id;
-    if (id.isEmpty) continue;
-    if (wasStarted[id] == false && _started(item.raw) && !startedTitles.containsKey(id)) {
-      startedTitles[id] = l.enabled ? jsOut(jsRound(l.reward('firstTitleStartXP'))) : 0;
-    }
-  }
-  // v348RaiseNewRewards for v334StartedTitles.
-  if (l.enabled) {
-    for (final e in startedTitles.entries.toList()) {
-      final prior = jsNum(startedBefore[e.key]);
-      final added = jsNum(e.value) - prior;
-      if (added > 0) {
-        final xp = jsRound(added * multiplier);
-        final inc = xp - added;
-        if (inc > 0) startedTitles[e.key] = jsOut(jsNum(e.value) + inc);
-        meta['v334StartedTitles:${e.key}:$now:${metaUid()}'] = {
-          'kind': 'v334StartedTitles', 'baseXP': jsOut(added), 'multiplier': jsOut(multiplier), 'xp': jsOut(xp),
-          'timestamp': now, 'source': 'First title start', 'subjectId': e.key,
-        };
-        outcome.xp += xp;
-      }
-    }
-    // v348: award-time streak bonus on top of base completion XP.
-    final completionBonus = _map(ledger, 'v348LibraryCompletionBonus');
-    for (final item in library) {
-      final id = item.id;
-      if (id.isEmpty || !wasCompleted.containsKey(id)) continue;
-      if (wasCompleted[id] == false && item.isCompleted && !completionBonus.containsKey(id)) {
-        final amount = l.completionXP;
-        final xp = jsRound(amount * multiplier);
-        completionBonus[id] = jsOut(xp - amount < 0 ? 0 : xp - amount);
-        meta['library-complete:$id'] = {
-          'kind': 'completedLibrary', 'baseXP': jsOut(amount), 'multiplier': jsOut(multiplier), 'xp': jsOut(xp),
-          'timestamp': now, 'source': 'Library · title completed', 'subjectId': id,
-        };
-        outcome.xp += xp;
-      }
-    }
-  }
 
   // ---- v120: logged-completion XP -------------------------------------------
   for (final item in library) {
@@ -335,9 +294,6 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
   state['savedAt'] = now;
   return outcome;
 }
-
-bool _started(Map<String, dynamic> item) =>
-    item['status'] == 'active' || jsNum(item['progress']) > 0 || jsNum(item['startedAt']) > 0;
 
 List<dynamic> _list(Map<String, dynamic> parent, String key) {
   final v = parent[key];
@@ -620,9 +576,17 @@ void _distributeSeasonProgress(Map<String, dynamic> item, double aggregate, int 
       tail['progress'] = jsOut(jsNum(tail['progress']) + remaining);
     }
   }
-  // v252SyncTitleFromSeasons
-  final normalized = normalizeSeasons(seasons, source, 'season-$idSeed');
+  item['seasons'] = seasons;
+  syncTitleFromSeasons(item, idSeed, modifiedAt: now);
+}
+
+/// `v252SyncTitleFromSeasons`: the title's progress/total become the sum of
+/// its seasons. [modifiedAt] defaults to the title's own `modifiedAt`.
+void syncTitleFromSeasons(Map<String, dynamic> item, String idSeed, {int? modifiedAt}) {
+  final source = jsStr(item['seasonSource']).isEmpty ? 'manual' : jsStr(item['seasonSource']);
+  final normalized = normalizeSeasons(item['seasons'], source, 'season-$idSeed');
   item['seasons'] = normalized;
+  if (normalized.isEmpty) return;
   var progress = 0, total = 0;
   for (final s in normalized) {
     progress += _seasonNum(s['progress'], 0);
@@ -632,5 +596,14 @@ void _distributeSeasonProgress(Map<String, dynamic> item, double aggregate, int 
   item['total'] = total > 0 ? total : null;
   item['seasonViewEnabled'] = item['seasonViewEnabled'] != false;
   final prev = jsNum(item['seasonsModifiedAt']);
-  item['seasonsModifiedAt'] = jsOut(prev > now ? prev : now.toDouble());
+  final mod = modifiedAt?.toDouble() ?? jsNum(item['modifiedAt']);
+  item['seasonsModifiedAt'] = jsOut(prev > mod ? prev : mod);
 }
+
+/// `v137ReconcileStartsForSessions` (public for the recommendation logger).
+void reconcileStarts(Map<String, dynamic> state, List<Map<String, dynamic>> added, int now) =>
+    _reconcileStarts(state, added, now);
+
+/// `v252DistributeAggregateProgress` (public for the recommendation logger).
+void distributeSeasonProgress(Map<String, dynamic> item, double aggregate, int now, String idSeed) =>
+    _distributeSeasonProgress(item, aggregate, now, idSeed);

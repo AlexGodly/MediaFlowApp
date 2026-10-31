@@ -38,6 +38,8 @@ jobs:
           python tool/ci_annotate.py analyze analyze.log
           exit $code
       - name: Unit, golden (website parity) and widget tests
+        # Run even when analysis reports problems, so both show up in one run.
+        if: success() || failure()
         env:
           TZ: UTC
         run: |
