@@ -38,6 +38,13 @@ def main():
             if keep > 0:
                 blocks.append(line[:400])
                 keep -= 1
+        failing = []
+        for line in lines:
+            if "[E]" in line and line.strip() not in failing:
+                failing.append(line.strip())
+        summary = [l.strip() for l in lines if re.search(r"(All tests passed|Some tests failed)", l)]
+        if failing or summary:
+            print(f"::error title=Failing tests ({len(failing)})::{esc(chr(10).join((failing + summary[-1:])[:200]))}")
         if blocks:
             print(f"::error title=Test failures::{esc(chr(10).join(blocks[:400]))}")
     else:

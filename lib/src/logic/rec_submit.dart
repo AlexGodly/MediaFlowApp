@@ -156,6 +156,12 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
         'id': id, 'title': title, 'categoryId': assignedId, 'progress': 0, 'total': null, 'status': 'active',
         'priority': 'medium', 'estimatedMinutes': null, 'tags': ['manual'], 'source': 'manual',
         'createdAt': now, 'completedAt': null,
+        // Fields the website's sanitizeLibrary gives every title when it saves.
+        'externalIds': <String, dynamic>{}, 'rating': null, 'manualRepeatAmount': 0,
+        'sourceTimestamp': null, 'sourceTimestampSource': null, 'genres': <dynamic>[], 'themes': <dynamic>[],
+        'studios': <dynamic>[], 'producers': <dynamic>[], 'mediaFormat': '', 'synopsis': '', 'mediaSource': '',
+        'demographic': '', 'ageRating': '', 'releaseDate': '', 'seasonLabel': '', 'durationMinutes': null,
+        'communityScore': null, 'richMetadataManual': <String, dynamic>{}, 'lastSeenAt': null,
       };
       listIn(state, 'library').add(match);
       _awardLibraryAddition(state, l, id, now, metaUid);

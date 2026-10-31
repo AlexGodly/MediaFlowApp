@@ -315,15 +315,20 @@ class _LogScreenState extends State<LogScreen> {
 
   // ---- MediaFlow Recommends ---------------------------------------------------
 
-  Widget _panel({required List<Widget> children, EdgeInsets padding = const EdgeInsets.all(18)}) => Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        padding: padding,
-        decoration: BoxDecoration(
+  Widget _panel({required List<Widget> children, EdgeInsets padding = const EdgeInsets.all(18)}) => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Material(
           color: MF.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: MF.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: MF.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: padding,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+          ),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
       );
 
   Widget _startCard(AccountView view) {
@@ -1107,13 +1112,17 @@ class _LogScreenState extends State<LogScreen> {
           if (when != null && mounted) _edit((x) => x.setWhen(index, when));
         },
       ),
-      SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: const Text('Customize total runtime'),
-        subtitle: Text(manual ? _hms(ed.runtimeSeconds(e)) : 'Automatic: ${_hms(ed.runtimeSeconds(e))}'),
-        value: manual,
-        onChanged: (v) => _edit((x) => x.toggleRuntime(index, v)),
-      ),
+      const SizedBox(height: 6),
+      Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Customize total runtime'),
+            Text(manual ? _hms(ed.runtimeSeconds(e)) : 'Automatic: ${_hms(ed.runtimeSeconds(e))}',
+                style: const TextStyle(color: MF.textDim, fontSize: 12)),
+          ]),
+        ),
+        Switch(value: manual, onChanged: (v) => _edit((x) => x.toggleRuntime(index, v))),
+      ]),
       if (manual)
         Align(
           alignment: Alignment.centerLeft,
