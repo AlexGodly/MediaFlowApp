@@ -391,7 +391,7 @@ void recalculateRepeatXP(Map<String, dynamic> state, Leveling l) {
       final itemized = unitsList is List && t['v369Itemized'] == true;
       if (t['repeat'] != true && !itemized) continue;
       final double qty = itemized
-          ? (unitsList as List).where((u) => t['repeat'] == true || asMap(u)?['isRepeat'] == true).length.toDouble()
+          ? unitsList.where((u) => t['repeat'] == true || asMap(u)?['isRepeat'] == true).length.toDouble()
           : (jsNum(t['qty']) < 0 ? 0.0 : jsNum(t['qty']));
       if (qty <= 0) continue;
       final item = jsTruthy(t['libraryId']) ? libraryById[jsStr(t['libraryId'])] : null;
