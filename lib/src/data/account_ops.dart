@@ -33,6 +33,8 @@ abstract class AccountOp {
         return RecLogOp(RecLogRequest.fromJson(asMap(j['request']) ?? const {}));
       case 'batch':
         return BatchLogOp(LogRequest.fromJson(asMap(j['request']) ?? const {}));
+      case 'setting':
+        return SettingOp.fromJson(j);
       default:
         // Beta 12 stored bare Batch Log requests.
         return BatchLogOp(LogRequest.fromJson(j));
@@ -220,5 +222,74 @@ class TaskOp extends AccountOp {
         resultTask: asMap(j['resultTask']),
         historyEntry: asMap(j['historyEntry']),
         skipSessionId: j['skipSessionId'] is String ? j['skipSessionId'] as String : null,
+      );
+}
+
+
+/// Sets one account setting (`state.settings[path...]`), like the website's
+/// Settings controls. Replays keep the newest value: a value saved on another
+/// device after this change was made is not overwritten.
+class SettingOp extends AccountOp {
+  SettingOp({required this.id, required this.path, required this.value, required this.createdAt, this.previous});
+
+  @override
+  final String id;
+  final List<String> path;
+  final Object? value;
+  final Object? previous;
+  final int createdAt;
+
+  @override
+  String get kind => 'setting';
+
+  static SettingOp create(Map<String, dynamic> state, List<String> path, Object? value, {int? now}) {
+    final t = now ?? DateTime.now().millisecondsSinceEpoch;
+    return SettingOp(id: mediaFlowUid(t), path: path, value: value, createdAt: t, previous: readSetting(state, path));
+  }
+
+  static Object? readSetting(Map<String, dynamic> state, List<String> path) {
+    Object? cur = state['settings'];
+    for (final k in path) {
+      final m = asMap(cur);
+      if (m == null) return null;
+      cur = m[k];
+    }
+    return cur;
+  }
+
+  @override
+  bool apply(Map<String, dynamic> state) {
+    final current = readSetting(state, path);
+    if (jsonEncode(current) == jsonEncode(value)) return false;
+    // Someone changed it after this device did (newest change wins).
+    if (jsonEncode(current) != jsonEncode(previous) && jsNum(state['savedAt']) > createdAt) return false;
+    var node = asMap(state['settings']);
+    if (node == null) {
+      node = <String, dynamic>{};
+      state['settings'] = node;
+    }
+    for (var i = 0; i < path.length - 1; i++) {
+      var next = asMap(node![path[i]]);
+      if (next == null) {
+        next = <String, dynamic>{};
+        node[path[i]] = next;
+      }
+      node = next;
+    }
+    node![path.last] = jsonDecode(jsonEncode(value));
+    state['savedAt'] = createdAt > jsNum(state['savedAt']) ? createdAt : state['savedAt'];
+    return true;
+  }
+
+  @override
+  Map<String, dynamic> toJson() =>
+      {'kind': kind, 'id': id, 'path': path, 'value': value, 'previous': previous, 'createdAt': createdAt};
+
+  static SettingOp fromJson(Map<String, dynamic> j) => SettingOp(
+        id: jsStr(j['id']),
+        path: asList(j['path']).map(jsStr).toList(),
+        value: j['value'],
+        previous: j['previous'],
+        createdAt: jsNum(j['createdAt']).toInt(),
       );
 }

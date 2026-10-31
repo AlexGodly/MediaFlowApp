@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow/src/data/account_controller.dart';
 import 'package:mediaflow/src/state/state_codec.dart';
 import 'package:mediaflow/src/ui/home_shell.dart';
+import 'package:mediaflow/src/ui/log_screen.dart';
 import 'package:mediaflow/src/ui/theme.dart';
 
 import 'support/fakes.dart';
@@ -114,14 +115,20 @@ void main() {
     await tester.tap(find.text('Log & Complete'));
     await _settle(tester);
 
-    // Per unit is this account's default; the recommended title is already added.
+    // Advanced is this account's default; add the recommended title (one tap,
+    // like the website's "Add recommended title" shortcut).
+    expect(find.text('Add recommended title'), findsOneWidget);
+    await tester.tap(find.text('Add recommended title'));
+    await _settle(tester);
+    expect(find.text('Added · show it'), findsOneWidget);
     expect(find.text('Add Episode 4'), findsOneWidget);
     await tester.tap(find.text('Add Episode 4'));
     await _settle(tester);
     expect(find.text('Add Episode 5'), findsOneWidget);
 
     final save = find.text('Save & get next task');
-    await tester.ensureVisible(save);
+    await tester.scrollUntilVisible(save, 300,
+        scrollable: find.descendant(of: find.byType(LogScreen), matching: find.byType(Scrollable)).first);
     await tester.pump(); // lay out the scrolled list before tapping
     await tester.tap(save);
     await _settle(tester);

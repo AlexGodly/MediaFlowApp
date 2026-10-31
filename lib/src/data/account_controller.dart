@@ -209,6 +209,14 @@ class AccountController extends ChangeNotifier {
     _notify();
   }
 
+  /// Changes one account setting (synced like the website's Settings).
+  Future<void> setSetting(List<String> path, Object? value) async {
+    final display = await _working();
+    final op = SettingOp.create(display, path, value);
+    if (!op.apply(display)) return;
+    await _queue(op, display, delay: const Duration(seconds: 2));
+  }
+
   /// Uploads a pending draft now (e.g. when the app goes to the background).
   Future<void> flushDraft() async {
     if (_pending.any((p) => p is DraftOp)) await sync();
