@@ -229,10 +229,9 @@ class _OnThisDayCard extends StatelessWidget {
 // ---- time fields ------------------------------------------------------------------
 
 class _TimeFields extends StatelessWidget {
-  const _TimeFields({required this.h, required this.m, required this.s, this.enabled = true, this.maxHours = 999, this.onChanged});
+  const _TimeFields({required this.h, required this.m, required this.s, this.enabled = true, this.onChanged});
   final TextEditingController h, m, s;
   final bool enabled;
-  final int maxHours;
   final VoidCallback? onChanged;
 
   Widget _field(TextEditingController c, String label) => Expanded(

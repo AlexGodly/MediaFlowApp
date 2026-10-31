@@ -11,6 +11,7 @@ import '../logic/rec_submit.dart';
 import '../logic/recommend.dart';
 import '../logic/resume.dart';
 import '../util/js.dart';
+import 'edit_op.dart';
 
 abstract class AccountOp {
   String get id;
@@ -36,6 +37,8 @@ abstract class AccountOp {
         return BatchLogOp(LogRequest.fromJson(asMap(j['request']) ?? const {}));
       case 'setting':
         return SettingOp.fromJson(j);
+      case 'edit':
+        return EditOp.fromJson(j);
       case 'tool':
         return ToolOp(jsStr(j['id']), jsStr(j['tool']), asMap(j['value']) ?? const {});
       default:

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../logic/activity.dart';
+import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
 import '../logic/rec_submit.dart';
 import '../logic/resume.dart';
@@ -10,6 +12,7 @@ import '../state/models.dart';
 import '../state/state_codec.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
+import 'edit_op.dart';
 import 'local_cache.dart';
 import 'sync_engine.dart';
 
@@ -225,6 +228,75 @@ class AccountController extends ChangeNotifier {
     if (supersedes != null) _pending.removeWhere(supersedes);
     await _queue(op, display, delay: delay);
     return true;
+  }
+
+  /// Undo / redo for edits made on this device in this session (the website's
+  /// Undo and Redo work the same way: within the open app).
+  final List<EditOp> undoStack = [];
+  final List<EditOp> redoStack = [];
+
+  /// Performs an edit with the website's logic on a copy of the account, then
+  /// saves the difference as a replayable change. Returns the change (or null
+  /// if nothing changed).
+  Future<EditOp?> edit(
+    void Function(Map<String, dynamic> copy, int now) action, {
+    String label = '',
+    bool annotateStreaks = false,
+    bool undoable = true,
+    Duration? delay,
+  }) async {
+    final display = await _working();
+    final copy = await _copy(display);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    action(copy, now);
+    final op = editFromStates(display, copy, now: now, label: label, annotateStreaks: annotateStreaks);
+    if (op == null) return null;
+    op.apply(display);
+    if (undoable) {
+      undoStack.add(op);
+      if (undoStack.length > 40) undoStack.removeAt(0);
+      redoStack.clear();
+    }
+    await _queue(op, display, delay: delay);
+    return op;
+  }
+
+  bool _isActivity(Change c) => c.path.isNotEmpty && c.path.first == 'activityLog';
+
+  Future<String?> _replay(EditOp source, List<Change> changes, String verb) async {
+    final display = await _working();
+    final copy = await _copy(display);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final before = coreSnapshot(copy);
+    var any = false;
+    for (final c in changes) {
+      if (applyChange(copy, c, now)) any = true;
+    }
+    if (!any) return null;
+    if (source.annotateStreaks) annotateStreakXP(copy, Leveling(copy));
+    recordActivity(copy, before: before, id: mediaFlowUid(now), timestamp: now, action: verb, detail: source.label);
+    final op = editFromStates(display, copy, now: now, label: source.label, annotateStreaks: source.annotateStreaks);
+    if (op == null) return null;
+    op.apply(display);
+    await _queue(op, display);
+    return source.label;
+  }
+
+  /// Undoes the latest edit made here. Returns its label, or null.
+  Future<String?> undo() async {
+    if (undoStack.isEmpty) return null;
+    final op = undoStack.removeLast();
+    redoStack.add(op);
+    final inverse = [for (final c in op.changes.reversed) if (!_isActivity(c)) c.inverse()];
+    return _replay(op, inverse, 'Undo');
+  }
+
+  /// Redoes the latest undone edit. Returns its label, or null.
+  Future<String?> redo() async {
+    if (redoStack.isEmpty) return null;
+    final op = redoStack.removeLast();
+    undoStack.add(op);
+    return _replay(op, [for (final c in op.changes) if (!_isActivity(c)) c], 'Redo');
   }
 
   /// Uploads a pending draft now (e.g. when the app goes to the background).
