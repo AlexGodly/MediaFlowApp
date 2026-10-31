@@ -299,6 +299,19 @@ class _LogScreenState extends State<LogScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
               children: [
+                if (account.lastRejection != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Material(
+                      color: MF.bad.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                      child: ListTile(
+                        leading: const Icon(Icons.error_outline_rounded, color: MF.bad),
+                        title: Text(account.lastRejection!, style: const TextStyle(fontSize: 13)),
+                        trailing: IconButton(icon: const Icon(Icons.close_rounded), onPressed: account.dismissRejection),
+                      ),
+                    ),
+                  ),
                 if (formOpen)
                   ..._form(view)
                 else if (!active || task == null)

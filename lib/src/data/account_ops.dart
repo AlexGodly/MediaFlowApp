@@ -18,6 +18,9 @@ abstract class AccountOp {
   /// Applies the change to [state] in place. Returns true if anything changed.
   bool apply(Map<String, dynamic> state);
 
+  /// Why the last [apply] refused a change that was not already present.
+  String? rejection;
+
   Map<String, dynamic> toJson();
 
   static AccountOp fromJson(Map<String, dynamic> j) {
@@ -62,7 +65,11 @@ class RecLogOp extends AccountOp {
   @override
   String get kind => 'recLog';
   @override
-  bool apply(Map<String, dynamic> state) => applyRecLog(state, request).applied;
+  bool apply(Map<String, dynamic> state) {
+    final outcome = applyRecLog(state, request);
+    rejection = outcome.applied || outcome.alreadyApplied ? null : (outcome.error ?? 'The log no longer matches your account.');
+    return outcome.applied;
+  }
   @override
   Map<String, dynamic> toJson() => {'kind': kind, 'request': request.toJson()};
 }

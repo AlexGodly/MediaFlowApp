@@ -122,6 +122,7 @@ void main() {
 
     final save = find.text('Save & get next task');
     await tester.ensureVisible(save);
+    await tester.pump(); // lay out the scrolled list before tapping
     await tester.tap(save);
     await _settle(tester);
 
