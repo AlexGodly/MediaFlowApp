@@ -1,5 +1,5 @@
 // The Log tab: MediaFlow Recommends plus the website's whole logging form —
-// Quick (progress reached / amount) and Per unit (episode by episode, with
+// Quick (progress reached / amount) and Advanced (episode by episode, with
 // seasons, runtimes and times), multi-title logs and notes. The open form is the
 // account's shared draft, so it continues on the website and vice versa.
 
@@ -410,8 +410,8 @@ class _LogScreenState extends State<LogScreen> {
     final unit = jsStr(task['unit']).isEmpty ? cat.unit : jsStr(task['unit']);
     final amount = low == high ? '${_num(low)} ${unitLabel(unit, low)}' : '${_num(low)}–${_num(high)} ${unitLabel(unit, high)}';
     final respect = normalizeRespectState(view.state['respectState']);
-    final libraryId = jsStr(task['libraryId']);
-    final title = view.library.where((t) => t.id == libraryId).firstOrNull;
+    final title = _recommendedTitle(view, task);
+    final inLibrary = title != null && view.library.any((t) => identical(t.raw, title.raw));
     final exact = Recommender(view.state, now: DateTime.now().millisecondsSinceEpoch).exactTitles;
     final reasons = asList(task['reasons']).map(jsStr).where((x) => x.isNotEmpty).toList();
     final rerolls = asList(task['v180RecommendationHistory']).length - 1;
@@ -437,20 +437,20 @@ class _LogScreenState extends State<LogScreen> {
           ]),
         ),
       ]),
-      if (title != null || jsTruthy(task['title'])) ...[
+      if (title != null) ...[
         const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
           child: Row(children: [
-            if (title != null) Cover(title: title, category: cat, width: 44),
-            if (title != null) const SizedBox(width: 12),
+            Cover(title: title, category: cat, width: 44),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 const Text('Recommended title', style: TextStyle(fontSize: 11, color: MF.textDim, fontWeight: FontWeight.w700)),
-                Text(title?.title ?? cleanTitle(task['title']),
+                Text(title.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                if (title != null) Text(progressText(title, cat), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                if (inLibrary) Text(progressText(title, cat), style: const TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
             if (exact)
@@ -511,6 +511,19 @@ class _LogScreenState extends State<LogScreen> {
     ]);
   }
 
+  /// The task's recommended title; a stand-in (showing the category icon) when
+  /// it is no longer in the Library.
+  LibraryTitle? _recommendedTitle(AccountView view, Map<String, dynamic> task) {
+    final id = jsStr(task['libraryId']);
+    if (id.isNotEmpty) {
+      final found = view.library.where((t) => t.id == id).firstOrNull;
+      if (found != null) return found;
+    }
+    final name = cleanTitle(task['title']);
+    if (name.isEmpty) return null;
+    return LibraryTitle({'id': id, 'title': name, 'categoryId': task['categoryId']});
+  }
+
   Future<void> _confirm(String title, String body, String yes, VoidCallback action) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -539,13 +552,25 @@ class _LogScreenState extends State<LogScreen> {
     return [
       _panel(padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), children: [
         Row(children: [
-          CategoryBadge(cat, size: 40),
+          // The recommended title's own cover (category icon when it has none).
+          if (_recommendedTitle(view, task) case final title?)
+            Cover(title: title, category: cat, width: 46)
+          else
+            CategoryBadge(cat, size: 40),
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(cat.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-              Text('Consume $amount${jsTruthy(task['title']) ? ' · ${cleanTitle(task['title'])}' : ''}',
-                  maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              if (_recommendedTitle(view, task) case final title?) ...[
+                Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                Text('${cat.name} · Consume $amount',
+                    maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              ] else ...[
+                Text(cat.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                Text('Consume $amount',
+                    maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              ],
             ]),
           ),
         ]),
@@ -553,7 +578,7 @@ class _LogScreenState extends State<LogScreen> {
         SegmentedButton<String>(
           segments: const [
             ButtonSegment(value: 'quick', label: Text('Quick'), icon: Icon(Icons.flash_on_rounded)),
-            ButtonSegment(value: 'itemized', label: Text('Per unit'), icon: Icon(Icons.format_list_numbered_rounded)),
+            ButtonSegment(value: 'itemized', label: Text('Advanced'), icon: Icon(Icons.format_list_numbered_rounded)),
           ],
           selected: {ed.itemized ? 'itemized' : 'quick'},
           onSelectionChanged: (s) => _edit((e) => e.switchInterface(s.first)),
@@ -574,7 +599,7 @@ class _LogScreenState extends State<LogScreen> {
         ],
       ]),
       _panel(children: [
-        Text(ed.itemized ? 'Titles (per unit)' : 'Titles', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+        Text('Titles', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
         const SizedBox(height: 10),
         for (var i = 0; i < entries.length; i++)
           ed.itemized ? _unitEntry(view, ed, i, entries[i]) : _quickEntry(view, ed, i, entries[i]),

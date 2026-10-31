@@ -5,4 +5,4 @@ const String kSupabasePublishableKey = 'sb_publishable_d2P0qZlvGZOSqcUzEg3BNg_3w
 const String kStateTable = 'mediaflow_states';
 
 const String kWebsiteUrl = 'https://alexgodly.github.io/MediaFlow/';
-const String kAppVersionLabel = '1.0.0 Beta 13';
+const String kAppVersionLabel = '1.0.0 Beta 14';

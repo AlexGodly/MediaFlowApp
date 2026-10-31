@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP_VERSION: 1.0.0-beta.13
-  TAG: mediaflowapp-v1.0.0-beta.13
+  APP_VERSION: 1.0.0-beta.14
+  TAG: mediaflowapp-v1.0.0-beta.14
 
 jobs:
   archive-check:
@@ -32,7 +32,7 @@ jobs:
     needs: archive-check
     uses: ./.github/workflows/build.yml
     with:
-      app_version: 1.0.0-beta.13
+      app_version: 1.0.0-beta.14
 
   release:
     name: Publish GitHub release

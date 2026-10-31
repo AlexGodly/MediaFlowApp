@@ -2,7 +2,7 @@
 
 A native **Flutter** app for your MediaFlow account. Same account, same data as the [MediaFlow website](https://alexgodly.github.io/MediaFlow/); logs you make in the app appear on the website and vice versa.
 
-Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **1.0.0 Beta 13** — [release notes](docs/releases/mediaflowapp-v1.0.0-beta.13.md).
+Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **1.0.0 Beta 14** — [release notes](docs/releases/mediaflowapp-v1.0.0-beta.14.md).
 
 | Platform | Release file |
 | :-- | :-- |
@@ -12,7 +12,7 @@ Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). La
 
 ## What the app does today
 
-Sign in · **Log tab with MediaFlow Recommends** (start / something else / skip / end, exact-title rerolls, System Respect XP) and the website's full logging form — Quick (progress reached or amount, multi-title, seasons, new titles) and **Per unit** (episode by episode with runtimes, times, rewatches; Reached / Amount per title) — with the draft shared live with the website · Batch Log · Library (search, status and category filters, covers, progress) · History · offline use with safe sync. Dashboard stats, Collections, Personal Order editing, Statistics and Settings are next.
+Sign in · **Log tab with MediaFlow Recommends** (start / something else / skip / end, exact-title rerolls, System Respect XP) and the website's full logging form — Quick (progress reached or amount, multi-title, seasons, new titles) and **Advanced** (per unit: episode by episode with runtimes, times, rewatches; Reached / Amount per title) — with the draft shared live with the website · Batch Log · Library (search, status and category filters, covers, progress) · History · offline use with safe sync. Dashboard stats, Collections, Personal Order editing, Statistics and Settings are next.
 
 ## How logging stays compatible with the website
 
