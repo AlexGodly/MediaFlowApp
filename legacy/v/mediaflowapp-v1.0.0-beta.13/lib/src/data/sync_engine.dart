@@ -31,12 +31,15 @@ class CloudBusy implements Exception {
 }
 
 class SyncResult {
-  SyncResult(this.state, this.updatedAt, this.uploaded);
+  SyncResult(this.state, this.updatedAt, this.uploaded, [this.rejected = const []]);
   final Map<String, dynamic> state;
   final String updatedAt;
 
   /// Changes that were written by this sync (already-present ones excluded).
   final int uploaded;
+
+  /// Changes the newer cloud copy could not take (e.g. the title was deleted).
+  final List<String> rejected;
 }
 
 /// Pulls the latest cloud copy and, if there are pending changes, replays them
@@ -48,12 +51,18 @@ Future<SyncResult> syncOnce(CloudBackend cloud, String userId, List<AccountOp> p
     if (remote == null) throw MissingCloudRow();
     if (pending.isEmpty) return SyncResult(remote.state, remote.updatedAt, 0);
     var applied = 0;
+    final rejected = <String>[];
     for (final op in pending) {
-      if (op.apply(remote.state)) applied++;
+      op.rejection = null;
+      if (op.apply(remote.state)) {
+        applied++;
+      } else if (op.rejection != null) {
+        rejected.add(op.rejection!);
+      }
     }
-    if (applied == 0) return SyncResult(remote.state, remote.updatedAt, 0);
+    if (applied == 0) return SyncResult(remote.state, remote.updatedAt, 0, rejected);
     final updatedAt = await cloud.compareAndSwap(userId, remote.updatedAt, remote.state);
-    if (updatedAt != null) return SyncResult(remote.state, updatedAt, applied);
+    if (updatedAt != null) return SyncResult(remote.state, updatedAt, applied, rejected);
     await Future<void>.delayed(Duration(milliseconds: 120 * (attempt + 1)));
   }
   throw CloudBusy();

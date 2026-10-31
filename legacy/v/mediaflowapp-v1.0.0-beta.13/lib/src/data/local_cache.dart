@@ -23,13 +23,16 @@ abstract class AccountCache {
   Future<void> delete(String userId);
 }
 
-/// One JSON file per account in the app's private support folder, written
-/// atomically (temp file + rename) so a crash can't leave half a file.
+/// Per account, in the app's private support folder: the last cloud copy (large,
+/// rewritten only when it changes) and the pending changes (small, rewritten on
+/// every change). Both are written atomically (temp file + rename).
 class FileAccountCache implements AccountCache {
-  Future<File> _file(String userId) async {
+  String? _lastBase;
+
+  Future<File> _file(String userId, [String suffix = '']) async {
     final dir = await getApplicationSupportDirectory();
     final safe = userId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-    return File('${dir.path}${Platform.pathSeparator}mediaflow-account-$safe.json');
+    return File('${dir.path}${Platform.pathSeparator}mediaflow-account-$safe$suffix.json');
   }
 
   @override
@@ -37,14 +40,21 @@ class FileAccountCache implements AccountCache {
     try {
       final file = await _file(userId);
       if (!await file.exists()) return CachedAccount();
-      final text = await file.readAsString();
-      final json = await jsonDecodeInBackground(text);
-      final m = asMap(json);
+      final m = asMap(await jsonDecodeInBackground(await file.readAsString()));
       if (m == null || m['userId'] != userId) return CachedAccount();
+      var pending = asList(m['pending']);
+      final pendingFile = await _file(userId, '-pending');
+      if (await pendingFile.exists()) {
+        final p = asMap(await jsonDecodeInBackground(await pendingFile.readAsString()));
+        if (p != null && p['userId'] == userId) pending = asList(p['pending']);
+      }
+      final base = asMap(m['base']);
+      final updatedAt = m['baseUpdatedAt'] is String ? m['baseUpdatedAt'] as String : null;
+      _lastBase = '${identityHashCode(base)}|$updatedAt';
       return CachedAccount(
-        base: asMap(m['base']),
-        baseUpdatedAt: m['baseUpdatedAt'] is String ? m['baseUpdatedAt'] as String : null,
-        pending: asList(m['pending']).map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
+        base: base,
+        baseUpdatedAt: updatedAt,
+        pending: pending.map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
         savedAt: jsNum(m['savedAt']).toInt(),
       );
     } catch (_) {
@@ -52,17 +62,7 @@ class FileAccountCache implements AccountCache {
     }
   }
 
-  @override
-  Future<void> save(String userId, CachedAccount account) async {
-    final file = await _file(userId);
-    final data = {
-      'version': 2,
-      'userId': userId,
-      'savedAt': DateTime.now().millisecondsSinceEpoch,
-      'baseUpdatedAt': account.baseUpdatedAt,
-      'base': account.base,
-      'pending': account.pending.map((p) => p.toJson()).toList(),
-    };
+  Future<void> _write(File file, Object data) async {
     final text = await jsonEncodeInBackground(data);
     final tmp = File('${file.path}.tmp');
     await tmp.parent.create(recursive: true);
@@ -71,8 +71,34 @@ class FileAccountCache implements AccountCache {
   }
 
   @override
+  Future<void> save(String userId, CachedAccount account) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final key = '${identityHashCode(account.base)}|${account.baseUpdatedAt}';
+    if (key != _lastBase) {
+      await _write(await _file(userId), {
+        'version': 3,
+        'userId': userId,
+        'savedAt': now,
+        'baseUpdatedAt': account.baseUpdatedAt,
+        'base': account.base,
+        'pending': const [],
+      });
+      _lastBase = key;
+    }
+    await _write(await _file(userId, '-pending'), {
+      'version': 3,
+      'userId': userId,
+      'savedAt': now,
+      'pending': account.pending.map((p) => p.toJson()).toList(),
+    });
+  }
+
+  @override
   Future<void> delete(String userId) async {
-    final file = await _file(userId);
-    if (await file.exists()) await file.delete();
+    _lastBase = null;
+    for (final suffix in ['', '-pending']) {
+      final file = await _file(userId, suffix);
+      if (await file.exists()) await file.delete();
+    }
   }
 }

@@ -43,6 +43,9 @@ class AccountController extends ChangeNotifier {
 
   SyncState status = SyncState.loading;
   String? message;
+
+  /// A change made on this device that your account could no longer accept.
+  String? lastRejection;
   DateTime? lastSynced;
   bool _syncing = false;
   bool _syncAgain = false;
@@ -101,6 +104,9 @@ class AccountController extends ChangeNotifier {
       final result = await syncOnce(cloud, userId, batch);
       _base = result.state;
       _baseUpdatedAt = result.updatedAt;
+      if (result.rejected.isNotEmpty) {
+        lastRejection = 'A log made on this device could not be added to your account: ${result.rejected.first}';
+      }
       _pending.removeWhere((op) => batch.any((b) => identical(b, op)));
       await _save();
       await _rebuild();
@@ -188,6 +194,11 @@ class AccountController extends ChangeNotifier {
     applyLoggingSection(display, logging);
     _pending.removeWhere((p) => p is DraftOp);
     await _queue(DraftOp(mediaFlowUid(), normalizeLogging(logging)), display, delay: draftSyncDelay);
+  }
+
+  void dismissRejection() {
+    lastRejection = null;
+    _notify();
   }
 
   /// Uploads a pending draft now (e.g. when the app goes to the background).
