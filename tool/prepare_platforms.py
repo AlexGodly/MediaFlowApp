@@ -39,10 +39,10 @@ def android_manifest(text):
 
 
 SIGNING_PROPS = """
-val mediaflowKeystoreProperties = java.util.Properties()
+val mediaflowKeystoreProperties = Properties()
 val mediaflowKeystoreFile = rootProject.file("key.properties")
 if (mediaflowKeystoreFile.exists()) {
-    java.io.FileInputStream(mediaflowKeystoreFile).use { mediaflowKeystoreProperties.load(it) }
+    FileInputStream(mediaflowKeystoreFile).use { mediaflowKeystoreProperties.load(it) }
 }
 """
 
@@ -70,6 +70,8 @@ def android_gradle(text):
     if not m:
         sys.exit("android/app/build.gradle.kts has no plugins block")
     text = text[:m.end()] + "\n" + SIGNING_PROPS + text[m.end():]
+    # In the Kotlin DSL `java.` means the java extension, so import the classes.
+    text = "import java.io.FileInputStream\nimport java.util.Properties\n\n" + text
     text, n = re.subn(r"^android\s*\{\s*$", "android {" + SIGNING_CONFIG.rstrip("\n"), text, count=1, flags=re.M)
     if n != 1:
         sys.exit("android/app/build.gradle.kts has no android block")

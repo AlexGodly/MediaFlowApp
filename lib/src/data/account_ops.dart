@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 
+import '../logic/extras.dart';
 import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
 import '../logic/rec_submit.dart';
@@ -35,6 +36,8 @@ abstract class AccountOp {
         return BatchLogOp(LogRequest.fromJson(asMap(j['request']) ?? const {}));
       case 'setting':
         return SettingOp.fromJson(j);
+      case 'tool':
+        return ToolOp(jsStr(j['id']), jsStr(j['tool']), asMap(j['value']) ?? const {});
       default:
         // Beta 12 stored bare Batch Log requests.
         return BatchLogOp(LogRequest.fromJson(j));
@@ -292,4 +295,24 @@ class SettingOp extends AccountOp {
         previous: j['previous'],
         createdAt: jsNum(j['createdAt']).toInt(),
       );
+}
+
+/// Stopwatch / Runtime Calculator state (`dashboardToolsV257`); the newest
+/// `modifiedAt` wins, as in the website's own merge.
+class ToolOp extends AccountOp {
+  ToolOp(this.id, this.tool, this.value);
+
+  @override
+  final String id;
+  final String tool; // 'stopwatch' | 'runtimeCalculator'
+  final Map<String, dynamic> value;
+
+  @override
+  String get kind => 'tool';
+
+  @override
+  bool apply(Map<String, dynamic> state) => writeTool(state, tool, value);
+
+  @override
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'tool': tool, 'value': value};
 }

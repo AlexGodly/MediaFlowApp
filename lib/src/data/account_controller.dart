@@ -217,6 +217,16 @@ class AccountController extends ChangeNotifier {
     await _queue(op, display, delay: const Duration(seconds: 2));
   }
 
+  /// Saves a change made on this device (applied now, uploaded shortly after).
+  /// [supersedes] removes older pending changes the new one fully replaces.
+  Future<bool> perform(AccountOp op, {Duration? delay, bool Function(AccountOp pending)? supersedes}) async {
+    final display = await _working();
+    if (!op.apply(display)) return false;
+    if (supersedes != null) _pending.removeWhere(supersedes);
+    await _queue(op, display, delay: delay);
+    return true;
+  }
+
   /// Uploads a pending draft now (e.g. when the app goes to the background).
   Future<void> flushDraft() async {
     if (_pending.any((p) => p is DraftOp)) await sync();

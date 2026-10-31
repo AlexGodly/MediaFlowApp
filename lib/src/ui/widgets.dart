@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
+import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
+import '../logic/resume.dart';
 import '../state/models.dart';
+import '../util/js.dart';
 import 'theme.dart';
 
 String fmtNumber(num v) {
@@ -296,4 +299,100 @@ class CompactDropdown<T> extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A titled card that can be collapsed; its open/closed state is remembered on
+/// this device under [prefKey].
+class SectionCard extends StatefulWidget {
+  const SectionCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.icon,
+    this.prefKey,
+    this.initiallyOpen = true,
+    this.trailing,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Widget child;
+  final String? prefKey;
+  final bool initiallyOpen;
+  final Widget? trailing;
+
+  @override
+  State<SectionCard> createState() => _SectionCardState();
+}
+
+class _SectionCardState extends State<SectionCard> {
+  late bool _open = widget.prefKey == null
+      ? widget.initiallyOpen
+      : AppPrefs.instance.get<bool>('open.${widget.prefKey}', widget.initiallyOpen);
+
+  void _toggle() {
+    setState(() => _open = !_open);
+    if (widget.prefKey != null) AppPrefs.instance.set('open.${widget.prefKey}', _open);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: MF.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: MF.border)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          InkWell(
+            onTap: _toggle,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+              child: Row(children: [
+                if (widget.icon != null) ...[Icon(widget.icon, color: MF.accent), const SizedBox(width: 12)],
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    if (widget.subtitle != null)
+                      Text(widget.subtitle!, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                  ]),
+                ),
+                if (widget.trailing != null) widget.trailing!,
+                Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: MF.textDim),
+              ]),
+            ),
+          ),
+          if (_open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: widget.child,
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Opens the website's logging form minutes field with [minutes] (Stopwatch /
+/// Runtime Calculator "Use for minutes"). Returns false when no log is open.
+Future<bool> useMinutesForOpenLog(AccountController account, int minutes) async {
+  final view = account.view;
+  if (view == null) return false;
+  final logging = readLogging(view.state);
+  final task = asMap(logging?['currentTask']);
+  if (logging == null || logging['active'] != true || task == null) return false;
+  final draft = Map<String, dynamic>.from(asMap(logging['logDraft']) ?? const {});
+  draft['minutes'] = minutes;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final at = jsNum(logging['modifiedAt']).toInt();
+  await account.saveDraft(activeLogging(
+    task: task,
+    logDraft: draft,
+    entryDraft: asMap(logging['entryDraft']) ?? <String, dynamic>{},
+    modifiedAt: now > at ? now : at + 1,
+    ui: logging['ui'],
+  ));
+  return true;
 }
