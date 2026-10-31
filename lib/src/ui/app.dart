@@ -87,6 +87,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _account?.sync();
+    // Leaving the app: upload an unsaved logging draft so the website sees it.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _account?.flushDraft();
   }
 
   @override

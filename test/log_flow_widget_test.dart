@@ -46,6 +46,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(theme: MF.theme(), home: HomeShell(account: account)));
     await _settle(tester);
 
+    // The Log tab opens first; the Library is the next tab.
+    await tester.tap(find.text('Library'));
+    await _settle(tester);
     expect(find.text('Test Anime Alpha'), findsOneWidget);
     await tester.tap(find.text('Test Anime Alpha'));
     await _settle(tester);
@@ -84,5 +87,57 @@ void main() {
     await tester.tap(find.text('History'));
     await _settle(tester);
     expect(find.textContaining('3 episodes'), findsWidgets);
+  });
+
+  testWidgets('log a MediaFlow Recommends task per unit and sync it', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+
+    final fx = jsonDecode(File('test/fixtures/rec-quick-progress.json').readAsStringSync()) as Map;
+    final start = deepCopyState((fx['before'] as Map).cast<String, dynamic>());
+    final cloud = FakeCloud(start);
+    final account = AccountController(
+      userId: 'u',
+      email: 'tester@example.com',
+      cloud: cloud,
+      cache: MemoryCache(),
+      copyState: (s) async => deepCopyState(s),
+      draftSyncDelay: Duration.zero,
+    );
+    await tester.runAsync(account.start);
+    await tester.pumpWidget(MaterialApp(theme: MF.theme(), home: HomeShell(account: account)));
+    await _settle(tester);
+
+    // The recommended task is on the Log tab.
+    expect(find.text('Log & Complete'), findsOneWidget);
+    await tester.tap(find.text('Log & Complete'));
+    await _settle(tester);
+
+    // Per unit is this account's default; the recommended title is already added.
+    expect(find.text('Add Episode 4'), findsOneWidget);
+    await tester.tap(find.text('Add Episode 4'));
+    await _settle(tester);
+    expect(find.text('Add Episode 5'), findsOneWidget);
+
+    final save = find.text('Save & get next task');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await _settle(tester);
+
+    for (var i = 0; i < 40 && (account.pendingCount > 0 || account.status == SyncState.syncing); i++) {
+      await _settle(tester);
+    }
+    expect(account.pendingCount, 0);
+
+    final sessions = (cloud.state['sessions'] as List).cast<Map>();
+    final rec = sessions.where((s) => s['source'] == 'recommendation').toList();
+    expect(rec.length, 1);
+    expect(rec.single['v369Itemized'], isTrue);
+    expect(rec.single['actualAmount'], 1);
+    final item = (cloud.state['library'] as List).cast<Map>().firstWhere((i) => i['id'] == 'lib_alpha');
+    expect(item['progress'], 4);
+    expect(cloud.state['resumeStateV285']['logging']['active'], isFalse);
+    expect(cloud.state['currentTask']['id'], isNot('task_fixed'));
   });
 }

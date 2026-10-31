@@ -61,6 +61,8 @@ Object? normalize(Object? value, int now, Set<String> oldSessionIds) {
   return walk(state);
 }
 
+Object? _normX(Object? v, int now) => (normalize({'sessions': [], 'settings': {}, 'x': v}, now, const {}) as Map)['x'];
+
 void _diff(Object? want, Object? got, String path, List<String> out) {
   if (out.length > 60) return;
   if (want is Map && got is Map) {
@@ -181,13 +183,13 @@ void main() {
           m.remove('id');
           m.remove('createdAt');
         }
-        return normalize({'sessions': [], 'settings': {}, 'x': m}, now, const {})['x'];
+        return _normX(m, now);
       }
 
       final diffs = <String>[];
       _diff(norm(live['task']), norm(state['currentTask']), 'task', diffs);
-      _diff(normalize({'sessions': [], 'settings': {}, 'x': live['respectState']}, now, const {})['x'],
-          normalize({'sessions': [], 'settings': {}, 'x': state['respectState']}, now, const {})['x'], 'respectState', diffs);
+      _diff(_normX(live['respectState'], now),
+          _normX(state['respectState'], now), 'respectState', diffs);
       expect(state['sessionActive'], live['sessionActive']);
       if (name == 'engine-skip') {
         final added = (state['sessions'] as List).sublist(before).cast<Map>();
@@ -196,8 +198,8 @@ void main() {
         for (var i = 0; i < added.length; i++) {
           final a = _copy(added[i])..remove('id');
           final w = _copy(want[i])..remove('id');
-          _diff(normalize({'sessions': [], 'settings': {}, 'x': w}, now, const {})['x'],
-              normalize({'sessions': [], 'settings': {}, 'x': a}, now, const {})['x'], 'skipped', diffs);
+          _diff(_normX(w, now),
+              _normX(a, now), 'skipped', diffs);
         }
       }
       expect(diffs, isEmpty, reason: 'Task engine differs from the website ($name):\n${diffs.join('\n')}');

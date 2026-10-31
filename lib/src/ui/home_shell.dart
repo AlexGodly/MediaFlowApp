@@ -4,6 +4,7 @@ import '../data/account_controller.dart';
 import 'account_screen.dart';
 import 'history_screen.dart';
 import 'library_screen.dart';
+import 'log_screen.dart';
 import 'log_sheet.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -20,6 +21,7 @@ class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
 
   static const _destinations = [
+    (Icons.edit_note_outlined, Icons.edit_note_rounded, 'Log'),
     (Icons.video_library_outlined, Icons.video_library, 'Library'),
     (Icons.history_rounded, Icons.history_rounded, 'History'),
     (Icons.person_outline_rounded, Icons.person_rounded, 'Account'),
@@ -33,6 +35,7 @@ class _HomeShellState extends State<HomeShell> {
         final account = widget.account;
         final wide = MediaQuery.sizeOf(context).width >= 900;
         final pages = [
+          LogScreen(account: account),
           LibraryScreen(account: account),
           HistoryScreen(account: account),
           AccountScreen(account: account),
@@ -40,7 +43,8 @@ class _HomeShellState extends State<HomeShell> {
         final body = !account.hasData
             ? _Loading(account: account)
             : IndexedStack(index: _tab, children: pages);
-        final fab = account.hasData && _tab < 2
+        // Library and History keep the quick Batch Log button; the Log tab has its own form.
+        final fab = account.hasData && (_tab == 1 || _tab == 2)
             ? FloatingActionButton.extended(
                 onPressed: () => showLogSheet(context, account),
                 icon: const Icon(Icons.add_rounded),
