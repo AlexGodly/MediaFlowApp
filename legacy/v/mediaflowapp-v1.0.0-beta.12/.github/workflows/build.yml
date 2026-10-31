@@ -1,0 +1,153 @@
+name: Build MediaFlow (Flutter)
+
+# Reusable: tests, then Android, Windows and iOS builds in parallel.
+# Called by ci.yml (branches / pull requests) and release.yml (main).
+on:
+  workflow_call:
+    inputs:
+      app_version:
+        description: Version label used in file names, e.g. 1.0.0-beta.12
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Static analysis
+        run: flutter analyze --no-fatal-infos
+      - name: Unit, golden (website parity) and widget tests
+        env:
+          TZ: UTC
+        run: flutter test --reporter expanded
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Release contract
+        run: python tool/release_guard.py
+
+  android:
+    name: Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate and brand the Android project
+        run: |
+          flutter create --platforms=android --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python -m pip install pillow
+          python tool/prepare_platforms.py android
+      - name: Build release APK
+        run: flutter build apk --release
+      - name: Stage APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/MediaFlow-${{ inputs.app_version }}-Android.apk"
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows app
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate and brand the Windows project
+        shell: bash
+        run: |
+          flutter create --platforms=windows --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python -m pip install pillow
+          python tool/prepare_platforms.py windows
+      - name: Build Windows release
+        run: flutter build windows --release
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $release = "build\windows\x64\runner\Release"
+          if (-not (Test-Path "$release\MediaFlow.exe")) { Get-ChildItem $release; throw "MediaFlow.exe not built" }
+          Compress-Archive -Path "$release\*" -DestinationPath "dist\MediaFlow-${{ inputs.app_version }}-Windows-x64-portable.zip"
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
+          & $iscc /Qp "/DAppVersion=${{ inputs.app_version }}" "/DSourceDir=$PWD\build\windows\x64\runner\Release" "/DOutputDir=$PWD\dist" "/DIconFile=$PWD\windows\runner\resources\app_icon.ico" tool\windows_installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  ios:
+    name: iOS app (unsigned)
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate and brand the iOS project
+        run: |
+          flutter create --platforms=ios --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
+          python3 tool/prepare_platforms.py ios
+      - name: Build (no code signing)
+        run: flutter build ios --release --no-codesign
+      - name: Package IPA
+        run: |
+          APP=build/ios/iphoneos/Runner.app
+          test -d "$APP"
+          mkdir -p dist ipa/Payload
+          cp -R "$APP" ipa/Payload/
+          (cd ipa && zip -qry "../dist/MediaFlow-${{ inputs.app_version }}-iOS-unsigned.ipa" Payload)
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/*
+          if-no-files-found: error

@@ -13,216 +13,30 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP_VERSION: 1.0.0-beta.11
-  TAG: mediaflowapp-v1.0.0-beta.11
-  MEDIAFLOW_VERSION: '554'
+  APP_VERSION: 1.0.0-beta.12
+  TAG: mediaflowapp-v1.0.0-beta.12
 
 jobs:
-  web:
-    name: Test and package MediaFlow website
+  archive-check:
+    name: Source archive matches this release
     runs-on: ubuntu-latest
-    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Packaging unit tests
-        run: python -m unittest discover -s tests -v
-      - name: Verify version and release contract
-        run: python tests/release_guard.py
-      - name: Require complete and byte-identical source archive
-        run: python tool/verify_release_archive.py --tag "$TAG"
-      - name: JavaScript syntax and cloud compare-and-swap tests
-        run: |
-          node --check tool/android_assets/backup-bridge.js
-          node --check tool/android_assets/performance-boot.js
-          node --check tool/android_assets/performance-settings.js
-          node --check tool/android_assets/cloud-state-cas.js
-          node --check tool/android_assets/companion-mode.js
-          node --check desktop/main.js
-          node --check desktop/preload.js
-          node tests/cloud-state-cas.test.cjs
-      - name: Download pinned MediaFlow website release
-        run: |
-          mkdir -p .downloads
-          curl -fL --retry 4 --retry-delay 3 \
-            "https://github.com/AlexGodly/MediaFlow/releases/download/${MEDIAFLOW_VERSION}/MediaFlow_v${MEDIAFLOW_VERSION}_Stable.zip" \
-            -o ".downloads/MediaFlow_v${MEDIAFLOW_VERSION}_Stable.zip"
-      - name: Verify archive and package the full website
-        run: |
-          python tool/package_mediaflow.py --output www
-          node --check "www/assets/js/mediaflow-v${MEDIAFLOW_VERSION}.bundle.js"
-          test -s www/assets/vendor/supabase-js-v2.js
-          test -s www/assets/android/cloud-state-cas.js
-          grep -q "MediaFlowApp companion layer" "www/assets/js/mediaflow-v${MEDIAFLOW_VERSION}.bundle.js"
-          du -sh www
-      - name: End-to-end logging test (phone-sized Chrome, fake Supabase)
-        run: |
-          python -m pip install playwright
-          python -m playwright install --with-deps chromium
-          python tests/e2e/smoke.py www --shots e2e-shots
-      - name: End-to-end logging test inside the desktop app shell
-        run: |
-          rm -rf .e2e-desktop && mkdir .e2e-desktop
-          cp desktop/main.js desktop/preload.js desktop/package.json .e2e-desktop/
-          cp -r www .e2e-desktop/www
-          cp tests/e2e/fake-supabase.js .e2e-desktop/www/assets/vendor/supabase-js-v2.js
-          (cd .e2e-desktop && npm install --no-save --no-audit --no-fund electron@33.2.1)
-          (cd .e2e-desktop && xvfb-run -a -s "-screen 0 1400x950x24" npx electron --no-sandbox --remote-debugging-port=9222 . > electron.log 2>&1 &)
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:9222/json/version >/dev/null && break; sleep 1; done
-          python tests/e2e/smoke.py --cdp http://127.0.0.1:9222 --shots e2e-shots/desktop
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-screenshots
-          path: e2e-shots
-          if-no-files-found: ignore
-      - uses: actions/upload-artifact@v4
-        with:
-          name: packaged-www
-          path: www
-          if-no-files-found: error
+      - run: python tool/release_guard.py
+      - run: python tool/verify_release_archive.py --tag "$TAG"
 
-  android:
-    name: Android APK
-    needs: web
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: packaged-www
-          path: app/src/main/assets/www
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Generate launcher icons
-        run: |
-          python -m pip install pillow
-          python tool/build_icons.py
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Use preinstalled Android SDK and install API 35
-        run: |
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.10.2'
-      - name: Build installable APK
-        run: gradle --no-daemon :app:assembleDebug
-      - name: Verify APK
-        run: |
-          APK=app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" | head -n 3
-          ls -la "$APK"
-          mkdir -p dist
-          cp "$APK" "dist/MediaFlow-${APP_VERSION}-Android.apk"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android
-          path: dist/*
-          if-no-files-found: error
-
-  windows:
-    name: Windows installer and portable app
-    needs: web
-    runs-on: windows-latest
-    timeout-minutes: 40
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: packaged-www
-          path: desktop/www
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Generate icons
-        shell: bash
-        run: |
-          python -m pip install pillow
-          python tool/build_icons.py
-      - name: Build Windows app (unsigned)
-        shell: bash
-        working-directory: desktop
-        run: |
-          npm install --no-audit --no-fund
-          npm run check
-          npx electron-builder --win nsis portable --x64 --publish never
-          ls -la dist
-      - name: Stage Windows files
-        shell: bash
-        run: |
-          mkdir -p dist
-          cp "desktop/dist/MediaFlow-${APP_VERSION}-Windows-x64-Setup.exe" dist/
-          cp "desktop/dist/MediaFlow-${APP_VERSION}-Windows-x64-portable.exe" dist/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: dist/*
-          if-no-files-found: error
-
-  ios:
-    name: iOS app (unsigned IPA)
-    needs: web
-    runs-on: macos-15
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: packaged-www
-          path: ios/www
-      - name: Generate icons
-        run: |
-          python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
-          python3 tool/build_icons.py
-      - name: Generate Xcode project
-        run: |
-          brew install xcodegen
-          cd ios && xcodegen generate
-      - name: Build for iPhone and iPad (unsigned)
-        run: |
-          xcodebuild -version
-          xcodebuild -project ios/MediaFlow.xcodeproj -scheme MediaFlow -configuration Release \
-            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath ios/build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
-      - name: Package IPA
-        run: |
-          APP=ios/build/Build/Products/Release-iphoneos/MediaFlow.app
-          test -d "$APP"
-          test -f "$APP/www/index.html"
-          mkdir -p dist ipa/Payload
-          cp -R "$APP" ipa/Payload/
-          (cd ipa && zip -qry "../dist/MediaFlow-${APP_VERSION}-iOS-unsigned.ipa" Payload)
-          ls -la dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ios
-          path: dist/*
-          if-no-files-found: error
+  build:
+    needs: archive-check
+    uses: ./.github/workflows/build.yml
+    with:
+      app_version: 1.0.0-beta.12
 
   release:
     name: Publish GitHub release
-    needs: [web, android, windows, ios]
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -234,12 +48,11 @@ jobs:
         run: |
           mkdir -p dist
           cp artifacts/android/* artifacts/windows/* artifacts/ios/* dist/
-          cp artifacts/packaged-www/mediaflow-android-build.json dist/source-manifest.json
           zip -qr "dist/MediaFlowApp-${APP_VERSION}-source.zip" "legacy/v/${TAG}"
           (cd dist && sha256sum * > SHA256SUMS.txt)
           ls -la dist
           for f in "MediaFlow-${APP_VERSION}-Android.apk" "MediaFlow-${APP_VERSION}-Windows-x64-Setup.exe" \
-                   "MediaFlow-${APP_VERSION}-Windows-x64-portable.exe" "MediaFlow-${APP_VERSION}-iOS-unsigned.ipa"; do
+                   "MediaFlow-${APP_VERSION}-Windows-x64-portable.zip" "MediaFlow-${APP_VERSION}-iOS-unsigned.ipa"; do
             test -s "dist/$f"
           done
       - name: Publish prerelease
@@ -252,6 +65,6 @@ jobs:
           fi
           gh release create "$TAG" dist/* \
             --target "$GITHUB_SHA" \
-            --title "MediaFlowApp ${APP_VERSION} — full MediaFlow v${MEDIAFLOW_VERSION} with working logging (Android, Windows, iOS)" \
+            --title "MediaFlow ${APP_VERSION} — native Flutter app with real logging (Android, Windows, iOS)" \
             --notes-file "docs/releases/${TAG}.md" \
             --prerelease

@@ -1,0 +1,22 @@
+name: MediaFlowApp CI
+
+# Every branch push and pull request runs the full test + three-platform build,
+# so problems show up before anything reaches main and gets released.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mediaflowapp-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      app_version: ci-${{ github.run_number }}
