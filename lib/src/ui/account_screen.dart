@@ -17,7 +17,7 @@ class AccountScreen extends StatelessWidget {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Logs not synced yet'),
-          content: Text('${account.pendingCount} log${account.pendingCount == 1 ? ' has' : 's have'} not reached your '
+          content: Text('${account.pendingCount} change${account.pendingCount == 1 ? ' has' : 's have'} not reached your '
               'account yet. Signing out removes ${account.pendingCount == 1 ? 'it' : 'them'} from this device.'),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep me signed in')),
@@ -93,7 +93,7 @@ class AccountScreen extends StatelessWidget {
               if (account.pendingCount > 0)
                 ListTile(
                   leading: const Icon(Icons.cloud_upload_outlined, color: MF.warn),
-                  title: Text('${account.pendingCount} log${account.pendingCount == 1 ? '' : 's'} waiting to upload'),
+                  title: Text('${account.pendingCount} change${account.pendingCount == 1 ? '' : 's'} waiting to upload'),
                   subtitle: const Text('Saved on this device. They upload automatically when online.'),
                 ),
               const Divider(),

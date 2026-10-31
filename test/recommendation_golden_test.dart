@@ -280,6 +280,28 @@ void main() {
     });
   });
 
+  test('a per-unit log made with the form saves on the device and on a fresh cloud copy', () {
+    final fx = _load('rec-quick-progress');
+    final device = deepCopyState((fx['before'] as Map).cast<String, dynamic>());
+    final cloud = _copy(fx['before']);
+    final task = _copy(device['currentTask']);
+    var clock = DateTime.now().millisecondsSinceEpoch - 60000;
+    final ed = LogDraftEditor.open(device, task, clock: () => clock += 1000);
+    ed.entryDraft = {'title': 'Test Anime Alpha', 'qty': 1, 'libraryId': 'lib_alpha'};
+    expect(ed.addQuickEntry(), isNull);
+    expect(ed.addUnit(0), isNull);
+    expect(ed.validate(), isNull);
+    final req = RecLogRequest.create(task, ed.logDraft);
+    final local = applyRecLog(device, req);
+    expect(local.error, isNull);
+    expect(local.applied, isTrue);
+    final restored = AccountOp.fromJson(_copy(RecLogOp(req).toJson()));
+    expect(restored.apply(cloud), isTrue);
+    final added = (cloud['sessions'] as List).cast<Map>().where((s) => s['v369Itemized'] == true).toList();
+    expect(added.length, 1);
+    expect(cloud['currentTask']['id'], device['currentTask']['id']);
+  });
+
   group('shared draft and synced recommendation state', () {
     test('the newer draft wins and per-unit drafts of one session merge', () {
       final state = <String, dynamic>{};

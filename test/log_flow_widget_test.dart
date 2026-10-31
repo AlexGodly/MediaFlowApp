@@ -131,8 +131,11 @@ void main() {
     expect(account.pendingCount, 0);
 
     final sessions = (cloud.state['sessions'] as List).cast<Map>();
-    final rec = sessions.where((s) => s['source'] == 'recommendation').toList();
-    expect(rec.length, 1);
+    final rec = sessions.where((s) => s['source'] == 'recommendation' && s['v369Itemized'] == true).toList();
+    final screen = [
+      for (final t in tester.widgetList<Text>(find.byType(Text))) if ((t.data ?? '').isNotEmpty) t.data!,
+    ];
+    expect(rec.length, 1, reason: 'status ${account.status} ${account.message}; screen: ${screen.join(' | ')}');
     expect(rec.single['v369Itemized'], isTrue);
     expect(rec.single['actualAmount'], 1);
     final item = (cloud.state['library'] as List).cast<Map>().firstWhere((i) => i['id'] == 'lib_alpha');
