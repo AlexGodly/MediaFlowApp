@@ -339,7 +339,7 @@ class _LogScreenState extends State<LogScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 104), // room for the + button
               children: [
                 if (account.lastRejection != null)
                   Padding(
@@ -863,24 +863,14 @@ class _LogScreenState extends State<LogScreen> {
         const SizedBox(height: 6),
         // "Arrange your session" (v373).
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          DropdownButtonHideUnderline(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
-              child: DropdownButton<String>(
-                value: sort,
-                isDense: true,
-                items: [
-                  for (final s in kArrangeSorts) DropdownMenuItem(value: s.$1, child: Text(s.$2, style: const TextStyle(fontSize: 13))),
-                ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  setArrangeSort(draft, view.state, v);
-                  setState(() {});
-                  _saveDraft(xp: false);
-                },
-              ),
-            ),
+          CompactDropdown<String>(
+            value: sort,
+            items: kArrangeSorts,
+            onChanged: (v) {
+              setArrangeSort(draft, view.state, v);
+              setState(() {});
+              _saveDraft(xp: false);
+            },
           ),
           if (sort != 'custom' && sort != 'random')
             ActionChip(

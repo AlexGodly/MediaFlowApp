@@ -122,7 +122,8 @@ void main() {
     await _settle(tester);
     expect(find.text('Added · show it'), findsOneWidget);
     expect(find.text('Add Episode 4'), findsOneWidget);
-    await tester.tap(find.text('Add Episode 4'));
+    // Press it directly: depending on layout the "+" button can sit on top of it.
+    tester.widget<ButtonStyleButton>(find.ancestor(of: find.text('Add Episode 4'), matching: find.byWidgetPredicate((w) => w is ButtonStyleButton))).onPressed!();
     await _settle(tester);
     expect(find.text('Add Episode 5'), findsOneWidget);
 

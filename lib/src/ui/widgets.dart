@@ -255,3 +255,45 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+
+/// A small boxed dropdown that is as wide as its longest choice but never wider
+/// than the space it has (long labels end in "…" instead of overflowing).
+class CompactDropdown<T> extends StatelessWidget {
+  const CompactDropdown({super.key, required this.value, required this.items, required this.onChanged, this.maxWidth = 280});
+
+  final T value;
+  final List<(T, String)> items;
+  final ValueChanged<T> onChanged;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = items.any((i) => i.$1 == value) ? value : items.first.$1;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: IntrinsicWidth(
+        child: DropdownButtonHideUnderline(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
+            child: DropdownButton<T>(
+              value: selected,
+              isDense: true,
+              isExpanded: true,
+              items: [
+                for (final i in items)
+                  DropdownMenuItem(
+                    value: i.$1,
+                    child: Text(i.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

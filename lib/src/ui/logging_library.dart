@@ -154,21 +154,8 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
     }
   }
 
-  Widget _dropdown<T>(String label, T value, List<(T, String)> items, ValueChanged<T> on) => DropdownButtonHideUnderline(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
-          child: DropdownButton<T>(
-            value: items.any((i) => i.$1 == value) ? value : items.first.$1,
-            isDense: true,
-            hint: Text(label),
-            items: [for (final i in items) DropdownMenuItem(value: i.$1, child: Text(i.$2, style: const TextStyle(fontSize: 13)))],
-            onChanged: (v) {
-              if (v != null) on(v);
-            },
-          ),
-        ),
-      );
+  Widget _dropdown<T>(String label, T value, List<(T, String)> items, ValueChanged<T> on) =>
+      CompactDropdown<T>(value: value, items: items, onChanged: on, maxWidth: 220);
 
   @override
   Widget build(BuildContext context) {
