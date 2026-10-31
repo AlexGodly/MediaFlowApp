@@ -56,7 +56,7 @@ String _statusName(String s) => switch (s) {
       _ => s,
     };
 
-Color statusColor(String s) => switch (s) {
+Color _healthColor(String s) => switch (s) {
       'healthy' => MF.good,
       'overused' => MF.bad,
       'neglected' => const Color(0xFFE8A94A),
@@ -106,7 +106,7 @@ class _BalanceCard extends StatelessWidget {
         child: Wrap(spacing: 10, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
           for (final k in const ['healthy', 'due', 'neglected', 'overused'])
-            Text('${c[k]} $k', style: TextStyle(color: statusColor(k), fontSize: 12, fontWeight: FontWeight.w700)),
+            Text('${c[k]} $k', style: TextStyle(color: _healthColor(k), fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
       );
 
@@ -143,8 +143,8 @@ class _BalanceCard extends StatelessWidget {
           LinearProgressIndicator(value: r.pct / 100, minHeight: 5, borderRadius: BorderRadius.circular(4)),
           const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 4, children: [
-            _chip('Today · ${_statusName(r.today)}', statusColor(r.today)),
-            _chip('Overall · ${_statusName(r.overall)}', statusColor(r.overall)),
+            _chip('Today · ${_statusName(r.today)}', _healthColor(r.today)),
+            _chip('Overall · ${_statusName(r.overall)}', _healthColor(r.overall)),
           ]),
           const SizedBox(height: 6),
           Text(r.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),

@@ -263,7 +263,7 @@ List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
             }
           }
           final before = [for (final e in x) if (yi.containsKey(jsStr((e as Map)['id']))) jsStr(e['id'])];
-          final after = [for (final e in y) if (xi.containsKey(jsStr((e as Map)['id']))) jsStr((e as Map)['id'])];
+          final after = [for (final e in y) if (xi.containsKey(jsStr((e as Map)['id']))) jsStr(e['id'])];
           if (_json(before) != _json(after)) out.add(Change('order', path, after, before));
           return;
         }

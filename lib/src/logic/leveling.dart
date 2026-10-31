@@ -26,6 +26,17 @@ const Map<String, num> _defaultScalars = {
   'batchLogXP': 15,
   // v334
   'firstTitleStartXP': 40,
+  // v44 / v123
+  'libraryEditXP': 5,
+  'manualCoverXP': 15,
+  'ratingXP': 10,
+  // v348 action rewards
+  'collectionAddTitleXP': 8,
+  'orderAddTitleXP': 6,
+  'orderAddCollectionXP': 12,
+  'orderReorderTitleXP': 4,
+  'orderReorderCollectionXP': 6,
+  'collectionReorderTitleXP': 4,
 };
 
 class Leveling {
