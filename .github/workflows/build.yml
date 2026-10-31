@@ -9,6 +9,13 @@ on:
         description: Version label used in file names, e.g. 1.0.0-beta.12
         required: true
         type: string
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        description: Permanent MediaFlow Android signing key (base64 .jks). Optional.
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        description: Password of that key store and key. Optional.
+        required: false
 
 permissions:
   contents: read
@@ -76,6 +83,18 @@ jobs:
           git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
           python -m pip install pillow
           python tool/prepare_platforms.py android
+      - name: Use the permanent signing key (when the repository has it)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/mediaflow-release.jks
+            printf 'storeFile=mediaflow-release.jks\nstorePassword=%s\nkeyAlias=mediaflow\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+            echo "Signing with the permanent MediaFlow key"
+          else
+            echo "::warning title=Android signing::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD are not set; this APK uses a temporary debug key and will not install over earlier builds."
+          fi
       - name: Build release APK
         run: |
           set +e

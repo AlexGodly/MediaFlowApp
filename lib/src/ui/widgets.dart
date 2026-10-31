@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
+import '../data/cover_cache.dart';
 import '../state/models.dart';
 import 'theme.dart';
 
@@ -128,15 +131,59 @@ class Cover extends StatelessWidget {
     if (url.isEmpty || !url.startsWith('http')) return fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        cacheWidth: (width * 3).round(),
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (context, child, progress) => progress == null ? child : fallback,
-      ),
+      child: CachedCoverImage(url: url, width: width, height: height, fallback: fallback),
+    );
+  }
+}
+
+/// A cover from the device cache (downloaded once, then shown offline too).
+class CachedCoverImage extends StatefulWidget {
+  const CachedCoverImage({super.key, required this.url, required this.width, required this.height, required this.fallback});
+  final String url;
+  final double width;
+  final double height;
+  final Widget fallback;
+
+  @override
+  State<CachedCoverImage> createState() => _CachedCoverImageState();
+}
+
+class _CachedCoverImageState extends State<CachedCoverImage> {
+  File? _file;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(CachedCoverImage old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) _resolve();
+  }
+
+  void _resolve() {
+    final url = widget.url;
+    _file = CoverCache.instance.ready[url];
+    if (_file != null) return;
+    CoverCache.instance.file(url).then((f) {
+      if (mounted && widget.url == url && f != null) setState(() => _file = f);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = _file;
+    if (f == null) return widget.fallback;
+    return Image.file(
+      f,
+      width: widget.width,
+      height: widget.height,
+      fit: BoxFit.cover,
+      cacheWidth: (widget.width * 3).round(),
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => widget.fallback,
     );
   }
 }

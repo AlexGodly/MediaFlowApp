@@ -23,6 +23,42 @@ abstract class AccountCache {
   Future<void> delete(String userId);
 }
 
+/// The account last used on this device, so the app opens offline even when
+/// the sign-in session is gone. Cleared only by an explicit sign-out.
+class LastAccount {
+  static Future<File> _file() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}${Platform.pathSeparator}mediaflow-last-account.json');
+  }
+
+  static Future<({String userId, String email})?> read() async {
+    try {
+      final f = await _file();
+      if (!await f.exists()) return null;
+      final m = asMap(await jsonDecodeInBackground(await f.readAsString()));
+      final id = jsStr(m?['userId']);
+      return id.isEmpty ? null : (userId: id, email: jsStr(m?['email']));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> write(String userId, String email) async {
+    try {
+      final f = await _file();
+      await f.parent.create(recursive: true);
+      await f.writeAsString(await jsonEncodeInBackground({'userId': userId, 'email': email}), flush: true);
+    } catch (_) {}
+  }
+
+  static Future<void> clear() async {
+    try {
+      final f = await _file();
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+  }
+}
+
 /// Per account, in the app's private support folder: the last cloud copy (large,
 /// rewritten only when it changes) and the pending changes (small, rewritten on
 /// every change). Both are written atomically (temp file + rename).

@@ -6,14 +6,20 @@ import '../config.dart';
 import 'theme.dart';
 
 class SignInScreen extends StatefulWidget {
-  const SignInScreen({super.key});
+  const SignInScreen({super.key, this.email, this.asRoute = false});
+
+  /// Pre-filled email (signing in again after the session expired).
+  final String? email;
+
+  /// Opened on top of the app: closes itself after a successful sign-in.
+  final bool asRoute;
 
   @override
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final _email = TextEditingController();
+  late final _email = TextEditingController(text: widget.email ?? '');
   final _password = TextEditingController();
   bool _busy = false;
   bool _hide = true;
@@ -39,6 +45,7 @@ class _SignInScreenState extends State<SignInScreen> {
     });
     try {
       await Supabase.instance.client.auth.signInWithPassword(email: email, password: password);
+      if (widget.asRoute && mounted) Navigator.of(context).pop(true);
     } on AuthException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

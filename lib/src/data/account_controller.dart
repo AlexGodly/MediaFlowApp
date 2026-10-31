@@ -46,6 +46,9 @@ class AccountController extends ChangeNotifier {
 
   /// A change made on this device that your account could no longer accept.
   String? lastRejection;
+
+  /// The sign-in expired or ended elsewhere; the device copy is still in use.
+  bool needsSignIn = false;
   DateTime? lastSynced;
   bool _syncing = false;
   bool _syncAgain = false;
@@ -111,9 +114,14 @@ class AccountController extends ChangeNotifier {
       await _save();
       await _rebuild();
       status = SyncState.synced;
+      needsSignIn = false;
       lastSynced = DateTime.now();
     } on MissingCloudRow catch (e) {
       status = SyncState.error;
+      message = e.toString();
+    } on NotSignedIn catch (e) {
+      status = SyncState.offline;
+      needsSignIn = true;
       message = e.toString();
     } catch (e) {
       if (_isNetworkError(e)) {
