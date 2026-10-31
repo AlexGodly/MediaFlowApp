@@ -1,0 +1,26 @@
+name: mediaflow
+description: MediaFlow by Alex Godly — native app for Android, Windows and iOS.
+publish_to: none
+
+# Build number = beta number. The user-visible label lives in lib/src/config.dart.
+version: 1.0.0+13
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.8.0
+  path_provider: ^2.1.4
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/mediaflow-launcher-512.png

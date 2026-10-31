@@ -1,0 +1,70 @@
+name: MediaFlowApp release (Android, Windows, iOS)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mediaflowapp-release
+  cancel-in-progress: true
+
+env:
+  APP_VERSION: 1.0.0-beta.13
+  TAG: mediaflowapp-v1.0.0-beta.13
+
+jobs:
+  archive-check:
+    name: Source archive matches this release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tool/release_guard.py
+      - run: python tool/verify_release_archive.py --tag "$TAG"
+
+  build:
+    needs: archive-check
+    uses: ./.github/workflows/build.yml
+    with:
+      app_version: 1.0.0-beta.13
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Stage release files
+        run: |
+          mkdir -p dist
+          cp artifacts/android/* artifacts/windows/* artifacts/ios/* dist/
+          zip -qr "dist/MediaFlowApp-${APP_VERSION}-source.zip" "legacy/v/${TAG}"
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          ls -la dist
+          for f in "MediaFlow-${APP_VERSION}-Android.apk" "MediaFlow-${APP_VERSION}-Windows-x64-Setup.exe" \
+                   "MediaFlow-${APP_VERSION}-Windows-x64-portable.zip" "MediaFlow-${APP_VERSION}-iOS-unsigned.ipa"; do
+            test -s "dist/$f"
+          done
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists; bump the version to publish a new release."
+            exit 0
+          fi
+          gh release create "$TAG" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "MediaFlow ${APP_VERSION} — native Flutter app with real logging (Android, Windows, iOS)" \
+            --notes-file "docs/releases/${TAG}.md" \
+            --prerelease
