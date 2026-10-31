@@ -52,6 +52,31 @@ Object? normalize(Object? value, int now, Set<String> oldSessionIds) {
   return walk(state, const []);
 }
 
+/// Path-level differences: "website vs app".
+void _diff(Object? want, Object? got, String path, List<String> out) {
+  if (out.length > 60) return;
+  if (want is Map && got is Map) {
+    for (final k in {...want.keys, ...got.keys}) {
+      if (!want.containsKey(k)) {
+        out.add('$path.$k: app added ${jsonEncode(got[k])}');
+      } else if (!got.containsKey(k)) {
+        out.add('$path.$k: app is missing (website has ${jsonEncode(want[k])})');
+      } else {
+        _diff(want[k], got[k], '$path.$k', out);
+      }
+    }
+    return;
+  }
+  if (want is List && got is List) {
+    if (want.length != got.length) out.add('$path: website has ${want.length} items, app has ${got.length}');
+    for (var i = 0; i < want.length && i < got.length; i++) {
+      _diff(want[i], got[i], '$path[$i]', out);
+    }
+    return;
+  }
+  if (want != got) out.add('$path: website ${jsonEncode(want)} vs app ${jsonEncode(got)}');
+}
+
 void main() {
   test('fixtures are compared in UTC', () {
     expect(DateTime.now().timeZoneOffset, Duration.zero,
@@ -87,10 +112,9 @@ void main() {
 
       final got = normalize(before, now, oldIds) as Map;
       final want = normalize(expected, now, oldIds) as Map;
-      // Compare section by section for readable failures.
-      for (final key in {...got.keys, ...want.keys}) {
-        expect(got[key], want[key], reason: 'state.$key differs from the website ($name)');
-      }
+      final diffs = <String>[];
+      _diff(want, got, 'state', diffs);
+      expect(diffs, isEmpty, reason: 'Native log differs from the website ($name):\n${diffs.take(40).join('\n')}');
 
       // Applying the same log again must not duplicate anything.
       final again = applyLog(before, req);

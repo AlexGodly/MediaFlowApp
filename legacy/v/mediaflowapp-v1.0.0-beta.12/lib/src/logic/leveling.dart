@@ -212,10 +212,19 @@ void annotateStreakXP(Map<String, dynamic> state, Leveling l) {
   }
 }
 
-/// `sessionStoredXP`.
+/// `v150BaseSessionXP` (as extended by v165): the log's stored XP — or, when
+/// that is 0/missing, a recalculation — plus its recommendation "respect" bonus.
 double _storedXP(Map<String, dynamic> s, Leveling l, AccountView Function() view) {
   if (s['status'] == 'skipped') return 0;
-  final xp = jsNumFromKey(s, 'xp');
-  if (xp != null) return xp < 0 ? 0 : xp;
-  return l.consumptionXP(view().category(jsStr(s['categoryId'])), jsNum(s['actualAmount']), jsNum(s['minutes']), 'healthy');
+  double base = 0;
+  final stored = jsNumOrNull(s['xp']);
+  if (stored != null && stored > 0) {
+    base = stored;
+  } else if (jsNum(s['actualAmount']) > 0 && jsNum(s['minutes']) > 0) {
+    final health = jsStr(s['healthStatus']).isEmpty ? 'healthy' : jsStr(s['healthStatus']);
+    base = l.consumptionXP(view().category(jsStr(s['categoryId'])), jsNum(s['actualAmount']), jsNum(s['minutes']), health);
+  }
+  final respect = jsRound(jsNum(s['v165RespectBonusXP']));
+  final total = base + (respect < 0 ? 0.0 : respect);
+  return total < 0 ? 0.0 : total;
 }
