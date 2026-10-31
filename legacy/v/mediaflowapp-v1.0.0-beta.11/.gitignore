@@ -1,0 +1,21 @@
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+dist/
+.downloads/
+app/src/main/assets/www/
+*.keystore
+*.jks
+# Generated at build time (CI copies the packaged website and icons in)
+desktop/www/
+desktop/build/
+desktop/dist/
+desktop/node_modules/
+ios/www/
+ios/build/
+ios/MediaFlow.xcodeproj/
+ios/MediaFlow/Assets.xcassets/
+app/src/main/res/mipmap-*/
+__pycache__/

@@ -1,48 +1,55 @@
-# MediaFlow by Alex Godly — Android
+# MediaFlow by Alex Godly — Android, Windows and iOS apps
 
-**New Android project:** Kotlin + Android WebView with **the real MediaFlow v553 frontend packaged inside the APK**, not an imitation of its UI. The older Flutter native project and its workflows are preserved in [`legacy/flutter-beta7/`](legacy/flutter-beta7/).
+The **real MediaFlow website** (pinned official release, currently **v554**) packaged as installable apps. The same packaged files run in all three shells, so every website feature is available: Dashboard, Library, Collections, Personal Order, History, Statistics, Account, Settings, About, logging, recommendations, XP, recovery tools, imports/exports and backups.
 
-## Current Android update: Beta 10 · MediaFlow v553
+| Platform | Shell | Release file |
+| :-- | :-- | :-- |
+| Android 10+ | Kotlin + System WebView (`app/`) | `MediaFlow-<version>-Android.apk` (debug-signed) |
+| Windows 10/11 x64 | Electron (`desktop/`) | `…-Windows-x64-Setup.exe` or `…-Windows-x64-portable.exe` (unsigned) |
+| iPhone / iPad, iOS 16.4+ | Swift + WKWebView (`ios/`) | `…-iOS-unsigned.ipa` (re-sign to install) |
 
-Beta 10 keeps the four focused surfaces (Recommendations, Log, Library workspace, Log history) and hardens offline account continuity. Logging drafts are saved locally and synchronized through the existing account state; completed offline logs queue until reconnect. Cloud writes use updated_at compare-and-swap, independent changes are merged, and overlapping settings/task changes prompt an in-app choice instead of being silently overwritten.
+Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **1.0.0 Beta 11** — [release notes](docs/releases/mediaflowapp-v1.0.0-beta.11.md).
 
-[Beta 10 release notes](docs/releases/android-webview-v1.0.0-beta.10.md). **No Supabase schema changes:** the earlier app-specific draft table remains deleted. Beta 10 uses only the existing mediaflow_states row and its current authenticated access policies.
+## Logging a title
 
-## Features and architecture
+Tap the **+** quick-actions button → **Add to Logging**. The app scrolls to the Logging Workspace and opens **Browse Library**: pick a Library title, or choose **Quick logging** and type any title, enter the progress reached, tap **Add**, then **Save & get next task**. Logs save to your account immediately, or queue on the device while offline and upload when you reconnect.
 
-- Uses the exact pinned **v553 Stable** web release archive, SHA-256 verified at build time.
-- Bundles the HTML, CSS, media and compiled application JavaScript in the Android APK. Supabase, React and ReactDOM CDN scripts are copied into the APK during CI, avoiding a network-dependent initial interface load.
-- Renders on Android's hardware-accelerated System WebView, with local HTTPS-like origin provided by `WebViewAssetLoader`. No `file://` privilege bypass or broad cleartext networking.
-- Runs the real v553 recommendation, title-reroll/history, Library, Quick/Advanced/Progress logging, XP preview and batch logging logic. The Android companion exposes only Recommendations, Log, Library workspace and Log history.
-- Works with on-device file imports, external links in the browser, network downloads, and **chunked** local MediaFlow blob exports to Android Downloads (up to 750 MB of output without constructing a single Base64 copy of the backup in Kotlin).
-- Adds an Android-only **Original / Balanced / Smooth / Ultra light** performance profile. The focused companion hides unrelated website navigation and avoids rebuilding desktop-only UI on phones.
-- Android Back closes MediaFlow's native-state modal first, then navigates back to Dashboard rather than accidentally exiting a single-page app.
-- Intercepts service-worker asset requests from the same pinned local frontend, and recovers from Android WebView renderer restarts without deleting account storage.
-- Uses the existing MediaFlow launcher artwork and package ID `com.alexgodly.mediaflow`.
+## How it works
 
-## Build
+- `tool/package_mediaflow.py` takes the pinned website archive (CI downloads it), verifies its SHA-256, copies only the files `index.html` and the service worker load (the archive also holds ~580 MB of retired bundles), vendors React/ReactDOM/Supabase locally, applies small fail-closed patches, and **injects the app layer (`tool/android_assets/companion-mode.js`) inside the website's private script scope**.
+- The app layer adds: account-scoped IndexedDB snapshots, an offline queue, compare-and-swap cloud writes against `mediaflow_states.updated_at`, three-way merge with an in-app conflict dialog, logging-draft autosave/sync, and the jump-to-logging behaviour above. It hides nothing from the website.
+- Android extras: native folder picker for automatic backups, chunked exports to Downloads, Back-button handling, performance presets (Settings).
+- Windows serves the files from a private `mediaflow://app` secure origin; iOS does the same with a `WKURLSchemeHandler` and adds native dialogs, Safari for external links and the iOS save sheet for exports.
+- No Supabase schema, table, policy or key changes; the apps use the website's existing authenticated row.
 
-Requires Java 17, Android SDK 35 and Gradle 8.10.2 (CI provisions these).
+## Build and test
+
+CI (`.github/workflows/release.yml`) does everything on every push to `main`: unit tests → package website → end-to-end logging test in phone-sized Chrome and in the desktop shell (fake Supabase) → Android, Windows and iOS builds in parallel → one GitHub prerelease with all files and SHA-256 sums. Pull requests run `pr-validation.yml`.
+
+Locally:
 
 ```sh
-curl -fL --retry 3 \
-  https://github.com/AlexGodly/MediaFlow/releases/download/553/MediaFlow_v553_Stable.zip \
-  -o .downloads/MediaFlow_v553_Stable.zip
-python3 tool/package_mediaflow.py
-python3 -m pip install pillow
-python3 tool/build_icons.py
-gradle :app:assembleDebug
+mkdir -p .downloads
+curl -fL https://github.com/AlexGodly/MediaFlow/releases/download/554/MediaFlow_v554_Stable.zip -o .downloads/MediaFlow_v554_Stable.zip
+python3 tool/package_mediaflow.py                 # → app/src/main/assets/www
+python3 -m unittest discover -s tests && python3 tests/release_guard.py
+python3 tests/e2e/smoke.py app/src/main/assets/www   # needs: pip install playwright
+python3 -m pip install pillow && python3 tool/build_icons.py
+gradle :app:assembleDebug                          # Android (Java 17, SDK 35, Gradle 8.10.2)
+# Windows: copy the www folder to desktop/www, then in desktop/: npm install && npm run dist:win
+# iOS (macOS): copy www to ios/www, then in ios/: xcodegen generate && open MediaFlow.xcodeproj
 ```
 
-The verification script refuses archives whose SHA-256 differs from v553's official release and detects missing local CSS/JS references. APK: `app/build/outputs/apk/debug/app-debug.apk`. The GitHub Actions workflow publishes versioned prerelease APKs only if tests, packaging and compilation pass.
+To move to a newer website release, change `VERSION` and `ARCHIVE_SHA256` in `tool/package_mediaflow.py` and `MEDIAFLOW_VERSION` in both workflows; the build refuses to package if any patched function changed shape.
 
 ## Scope and limitations
 
-**This is an Android beta, not a verified mobile performance fix.** Loading local files improves startup independence but does not inherently solve large-library DOM rendering, cover decoding, or theme effects. Measure actual frame rate/memory on a phone before calling scrolling optimized. 100% real-world feature compatibility (particularly OAuth redirects, file exporters over ~100MB, provider restrictions and background sync) still needs Android device testing. Some providers and cloud operations still require internet. Frontend changes require bundling a new website release into an updated APK.
+- Binaries are built by GitHub Actions. The logging, offline-queue and reload flow is tested automatically in Chrome and in the desktop shell; physical-device testing on Android and iOS WebKit is still needed.
+- The APK is debug-signed; the Windows and iOS builds are unsigned. Windows SmartScreen warns on first run; the IPA must be re-signed (AltStore, Sideloadly or an Apple Developer account) to install. None of the builds is store-ready.
+- Sync runs while the app is open; it is not a background service. Some providers and cloud features need internet.
+- Website updates reach the apps only through a new app release that pins the newer website version.
 
-The original website is completely unchanged. Beta 10 makes authenticated writes to the existing mediaflow_states row using an updated_at compare-and-swap check and the current RLS policies. It creates no tables, changes no policies, and introduces no service-role key. The previous mediaflow_native_logging_drafts table was removed and is not used.
-
-The generated APK is **debug-signed** for installation/testing and may conflict with the signature of an earlier separately built APK. Do not call it production-signed or Play Store ready.
+# Release history
 
 ## Android folder auto-backup (Beta 3)
 
@@ -51,11 +58,11 @@ MediaFlow v553's browser-only `showDirectoryPicker()` is not supported by Androi
 This is an Android beta: compilation and source-level tests are automated, but provider-specific folder operations, device FPS, logins and every v553 feature require real-device testing.
 
 
-## Mandatory GitHub release + legacy archive policy (Beta 4 onward)
+## Mandatory GitHub release + legacy archive policy (Beta 4 onward; all platforms from Beta 11)
 
-Every commit updating `main` must bump the Android application version and update the release notes and GitHub workflow to a **new, unique tag**. The exact complete tracked source (excluding the shared `legacy/` directory to prevent nested copies) must be mirrored into `legacy/v/<release-tag>/`. Previous versions must remain intact. The earlier Flutter application stays under `legacy/flutter-beta7/`.
+Every commit updating `main` must bump the app version (Android `versionName`/`versionCode`, `desktop/package.json`, iOS `CURRENT_PROJECT_VERSION`) and update the release notes and GitHub workflow to a **new, unique tag**. The exact complete tracked source (excluding the shared `legacy/` directory to prevent nested copies) must be mirrored into `legacy/v/<release-tag>/`. Previous versions must remain intact. The earlier Flutter application stays under `legacy/flutter-beta7/`.
 
-CI now compares the archive byte-for-byte against the release source **before** packaging and publishing. For every passing release, upload the installable Android APK, full version-specific source ZIP, SHA-256 checksums, source manifest and detailed release notes to GitHub Releases. No successful APK build should remain only as a workflow artifact. If a release cannot be built or published, it is not a released version. Updating source without a new archive and tag fails the release checks.
+CI now compares the archive byte-for-byte against the release source **before** packaging and publishing. For every passing release, upload the Android APK, the Windows installer and portable app, the iOS IPA, full version-specific source ZIP, SHA-256 checksums, source manifest and detailed release notes to GitHub Releases. No successful APK build should remain only as a workflow artifact. If a release cannot be built or published, it is not a released version. Updating source without a new archive and tag fails the release checks.
 
 Beta 3 and Beta 4 archives are tracked under `legacy/v/`. Beta 4 is a release-discipline update; it does not claim that the Android app is fully feature-verified or that scrolling problems have been measured and resolved.
 

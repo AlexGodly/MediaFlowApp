@@ -23,7 +23,7 @@ def sha256(path):
     return hasher.hexdigest()
 
 def verify(tag):
-    if not tag.startswith("android-webview-v1.0.0-beta."):
+    if not tag.startswith(("android-webview-v1.0.0-beta.", "mediaflowapp-v1.0.0-beta.")):
         raise ValueError("Unsupported archive tag")
     root = pathlib.Path("legacy") / "v" / tag
     if not (root / "ARCHIVE_METADATA.md").is_file():

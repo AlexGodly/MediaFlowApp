@@ -19,7 +19,8 @@ html[data-mf-android-companion="1"] .mf-android-title-mode small { display:block
 html[data-mf-android-companion="1"] .mf-android-log-switch { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0 0 12px; }
 html[data-mf-android-companion="1"] .mf-android-log-switch button { min-height:42px; }
 html[data-mf-android-companion="1"] .mf-android-companion-status {
-  position:fixed; top:8px; right:8px; z-index:99999; max-width:min(230px,65vw);
+  position:fixed; z-index:8999; max-width:min(230px,56vw);
+  left:max(12px, env(safe-area-inset-left)); bottom:calc(env(safe-area-inset-bottom) + 92px);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   min-height:28px; padding:5px 9px; border-radius:999px;
   background:var(--panel-raised,#182131); color:var(--text,#fff);
@@ -27,7 +28,11 @@ html[data-mf-android-companion="1"] .mf-android-companion-status {
   opacity:1!important; font-size:11px!important; line-height:1.25!important;
   font-weight:850!important; text-shadow:none!important;
 }
-html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="synced"] { border-color:#2c9d75; }
+@media (min-width:1081px) {
+  html[data-mf-android-companion="1"] .mf-android-companion-status { left:auto; right:130px; bottom:28px; }
+}
+/* When everything is synced, keep the pill small and quiet. */
+html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="synced"] { border-color:#2c9d75; opacity:.82!important; }
 html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="syncing"] { border-color:#d9a441; }
 html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="pending"],
 html[data-mf-android-companion="1"] .mf-android-companion-status[data-state="offline"] { border-color:#d9a441; }
@@ -73,3 +78,6 @@ html[data-mf-android-companion="1"] .mf-android-sync-conflict-actions {
 html[data-mf-android-companion="1"] .mf-android-sync-conflict-actions .btn {
   min-height:44px; white-space:normal;
 }
+
+/* Restored Beta 10 batch drafts. */
+html[data-mf-android-companion="1"] .mf-android-batch-close { display:flex; justify-content:flex-end; margin:-4px 0 10px; }

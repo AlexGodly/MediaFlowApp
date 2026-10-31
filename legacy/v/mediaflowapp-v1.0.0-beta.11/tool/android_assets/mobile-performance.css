@@ -1,0 +1,84 @@
+/* MediaFlow Android Beta 5 — readable system-edge UI and bounded mobile paint.
+   This stylesheet exists ONLY inside the Android APK; the website is unchanged. */
+.mf-android-controls { margin:0 0 18px; padding:17px; }
+.mf-android-title { color:var(--text); font-size:16px; font-weight:800; }
+.mf-android-controls p { font-size:13px; line-height:1.55; color:var(--text-dim); margin:8px 0 12px; }
+.mf-android-controls small { display:block; margin-top:10px; color:var(--text-dim); line-height:1.5; }
+.mf-android-modes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.mf-android-modes button { min-width:0; min-height:43px; color:var(--text); cursor:pointer; padding:10px 8px; border-radius:10px; border:1px solid var(--border); background:var(--panel-raised); font:inherit; font-size:13px; font-weight:750; }
+.mf-android-modes button.selected { color:var(--flow); border-color:var(--flow); background:var(--panel); }
+.mf-android-metrics { color:var(--text-dim); font-variant-numeric:tabular-nums; font-size:12px; }
+
+@media(max-width:1080px) {
+  /* No ghosted/super-tiny text in the mobile top/bottom navigation. The native
+     WebView itself handles Android 15+ safe-area insets. */
+  html[data-android-perf] .mobile-tabbar .mtab,
+  html[data-android-perf] .mobile-tabbar .mobile-more-item { opacity:1!important; }
+  html[data-android-perf] .mobile-tabbar .mtab span,
+  html[data-android-perf] .mobile-tabbar .mobile-more-item span {
+    opacity:1!important; visibility:visible!important;
+    color:var(--text-dim)!important; font-size:max(12px,.75rem)!important;
+    line-height:1.2!important; font-weight:700!important;
+    text-shadow:none!important;
+  }
+  html[data-android-perf] .mobile-tabbar .mtab.active span,
+  html[data-android-perf] .mobile-tabbar .mobile-more-item.active span {
+    color:var(--flow)!important;
+  }
+  html[data-android-perf] .brand-sub,
+  html[data-android-perf] .section-label,
+  html[data-android-perf] .view-desc,
+  html[data-android-perf] .hint,
+  html[data-android-perf] .profile-note,
+  html[data-android-perf] .sidebar-foot .k {
+    opacity:1!important;
+    color:var(--text-dim)!important;
+    text-shadow:none!important;
+  }
+  html[data-android-perf] .section-label {font-size:12px!important}
+  html[data-android-perf] .view-desc {font-size:max(13px,.81rem)!important}
+  html[data-android-perf] :is(.mtab,button,.btn,select,input,textarea) {
+    -webkit-tap-highlight-color:transparent;
+  }
+  html[data-android-perf="balanced"] :is(.modal,.mobile-tabbar,.mf476-bg-widget),
+  html[data-android-perf="smooth"] :is(.modal,.mobile-tabbar,.mf476-bg-widget,.card,.panel),
+  html[data-android-perf="ultra"] * {
+    -webkit-backdrop-filter:none!important; backdrop-filter:none!important;
+  }
+  html[data-android-perf="smooth"] body,
+  html[data-android-perf="balanced"] body,
+  html[data-android-perf="ultra"] body { background-attachment:scroll!important; }
+  html[data-android-perf="smooth"] *:not(.mf-android-controls),
+  html[data-android-perf="ultra"] *:not(.mf-android-controls) {
+    scroll-behavior:auto!important;
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    will-change:auto!important;
+  }
+  html[data-android-perf="smooth"] :is(.card,.panel,.modal,.mobile-tabbar),
+  html[data-android-perf="ultra"] * {
+    box-shadow:none!important;
+    text-shadow:none!important;
+  }
+  html[data-android-perf="ultra"] *::before,
+  html[data-android-perf="ultra"] *::after {animation:none!important;transition:none!important}
+  /* Restrict expensive offscreen layout and paint to isolated Library rows.
+     Not applied to dialogs, picks or virtualized browser controls. */
+  html[data-android-perf="ultra"] #view-root .item-row {
+    content-visibility:auto;
+    contain-intrinsic-size:auto 116px;
+  }
+  html[data-android-perf="ultra"] #view-root .hist-row {
+    content-visibility:auto;
+    contain-intrinsic-size:auto 98px;
+  }
+  /* Mobile media should not create huge GPU layers. */
+  html[data-android-perf="ultra"] :is(.card,.panel,.modal,.mobile-tabbar,.hero,.hero-card) {
+    filter:none!important;
+  }
+}
+@media (max-width:360px) {
+  html[data-android-perf] .mobile-tabbar .mtab span {font-size:12px!important;letter-spacing:0!important}
+  html[data-android-perf] .mobile-tabbar .mtab {min-width:0;padding-left:2px!important;padding-right:2px!important}
+}

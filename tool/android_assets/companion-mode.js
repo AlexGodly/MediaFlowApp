@@ -1,6 +1,7 @@
-/* MediaFlow Android Companion: recommendations, logging, local-first drafts and offline sync.
-   Uses the existing v553 application logic and authenticated mediaflow_states row.
-   No service-role key, new Supabase tables, or alternate cloud data model. */
+/* MediaFlow app layer: the FULL MediaFlow website plus local-first logging drafts,
+   a quick Log button, and offline-safe sync. Uses the website's own application
+   logic and the authenticated mediaflow_states row. No service-role key, new
+   Supabase tables, or alternate cloud data model. */
 (function () {
   'use strict';
   const DB_NAME = 'mediaflow-android-companion-v1';
@@ -40,14 +41,25 @@
     navigate: navigate,
     openLogging: openLogging,
     openBatchLogging: openBatchLogging,
-    toggleExactTitleRecommendations: toggleExactTitleRecommendations,
+    // Read-only view of the in-memory account state for diagnostics and the e2e test.
+    debugState: function () { return typeof S === 'undefined' ? null : S; },
     syncNow: async function () {
       const stateOk = await reconcile(true);
       const draftOk = await syncDraftToCloud();
       return stateOk && draftOk;
     }
   };
+  // Inline onclick handlers call window.MFAndroidCompanion; Beta 10 only defined the
+  // private name, so every Log / Batch / tab button failed silently.
+  window.MFAndroidCompanion = companion;
   document.documentElement.dataset.mfAndroidCompanion = '1';
+  // The website retired its standalone Batch page in v394 in favour of multi-title
+  // logging. A batch draft saved by Beta 10 still reopens here (inside the Dashboard,
+  // using the website's own renderBatchLog/submitBatchLog) so it is never lost.
+  function isBatchView() {
+    return typeof S !== 'undefined' && !!S.logging && companion.logMode === 'batch' &&
+      String(S.view) === 'dashboard';
+  }
   if (typeof S !== 'undefined') S.offlineMode = companion.active;
 
   function uid() {
@@ -778,6 +790,7 @@
       button.type = 'button';
       button.id = 'mf-android-companion-status';
       button.className = 'mf-android-companion-status';
+      button.setAttribute('data-v225-iconified', '1');
       button.setAttribute('aria-live', 'polite');
       button.setAttribute('aria-label', 'Account sync status. Tap to sync.');
       button.addEventListener('click', function () {
@@ -794,7 +807,7 @@
     }
     button.hidden = false;
     let state = 'synced';
-    let message = 'Synced with Supabase';
+    let message = 'Synced';
     if (companion.syncing || companion.draftSyncing) {
       state = 'syncing'; message = 'Syncing with Supabase…';
     } else if (!navigator.onLine || companion.active) {
@@ -832,7 +845,7 @@
         version: 1, userId: userId, savedAt: Date.now(),
         cloudSyncedAt: Number(previous && previous.cloudSyncedAt) || 0,
         everHadDraft: !!(previous && previous.everHadDraft),
-        view: ['dashboard', 'library', 'history'].includes(String(S.view)) ? String(S.view) : 'dashboard',
+        view: typeof S.view === 'string' && S.view ? S.view : 'dashboard',
         logging: !!S.logging, logMode: companion.logMode === 'batch' ? 'batch' : 'single',
         singleDraftExists: !!(companion.hasSingleDraft || (S.logging && companion.logMode === 'single') ||
           (S.logDraft && (S.logDraft.categoryId || (S.logDraft.entries || []).length))),
@@ -891,9 +904,14 @@
         S.batchDraft = { rows: [], note: '', date: typeof todayISO === 'function' ? todayISO() : '' };
       }
       companion.logMode = payload.logMode === 'batch' ? 'batch' : 'single';
-      S.view = ['dashboard', 'library', 'history'].includes(String(payload.view)) ? String(payload.view) : 'dashboard';
-      S.logging = !!payload.logging && (companion.logMode === 'batch' ? companion.hasBatchDraft : companion.hasSingleDraft);
-      if (S.logging && companion.hasSingleDraft && S.logDraft && S.logDraft.categoryId && S.currentTask) S.sessionActive = true;
+      if (payload.logging && companion.logMode === 'batch' && companion.hasBatchDraft) {
+        S.view = 'dashboard';
+        S.logging = true;
+      } else if (payload.logging && companion.logMode === 'single' && companion.hasSingleDraft && S.currentTask) {
+        S.view = 'dashboard';
+        S.logging = true;
+        S.sessionActive = true;
+      }
       return true;
     } catch (error) {
       console.warn('MediaFlow Companion: could not restore saved draft.', error);
@@ -904,11 +922,7 @@
     if (target === 'log') return openLogging();
     if (target === 'batch') return openBatchLogging();
     saveDraftNow();
-    S.logging = false;
-    companion.logMode = 'single';
-    if (target === 'library') App.setView('library');
-    else if (target === 'history') App.setView('history');
-    else App.setView('dashboard');
+    App.setView(String(target || 'dashboard'));
     scheduleDraftSave();
   }
   function ensureDraftTask() {
@@ -925,6 +939,26 @@
     S.sessionActive = true;
     return true;
   }
+  function revealLogging(selector, openLibrary) {
+    let tries = 0;
+    (function attempt() {
+      const target = document.querySelector(selector);
+      if (target) {
+        // "Add to Logging" promises the Logging Library; on phones that section
+        // starts collapsed, hiding the title search/typing box. Expand it.
+        const library = openLibrary && target.querySelector('details.v238-log-library');
+        if (library && !library.open) library.open = true;
+        const top = target.getBoundingClientRect().top + window.scrollY - 72;
+        window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+        const scroller = document.querySelector('.main');
+        if (scroller && scroller.scrollHeight > scroller.clientHeight + 4) {
+          scroller.scrollTo({ top: Math.max(0, target.offsetTop - 72), behavior: 'smooth' });
+        }
+        return;
+      }
+      if (++tries < 12) setTimeout(attempt, 60);
+    })();
+  }
   function openLogging() {
     saveDraftNow();
     S.view = 'dashboard';
@@ -937,87 +971,22 @@
     } else {
       App.openLogForm();
     }
+    revealLogging('#view-root .log-form', true);
     scheduleDraftSave();
   }
   function openBatchLogging() {
     saveDraftNow();
+    if (String(S.view) !== 'dashboard') App.setView('dashboard');
     S.view = 'dashboard';
     S.logging = true;
     companion.logMode = 'batch';
     if (typeof ensureBatchDraft === 'function') ensureBatchDraft();
+    if (typeof v181PrepareBatchDefault === 'function' && !(S.batchDraft && S.batchDraft.v179Mode)) v181PrepareBatchDefault();
+    render();
+    revealLogging('#view-root .mf-android-log-switch');
     companion.hasBatchDraft = !!(companion.hasBatchDraft ||
       (S.batchDraft && Array.isArray(S.batchDraft.rows) && S.batchDraft.rows.length));
-    render();
     scheduleDraftSave();
-  }
-  function toggleExactTitleRecommendations(enabled) {
-    const on = !!enabled;
-    S.settings = S.settings || {};
-    S.settings.exactTitleRecommendations = on;
-    if (on && S.currentTask && !S.currentTask.title && typeof v180RecommendationCandidates === 'function') {
-      const candidate = v180RecommendationCandidates(S.currentTask)[0];
-      if (candidate) {
-        S.currentTask.libraryId = candidate.id;
-        S.currentTask.title = cleanTitle(candidate.title);
-        S.currentTask.v180RecommendationHistory = [];
-        S.currentTask.v180TitleRerolls = 0;
-        if (typeof v180EnsureRecommendationHistory === 'function') v180EnsureRecommendationHistory(S.currentTask);
-      }
-    } else if (on && S.currentTask && typeof v180EnsureRecommendationHistory === 'function') {
-      v180EnsureRecommendationHistory(S.currentTask);
-    }
-    persistSettings();
-    persistTask();
-    render();
-    scheduleDraftSave();
-  }
-  function focusedDashboard() {
-    const header = '<div class="view-head mf-android-companion-head"><div><div class="view-title">Recommendations</div><div class="view-desc">Your rotation, title picks, and logging in one place.</div></div>' +
-      '<button type="button" class="btn btn-sm" onclick="window.MFAndroidCompanion.openBatchLogging()">Batch log</button></div>';
-    if (S.logging && companion.logMode === 'batch') {
-      return '<div class="mf-android-log-switch"><button type="button" class="btn" onclick="window.MFAndroidCompanion.openLogging()">Single log</button><button type="button" class="btn btn-primary" aria-pressed="true">Batch log</button></div>' +
-        renderBatchLog();
-    }
-    if ((!S.sessionActive || !S.currentTask) && !S.logging) {
-      return header + '<section class="hero mf-android-companion-hero"><div class="hero-eyebrow">MediaFlow recommends</div>' +
-        '<div class="hero-name">Ready for your next pick?</div><div class="hero-amount">Start a recommendation session. Your category rotation and personal data come from your existing MediaFlow account.</div>' +
-        '<div class="hero-actions"><button type="button" class="btn btn-primary" onclick="App.startSession()">Get recommendations</button>' +
-        '<button type="button" class="btn" onclick="window.MFAndroidCompanion.openLogging()">Log consumption</button>' +
-        '<button type="button" class="btn btn-ghost" onclick="window.MFAndroidCompanion.openBatchLogging()">Batch log</button></div></section>';
-    }
-    if (!S.currentTask) {
-      return header + '<section class="card"><p>The saved logging draft needs its original category. Start a recommendation session or open the Library workspace to continue.</p>' +
-        '<button type="button" class="btn btn-primary" onclick="App.startSession()">Get recommendations</button></section>';
-    }
-    const task = S.currentTask;
-    const cat = getCategory(task.categoryId);
-    if (!cat) {
-      return header + '<section class="card"><p>The saved recommendation category is unavailable. Your data is preserved.</p><button type="button" class="btn btn-primary" onclick="App.startSession()">Get another recommendation</button></section>';
-    }
-    const amount = task.low === task.high ? String(task.low) + ' ' + unitLabel(task.unit, task.low) :
-      String(task.low) + '–' + String(task.high) + ' ' + unitLabel(task.unit, task.high);
-    const exactOn = !!(S.settings && S.settings.exactTitleRecommendations);
-    const titleMode = '<section class="card mf-android-title-mode"><label><input type="checkbox" ' +
-      (exactOn ? 'checked' : '') + ' onchange="window.MFAndroidCompanion.toggleExactTitleRecommendations(this.checked)">' +
-      '<span><b>Exact-title recommendations</b><small>Enable title rerolls and reroll history. This preference syncs with your MediaFlow account.</small></span></label></section>';
-    let titleHtml = mf395DashboardRecommendationHtml(task, cat);
-    if (exactOn && !task.title) {
-      titleHtml += '<div class="mf-android-title-empty"><button type="button" class="btn" onclick="App.v180RerollRecommendedTitle()">Choose a recommended title</button></div>';
-    }
-    const controls = S.logging
-      ? '<div class="mf-android-log-switch"><button type="button" class="btn btn-primary" aria-pressed="true">Single log</button><button type="button" class="btn" onclick="window.MFAndroidCompanion.openBatchLogging()">Batch log</button></div>' +
-        renderLogForm(task, cat)
-      : '<div class="hero-actions"><button type="button" class="btn btn-primary" onclick="App.openLogForm()">Log &amp; complete</button>' +
-        '<button type="button" class="btn" onclick="App.rotateTask()">Reroll recommendation</button>' +
-        '<button type="button" class="btn btn-ghost" onclick="App.skipTask()">Skip</button>' +
-        '<button type="button" class="btn btn-ghost" onclick="App.endSession()">End session</button></div>' +
-        '<button type="button" class="link-btn" style="margin-top:12px" onclick="App.toggleReasonDetail()">' +
-        (S.showReasonDetail ? 'Hide' : 'Why this pick?') + '</button>' +
-        (S.showReasonDetail ? renderReasonDetail(cat) : '');
-    return header + titleMode + '<section class="hero mf-android-companion-hero"><div class="hero-eyebrow">Next recommendation</div>' +
-      '<div class="hero-cat"><div class="hero-icon" style="background:' + escapeHtml(cat.color) + '22;color:' + escapeHtml(cat.color) + '">' +
-      v144CategoryIconHtml(cat) + '</div><div><div class="hero-name">' + escapeHtml(cat.name) + '</div></div></div>' +
-      '<div class="hero-amount">Consume <b>' + escapeHtml(amount) + '</b></div>' + titleHtml + controls + '</section>';
   }
 
   async function reconcile(force) {
@@ -1252,39 +1221,36 @@
   };
   rawSet = rawSetWithOfflineQueue;
 
-  /* Keep only the mobile companion surfaces. The full v553 recommendation,
-     Library, History, XP, and logging functions remain the original functions. */
-  NAV_ITEMS.splice(0, NAV_ITEMS.length,
-    { id: 'dashboard', label: 'Recommendations' },
-    { id: 'library', label: 'Library workspace' },
-    { id: 'history', label: 'Log history' }
-  );
-  MOBILE_PRIMARY_NAV.splice(0, MOBILE_PRIMARY_NAV.length, 'dashboard', 'library', 'history');
-  MOBILE_MORE_NAV.splice(0, MOBILE_MORE_NAV.length);
-  v161VisibleNavItems = function () { return NAV_ITEMS.slice(); };
-  renderMobileTabs = function () {
-    const logIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H5v16h14V5h-3"/><path d="M9 3h6v4H9z"/><path d="m8 13 2 2 5-5"/></svg>';
-    function tab(id, label, icon, active) {
-      return '<button type="button" class="mtab ' + (active ? 'active' : '') +
-        '" onclick="window.MFAndroidCompanion.navigate(&quot;' + id + '&quot;)" aria-label="' + label + '">' +
-        icon + '<span>' + label + '</span></button>';
-    }
-    return tab('dashboard', 'Recommend', ICONS.dashboard, S.view === 'dashboard' && !S.logging) +
-      tab('log', 'Log', logIcon, S.view === 'dashboard' && !!S.logging) +
-      tab('library', 'Library', ICONS.library, S.view === 'library') +
-      tab('history', 'History', ICONS.history, S.view === 'history');
-  };
-  renderDashboard = focusedDashboard;
-
+  /* Every website page stays available (Dashboard, Library, Collections, Order,
+     History, Statistics, Settings, About ...). Only draft safety is added. */
   const originalSetView = App.setView;
   App.setView = function (view) {
-    const target = ['dashboard', 'library', 'history'].includes(String(view)) ? String(view) : 'dashboard';
     if (S.logging) saveDraftNow();
-    S.logging = false;
-    companion.logMode = 'single';
-    const result = originalSetView.call(this, target);
+    if (companion.logMode === 'batch' && String(view) !== 'dashboard') {
+      // Leaving the batch form: the draft is saved; return to the normal Dashboard later.
+      S.logging = false;
+      companion.logMode = 'single';
+    }
+    const result = originalSetView.apply(this, arguments);
     scheduleDraftSave();
     return result;
+  };
+  const originalRenderDashboard = renderDashboard;
+  renderDashboard = function () {
+    if (isBatchView() && typeof renderBatchLog === 'function') {
+      return '<div class="mf-android-log-switch"><button type="button" class="btn" onclick="window.MFAndroidCompanion.openLogging()">Single log</button>' +
+        '<button type="button" class="btn btn-primary" aria-pressed="true">Batch log</button></div>' +
+        '<div class="mf-android-batch-close"><button type="button" class="btn btn-ghost btn-sm" onclick="window.MFAndroidCompanion.closeBatch()">Back to Dashboard</button></div>' +
+        renderBatchLog();
+    }
+    return originalRenderDashboard.apply(this, arguments);
+  };
+  companion.closeBatch = function () {
+    saveDraftNow();
+    S.logging = false;
+    companion.logMode = 'single';
+    render();
+    scheduleDraftSave();
   };
   const originalOpenLogForm = App.openLogForm;
   if (typeof originalOpenLogForm === 'function') {
@@ -1292,6 +1258,9 @@
       companion.logMode = 'single';
       companion.hasSingleDraft = true;
       const result = originalOpenLogForm.apply(this, arguments);
+      // On a phone the form sits below a long Dashboard. Bring it on screen; the
+      // website's own picker scroll (when a Library exists) runs after this.
+      revealLogging('#view-root .log-form', true);
       scheduleDraftSave();
       return result;
     };
@@ -1354,60 +1323,13 @@
     updateStatus();
     return result;
   };
-  function mountBackupTools() {
-    const root = document.getElementById('view-root');
-    if (!root) return;
-    const existing = document.getElementById('mf-android-backup-tools');
-    if (String(S.view) !== 'library') {
-      if (existing) existing.remove();
-      return;
-    }
-    if (existing) return;
-    const head = root.querySelector('.view-head');
-    if (!head) return;
-    const card = document.createElement('section');
-    card.id = 'mf-android-backup-tools';
-    card.className = 'card mf-android-backup-tools';
-    const heading = document.createElement('div');
-    heading.className = 'mf-android-backup-heading';
-    heading.textContent = 'Automatic backups';
-    const description = document.createElement('p');
-    description.textContent = 'Choose a folder on this phone, create a backup now, or enable scheduled backups. These controls use MediaFlow’s existing full JSON backup.';
-    const actions = document.createElement('div');
-    actions.className = 'mf-android-backup-actions';
-    function makeButton(label, handler, active) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = active ? 'btn btn-primary' : 'btn';
-      button.textContent = label;
-      button.onclick = handler;
-      return button;
-    }
-    actions.appendChild(makeButton('Choose backup folder', function () {
-      if (typeof App.chooseBackupFolder === 'function') App.chooseBackupFolder();
-    }, false));
-    actions.appendChild(makeButton('Back up now', function () {
-      if (typeof App.backupNow === 'function') App.backupNow();
-    }, false));
-    const enabled = !!(S.settings && S.settings.backup && S.settings.backup.enabled);
-    actions.appendChild(makeButton('Automatic backups: ' + (enabled ? 'On' : 'Off'), function () {
-      if (typeof App.updateBackup === 'function') App.updateBackup('enabled', !(
-        S.settings && S.settings.backup && S.settings.backup.enabled
-      ));
-    }, enabled));
-    card.append(heading, description, actions);
-    head.insertAdjacentElement('afterend', card);
-  }
-
   function initializeCompanion() {
     updateStatus();
-    mountBackupTools();
     const root = document.getElementById('view-root');
     if (root && !observer) {
       observer = new MutationObserver(function () {
         scheduleDraftSave();
         updateStatus();
-        mountBackupTools();
       });
       observer.observe(root, { childList: true, subtree: true });
     }
@@ -1445,7 +1367,6 @@
       }
     }, 30000);
     updateStatus();
-    mountBackupTools();
   }
   const originalAuthHandler = v475HandleAuthEvent;
   v475HandleAuthEvent = function (event, session) {
