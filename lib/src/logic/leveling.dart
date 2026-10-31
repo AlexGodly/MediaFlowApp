@@ -228,3 +228,6 @@ double _storedXP(Map<String, dynamic> s, Leveling l, AccountView Function() view
   final total = base + (respect < 0 ? 0.0 : respect);
   return total < 0 ? 0.0 : total;
 }
+
+/// `v150BaseSessionXP` (public).
+double baseSessionXP(Map<String, dynamic> s, Leveling l, AccountView Function() view) => _storedXP(s, l, view);

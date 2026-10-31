@@ -109,7 +109,7 @@ class Stopwatch2 {
     if (running) return null;
     final add = _ms(h, m, s);
     if (add == 0) return 'Enter a time to add.';
-    data['elapsed'] = jsOut(math.max(0, elapsedBase) + add);
+    data['elapsed'] = jsOut(math.max(0.0, elapsedBase) + add);
     data['resetValue'] = data['elapsed'];
     data['startedAt'] = 0;
     _touch(now);
@@ -345,8 +345,8 @@ Map<String, dynamic> balancePanel(Map<String, dynamic> state, String key) {
   final prior = unique(legacy?['categoryIds']);
   final def = {
     'enabled': key == 'todayBalance'
-        ? asMap(settings['v192Dashboard'])?['showTodayBalance'] != false
-        : asMap(settings['v183LibraryOverview'])?['showOverview'] != false,
+        ? (asMap(settings['v192Dashboard'])?['showTodayBalance']) != false
+        : (asMap(settings['v183LibraryOverview'])?['showOverview']) != false,
     'source': previouslyCustom ? 'custom' : 'categories',
     'hiddenIds': previouslyCustom ? [for (final c in all) if (!prior.contains(jsStr(c['id']))) jsStr(c['id'])] : <String>[],
     'order': [for (final c in all) jsStr(c['id'])],
