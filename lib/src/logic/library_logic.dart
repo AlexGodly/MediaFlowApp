@@ -42,7 +42,7 @@ double _raise(Map<String, dynamic> state, String key, Map<String, dynamic> befor
       'multiplier': jsOut(mult),
       'xp': jsOut(xp),
       'timestamp': now,
-      'source': const {'libraryEdits': 'Library · edited title', 'manualCovers': 'Library · manual cover', 'ratings': 'Rating reward'}[key] ?? key,
+      'source': const {'libraryEdits': 'Library · edited title', 'manualCovers': 'Library · manual cover', 'ratings': 'Rating reward', 'libraryAdditions': 'Library · new title'}[key] ?? key,
       'subjectId': e.key,
     };
     total += xp;
@@ -270,8 +270,8 @@ String? saveTitle(Map<String, dynamic> state, String? id, TitleFields f, int now
     'completedAt': status == 'completed' ? (completedAt ?? now) : null,
     'modifiedAt': now,
   };
-  if (old == null) {
-    // v178 / v377: a new title starts with empty rich metadata and external ids.
+  {
+    // v178 / v377: the editor saves its (empty) rich-metadata and id fields when a title lacks them.
     const empty = <String, Object?>{
       'year': null, 'mediaFormat': '', 'durationMinutes': null, 'releaseDate': '', 'seasonLabel': '', 'ageRating': '',
       'communityScore': null, 'mediaSource': '', 'demographic': '', 'synopsis': '',
