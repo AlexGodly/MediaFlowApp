@@ -4,6 +4,7 @@
 // The website remembers each title's state as of the last save; [LibraryTracker]
 // does the same so rewards are given once, on the first transition.
 
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'leveling.dart';
 
@@ -84,7 +85,7 @@ class LibraryTracker {
       _started[id] = now0;
     }
     if (l.enabled) {
-      final multiplier = awardMultiplier(l, asList(state['sessions']), now);
+      final multiplier = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
       // v348RaiseNewRewards
       for (final key in before.keys) {
         final after = mapIn(ledger, key);

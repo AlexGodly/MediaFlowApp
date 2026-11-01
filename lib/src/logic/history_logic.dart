@@ -6,6 +6,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../state/lazy_copy.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'activity.dart';
@@ -69,7 +70,8 @@ bool editSession(
 /// `App.deleteSession` / `v253ConfirmHistoryDelete`: one undoable change with a
 /// Library History entry. Returns how many logs were removed.
 int deleteSessions(Map<String, dynamic> state, Set<String> ids, int now) {
-  final list = _sessions(state);
+  // Read without copying: History is copied once, below, where it changes.
+  final list = asList(readOnlyPart(state, 'sessions')).map(asMap).whereType<Map<String, dynamic>>().toList();
   final doomed = list.where((s) => ids.contains(jsStr(s['id']))).toList();
   if (doomed.isEmpty) return 0;
   final before = coreSnapshot(state);

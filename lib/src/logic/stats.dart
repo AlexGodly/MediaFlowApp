@@ -280,12 +280,42 @@ class StatsModel {
       asList(state['categories']).map(asMap).whereType<Map<String, dynamic>>().toList();
   int get nowMs => now.millisecondsSinceEpoch;
 
-  Map<String, dynamic>? category(Object? id) => categories.where((c) => jsStr(c['id']) == jsStr(id)).firstOrNull;
+  Map<String, dynamic>? category(Object? id) => _categoryById[jsStr(id)];
+  late final Map<String, Map<String, dynamic>> _categoryById = () {
+    final out = <String, Map<String, dynamic>>{};
+    for (final c in categories) {
+      out.putIfAbsent(jsStr(c['id']), () => c);
+    }
+    return out;
+  }();
+
+  // History grouped once (same order as the list), so per-category, per-month
+  // and per-year figures don't each read every log again.
+  late final List<String> _dayKeys = [for (final s in consumption) sessionDayKey(s)];
+  late final Map<String, double> _minutesByCategory = () {
+    final out = <String, double>{};
+    for (final s in consumption) {
+      final id = jsStr(s['categoryId']);
+      out[id] = (out[id] ?? 0) + jsNum(s['minutes']);
+    }
+    return out;
+  }();
+  late final Map<String, List<int>> _byMonth = () {
+    final out = <String, List<int>>{};
+    for (var i = 0; i < _dayKeys.length; i++) {
+      final k = _dayKeys[i];
+      if (k.length >= 7) (out[k.substring(0, 7)] ??= []).add(i);
+    }
+    return out;
+  }();
 
   late final XpMetrics xp = xpMetrics(state);
   late final LevelInfo level = levelInfo(xp.total);
   late final Totals life = totalsFor(sessions);
-  late final Totals today = totalsFor(sessions.where((s) => s['date'] == isoDateUtc(nowMs)));
+  late final Totals today = () {
+    final day = isoDateUtc(nowMs);
+    return totalsFor(sessions.where((s) => s['date'] == day));
+  }();
   late final Totals week = totalsFor(sessions.where((s) => jsNum(s['timestamp']) >= nowMs - 7 * 86400000));
   late final Totals month = totalsFor(sessions.where((s) => jsNum(s['timestamp']) >= nowMs - 30 * 86400000));
   double get totalUnits => life.units['episodes']! + life.units['chapters']! + life.units['movies']! + life.units['issues']!;
@@ -316,7 +346,7 @@ class StatsModel {
   List<({Map<String, dynamic> cat, double minutes})> get categoryMix {
     final rows = [
       for (final c in categories.where((c) => jsTruthy(c['enabled'])))
-        (cat: c, minutes: consumption.where((s) => jsStr(s['categoryId']) == jsStr(c['id'])).fold<double>(0, (a, s) => a + jsNum(s['minutes']))),
+        (cat: c, minutes: _minutesByCategory[jsStr(c['id'])] ?? 0.0),
     ];
     stableSort(rows, (a, b) => b.minutes.compareTo(a.minutes));
     return rows;
@@ -410,9 +440,14 @@ class StatsModel {
   List<({Map<String, dynamic> cat, double minutes, int pct})> get categoryBalance {
     final cats = scopeCategories(state, 'categoryBalance');
     final cutoff = nowMs - 7 * 86400000;
-    final recent = consumption.where((s) => sessionTime(s) >= cutoff).toList();
+    final recent = <String, double>{};
+    for (final s in consumption) {
+      if (!(sessionTime(s) >= cutoff)) continue;
+      final id = jsStr(s['categoryId']);
+      recent[id] = (recent[id] ?? 0) + jsNum(s['minutes']);
+    }
     final values = [
-      for (final c in cats) (cat: c, minutes: recent.where((s) => jsStr(s['categoryId']) == jsStr(c['id'])).fold<double>(0, (a, s) => a + jsNum(s['minutes']))),
+      for (final c in cats) (cat: c, minutes: recent[jsStr(c['id'])] ?? 0.0),
     ];
     final max = values.fold<double>(1, (a, x) => math.max(a, x.minutes));
     return [for (final x in values) (cat: x.cat, minutes: x.minutes, pct: x.minutes > 0 ? math.max(2, (x.minutes / max * 100).round()) : 0)];
@@ -421,10 +456,16 @@ class StatsModel {
   /// `saturationLevel` per category (the saturation scope).
   List<({Map<String, dynamic> cat, String label, int color})> get saturation {
     final cutoff = nowMs - 72 * 3600000;
+    final recent = <String, double>{};
+    for (final s in consumption) {
+      if (!(jsNum(s['timestamp']) >= cutoff)) continue;
+      final id = jsStr(s['categoryId']);
+      recent[id] = (recent[id] ?? 0) + jsNum(s['minutes']);
+    }
     return [
       for (final c in scopeCategories(state, 'saturation'))
         () {
-          final min72 = consumption.where((s) => jsStr(s['categoryId']) == jsStr(c['id']) && jsNum(s['timestamp']) >= cutoff).fold<double>(0, (a, s) => a + jsNum(s['minutes']));
+          final min72 = recent[jsStr(c['id'])] ?? 0.0;
           final cat = Category(c);
           final baseline = math.max((cat.target ?? double.nan) * cat.minutesPerUnit, 1) * 2.2;
           final ratio = baseline.isNaN ? double.nan : min72 / baseline;
@@ -439,7 +480,7 @@ class StatsModel {
 
   List<({Map<String, dynamic> cat, double minutes})> get _lifetimeByCategory => [
         for (final c in categories.where((c) => jsTruthy(c['enabled'])))
-          (cat: c, minutes: consumption.where((s) => jsStr(s['categoryId']) == jsStr(c['id'])).fold<double>(0, (a, s) => a + jsNum(s['minutes']))),
+          (cat: c, minutes: _minutesByCategory[jsStr(c['id'])] ?? 0.0),
       ];
 
   ({Map<String, dynamic> cat, double minutes})? get mostConsumed {
@@ -489,14 +530,20 @@ class StatsModel {
   /// `v129MostNeglected`.
   (Map<String, dynamic>?, String) get mostNeglected {
     final cats = categories.where((c) => jsTruthy(c['enabled'])).toList();
+    final lastTime = <String, double>{};
+    for (final s in consumption) {
+      final id = jsStr(s['categoryId']);
+      final t = sessionTime(s);
+      final cur = lastTime[id];
+      lastTime[id] = cur == null ? (t > 0 ? t : double.negativeInfinity) : (t > 0 ? math.max(cur, t) : cur);
+    }
     for (final c in cats) {
-      if (!consumption.any((s) => jsStr(s['categoryId']) == jsStr(c['id']))) return (c, 'never');
+      if (!lastTime.containsKey(jsStr(c['id']))) return (c, 'never');
     }
     Map<String, dynamic>? winner;
     var oldest = double.infinity;
     for (final c in cats) {
-      final times = consumption.where((s) => jsStr(s['categoryId']) == jsStr(c['id'])).map(sessionTime).where((t) => t > 0);
-      final last = times.isEmpty ? double.negativeInfinity : times.reduce(math.max);
+      final last = lastTime[jsStr(c['id'])] ?? double.negativeInfinity;
       if (last < oldest) {
         oldest = last;
         winner = c;
@@ -512,10 +559,10 @@ class StatsModel {
     if (consumption.isEmpty) return 0;
     final days = <String>{};
     var minutes = 0.0;
-    for (final s in consumption) {
-      final k = sessionDayKey(s);
+    for (var i = 0; i < consumption.length; i++) {
+      final k = _dayKeys[i];
       if (k.isNotEmpty) days.add(k);
-      minutes += jsNum(s['minutes']);
+      minutes += jsNum(consumption[i]['minutes']);
     }
     return days.isEmpty ? 0 : jsRound(minutes / days.length);
   }
@@ -539,14 +586,17 @@ class StatsModel {
 
   // ---- heatmap / recap / timeline (v119/v136) ----
 
-  List<double> get _historyTimes => [
-        for (final s in consumption)
-          if (sessionDayKey(s).isNotEmpty) DateTime.parse('${sessionDayKey(s)}T12:00:00').millisecondsSinceEpoch.toDouble(),
+  List<double> get _historyTimes {
+    final noon = <String, double>{};
+    return [
+        for (final k in _dayKeys)
+          if (k.isNotEmpty) noon[k] ??= DateTime.parse('${k}T12:00:00').millisecondsSinceEpoch.toDouble(),
         for (final i in library)
           if (jsNum(i['completedAt']) > 0) jsNum(i['completedAt']),
         for (final x in asList(state['completionTimeline']))
           if (jsNum(asMap(x)?['completedAt']) > 0) jsNum(asMap(x)?['completedAt']),
       ];
+  }
 
   List<String> get recapMonths {
     final times = _historyTimes;
@@ -567,7 +617,7 @@ class StatsModel {
   ({double minutes, Map<String, dynamic>? top, double topMinutes, int finished, int longest}) recap(String month) {
     final parts = month.split('-').map(int.parse).toList();
     final start = DateTime(parts[0], parts[1]).millisecondsSinceEpoch, end = DateTime(parts[0], parts[1] + 1).millisecondsSinceEpoch;
-    final ss = consumption.where((s) => sessionDayKey(s).startsWith(month)).toList();
+    final ss = [for (final i in _byMonth[month] ?? const <int>[]) consumption[i]];
     final byCat = <String, double>{};
     for (final s in ss) {
       byCat[jsStr(s['categoryId'])] = (byCat[jsStr(s['categoryId'])] ?? 0) + jsNum(s['minutes']);
@@ -575,7 +625,7 @@ class StatsModel {
     final entries = byCat.entries.toList();
     stableSort(entries, (a, b) => b.value.compareTo(a.value));
     final finished = library.where((i) => i['status'] == 'completed' && jsNum(i['completedAt']) >= start && jsNum(i['completedAt']) < end).length;
-    final days = ss.map(sessionDayKey).where((d) => d.isNotEmpty).toSet().toList()..sort();
+    final days = [for (final i in _byMonth[month] ?? const <int>[]) _dayKeys[i]].where((d) => d.isNotEmpty).toSet().toList()..sort();
     var longest = 0, run = 0;
     DateTime? prev;
     for (final d in days) {
@@ -595,8 +645,8 @@ class StatsModel {
 
   List<int> get heatmapYears {
     final years = <int>{now.year};
-    for (final s in consumption) {
-      final y = int.tryParse(sessionDayKey(s).padRight(4).substring(0, 4));
+    for (final k in _dayKeys) {
+      final y = int.tryParse(k.padRight(4).substring(0, 4));
       if (y != null && y >= 1900 && y <= 9999) years.add(y);
     }
     for (final i in library) {
@@ -616,8 +666,9 @@ class StatsModel {
     final map = <String, ({double minutes, int sessions, List<String> started, List<String> finished})>{};
     ({double minutes, int sessions, List<String> started, List<String> finished}) ensure(String k) =>
         map[k] ??= (minutes: 0, sessions: 0, started: <String>[], finished: <String>[]);
-    for (final s in consumption) {
-      final k = sessionDayKey(s);
+    for (var i = 0; i < consumption.length; i++) {
+      final s = consumption[i];
+      final k = _dayKeys[i];
       if (k.isEmpty || int.tryParse(k.substring(0, 4)) != year) continue;
       final v = ensure(k);
       map[k] = (minutes: v.minutes + jsNum(s['minutes']), sessions: v.sessions + 1, started: v.started, finished: v.finished);

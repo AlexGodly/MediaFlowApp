@@ -287,16 +287,14 @@ List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
   }
 
   diff = (List<String> path, Object? x, Object? y) {
-    if (identical(x, y)) return;
-    // Maps are walked key by key (an unchanged map yields nothing), so each
-    // value is compared once instead of once per level above it.
+    // Equal parts (most of them) are skipped without building any paths.
+    if (identical(x, y) || _deepEq(x, y)) return;
     if (x is Map && y is Map) {
       for (final k in <String>{...x.keys.map((e) => '$e'), ...y.keys.map((e) => '$e')}) {
         field(path, x, y.containsKey(k), y[k], k);
       }
       return;
     }
-    if (_deepEq(x, y)) return;
     if (x is List && y is List && path.isNotEmpty) {
       bool idList(List l) => l.every((e) => e is Map && jsStr(e['id']).isNotEmpty);
       if (idList(x) && idList(y) && (x.isNotEmpty || y.isNotEmpty)) {

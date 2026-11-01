@@ -55,6 +55,44 @@ class ScoredCategory {
   String get id => jsStr(cat['id']);
 }
 
+const _balanceWindows = [(days: 3, weight: .35, min: 60), (days: 7, weight: .25, min: 120), (days: 30, weight: .20, min: 240), (days: -1, weight: .20, min: 1)];
+
+/// What the scheduler reads from History, gathered in one pass (same order and
+/// the same arithmetic as reading it per category).
+class _HistoryIndex {
+  _HistoryIndex(this.source, int now) : length = source.length {
+    for (final raw in source) {
+      final s = asMap(raw);
+      if (s == null) continue;
+      sessions.add(s);
+      final cid = jsStr(s['categoryId']);
+      final best = lastByCategory[cid];
+      if (best == null || jsNum(s['timestamp']) > jsNum(best['timestamp'])) lastByCategory[cid] = s;
+      if (s['status'] != 'skipped' && (jsNum(s['minutes']) > 0 || jsNum(s['actualAmount']) > 0)) consumption.add(s);
+    }
+    for (final win in _balanceWindows) {
+      var total = 0.0;
+      final byCategory = <String, double>{};
+      for (final x in consumption) {
+        if (win.days >= 0 && !(jsNum(x['timestamp']) >= now - win.days * 86400000)) continue;
+        final m = jsNum(x['minutes']);
+        final v = m < 0 ? 0.0 : m;
+        total += v;
+        final cid = jsStr(x['categoryId']);
+        byCategory[cid] = (byCategory[cid] ?? 0.0) + v;
+      }
+      windowMinutes.add((total: total, byCategory: byCategory));
+    }
+  }
+
+  final List<dynamic> source;
+  final int length;
+  final List<Map<String, dynamic>> sessions = [];
+  final List<Map<String, dynamic>> consumption = [];
+  final Map<String, Map<String, dynamic>> lastByCategory = {};
+  final List<({double total, Map<String, double> byCategory})> windowMinutes = [];
+}
+
 class Recommender {
   Recommender(this.state, {required this.now, RandomSource? random, String Function()? uid})
       : random = random ?? defaultRandom,
@@ -70,8 +108,18 @@ class Recommender {
       asList(state['categories']).map(asMap).whereType<Map<String, dynamic>>().toList();
   List<Map<String, dynamic>> get library =>
       asList(state['library']).map(asMap).whereType<Map<String, dynamic>>().toList();
-  List<Map<String, dynamic>> get sessions =>
-      asList(state['sessions']).map(asMap).whereType<Map<String, dynamic>>().toList();
+  List<Map<String, dynamic>> get sessions => List.of(_history.sessions);
+
+  // History is read many times per decision (every category, every window).
+  // It is indexed once and re-indexed only if the History list itself changes
+  // (a log added, e.g. by Skip); the results are exactly the same.
+  _HistoryIndex? _historyIndex;
+  _HistoryIndex get _history {
+    final list = asList(state['sessions']);
+    final cached = _historyIndex;
+    if (cached != null && identical(cached.source, list) && cached.length == list.length) return cached;
+    return _historyIndex = _HistoryIndex(list, now);
+  }
 
   double _st(String key) {
     final v = jsNumFromKey(settings, key);
@@ -113,19 +161,9 @@ class Recommender {
 
   // ---- history helpers -----------------------------------------------------
 
-  List<Map<String, dynamic>> consumptionSessions() => sessions
-      .where((s) => s['status'] != 'skipped' && (jsNum(s['minutes']) > 0 || jsNum(s['actualAmount']) > 0))
-      .toList();
+  List<Map<String, dynamic>> consumptionSessions() => List.of(_history.consumption);
 
-  Map<String, dynamic>? lastSessionFor(String catId) {
-    Map<String, dynamic>? best;
-    for (final s in sessions) {
-      if (jsStr(s['categoryId']) == catId && (best == null || jsNum(s['timestamp']) > jsNum(best['timestamp']))) {
-        best = s;
-      }
-    }
-    return best;
-  }
+  Map<String, dynamic>? lastSessionFor(String catId) => _history.lastByCategory[catId];
 
   double daysSince(Object? ts) {
     final t = jsNum(ts);
@@ -178,19 +216,13 @@ class Recommender {
     var weightTotal = enabled.fold<double>(0, (a, c) => a + w(c['weight']));
     if (weightTotal == 0) weightTotal = 1;
     final desiredShare = w(cat['weight']) / weightTotal;
-    final all = consumptionSessions();
-    const windows = [(days: 3, weight: .35, min: 60), (days: 7, weight: .25, min: 120), (days: 30, weight: .20, min: 240), (days: -1, weight: .20, min: 1)];
     var ratioSum = 0.0, usedWeight = 0.0;
     final id = jsStr(cat['id']);
-    for (final win in windows) {
-      final rows = win.days < 0 ? all : all.where((x) => jsNum(x['timestamp']) >= now - win.days * 86400000).toList();
-      var total = 0.0, mine = 0.0;
-      for (final x in rows) {
-        final m = jsNum(x['minutes']);
-        final v = m < 0 ? 0.0 : m;
-        total += v;
-        if (jsStr(x['categoryId']) == id) mine += v;
-      }
+    final windowMinutes = _history.windowMinutes;
+    for (var wi = 0; wi < _balanceWindows.length; wi++) {
+      final win = _balanceWindows[wi];
+      final total = windowMinutes[wi].total;
+      final mine = windowMinutes[wi].byCategory[id] ?? 0.0;
       final actualShare = total > 0 ? mine / total : 0.0;
       final ratio = desiredShare > 0 ? actualShare / desiredShare : 1.0;
       if (total >= win.min) {

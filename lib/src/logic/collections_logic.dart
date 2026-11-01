@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'leveling.dart';
 import 'library_hooks.dart';
@@ -72,7 +73,7 @@ void _touchCollection(Map<String, dynamic> state, Map<String, dynamic> c, List<S
   }
   // v348RaiseNewRewards
   if (enabled) {
-    final mult = awardMultiplier(l, asList(state['sessions']), now);
+    final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
     final meta = mapIn(ledger, 'v348EventMeta');
     for (final key in snap.keys) {
       final after = mapIn(ledger, key);

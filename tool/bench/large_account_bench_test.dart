@@ -111,13 +111,6 @@ T _time<T>(String label, T Function() run, {int repeat = 1}) {
   return out;
 }
 
-Future<T> _timeAsync<T>(String label, Future<T> Function() run) async {
-  final sw = Stopwatch()..start();
-  final out = await run();
-  _rows.add('${label.padRight(58)} ${sw.elapsedMilliseconds.toString().padLeft(7)} ms');
-  return out;
-}
-
 void main() {
   test('large account benchmark', () async {
     final fx = (jsonDecode(File('test/fixtures/rec-quick-progress.json').readAsStringSync()) as Map).cast<String, dynamic>();
@@ -182,13 +175,14 @@ void main() {
         m.mostConsumed, m.mostNeglected, m.rated8, m.rated95, m.ratedCount, m.ratingDistribution, m.recapMonths,
         m.repeats, m.saturation, m.avgDaily7, m.avgSession, m.peakDay, m.mostActiveDay, m.totalUnits, m.logicalSessions,
       ];
-      for (final y in m.heatmapYears) {
-        parts.add(m.heatmap(y));
-      }
-      for (final mo in m.recapMonths) {
-        parts.add(m.recap(mo));
-      }
+      // The page shows one year and one month at a time.
+      parts.add(m.heatmap(m.heatmapYears.first));
+      parts.add(m.recap(m.recapMonths.first));
       return parts.length;
+    });
+    _time('  every heatmap year and recap month', () {
+      final m = StatsModel(state, now);
+      return [for (final y in m.heatmapYears) m.heatmap(y)].length + [for (final mo in m.recapMonths) m.recap(mo)].length;
     });
     _time("Today's Balance", () => todayBalance(state, now.millisecondsSinceEpoch));
     _time('On This Day', () => onThisDay(state, now));

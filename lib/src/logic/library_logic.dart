@@ -6,6 +6,7 @@
 
 import 'dart:math' as math;
 
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'activity.dart';
 import 'leveling.dart';
@@ -28,7 +29,7 @@ double _raise(Map<String, dynamic> state, String key, Map<String, dynamic> befor
     mapIn(ledger, k);
   }
   final after = mapIn(ledger, key);
-  final mult = awardMultiplier(l, asList(state['sessions']), now);
+  final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
   var total = 0.0;
   for (final e in after.entries.toList()) {
     final added = math.max(0.0, jsNum(e.value) - jsNum(before[e.key]));
@@ -69,7 +70,7 @@ double v348Award(Map<String, dynamic> state, String kind, int amount, int now, S
   final quantity = math.max(0, amount);
   if (quantity == 0) return 0;
   final rate = l.reward(kind);
-  final mult = awardMultiplier(l, asList(state['sessions']), now);
+  final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
   final xp = math.max(0.0, jsRound(quantity * rate * mult));
   if (xp == 0) return 0;
   final ledger = _ledger(state);
@@ -136,7 +137,7 @@ double awardAddition(Map<String, dynamic> state, String id, int now, String Func
   if (l.enabled) {
     final bonus = mapIn(ledger, 'v348LibraryAdditionBonus');
     if (!bonus.containsKey(id) && !before.containsKey(id) && additions.containsKey(id)) {
-      final mult = awardMultiplier(l, asList(state['sessions']), now);
+      final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
       final xp = jsRound(base * mult);
       bonus[id] = jsOut(math.max(0.0, xp - base));
       mapIn(ledger, 'v348EventMeta')['library-add:$id'] = {

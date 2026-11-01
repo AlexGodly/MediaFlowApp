@@ -486,10 +486,20 @@ TodayBalance todayBalance(Map<String, dynamic> state, int now) {
   final todays = sessions.map(asMap).whereType<Map<String, dynamic>>().where((s) => s['date'] == today).toList();
   final r = Recommender(state, now: now);
   final cats = visiblePanelCategories(state, 'todayBalance').map(Category.new).toList();
+  // Each status only looks at its own category's logs: hand each one just
+  // those (same order), and work each out once.
+  final byCategory = <String, List<dynamic>>{};
+  for (final raw in sessions) {
+    final m = asMap(raw);
+    if (m != null) (byCategory[jsStr(m['categoryId'])] ??= []).add(m);
+  }
+  final todayStatus = <String, String>{}, overallStatus = <String, String>{};
+  String statusToday(Category c) => todayStatus[c.id] ??= categoryStatus(c, byCategory[c.id] ?? const [], now);
+  String statusOverall(Category c) => overallStatus[c.id] ??= overallCategoryStatus(c, byCategory[c.id] ?? const [], now);
   final rows = <BalanceRow>[];
   for (final cat in cats) {
     final amt = todays.where((s) => jsStr(s['categoryId']) == cat.id && s['status'] != 'skipped').fold<double>(0, (a, s) => a + jsNum(s['actualAmount']));
-    final t = categoryStatus(cat, sessions, now), o = overallCategoryStatus(cat, sessions, now);
+    final t = statusToday(cat), o = statusOverall(cat);
     final target = math.max(1.0, cat.target == null || cat.target == 0 ? 1.0 : cat.target!);
     final g = balanceGuidance(r, cat, t, o);
     rows.add(BalanceRow(cat, amt, t, o, target, g.label, g.text));
@@ -521,8 +531,8 @@ TodayBalance todayBalance(Map<String, dynamic> state, int now) {
     streak,
     unrated,
     visible,
-    count((c) => categoryStatus(c, sessions, now)),
-    count((c) => overallCategoryStatus(c, sessions, now)),
+    count(statusToday),
+    count(statusOverall),
     subjects.length,
   );
 }
