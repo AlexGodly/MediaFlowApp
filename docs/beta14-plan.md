@@ -27,30 +27,33 @@ they land on branch `flutter-beta14`; release only when everything is done.
 ## Areas
 
 ### 0. Foundation
-- [ ] Navigation (bottom bar + More + side rail)
-- [ ] Generic replayable edit ops with newest-wins field merge
-- [ ] Offline sign-in robustness (expired token while offline keeps the app usable)
-- [ ] Cover image cache
-- [ ] Permanent Android signing key
+- [x] Navigation (bottom bar + More + side rail)
+- [x] Generic replayable edit ops with newest-wins field merge
+- [x] Offline sign-in robustness (expired token while offline keeps the app usable)
+- [x] Cover image cache
+- [x] Permanent Android signing key
 
 ### 1. Log tab (items 1–10)
 - [x] Quick / Advanced label, recommended title cover + own line, "Titles"
-- [ ] Covers on every added title (Quick rows + Advanced cards)
-- [ ] "+" button: Add titles / Save & get next task
-- [ ] Logging Library (search, category/status/priority filters, picker sorts,
+- [x] Covers on every added title (Quick rows + Advanced cards)
+- [x] "+" button: Add titles / Save & get next task
+- [x] Logging Library (search, category/status/priority filters, picker sorts,
       direction, shuffle, page size + paging, 5 layouts, multi-select + bulk add,
       already-added marks, add recommended title, new title) — state in
       `resumeStateV285.logging.ui`
-- [ ] Arrange added titles (`logDraft.v373Ordering`, 13 sorts, custom drag, random)
-- [ ] Collapse: per title (`v369Collapsed` / `v379QuickCollapsed`), Hide Added
+- [x] Arrange added titles (`logDraft.v373Ordering`, 13 sorts, custom drag, random)
+- [x] Collapse: per title (`v369Collapsed` / `v379QuickCollapsed`), Hide Added
       Titles (`v379HideAddedTitles`), Logging Workspace (`settings.v419LoggingCollapsed`),
       last-40 units + Show all (`v369ShowAll`)
-- [ ] XP preview card (trial save)
-- [ ] Website tab wording; apply on blur
+- [x] XP preview card (trial save)
+- [x] Website tab wording; apply on blur
 
-### 2. Library (complete)
-### 3. History (complete) + Library History + XP History + undo/redo
-### 4. Collections + Personal Order
-### 5. Statistics (27 sections) + Extras (Stopwatch, Runtime Calculator, Today's Balance, On This Day)
-### 6. Settings (website + app)
+### 2. Library (complete) ✓
+### 3. History (complete) + Library History + XP History + undo/redo ✓
+### 4. Collections + Personal Order ✓
+### 5. Statistics (27 sections) + Extras (Stopwatch, Runtime Calculator, Today's Balance, On This Day) ✓
+### 6. Settings (website + app) ✓ — reminders and Windows start-up/tray deferred (need system plugins)
 ### 7. Verify offline, release
+
+
+Status 2026-11-01: all areas landed; website goldens for title edit/add, History delete, Collections and Personal Order pass. Android permanent key waits for the two repository secrets.

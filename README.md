@@ -12,13 +12,22 @@ Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). La
 
 ## What the app does today
 
-Sign in · **Log tab with MediaFlow Recommends** (start / something else / skip / end, exact-title rerolls, System Respect XP) and the website's full logging form — Quick (progress reached or amount, multi-title, seasons, new titles) and **Advanced** (per unit: episode by episode with runtimes, times, rewatches; Reached / Amount per title) — with the draft shared live with the website · Batch Log · Library (search, status and category filters, covers, progress) · History · offline use with safe sync. Dashboard stats, Collections, Personal Order editing, Statistics and Settings are next.
+Everything on the MediaFlow website, natively, online or offline:
+
+- **Log** — MediaFlow Recommends and the full logging form (Quick / Advanced) with the Logging Library, the + button, Arrange your session, collapsing and XP for this log, shared live with the website.
+- **Library** — sorts, filters, views, batch actions, Title Details, the title editor with online cover search, Rate Your Library, Missing Covers.
+- **History** — edit and delete logs, Undo / Redo, XP History with export, Library History with restore.
+- **Extras** — Today's Balance, On This Day, Stopwatch, Runtime Calculator.
+- **More** — Collections, Personal Order with Collection queues, Statistics (every website section), Settings (account and app), Account.
+
+Every change is saved on the device first and replayed on the newest cloud copy; when the same thing changed in two places, the newest change wins.
 
 ## How logging stays compatible with the website
 
 - `lib/src/logic/log_engine.dart` writes a log as the website's own **Batch Log** entry, including every follow-up rule the website applies (progress and seasons, completions, rewatch XP, start dates, category-health XP, streaks, XP-ledger awards).
 - `lib/src/logic/recommend.dart` (task engine), `log_draft.dart` (the logging form), `rec_submit.dart` (the website's `submitLog` chain) and `resume.dart` (the shared draft) do the same for MediaFlow Recommends.
-- `test/logging_golden_test.dart` and `test/recommendation_golden_test.dart` check them against reference results recorded from the **real website**: `tool/website_reference/generate_log_goldens.py` and `generate_recommendation_goldens.py` run MediaFlow's own code on fixed accounts and save the before/after data in `test/fixtures/`.
+- `test/logging_golden_test.dart`, `test/recommendation_golden_test.dart` and `test/edit_golden_test.dart` check them against reference results recorded from the **real website**: `tool/website_reference/generate_log_goldens.py`, `generate_recommendation_goldens.py` and `generate_edit_goldens.py` run MediaFlow's own code on fixed accounts and save the before/after data in `test/fixtures/`.
+- Library, History, Collections, Personal Order and settings edits (`lib/src/logic/library_logic.dart`, `history_logic.dart`, `collections_logic.dart`) run the website's logic on a copy of the account; `lib/src/data/edit_op.dart` records the difference as replayable changes (each with the value it replaced, so a newer change made elsewhere wins).
 - Sync (`lib/src/data/sync_engine.dart`, `account_ops.dart`) keeps logs, task actions and drafts as replayable operations with fixed ids. Each upload re-reads the cloud row and writes with a compare-and-swap on `updated_at`, so it never overwrites a newer version and never duplicates a log. It uses the existing `mediaflow_states` row and policies; no schema changes.
 
 ## Layout
@@ -55,4 +64,4 @@ Every push to `main` runs `.github/workflows/release.yml`: tests → Android, Wi
 
 ## Limitations
 
-The APK is signed with a CI debug key; Windows and iOS builds are unsigned. The website itself saves without a version check, so a stale website tab can still overwrite a newer app log; refresh the website after logging in the app.
+The APK is signed with a CI debug key until the `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` secrets are set (then with the permanent MediaFlow key); Windows and iOS builds are unsigned. The website itself saves without a version check, so a stale website tab can still overwrite a newer app log; refresh the website after logging in the app.
