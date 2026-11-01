@@ -216,7 +216,13 @@ String? saveTitle(Map<String, dynamic> state, String? id, TitleFields f, int now
     {void Function(String id, double xp)? saved}) {
   final old = id == null ? null : findTitle(state, id);
   final status = f.status;
-  final startedAt = f.startedAt;
+  // The editor's date fields hold days: saving re-reads them as local noon (v135ParseDateInput).
+  int? noon(int? ms) {
+    if (ms == null) return null;
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    return DateTime(d.year, d.month, d.day, 12).millisecondsSinceEpoch;
+  }
+  final startedAt = noon(f.startedAt);
   String? startedAtSource;
   if (startedAt != null) {
     if (f.startEdited) {
@@ -228,7 +234,7 @@ String? saveTitle(Map<String, dynamic> state, String? id, TitleFields f, int now
     }
   }
   int? completedAt;
-  if (status == 'completed') completedAt = f.completedAt ?? (jsNum(old?['completedAt']) > 0 ? jsNum(old!['completedAt']).toInt() : now);
+  if (status == 'completed') completedAt = f.completedAt != null ? noon(f.completedAt) : (jsNum(old?['completedAt']) > 0 ? jsNum(old!['completedAt']).toInt() : now);
   if (startedAt != null && completedAt != null && completedAt < startedAt) return 'Finish date cannot be before Start date.';
 
   final before = coreSnapshot(state);
@@ -264,6 +270,21 @@ String? saveTitle(Map<String, dynamic> state, String? id, TitleFields f, int now
     'completedAt': status == 'completed' ? (completedAt ?? now) : null,
     'modifiedAt': now,
   };
+  if (old == null) {
+    // v178 / v377: a new title starts with empty rich metadata and external ids.
+    const empty = <String, Object?>{
+      'year': null, 'mediaFormat': '', 'durationMinutes': null, 'releaseDate': '', 'seasonLabel': '', 'ageRating': '',
+      'communityScore': null, 'mediaSource': '', 'demographic': '', 'synopsis': '',
+    };
+    for (final e in empty.entries) {
+      data.putIfAbsent(e.key, () => e.value);
+    }
+    for (final k in const ['studios', 'producers', 'genres', 'themes']) {
+      data.putIfAbsent(k, () => <dynamic>[]);
+    }
+    data.putIfAbsent('richMetadataManual', () => <String, dynamic>{});
+    data.putIfAbsent('externalIds', () => <String, dynamic>{});
+  }
   if (f.seasons != null) {
     data['seasons'] = [
       for (var i = 0; i < f.seasons!.length; i++)

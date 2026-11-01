@@ -1166,6 +1166,8 @@ class _LogScreenState extends State<LogScreen> {
   // ---- the "+" button -------------------------------------------------------------------
 
   Widget? _fab(AccountView view, Map<String, dynamic>? task, bool active) {
+    // The website's "Show the floating + button" setting (v405).
+    if (asMap(view.state['settings'])?['v405ShowFloatingAdd'] == false) return null;
     if (!active || task == null) {
       return FloatingActionButton(
         heroTag: null,
