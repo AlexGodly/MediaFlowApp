@@ -166,13 +166,19 @@ class _LogScreenState extends State<LogScreen> {
   }
 
   /// Recomputes "XP for this log" shortly after the draft stops changing.
+  String _xpKey = '';
+
   void _scheduleXp() {
+    // Nothing that affects XP changed (e.g. a filter or collapse toggle).
+    final key = '${jsStr(_task?['id'])}|${jsonEncode(_logDraft)}';
+    if (key == _xpKey && _xp != null) return;
     _xpTimer?.cancel();
     _xpTimer = Timer(const Duration(milliseconds: 650), () {
       final view = account.view;
       final task = _task, draft = _logDraft;
       if (view == null || task == null || draft == null || !mounted) return;
       final gen = ++_xpGen;
+      _xpKey = key;
       setState(() => _xpBusy = true);
       computeXpPreview(view.state, task, draft).then((xp) {
         if (!mounted || gen != _xpGen) return;
@@ -754,7 +760,7 @@ class _LogScreenState extends State<LogScreen> {
       backgroundColor: MF.surface,
       builder: (c) => SizedBox(
         height: MediaQuery.sizeOf(c).height * 0.9,
-        child: ListenableBuilder(
+        child: LiveBuilder(
           listenable: account,
           builder: (c, _) => StatefulBuilder(builder: (c, set) {
             final view = account.view;

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
+import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
 import '../logic/library_logic.dart';
 import '../state/models.dart';
@@ -38,7 +39,11 @@ void unawaitedSeen(AccountController account, String id) {
   if (item == null) return;
   final now = DateTime.now().millisecondsSinceEpoch;
   if (now - jsNum(item.raw['lastSeenAt']) < 750) return;
-  account.edit((s, t) => findTitle(s, id)?['lastSeenAt'] = t, undoable: false);
+  // One small change (no full-account comparison), uploaded with the next sync.
+  account.perform(
+    EditOp(id: mediaFlowUid(now), createdAt: now, changes: [Change('set', ['library', '#$id', 'lastSeenAt'], now, item.raw['lastSeenAt'])]),
+    delay: const Duration(seconds: 20),
+  );
 }
 
 class TitleScreen extends StatelessWidget {
@@ -88,7 +93,7 @@ class TitleScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

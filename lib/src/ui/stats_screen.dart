@@ -32,7 +32,7 @@ class _StatsScreenState extends State<StatsScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: MF.surface,
-      builder: (c) => ListenableBuilder(
+      builder: (c) => LiveBuilder(
         listenable: account,
         builder: (c, _) {
           final state = account.view?.state ?? const <String, dynamic>{};
@@ -70,12 +70,12 @@ class _StatsScreenState extends State<StatsScreen> {
           SyncIndicator(account: account),
         ],
       ),
-      body: ListenableBuilder(
+      body: LiveBuilder(
         listenable: account,
         builder: (context, _) {
           final view = account.view;
           if (view == null) return const SizedBox.shrink();
-          final m = StatsModel(view.state, DateTime.now());
+          final m = memoFor(view, 'stats', () => StatsModel(view.state, DateTime.now()));
           bool on(String k) => statsComponentVisible(view.state, k);
           return Center(
             child: ConstrainedBox(

@@ -150,8 +150,14 @@ class AccountController extends ChangeNotifier {
     }
   }
 
+  DateTime? _syncDue;
+
+  /// Syncs after [delay] — unless a sync is already due sooner.
   void _scheduleSync(Duration delay) {
+    final due = DateTime.now().add(delay);
+    if (_syncTimer?.isActive == true && _syncDue != null && _syncDue!.isBefore(due)) return;
     _syncTimer?.cancel();
+    _syncDue = due;
     _syncTimer = Timer(delay, () => unawaited(sync()));
   }
 

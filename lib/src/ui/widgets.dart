@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../config.dart';
@@ -395,4 +396,99 @@ Future<bool> useMinutesForOpenLog(AccountController account, int minutes) async 
     ui: logging['ui'],
   ));
   return true;
+}
+
+// ---- keeping the app light ---------------------------------------------------------------
+
+/// Whether the page this widget is on is the one on screen (set by the shell).
+class PageActivity extends InheritedWidget {
+  const PageActivity({super.key, required this.active, required super.child});
+  final ValueListenable<bool> active;
+
+  static ValueListenable<bool>? maybeOf(BuildContext context) => context.dependOnInheritedWidgetOfExactType<PageActivity>()?.active;
+
+  @override
+  bool updateShouldNotify(PageActivity old) => old.active != active;
+}
+
+/// Like [ListenableBuilder], but a page that is not on screen does not rebuild:
+/// it catches up once when it is shown again. Keeps hidden tabs from redoing
+/// their work on every account change.
+class LiveBuilder extends StatefulWidget {
+  const LiveBuilder({super.key, required this.listenable, required this.builder, this.child});
+  final Listenable listenable;
+  final TransitionBuilder builder;
+  final Widget? child;
+
+  @override
+  State<LiveBuilder> createState() => _LiveBuilderState();
+}
+
+class _LiveBuilderState extends State<LiveBuilder> {
+  ValueListenable<bool>? _active;
+  bool _dirty = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.listenable.addListener(_changed);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final a = PageActivity.maybeOf(context);
+    if (!identical(a, _active)) {
+      _active?.removeListener(_activeChanged);
+      _active = a;
+      a?.addListener(_activeChanged);
+    }
+  }
+
+  @override
+  void didUpdateWidget(LiveBuilder old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.listenable, widget.listenable)) {
+      old.listenable.removeListener(_changed);
+      widget.listenable.addListener(_changed);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.listenable.removeListener(_changed);
+    _active?.removeListener(_activeChanged);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (!mounted) return;
+    if (_active == null || _active!.value) {
+      setState(() {});
+    } else {
+      _dirty = true;
+    }
+  }
+
+  void _activeChanged() {
+    if (mounted && _dirty && (_active?.value ?? true)) {
+      _dirty = false;
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, widget.child);
+}
+
+final Expando<Map<String, Object?>> _memo = Expando('memo');
+
+/// Computes something once per account version ([owner] is the account view,
+/// which is replaced whenever the account changes).
+T memoFor<T>(Object owner, String key, T Function() compute) {
+  final m = _memo[owner] ??= <String, Object?>{};
+  if (m.containsKey(key)) return m[key] as T;
+  final v = compute();
+  m[key] = v;
+  return v;
 }

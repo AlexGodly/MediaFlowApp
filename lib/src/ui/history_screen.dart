@@ -57,7 +57,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           actions: [SyncIndicator(account: account)],
           bottom: const TabBar(tabs: [Tab(text: 'Logs'), Tab(text: 'XP History'), Tab(text: 'Library History')]),
         ),
-        body: ListenableBuilder(
+        body: LiveBuilder(
           listenable: account,
           builder: (context, _) {
             final view = account.view;
@@ -113,7 +113,8 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
   List<LogRecord> _filtered() {
     final q = _search.text.trim().toLowerCase();
     final types = {for (final c in view.categories) c.id: jsStr(c.raw['type'])};
-    final out = view.logs.where((l) {
+    final byTime = memoFor(view, 'logsByTime', () => List<LogRecord>.of(view.logs)..sort((a, b) => b.timestamp.compareTo(a.timestamp)));
+    final out = byTime.where((l) {
       if (l.skipped && !_showSkipped) return false;
       if (_cats.isNotEmpty && !_cats.contains(l.categoryId)) return false;
       if (_media != 'all') {
@@ -126,8 +127,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
         if (!hay.contains(q)) return false;
       }
       return true;
-    }).toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    }).toList();
     return out;
   }
 
@@ -668,7 +668,7 @@ class _XpTabState extends State<_XpTab> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final all = xpHistory(widget.view.state);
+    final all = memoFor(widget.view, 'xpHistory', () => xpHistory(widget.view.state));
     final q = _search.text.trim().toLowerCase();
     final rows = all
         .where((x) => (_source == 'all' || x.kind == _source) && (q.isEmpty || '${x.source} ${x.title} ${x.details} ${x.kind}'.toLowerCase().contains(q)))

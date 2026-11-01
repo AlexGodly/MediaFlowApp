@@ -70,10 +70,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
-  /// `v189CompareLibraryItems`.
+  /// `v189CompareLibraryItems`, then the filters. The sorted Library is kept
+  /// per account version, so typing in search only filters.
   List<LibraryTitle> _filtered(AccountView view) {
     final q = _search.text.trim().toLowerCase();
-    final rows = view.library.where((t) {
+    final sorted = memoFor(view, 'library|$_sort|$_dir|$_seed', () => _sorted(view));
+    return sorted.where((t) {
       if (_status != 'all' && t.status != _status) return false;
       if (_priority != 'all' && (jsStr(t.raw['priority']).isEmpty ? 'medium' : jsStr(t.raw['priority'])) != _priority) return false;
       if (_cats.isNotEmpty && !_cats.contains(t.categoryId)) return false;
@@ -83,6 +85,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
       }
       return true;
     }).toList();
+  }
+
+  List<LibraryTitle> _sorted(AccountView view) {
+    final rows = List<LibraryTitle>.of(view.library);
     final sort = _sort, asc = _dir == 'asc';
     final touched = sort == 'logging' ? lastTouchedIndex(view.state) : const <String, double>{};
     double n(Object? v) => jsNumOrNull(v) ?? 0;
@@ -248,7 +254,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: Listenable.merge([account, prefs]),
       builder: (context, _) {
         final view = account.view;
@@ -582,7 +588,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -675,7 +681,7 @@ class MissingCoversScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

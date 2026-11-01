@@ -23,7 +23,7 @@ class ExtrasScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Extras'), actions: [SyncIndicator(account: account)]),
-      body: ListenableBuilder(
+      body: LiveBuilder(
         listenable: account,
         builder: (context, _) {
           final view = account.view;
@@ -72,7 +72,7 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final b = todayBalance(view.state, DateTime.now().millisecondsSinceEpoch);
+    final b = memoFor(view, 'todayBalance', () => todayBalance(view.state, DateTime.now().millisecondsSinceEpoch));
     return SectionCard(
       prefKey: 'extras.balance',
       icon: Icons.balance_rounded,
@@ -170,7 +170,7 @@ class _OnThisDayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final groups = onThisDay(view.state, now);
+    final groups = memoFor(view, 'onThisDay', () => onThisDay(view.state, now));
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     final today = '${months[now.month - 1]} ${now.day}';
     return SectionCard(
@@ -295,7 +295,8 @@ class _StopwatchCardState extends State<StopwatchCard> {
   void _syncTicker(Stopwatch2 sw) {
     if (sw.running && _tick == null) {
       _tick = Timer.periodic(const Duration(milliseconds: 250), (_) {
-        if (mounted) setState(() {});
+        // Only redraw while Extras is on screen.
+        if (mounted && TickerMode.of(context)) setState(() {});
       });
     } else if (!sw.running && _tick != null) {
       _tick!.cancel();

@@ -80,7 +80,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -264,7 +264,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

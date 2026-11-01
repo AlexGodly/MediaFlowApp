@@ -48,7 +48,7 @@ class _TitleSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

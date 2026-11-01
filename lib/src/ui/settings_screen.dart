@@ -201,7 +201,7 @@ class _AccountSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;
@@ -545,7 +545,7 @@ class _AppSettingsState extends State<_AppSettings> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
+    return LiveBuilder(
       listenable: Listenable.merge([account, prefs]),
       builder: (context, _) {
         final pending = account.pendingCount;

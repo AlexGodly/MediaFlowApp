@@ -160,7 +160,9 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
   @override
   Widget build(BuildContext context) {
     final view = widget.view;
-    final rows = pickerCandidates(view.state, widget.draft, st, _search.text);
+    final addedKey = asList(widget.draft['entries']).map((e) => jsStr(asMap(e)?['libraryId'])).join(',');
+    final rows = memoFor(view, 'picker|${st.toUi()}|${st.seed}|${_search.text}|$addedKey',
+        () => pickerCandidates(view.state, widget.draft, st, _search.text));
     final size = loggingPageSize(view.state);
     final pages = (rows.length / size).ceil().clamp(1, 1 << 30);
     if (st.page > pages - 1) st.page = pages - 1;

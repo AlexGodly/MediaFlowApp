@@ -61,6 +61,19 @@ class _HomeShellState extends State<HomeShell> {
   late Section _section = widget.start;
   bool _moreOpen = false;
 
+  // Each page is built once and kept (with its scroll position and filters);
+  // only the page on screen listens to account changes.
+  final Map<Section, Widget> _pages = {};
+  final Set<Section> _visited = {};
+
+  Widget _page(Section s) => _pages[s] ??= sectionPage(s, widget.account);
+
+  @override
+  void didUpdateWidget(HomeShell old) {
+    super.didUpdateWidget(old);
+    if (!identical(old.account, widget.account)) _pages.clear();
+  }
+
   void _go(Section s) => setState(() {
         _section = s;
         _moreOpen = false;
@@ -75,14 +88,17 @@ class _HomeShellState extends State<HomeShell> {
         final wide = MediaQuery.sizeOf(context).width >= 900;
         final showMore = !wide && _moreOpen;
         final visible = Section.values;
+        if (!showMore) _visited.add(_section);
         final body = !account.hasData
             ? _Loading(account: account)
-            : showMore
-                ? MoreScreen(onOpen: _go)
-                : IndexedStack(
-                    index: visible.indexOf(_section),
-                    children: [for (final s in visible) sectionPage(s, account)],
-                  );
+            : IndexedStack(
+                index: showMore ? visible.length : visible.indexOf(_section),
+                children: [
+                  for (final s in visible)
+                    _visited.contains(s) ? _PageGate(active: !showMore && s == _section, child: _page(s)) : const SizedBox.shrink(),
+                  MoreScreen(onOpen: _go),
+                ],
+              );
         // History keeps the quick Batch Log button; Log and Library have their own.
         final fab = account.hasData && !showMore && _section == Section.history
             ? FloatingActionButton.extended(
@@ -153,6 +169,36 @@ class _HomeShellState extends State<HomeShell> {
       },
     );
   }
+}
+
+/// Tells a kept page whether it is on screen (pauses its tickers when not).
+class _PageGate extends StatefulWidget {
+  const _PageGate({required this.active, required this.child});
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_PageGate> createState() => _PageGateState();
+}
+
+class _PageGateState extends State<_PageGate> {
+  late final ValueNotifier<bool> _active = ValueNotifier(widget.active);
+
+  @override
+  void didUpdateWidget(_PageGate old) {
+    super.didUpdateWidget(old);
+    _active.value = widget.active;
+  }
+
+  @override
+  void dispose() {
+    _active.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      PageActivity(active: _active, child: TickerMode(enabled: widget.active, child: widget.child));
 }
 
 /// The "More" tab on phones.
