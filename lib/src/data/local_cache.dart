@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -7,14 +9,18 @@ import '../util/js.dart';
 import 'account_ops.dart';
 
 /// What the app keeps on the device for one account: the last cloud copy it
-/// saw and the changes not yet uploaded.
+/// saw (as stored: the website's compressed form) and the changes not yet
+/// uploaded.
 class CachedAccount {
-  CachedAccount({this.base, this.baseUpdatedAt, List<AccountOp>? pending, this.savedAt})
+  CachedAccount({this.raw, this.baseUpdatedAt, List<AccountOp>? pending, this.savedAt, this.upgraded = false})
       : pending = pending ?? [];
-  Map<String, dynamic>? base;
+  Object? raw;
   String? baseUpdatedAt;
   final List<AccountOp> pending;
   int? savedAt;
+
+  /// Read from an older file layout (rewritten on the next save).
+  final bool upgraded;
 }
 
 abstract class AccountCache {
@@ -59,11 +65,57 @@ class LastAccount {
   }
 }
 
-/// Per account, in the app's private support folder: the last cloud copy (large,
-/// rewritten only when it changes) and the pending changes (small, rewritten on
-/// every change). Both are written atomically (temp file + rename).
+/// Reads an account's cache files. Runs in the background: the files can be
+/// tens of megabytes. Beta 15 and older kept the cloud copy uncompressed; it is
+/// compressed here once so the app never holds it twice.
+CachedAccount readCachedAccount(String path, String pendingPath, String userId) {
+  try {
+    final file = File(path);
+    if (!file.existsSync()) return CachedAccount();
+    final m = asMap(jsonDecode(file.readAsStringSync()));
+    if (m == null || m['userId'] != userId) return CachedAccount();
+    var pending = asList(m['pending']);
+    final pendingFile = File(pendingPath);
+    if (pendingFile.existsSync()) {
+      final p = asMap(jsonDecode(pendingFile.readAsStringSync()));
+      if (p != null && p['userId'] == userId) pending = asList(p['pending']);
+    }
+    Object? raw = m['baseRaw'];
+    var upgraded = false;
+    if (raw == null && asMap(m['base']) != null) {
+      raw = encodeStateData(asMap(m['base'])!);
+      upgraded = true;
+    }
+    return CachedAccount(
+      raw: raw,
+      baseUpdatedAt: m['baseUpdatedAt'] is String ? m['baseUpdatedAt'] as String : null,
+      pending: pending.map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
+      savedAt: jsNum(m['savedAt']).toInt(),
+      upgraded: upgraded,
+    );
+  } catch (_) {
+    return CachedAccount();
+  }
+}
+
+Future<CachedAccount> _readInBackground(String path, String pendingPath, String userId) =>
+    Isolate.run(() => readCachedAccount(path, pendingPath, userId));
+
+/// Writes [data] as JSON to [path] atomically (temp file + rename), in the
+/// background.
+Future<void> _writeInBackground(String path, Object data) => Isolate.run(() {
+      final tmp = File('$path.tmp');
+      tmp.parent.createSync(recursive: true);
+      tmp.writeAsStringSync(jsonEncode(data), flush: true);
+      tmp.renameSync(path);
+    });
+
+/// Per account, in the app's private support folder: the last cloud copy (as
+/// stored, rewritten only when it changes) and the pending changes (small,
+/// rewritten on every change). Writes are atomic and never overlap.
 class FileAccountCache implements AccountCache {
   String? _lastBase;
+  Future<void> _tail = Future<void>.value();
 
   Future<File> _file(String userId, [String suffix = '']) async {
     final dir = await getApplicationSupportDirectory();
@@ -75,54 +127,38 @@ class FileAccountCache implements AccountCache {
   Future<CachedAccount> load(String userId) async {
     try {
       final file = await _file(userId);
-      if (!await file.exists()) return CachedAccount();
-      final m = asMap(await jsonDecodeInBackground(await file.readAsString()));
-      if (m == null || m['userId'] != userId) return CachedAccount();
-      var pending = asList(m['pending']);
       final pendingFile = await _file(userId, '-pending');
-      if (await pendingFile.exists()) {
-        final p = asMap(await jsonDecodeInBackground(await pendingFile.readAsString()));
-        if (p != null && p['userId'] == userId) pending = asList(p['pending']);
-      }
-      final base = asMap(m['base']);
-      final updatedAt = m['baseUpdatedAt'] is String ? m['baseUpdatedAt'] as String : null;
-      _lastBase = '${identityHashCode(base)}|$updatedAt';
-      return CachedAccount(
-        base: base,
-        baseUpdatedAt: updatedAt,
-        pending: pending.map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
-        savedAt: jsNum(m['savedAt']).toInt(),
-      );
+      final cached = await _readInBackground(file.path, pendingFile.path, userId);
+      _lastBase = cached.upgraded || cached.raw == null ? null : '${identityHashCode(cached.raw)}|${cached.baseUpdatedAt}';
+      return cached;
     } catch (_) {
       return CachedAccount();
     }
   }
 
-  Future<void> _write(File file, Object data) async {
-    final text = await jsonEncodeInBackground(data);
-    final tmp = File('${file.path}.tmp');
-    await tmp.parent.create(recursive: true);
-    await tmp.writeAsString(text, flush: true);
-    await tmp.rename(file.path);
+  @override
+  Future<void> save(String userId, CachedAccount account) {
+    final next = _tail.then((_) => _save(userId, account));
+    _tail = next.catchError((Object _) {});
+    return next;
   }
 
-  @override
-  Future<void> save(String userId, CachedAccount account) async {
+  Future<void> _save(String userId, CachedAccount account) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final key = '${identityHashCode(account.base)}|${account.baseUpdatedAt}';
-    if (key != _lastBase) {
-      await _write(await _file(userId), {
-        'version': 3,
+    final key = '${identityHashCode(account.raw)}|${account.baseUpdatedAt}';
+    if (account.raw != null && key != _lastBase) {
+      await _writeInBackground((await _file(userId)).path, {
+        'version': 4,
         'userId': userId,
         'savedAt': now,
         'baseUpdatedAt': account.baseUpdatedAt,
-        'base': account.base,
+        'baseRaw': account.raw,
         'pending': const [],
       });
       _lastBase = key;
     }
-    await _write(await _file(userId, '-pending'), {
-      'version': 3,
+    await _writeInBackground((await _file(userId, '-pending')).path, {
+      'version': 4,
       'userId': userId,
       'savedAt': now,
       'pending': account.pending.map((p) => p.toJson()).toList(),
@@ -131,6 +167,7 @@ class FileAccountCache implements AccountCache {
 
   @override
   Future<void> delete(String userId) async {
+    await _tail;
     _lastBase = null;
     for (final suffix in ['', '-pending']) {
       final file = await _file(userId, suffix);

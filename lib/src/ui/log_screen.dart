@@ -132,6 +132,8 @@ class _LogScreenState extends State<LogScreen> {
     _note.clear();
     _error = null;
     _xp = null;
+    _xpKey = '';
+    _xpGen++;
     _fabOpen = false;
   }
 
@@ -166,29 +168,49 @@ class _LogScreenState extends State<LogScreen> {
   }
 
   /// Recomputes "XP for this log" shortly after the draft stops changing.
+  /// The trial save runs in the background, one at a time; changes made while
+  /// it runs are picked up by one more run.
   String _xpKey = '';
+  bool _xpRunning = false;
+  bool _xpAgain = false;
+
+  String _currentXpKey() => '${jsStr(_task?['id'])}|${jsonEncode(_logDraft)}';
 
   void _scheduleXp() {
     // Nothing that affects XP changed (e.g. a filter or collapse toggle).
-    final key = '${jsStr(_task?['id'])}|${jsonEncode(_logDraft)}';
-    if (key == _xpKey && _xp != null) return;
+    if (_currentXpKey() == _xpKey && _xp != null) return;
     _xpTimer?.cancel();
-    _xpTimer = Timer(const Duration(milliseconds: 650), () {
-      final view = account.view;
-      final task = _task, draft = _logDraft;
-      if (view == null || task == null || draft == null || !mounted) return;
-      final gen = ++_xpGen;
+    _xpTimer = Timer(const Duration(milliseconds: 650), _runXp);
+  }
+
+  void _runXp() {
+    if (!mounted) return;
+    if (_xpRunning) {
+      _xpAgain = true;
+      return;
+    }
+    final task = _task, draft = _logDraft;
+    if (account.view == null || task == null || draft == null) return;
+    final key = _currentXpKey();
+    if (key == _xpKey && _xp != null) return;
+    final gen = ++_xpGen;
+    _xpRunning = true;
+    setState(() => _xpBusy = true);
+    account.previewXp(task, draft).then((xp) {
+      if (!mounted || gen != _xpGen) return;
       _xpKey = key;
-      setState(() => _xpBusy = true);
-      computeXpPreview(view.state, task, draft).then((xp) {
-        if (!mounted || gen != _xpGen) return;
-        setState(() {
-          _xp = xp;
-          _xpBusy = false;
-        });
-      }, onError: (Object e) {
-        if (mounted && gen == _xpGen) setState(() => _xpBusy = false);
+      setState(() {
+        _xp = xp;
+        _xpBusy = false;
       });
+    }, onError: (Object e) {
+      if (mounted && gen == _xpGen) setState(() => _xpBusy = false);
+    }).whenComplete(() {
+      _xpRunning = false;
+      if (_xpAgain && mounted) {
+        _xpAgain = false;
+        _runXp();
+      }
     });
   }
 
@@ -1231,11 +1253,17 @@ class _LogScreenState extends State<LogScreen> {
       _snack(problem);
       return;
     }
-    XpPreview? xp;
-    try {
-      xp = await computeXpPreview(view.state, task, draft);
-    } catch (_) {
-      xp = _xp;
+    // Reuse the card's figure when it is for exactly this log.
+    XpPreview? xp = _xp != null && !_xpBusy && _xpKey == _currentXpKey() ? _xp : null;
+    if (xp == null) {
+      setState(() => _busy = true);
+      try {
+        xp = await account.previewXp(task, draft);
+      } catch (_) {
+        xp = _xp;
+      }
+      if (!mounted) return;
+      setState(() => _busy = false);
     }
     if (!mounted) return;
     final total = xp != null && xp.error == null && xp.eligible ? xp.total : null;

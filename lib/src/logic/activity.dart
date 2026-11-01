@@ -6,17 +6,33 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'stats.dart' show xpMetrics;
 
 T _clone<T>(T v) => jsonClone(v) as T;
 
-/// `mfCoreSnapshot`.
-Map<String, dynamic> coreSnapshot(Map<String, dynamic> state) => {
-      'library': _clone(asList(state['library'])),
-      'sessions': _clone(asList(state['sessions'])),
-      'completionTimeline': _clone(asList(state['completionTimeline'])),
-      'xpLedger': _clone(asMap(state['xpLedger']) ?? {'libraryAdditions': {}}),
+/// `mfCoreSnapshot`. On a [LazyStateCopy], parts the edit has not touched yet
+/// are taken from the original account as they are (an edit never changes the
+/// original), so nothing is copied for them.
+Map<String, dynamic> coreSnapshot(Map<String, dynamic> state) {
+  final lazy = state is LazyStateCopy ? state : null;
+  Object? part(String k, Object fallback) =>
+      lazy != null && !lazy.isTouched(k) ? (lazy.original[k] ?? fallback) : _clone(state[k] ?? fallback);
+  return {
+    'library': asList(part('library', const [])),
+    'sessions': asList(part('sessions', const [])),
+    'completionTimeline': asList(part('completionTimeline', const [])),
+    'xpLedger': asMap(part('xpLedger', const {'libraryAdditions': {}})) ?? const {'libraryAdditions': {}},
+  };
+}
+
+/// The same parts as they are now, for reading only (no copies).
+Map<String, dynamic> _currentCore(Map<String, dynamic> state) => {
+      'library': asList(readOnlyPart(state, 'library')),
+      'sessions': asList(readOnlyPart(state, 'sessions')),
+      'completionTimeline': asList(readOnlyPart(state, 'completionTimeline')),
+      'xpLedger': asMap(readOnlyPart(state, 'xpLedger')) ?? const {'libraryAdditions': {}},
     };
 
 String _show(Object? v) => v == null ? '—' : (v is num && v == v.truncateToDouble() ? v.toInt().toString() : '$v');
@@ -61,7 +77,7 @@ double _v348Extra(Object? ledger) {
 
 /// `v50SnapshotXP` (current website definition).
 double snapshotXP(Map<String, dynamic> settingsState, Map<String, dynamic> snap) {
-  final s = {...settingsState, 'sessions': snap['sessions'], 'library': snap['library'], 'xpLedger': snap['xpLedger']};
+  final s = {...readOnlyView(settingsState), 'sessions': snap['sessions'], 'library': snap['library'], 'xpLedger': snap['xpLedger']};
   return xpMetrics(s).total + _v348Extra(snap['xpLedger']);
 }
 
@@ -74,7 +90,7 @@ Map<String, dynamic> recordActivity(
   required String action,
   String detail = '',
 }) {
-  final after = coreSnapshot(state);
+  final after = _currentCore(state);
   final changes = diffSnapshot(before, after);
   final xp = math.max(0.0, jsRound(snapshotXP(state, after) - snapshotXP(state, before)));
   final exactIds = <String>[];
@@ -84,7 +100,7 @@ Map<String, dynamic> recordActivity(
   }
   String titleSnapshot = '';
   if (exactIds.length == 1) {
-    final item = asList(state['library']).map(asMap).where((i) => jsStr(i?['id']) == exactIds.first).firstOrNull;
+    final item = asList(after['library']).map(asMap).where((i) => jsStr(i?['id']) == exactIds.first).firstOrNull;
     titleSnapshot = cleanTitle(item?['title'] ?? (changes.isNotEmpty ? changes.first['title'] : null) ?? detail);
   }
   final afterIds = asList(after['library']).map((i) => jsStr(asMap(i)?['id'])).toSet();
@@ -104,7 +120,7 @@ Map<String, dynamic> recordActivity(
     if (deleted.isNotEmpty) 'deletedItems': deleted,
     if (deleted.isNotEmpty) 'restoreVersion': 191,
   };
-  final log = List<dynamic>.of(asList(state['activityLog']))..insert(0, entry);
+  final log = List<dynamic>.of(asList(readOnlyPart(state, 'activityLog')))..insert(0, entry);
   if (log.length > 1000) log.removeRange(1000, log.length);
   state['activityLog'] = log;
   return entry;

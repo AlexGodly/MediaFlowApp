@@ -8,8 +8,9 @@ import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
 import '../logic/rec_submit.dart';
 import '../logic/resume.dart';
+import '../logic/xp_preview.dart';
+import '../state/lazy_copy.dart';
 import '../state/models.dart';
-import '../state/state_codec.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
 import 'edit_op.dart';
@@ -26,18 +27,21 @@ class AccountController extends ChangeNotifier {
     required this.email,
     required this.cloud,
     required this.cache,
-    Future<Map<String, dynamic>> Function(Map<String, dynamic>)? copyState,
-    this.draftSyncDelay = const Duration(seconds: 3),
-  }) : _copy = copyState ?? deepCopyStateInBackground;
+    BackgroundRunner background = runInIsolate,
+    this.draftSyncDelay = const Duration(seconds: 10),
+  }) : _bg = background;
 
   final String userId;
   final String email;
   final CloudBackend cloud;
   final AccountCache cache;
   final Duration draftSyncDelay;
-  final Future<Map<String, dynamic>> Function(Map<String, dynamic>) _copy;
+  final BackgroundRunner _bg;
 
-  Map<String, dynamic>? _base;
+  // The last cloud copy as stored (the website's compressed form: one small
+  // object, so it is cheap to keep, save and hand to background work). The
+  // decoded account lives only in [_display].
+  Object? _baseRaw;
   String? _baseUpdatedAt;
   final List<AccountOp> _pending = [];
   Map<String, dynamic>? _display;
@@ -68,32 +72,28 @@ class AccountController extends ChangeNotifier {
 
   Future<void> start() async {
     final cached = await cache.load(userId);
-    if (cached.base != null) {
-      _base = cached.base;
-      _baseUpdatedAt = cached.baseUpdatedAt;
-      _pending
-        ..clear()
-        ..addAll(cached.pending);
-      await _rebuild();
-      status = SyncState.offline;
-      _notify();
+    if (cached.raw != null) {
+      try {
+        // Decoded and brought up to date in the background.
+        final merged = await mergeInBackground(_bg, cached.raw, cached.pending, encode: false);
+        _baseRaw = cached.raw;
+        _baseUpdatedAt = cached.baseUpdatedAt;
+        _pending
+          ..clear()
+          ..addAll(cached.pending);
+        _setDisplay(merged.state);
+        status = SyncState.offline;
+        _notify();
+      } catch (_) {
+        // An unreadable device copy: start from the cloud.
+      }
     }
     await sync();
   }
 
-  Future<void> _rebuild() async {
-    final base = _base;
-    if (base == null) {
-      _display = null;
-      _view = null;
-      return;
-    }
-    final display = _pending.isEmpty ? base : await _copy(base);
-    for (final op in _pending) {
-      op.apply(display);
-    }
-    _display = display;
-    _view = AccountView(display);
+  void _setDisplay(Map<String, dynamic> state) {
+    _display = state;
+    _view = AccountView(state);
   }
 
   /// Uploads pending changes (if any) and pulls the latest cloud copy.
@@ -110,15 +110,29 @@ class AccountController extends ChangeNotifier {
     _notify();
     final batch = List<AccountOp>.of(_pending);
     try {
-      final result = await syncOnce(cloud, userId, batch);
-      _base = result.state;
+      final result = await syncOnce(
+        cloud,
+        userId,
+        batch,
+        knownRaw: _display == null ? null : _baseRaw,
+        knownUpdatedAt: _baseUpdatedAt,
+        background: _bg,
+      );
+      _baseRaw = result.raw;
       _baseUpdatedAt = result.updatedAt;
       if (result.rejected.isNotEmpty) {
         lastRejection = 'A log made on this device could not be added to your account: ${result.rejected.first}';
       }
       _pending.removeWhere((op) => batch.any((b) => identical(b, op)));
+      final fresh = result.state;
+      if (fresh != null) {
+        // The new cloud copy plus whatever was changed here while syncing.
+        for (final op in _pending) {
+          op.apply(fresh);
+        }
+        _setDisplay(fresh);
+      }
       await _save();
-      await _rebuild();
       status = SyncState.synced;
       needsSignIn = false;
       lastSynced = DateTime.now();
@@ -161,27 +175,36 @@ class AccountController extends ChangeNotifier {
     _syncTimer = Timer(delay, () => unawaited(sync()));
   }
 
-  /// The device's working copy (never the cached cloud copy itself).
+  /// The device's working copy of the account.
   Future<Map<String, dynamic>> _working() async {
-    var display = _display;
+    final display = _display;
     if (display == null) throw StateError('Your MediaFlow data has not loaded yet.');
-    if (identical(display, _base)) {
-      display = await _copy(display);
-      _display = display;
-    }
     return display;
   }
 
   Future<void> _queue(AccountOp op, Map<String, dynamic> display, {Duration? delay}) async {
+    // A sync may have replaced the working copy while this change was being
+    // prepared; it was made on the old one, so carry it over.
+    final current = _display;
+    if (current != null && !identical(current, display)) op.apply(current);
     _pending.add(op);
-    _view = AccountView(display);
-    await _save();
+    _view = AccountView(current ?? display);
     _notify();
+    await _save();
     if (delay == null) {
       unawaited(sync());
     } else {
       _scheduleSync(delay);
     }
+  }
+
+  /// "XP for this log": a trial save of [logDraft] on a background copy of the
+  /// account (the cloud copy plus this device's changes), so nothing is copied
+  /// on the screen's thread.
+  Future<XpPreview> previewXp(Map<String, dynamic> task, Map<String, dynamic> logDraft) {
+    final raw = _baseRaw;
+    if (raw == null) return Future.error(StateError('Your MediaFlow data has not loaded yet.'));
+    return xpPreviewInBackground(_bg, raw, _pending, task, logDraft);
   }
 
   /// Batch Log (outside recommendations). Saved on the device first, then uploaded.
@@ -255,7 +278,8 @@ class AccountController extends ChangeNotifier {
     Duration? delay,
   }) async {
     final display = await _working();
-    final copy = await _copy(display);
+    // Only the parts of the account the edit touches are copied and compared.
+    final copy = LazyStateCopy(display);
     final now = DateTime.now().millisecondsSinceEpoch;
     action(copy, now);
     final op = editFromStates(display, copy, now: now, label: label, annotateStreaks: annotateStreaks);
@@ -274,7 +298,7 @@ class AccountController extends ChangeNotifier {
 
   Future<String?> _replay(EditOp source, List<Change> changes, String verb) async {
     final display = await _working();
-    final copy = await _copy(display);
+    final copy = LazyStateCopy(display);
     final now = DateTime.now().millisecondsSinceEpoch;
     final before = coreSnapshot(copy);
     var any = false;
@@ -326,7 +350,7 @@ class AccountController extends ChangeNotifier {
 
   Future<void> _save() => cache.save(
         userId,
-        CachedAccount(base: _base, baseUpdatedAt: _baseUpdatedAt, pending: List.of(_pending)),
+        CachedAccount(raw: _baseRaw, baseUpdatedAt: _baseUpdatedAt, pending: List.of(_pending)),
       );
 
   /// Removes this account's data from the device (used on sign-out).
@@ -350,4 +374,13 @@ class AccountController extends ChangeNotifier {
     _syncTimer?.cancel();
     super.dispose();
   }
+}
+
+/// The XP preview's background run. Top-level on purpose: the closure handed to
+/// the isolate then holds only these arguments.
+Future<XpPreview> xpPreviewInBackground(BackgroundRunner background, Object? raw, List<AccountOp> ops,
+    Map<String, dynamic> task, Map<String, dynamic> logDraft) {
+  final copy = List<AccountOp>.of(ops);
+  final t = jsonClone(task) as Map<String, dynamic>, d = jsonClone(logDraft) as Map<String, dynamic>;
+  return background(() => XpPreview(xpPreviewData(mergeState(raw, copy, encode: false).state, t, d)));
 }

@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow/src/data/account_controller.dart';
+import 'package:mediaflow/src/data/sync_engine.dart';
 import 'package:mediaflow/src/state/state_codec.dart';
 import 'package:mediaflow/src/ui/home_shell.dart';
 import 'package:mediaflow/src/ui/log_screen.dart';
@@ -39,7 +40,7 @@ void main() {
       email: 'tester@example.com',
       cloud: cloud,
       cache: MemoryCache(),
-      copyState: (s) async => deepCopyState(s),
+      background: runInline,
     );
     await tester.runAsync(account.start);
     expect(account.hasData, isTrue);
@@ -103,7 +104,7 @@ void main() {
       email: 'tester@example.com',
       cloud: cloud,
       cache: MemoryCache(),
-      copyState: (s) async => deepCopyState(s),
+      background: runInline,
       draftSyncDelay: Duration.zero,
     );
     await tester.runAsync(account.start);

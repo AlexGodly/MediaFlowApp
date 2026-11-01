@@ -118,20 +118,21 @@ class AccountView {
         _categories.putIfAbsent(cat.id, () => cat);
       }
     }
-    for (final i in asList(state['library'])) {
-      final m = asMap(i);
-      if (m != null) library.add(LibraryTitle(m));
-    }
-    for (final s in asList(state['sessions'])) {
-      final m = asMap(s);
-      if (m != null) logs.add(LogRecord(m));
-    }
   }
 
   final Map<String, dynamic> state;
   final List<Category> categories = [];
-  final List<LibraryTitle> library = [];
-  final List<LogRecord> logs = [];
+
+  // Built on first use: a new view is made after every change, and most
+  // screens never look at every log.
+  late final List<LibraryTitle> library = [
+    for (final i in asList(state['library']))
+      if (asMap(i) != null) LibraryTitle(asMap(i)!),
+  ];
+  late final List<LogRecord> logs = [
+    for (final s in asList(state['sessions']))
+      if (asMap(s) != null) LogRecord(asMap(s)!),
+  ];
   final Map<String, Category> _categories = {};
 
   Category category(String id) => _categories[id] ?? Category.removed(id);

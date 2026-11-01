@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
-import '../state/state_codec.dart';
 import 'sync_engine.dart';
 
 /// Reads and writes the website's existing `mediaflow_states` row. Uses the
@@ -27,6 +26,17 @@ class SupabaseCloud implements CloudBackend {
   }
 
   @override
+  Future<String?> version(String userId) async {
+    final row = await client.from(kStateTable).select('updated_at').eq('user_id', userId).maybeSingle();
+    if (row == null) return null;
+    final updatedAt = row['updated_at'];
+    if (updatedAt is! String || updatedAt.isEmpty) {
+      throw StateError('The MediaFlow cloud row has no version. Refusing to continue.');
+    }
+    return updatedAt;
+  }
+
+  @override
   Future<CloudSnapshot?> fetch(String userId) async {
     final row = await client
         .from(kStateTable)
@@ -34,18 +44,17 @@ class SupabaseCloud implements CloudBackend {
         .eq('user_id', userId)
         .maybeSingle();
     if (row == null) return null;
-    final raw = row['state_data'];
     final updatedAt = row['updated_at'];
     if (updatedAt is! String || updatedAt.isEmpty) {
       throw StateError('The MediaFlow cloud row has no version. Refusing to continue.');
     }
-    final state = await decodeStateDataInBackground(raw);
-    return CloudSnapshot(state, updatedAt);
+    // Kept as stored (the website's compressed form is one small object with a
+    // text field); decoding happens in the background.
+    return CloudSnapshot(row['state_data'], updatedAt);
   }
 
   @override
-  Future<String?> compareAndSwap(String userId, String expectedUpdatedAt, Map<String, dynamic> state) async {
-    final payload = await encodeStateDataInBackground(state);
+  Future<String?> compareAndSwap(String userId, String expectedUpdatedAt, Object payload) async {
     final next = DateTime.now().toUtc().toIso8601String();
     final result = await client
         .from(kStateTable)

@@ -1,8 +1,8 @@
 // "XP for this log" — the website's logging XP card (mf537/mf542/mf553), filled
 // in by a trial save: the draft is saved on a throwaway copy of the account in
-// a background isolate, and the card shows exactly what saving would award.
+// the background (AccountController.previewXp), and the card shows exactly
+// what saving would award.
 
-import 'dart:isolate';
 import 'dart:math' as math;
 
 import '../util/js.dart';
@@ -30,10 +30,6 @@ class XpPreview {
   Map<String, dynamic> get respectDetails => asMap(data['respectDetails']) ?? const {};
   num get rawTotal => data['rawTotal'] as num? ?? 0;
 }
-
-/// Runs the trial save in the background.
-Future<XpPreview> computeXpPreview(Map<String, dynamic> state, Map<String, dynamic> task, Map<String, dynamic> logDraft) =>
-    Isolate.run(() => XpPreview(xpPreviewData(state, task, logDraft)));
 
 double _sum(Object? map) =>
     (asMap(map) ?? const {}).values.fold<double>(0, (a, v) => a + math.max(0, jsNum(v)));

@@ -25,6 +25,10 @@ Map<String, dynamic> decodeStateData(Object? value) {
   throw const FormatException('Unrecognised MediaFlow state format');
 }
 
+/// True for the website's compressed `state_data` form.
+bool isCompressedStateData(Object? value) =>
+    value is Map && value['__mediaflowCompressed'] == 'gzip' && value['data'] is String;
+
 /// Same format the website writes (gzip + base64), so either side can read it.
 Map<String, dynamic> encodeStateData(Map<String, dynamic> state) {
   final bytes = gzip.encode(utf8.encode(jsonEncode(state)));
@@ -44,5 +48,6 @@ Future<String> jsonEncodeInBackground(Object? value) => Isolate.run(() => jsonEn
 
 Future<Object?> jsonDecodeInBackground(String text) => Isolate.run(() => jsonDecode(text));
 
-Future<Map<String, dynamic>> deepCopyStateInBackground(Map<String, dynamic> state) =>
-    Isolate.run(() => deepCopyState(state));
+/// A full copy made by handing the account to an isolate (the hand-over is the
+/// copy; the isolate gives it straight back without copying again).
+Future<Map<String, dynamic>> deepCopyStateInBackground(Map<String, dynamic> state) => Isolate.run(() => state);

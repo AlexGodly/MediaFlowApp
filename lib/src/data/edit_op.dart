@@ -17,6 +17,7 @@
 import 'dart:convert';
 
 import '../logic/leveling.dart';
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
 
@@ -257,6 +258,7 @@ bool _deepEq(Object? a, Object? b) {
 List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
   final out = <Change>[];
   void diff(List<String> path, Object? x, Object? y) {
+    if (identical(x, y)) return;
     // Maps are walked key by key (an unchanged map yields nothing), so each
     // value is compared once instead of once per level above it.
     if (x is Map && y is Map) {
@@ -310,6 +312,14 @@ List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
     out.add(Change('set', path, _clone(y), _clone(x)));
   }
 
+  // A LazyStateCopy only differs where the edit touched it.
+  if (b is LazyStateCopy && identical(b.original, a)) {
+    for (final k in b.touched) {
+      if (k == 'savedAt') continue;
+      diff([k], a[k], b.peek(k));
+    }
+    return out;
+  }
   for (final k in <String>{...a.keys, ...b.keys}) {
     if (k == 'savedAt') continue;
     diff([k], a[k], b[k]);
