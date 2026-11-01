@@ -208,7 +208,7 @@ List<XpEntry> xpHistory(Map<String, dynamic> state) {
   final out = <XpEntry>[];
   for (final e in meta.entries) {
     final row = asMap(e.value);
-    if (row == null || jsNumOrNull(row['xp']) == null) continue;
+    if (row == null || !row.containsKey('xp') || jsNumOrNull(row['xp']) == null) continue;
     final kind = jsStr(row['kind']).isEmpty ? 'other' : jsStr(row['kind']);
     final subject = jsStr(row['subjectId']);
     final xp = math.max(0.0, jsNum(row['xp']));

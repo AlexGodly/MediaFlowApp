@@ -32,7 +32,10 @@ Object? _norm(Object? v, int now, Map<String, String> renames) {
   if (v is num) return v >= now && v < now + 120000 ? 'NOW' : v.toDouble();
   if (v is String) return s(v);
   if (v is List) return [for (final x in v) _norm(x, now, renames)];
-  if (v is Map) return {for (final e in v.entries) s('${e.key}'): _norm(e.value, now, renames)};
+  if (v is Map) {
+    final keys = v.keys.map((k) => '$k').toList()..sort();
+    return {for (final k in keys) s(k): _norm(v[k], now, renames)};
+  }
   return v;
 }
 

@@ -114,7 +114,7 @@ double coverCredit(Map<String, dynamic> state, Map<String, dynamic> item, String
   state['settings'] = s;
   final leveling = asMap(s['leveling']) ?? <String, dynamic>{};
   s['leveling'] = leveling;
-  if (jsNumOrNull(leveling['coverChangeXP']) == null || !jsNum(leveling['coverChangeXP']).isFinite) {
+  if (!leveling.containsKey('coverChangeXP') || jsNumOrNull(leveling['coverChangeXP']) == null || !jsNum(leveling['coverChangeXP']).isFinite) {
     final manual = jsNum(leveling['manualCoverXP']);
     leveling['coverChangeXP'] = jsOut(math.max(1.0, manual == 0 || manual.isNaN ? 15.0 : manual));
   }
@@ -192,7 +192,7 @@ class TitleFields {
       total: item['total'] == null ? null : total,
       status: jsStr(item['status']).isEmpty ? 'planned' : jsStr(item['status']),
       priority: jsStr(item['priority']).isEmpty ? 'medium' : jsStr(item['priority']),
-      estimatedMinutes: jsNumOrNull(item['estimatedMinutes']),
+      estimatedMinutes: item['estimatedMinutes'] == null ? null : jsNum(item['estimatedMinutes']),
       tags: asList(item['tags']).map(jsStr).toList(),
       rating: jsNum(item['rating']) > 0 ? jsNum(item['rating']) : null,
       coverUrl: jsStr(item['coverUrl']),

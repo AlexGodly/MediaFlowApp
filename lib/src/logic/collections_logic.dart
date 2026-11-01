@@ -37,8 +37,8 @@ Map<String, dynamic> normalizeCollection(Map<String, dynamic> c, int now, String
     'titleIds': List<String>.of(order),
     'order': List<String>.of(order),
     'autoBackground': c['autoBackground'] != false,
-    'createdAt': jsNumOrNull(c['createdAt']) ?? now,
-    'updatedAt': jsNumOrNull(c['updatedAt']) ?? now,
+    'createdAt': c['createdAt'] == null ? now : (jsNumOrNull(c['createdAt']) ?? now),
+    'updatedAt': c['updatedAt'] == null ? now : (jsNumOrNull(c['updatedAt']) ?? now),
     'lastViewedAt': jsNumOrNull(c['lastViewedAt']) ?? 0,
   };
 }
