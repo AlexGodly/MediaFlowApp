@@ -37,6 +37,9 @@ const Map<String, num> _defaultScalars = {
   'orderReorderTitleXP': 4,
   'orderReorderCollectionXP': 6,
   'collectionReorderTitleXP': 4,
+  // v334 collections
+  'collectionCreateXP': 35,
+  'collectionEditXP': 10,
 };
 
 class Leveling {

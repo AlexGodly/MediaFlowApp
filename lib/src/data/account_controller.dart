@@ -63,6 +63,9 @@ class AccountController extends ChangeNotifier {
   /// Changes that matter to the user (logs and task actions); drafts excluded.
   int get pendingCount => _pending.where((op) => op is! DraftOp).length;
 
+  /// Changes waiting to upload (read only).
+  List<AccountOp> get pendingOps => List.unmodifiable(_pending);
+
   Future<void> start() async {
     final cached = await cache.load(userId);
     if (cached.base != null) {

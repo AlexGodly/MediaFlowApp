@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/account_controller.dart';
+import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/supabase_cloud.dart';
 import 'home_shell.dart';
@@ -141,7 +142,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _account?.sync();
+    if (state == AppLifecycleState.resumed && AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
     // Leaving the app: upload an unsaved logging draft so the website sees it.
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _account?.flushDraft();
   }
@@ -162,6 +163,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (_starting) return const Scaffold(body: Center(child: CircularProgressIndicator()));
       return const SignInScreen();
     }
-    return HomeShell(account: account);
+    final start = Section.values.where((s) => s.name == AppPrefs.instance.get<String>('startTab', 'log')).firstOrNull ?? Section.log;
+    return HomeShell(account: account, start: start);
   }
 }
