@@ -9,7 +9,7 @@ import 'dart:math' as math;
 import '../util/js.dart';
 import 'stats.dart' show xpMetrics;
 
-T _clone<T>(T v) => jsonDecode(jsonEncode(v)) as T;
+T _clone<T>(T v) => jsonClone(v) as T;
 
 /// `mfCoreSnapshot`.
 Map<String, dynamic> coreSnapshot(Map<String, dynamic> state) => {

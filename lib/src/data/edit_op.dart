@@ -20,7 +20,7 @@ import '../logic/leveling.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
 
-Object? _clone(Object? v) => v == null ? null : jsonDecode(jsonEncode(v));
+Object? _clone(Object? v) => v == null ? null : jsonClone(v);
 String _json(Object? v) => jsonEncode(v);
 
 class Change {
@@ -133,7 +133,7 @@ bool applyChange(Map<String, dynamic> state, Change c, int createdAt) {
       final i = list.indexWhere((e) => e is Map && jsStr(e['id']) == jsStr(c.value));
       if (i < 0) return false;
       final cur = list[i];
-      if (cur is Map && c.prev != null && _json(cur) != _json(c.prev) && jsNum(cur['modifiedAt'] ?? cur['updatedAt']) > createdAt) {
+      if (cur is Map && c.prev != null && !_deepEq(cur, c.prev) && jsNum(cur['modifiedAt'] ?? cur['updatedAt']) > createdAt) {
         return false; // changed elsewhere after this device removed it
       }
       list.removeAt(i);
@@ -147,27 +147,27 @@ bool applyChange(Map<String, dynamic> state, Change c, int createdAt) {
       known.sort((a, b) => pos[jsStr(a['id'])]!.compareTo(pos[jsStr(b['id'])]!));
       var k = 0;
       final next = [for (final e in list) (e is Map && pos.containsKey(jsStr(e['id']))) ? known[k++] : e];
-      if (_json(next) == _json(list)) return false;
+      if (_deepEq(next, list)) return false;
       list
         ..clear()
         ..addAll(next);
       return true;
     case 'add':
       final list = _list(state, c.path, create: true);
-      if (list == null || list.any((e) => _json(e) == _json(c.value))) return false;
+      if (list == null || list.any((e) => _deepEq(e, c.value))) return false;
       list.add(_clone(c.value));
       return true;
     case 'del':
       final list = _list(state, c.path);
       if (list == null) return false;
-      final i = list.indexWhere((e) => _json(e) == _json(c.value));
+      final i = list.indexWhere((e) => _deepEq(e, c.value));
       if (i < 0) return false;
       list.removeAt(i);
       return true;
     default:
       final cur = readPath(state, c.path);
-      if (_json(cur) == _json(c.value)) return false;
-      if (_json(cur) != _json(c.prev) && _stamp(state, c.path.sublist(0, c.path.length - 1)) > createdAt) return false;
+      if (_deepEq(cur, c.value)) return false;
+      if (!_deepEq(cur, c.prev) && _stamp(state, c.path.sublist(0, c.path.length - 1)) > createdAt) return false;
       final p = _parent(state, c.path);
       if (p == null) return false;
       if (c.value == null) {
@@ -234,16 +234,38 @@ class EditOp extends AccountOp {
 }
 
 /// The changes that turn [a] into [b] (see the header for the kinds).
+/// Structural equality (no JSON text): fast, and 1 equals 1.0 like in JSON numbers.
+bool _deepEq(Object? a, Object? b) {
+  if (identical(a, b)) return true;
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final e in a.entries) {
+      if (!b.containsKey(e.key) || !_deepEq(e.value, b[e.key])) return false;
+    }
+    return true;
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_deepEq(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}
+
 List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
   final out = <Change>[];
   void diff(List<String> path, Object? x, Object? y) {
-    if (_json(x) == _json(y)) return;
+    // Maps are walked key by key (an unchanged map yields nothing), so each
+    // value is compared once instead of once per level above it.
     if (x is Map && y is Map) {
       for (final k in <String>{...x.keys.map((e) => '$e'), ...y.keys.map((e) => '$e')}) {
         diff([...path, k], x[k], y[k]);
       }
       return;
     }
+    if (_deepEq(x, y)) return;
     if (x is List && y is List && path.isNotEmpty) {
       bool idList(List l) => l.every((e) => e is Map && jsStr(e['id']).isNotEmpty);
       if (idList(x) && idList(y) && (x.isNotEmpty || y.isNotEmpty)) {
@@ -264,7 +286,7 @@ List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
           }
           final before = [for (final e in x) if (yi.containsKey(jsStr((e as Map)['id']))) jsStr(e['id'])];
           final after = [for (final e in y) if (xi.containsKey(jsStr((e as Map)['id']))) jsStr(e['id'])];
-          if (_json(before) != _json(after)) out.add(Change('order', path, after, before));
+          if (!_deepEq(before, after)) out.add(Change('order', path, after, before));
           return;
         }
       }

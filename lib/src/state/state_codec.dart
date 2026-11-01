@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io' show gzip;
 import 'dart:isolate';
 
+import '../util/js.dart' show jsonClone;
+
 /// The website stores `state_data` either as plain JSON or, in current versions,
 /// as `{"__mediaflowCompressed":"gzip","data":"<base64 of gzipped JSON>"}`.
 Map<String, dynamic> decodeStateData(Object? value) {
@@ -29,8 +31,7 @@ Map<String, dynamic> encodeStateData(Map<String, dynamic> state) {
   return {'__mediaflowCompressed': 'gzip', 'data': base64.encode(bytes)};
 }
 
-Map<String, dynamic> deepCopyState(Map<String, dynamic> state) =>
-    (jsonDecode(jsonEncode(state)) as Map).cast<String, dynamic>();
+Map<String, dynamic> deepCopyState(Map<String, dynamic> state) => jsonClone(state) as Map<String, dynamic>;
 
 // Background helpers. Kept top-level so the isolate closure captures only its
 // arguments (a closure inside a class method could capture unsendable objects).

@@ -108,3 +108,15 @@ final math.Random _random = math.Random.secure();
 Map<String, dynamic>? asMap(Object? v) => v is Map<String, dynamic> ? v : (v is Map ? v.cast<String, dynamic>() : null);
 
 List<dynamic> asList(Object? v) => v is List ? v : const [];
+
+/// A deep copy of JSON data — the same result as `jsonDecode(jsonEncode(v))`
+/// without building the text in between.
+Object? jsonClone(Object? v) {
+  if (v is Map) {
+    final out = <String, dynamic>{};
+    v.forEach((k, x) => out[k is String ? k : '$k'] = jsonClone(x));
+    return out;
+  }
+  if (v is List) return <dynamic>[for (final x in v) jsonClone(x)];
+  return v;
+}

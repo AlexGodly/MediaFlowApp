@@ -17,6 +17,7 @@ Beta 14 made the app slow, especially with a big Library or History. Beta 15 fix
   Typing in a search box now only filters.
 - **Logging form:** "XP for this log" is recalculated only when something that affects XP changes, not when you collapse a title or change a filter.
 - **Opening a title** saves its "last seen" time as one tiny change, instead of comparing your whole account, and uploads it with your next sync.
+- **Saving an edit** (a title, a log, a Collection, the Personal Order, a setting) compares and copies your account directly instead of converting it to text several times, so edits on a big account are quicker.
 - **The Stopwatch** only redraws while Extras is on screen.
 - **Syncs:** a later change never postpones a sync that was already due sooner.
 
