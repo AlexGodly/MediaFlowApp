@@ -38,6 +38,53 @@ def android_manifest(text):
     return text
 
 
+SIGNING_PROPS = """
+val mediaflowKeystoreProperties = Properties()
+val mediaflowKeystoreFile = rootProject.file("key.properties")
+if (mediaflowKeystoreFile.exists()) {
+    FileInputStream(mediaflowKeystoreFile).use { mediaflowKeystoreProperties.load(it) }
+}
+"""
+
+SIGNING_CONFIG = """
+    signingConfigs {
+        create("mediaflowRelease") {
+            if (mediaflowKeystoreFile.exists()) {
+                keyAlias = mediaflowKeystoreProperties.getProperty("keyAlias")
+                keyPassword = mediaflowKeystoreProperties.getProperty("keyPassword")
+                storeFile = file(mediaflowKeystoreProperties.getProperty("storeFile"))
+                storePassword = mediaflowKeystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+"""
+
+
+def android_gradle(text):
+    """Release builds use the permanent MediaFlow key when CI provides
+    android/key.properties (from the repository secrets); otherwise Flutter's
+    debug key, as before. A stable key lets each beta install over the last."""
+    if "mediaflowRelease" in text:
+        return text
+    m = re.search(r"^plugins\s*\{.*?^\}\s*$", text, re.S | re.M)
+    if not m:
+        sys.exit("android/app/build.gradle.kts has no plugins block")
+    text = text[:m.end()] + "\n" + SIGNING_PROPS + text[m.end():]
+    # In the Kotlin DSL `java.` means the java extension, so import the classes.
+    text = "import java.io.FileInputStream\nimport java.util.Properties\n\n" + text
+    text, n = re.subn(r"^android\s*\{\s*$", "android {" + SIGNING_CONFIG.rstrip("\n"), text, count=1, flags=re.M)
+    if n != 1:
+        sys.exit("android/app/build.gradle.kts has no android block")
+    text, n = re.subn(
+        r'signingConfig\s*=\s*signingConfigs\.getByName\("debug"\)',
+        'signingConfig = if (mediaflowKeystoreFile.exists()) signingConfigs.getByName("mediaflowRelease") '
+        'else signingConfigs.getByName("debug")',
+        text, count=1)
+    if n != 1:
+        sys.exit("android/app/build.gradle.kts release buildType has no debug signingConfig to replace")
+    return text
+
+
 def ios_plist(text):
     for key in ("CFBundleDisplayName", "CFBundleName"):
         text, n = re.subn(rf"(<key>{key}</key>\s*<string>)[^<]*(</string>)", rf"\g<1>{NAME}\g<2>", text, count=1)
@@ -91,6 +138,7 @@ def main():
     platforms = set(sys.argv[1:]) or {"android", "ios", "windows"}
     if "android" in platforms:
         edit("android/app/src/main/AndroidManifest.xml", android_manifest)
+        edit("android/app/build.gradle.kts", android_gradle)
     if "ios" in platforms:
         edit("ios/Runner/Info.plist", ios_plist)
     if "windows" in platforms:

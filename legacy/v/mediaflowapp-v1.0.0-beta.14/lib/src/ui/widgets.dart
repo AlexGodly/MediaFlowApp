@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
+import '../data/app_prefs.dart';
+import '../data/cover_cache.dart';
+import '../logic/resume.dart';
 import '../state/models.dart';
+import '../util/js.dart';
 import 'theme.dart';
 
 String fmtNumber(num v) {
@@ -128,15 +134,59 @@ class Cover extends StatelessWidget {
     if (url.isEmpty || !url.startsWith('http')) return fallback;
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        cacheWidth: (width * 3).round(),
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (context, child, progress) => progress == null ? child : fallback,
-      ),
+      child: CachedCoverImage(url: url, width: width, height: height, fallback: fallback),
+    );
+  }
+}
+
+/// A cover from the device cache (downloaded once, then shown offline too).
+class CachedCoverImage extends StatefulWidget {
+  const CachedCoverImage({super.key, required this.url, required this.width, required this.height, required this.fallback});
+  final String url;
+  final double width;
+  final double height;
+  final Widget fallback;
+
+  @override
+  State<CachedCoverImage> createState() => _CachedCoverImageState();
+}
+
+class _CachedCoverImageState extends State<CachedCoverImage> {
+  File? _file;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(CachedCoverImage old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) _resolve();
+  }
+
+  void _resolve() {
+    final url = widget.url;
+    _file = CoverCache.instance.ready[url];
+    if (_file != null) return;
+    CoverCache.instance.file(url).then((f) {
+      if (mounted && widget.url == url && f != null) setState(() => _file = f);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = _file;
+    if (f == null) return widget.fallback;
+    return Image.file(
+      f,
+      width: widget.width,
+      height: widget.height,
+      fit: BoxFit.cover,
+      cacheWidth: (widget.width * 3).round(),
+      gaplessPlayback: true,
+      errorBuilder: (_, __, ___) => widget.fallback,
     );
   }
 }
@@ -207,4 +257,142 @@ class EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A small boxed dropdown that is as wide as its longest choice but never wider
+/// than the space it has (long labels end in "…" instead of overflowing).
+class CompactDropdown<T> extends StatelessWidget {
+  const CompactDropdown({super.key, required this.value, required this.items, required this.onChanged, this.maxWidth = 280});
+
+  final T value;
+  final List<(T, String)> items;
+  final ValueChanged<T> onChanged;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = items.any((i) => i.$1 == value) ? value : items.first.$1;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: IntrinsicWidth(
+        child: DropdownButtonHideUnderline(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
+            child: DropdownButton<T>(
+              value: selected,
+              isDense: true,
+              isExpanded: true,
+              items: [
+                for (final i in items)
+                  DropdownMenuItem(
+                    value: i.$1,
+                    child: Text(i.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A titled card that can be collapsed; its open/closed state is remembered on
+/// this device under [prefKey].
+class SectionCard extends StatefulWidget {
+  const SectionCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.icon,
+    this.prefKey,
+    this.initiallyOpen = true,
+    this.trailing,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final Widget child;
+  final String? prefKey;
+  final bool initiallyOpen;
+  final Widget? trailing;
+
+  @override
+  State<SectionCard> createState() => _SectionCardState();
+}
+
+class _SectionCardState extends State<SectionCard> {
+  late bool _open = widget.prefKey == null
+      ? widget.initiallyOpen
+      : AppPrefs.instance.get<bool>('open.${widget.prefKey}', widget.initiallyOpen);
+
+  void _toggle() {
+    setState(() => _open = !_open);
+    if (widget.prefKey != null) AppPrefs.instance.set('open.${widget.prefKey}', _open);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: MF.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: MF.border)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          InkWell(
+            onTap: _toggle,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+              child: Row(children: [
+                if (widget.icon != null) ...[Icon(widget.icon, color: MF.accent), const SizedBox(width: 12)],
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    if (widget.subtitle != null)
+                      Text(widget.subtitle!, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                  ]),
+                ),
+                if (widget.trailing != null) widget.trailing!,
+                Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: MF.textDim),
+              ]),
+            ),
+          ),
+          if (_open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: widget.child,
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Opens the website's logging form minutes field with [minutes] (Stopwatch /
+/// Runtime Calculator "Use for minutes"). Returns false when no log is open.
+Future<bool> useMinutesForOpenLog(AccountController account, int minutes) async {
+  final view = account.view;
+  if (view == null) return false;
+  final logging = readLogging(view.state);
+  final task = asMap(logging?['currentTask']);
+  if (logging == null || logging['active'] != true || task == null) return false;
+  final draft = Map<String, dynamic>.from(asMap(logging['logDraft']) ?? const {});
+  draft['minutes'] = minutes;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final at = jsNum(logging['modifiedAt']).toInt();
+  await account.saveDraft(activeLogging(
+    task: task,
+    logDraft: draft,
+    entryDraft: asMap(logging['entryDraft']) ?? <String, dynamic>{},
+    modifiedAt: now > at ? now : at + 1,
+    ui: logging['ui'],
+  ));
+  return true;
 }

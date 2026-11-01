@@ -356,11 +356,82 @@ class LogDraftEditor {
     syncSingle();
   }
 
-  /// Amount mode: edit how much of a title was consumed.
+  /// `App.v378QuickQuantity`: how much of a title was consumed (Quick, amount).
   void setEntryQty(int index, Object? value) {
     final e = entry(index);
     if (e == null) return;
-    e['qty'] = jsOut(math.max(0.0, jsNum(value)));
+    e['qty'] = math.max(0, jsNum(value).floor());
+    syncSingle();
+  }
+
+  /// Library ids already in this log (`v378AddedIds`).
+  Set<String> get addedIds => {for (final e in entries) if (jsTruthy(e['libraryId'])) jsStr(e['libraryId'])};
+
+  /// `App.v378QuickAdd`: adds a Library title straight from the Logging Library
+  /// (amounts are filled in afterwards). Returns an error message or null.
+  String? quickAdd(String id, {bool defer = false}) {
+    final i = item(id);
+    if (i == null || i['status'] == 'dropped') return 'That title is not available.';
+    if (addedIds.contains(id)) return 'Already added to this Logging session.';
+    final start = startProgress(i);
+    final repeat = i['status'] == 'completed' || (jsNum(i['total']) > 0 && jsNum(i['progress']) >= jsNum(i['total']));
+    final stamp = clock();
+    final e = <String, dynamic>{
+      'title': cleanTitle(i['title']),
+      'libraryId': i['id'],
+      'qty': 0,
+      'isNew': false,
+      'isRepeat': repeat,
+      'loggedAt': stamp,
+      'v394When': stamp,
+      'v179StartProgress': jsOut(start),
+      'v179EndProgress': jsOut(start),
+    };
+    if (itemized) {
+      e
+        ..['v369Units'] = <dynamic>[]
+        ..['v369UpdatedAt'] = clock()
+        ..['v369SelectedSeasonId'] = '';
+    }
+    logDraft['entries'] = List<dynamic>.of(asList(logDraft['entries']))..add(e);
+    if (!defer) syncAfterAdd();
+    return null;
+  }
+
+  /// The website's sync after (bulk) adding titles.
+  void syncAfterAdd() => itemized ? sync369() : syncSingle();
+
+  /// A typed title that isn't in the Library yet (Quick only); it is created
+  /// in the task's category when the log is saved.
+  String? addNewTitle(String title) {
+    if (itemized) return 'Per-unit logging uses titles from your Library.';
+    final t = title.trim();
+    if (t.isEmpty) return 'Type a title first.';
+    final stamp = clock();
+    final e = <String, dynamic>{
+      'title': t,
+      'qty': 1,
+      'libraryId': null,
+      'isNew': true,
+      'isRepeat': false,
+      'loggedAt': stamp,
+      'v394When': stamp,
+      if (mode == 'progress') ...{'v179StartProgress': 0, 'v179EndProgress': 1},
+    };
+    logDraft['entries'] = List<dynamic>.of(asList(logDraft['entries']))..add(e);
+    if (mode == 'progress') syncSingle();
+    return null;
+  }
+
+  /// Progress mode for a typed new title: the episode/chapter reached (start 0).
+  void setNewTitleEnd(int index, Object? value) {
+    final e = entry(index);
+    if (e == null || jsTruthy(e['libraryId'])) return;
+    final end = math.max(0.0, jsNum(value));
+    e['v179StartProgress'] = 0;
+    e['v179EndProgress'] = jsOut(end);
+    e['qty'] = jsOut(end);
+    syncSingle();
   }
 
   /// `v179SetLogMode('single', mode)` for this draft only.
@@ -412,6 +483,30 @@ class LogDraftEditor {
     } else if (mode == 'progress') {
       syncSingle();
     }
+  }
+
+  /// `App.v370ConfirmClearTitles` (after its confirm): removes every added
+  /// title. Returns how many were removed.
+  int clearAll() {
+    final list = entries;
+    if (list.isEmpty) return 0;
+    if (itemized) {
+      final deleted = <String, dynamic>{...?asMap(logDraft['v369DeletedTitles'])};
+      for (final e in list) {
+        if (jsTruthy(e['libraryId'])) deleted[jsStr(e['libraryId'])] = clock();
+      }
+      logDraft['v369DeletedTitles'] = deleted;
+    }
+    logDraft['entries'] = <dynamic>[];
+    entryDraft = {'title': '', 'qty': 1, 'libraryId': null};
+    if (itemized) {
+      sync369();
+    } else {
+      logDraft['amount'] = 0;
+      logDraft['minutes'] = 0;
+      syncSingle();
+    }
+    return list.length;
   }
 
   // ---- Advanced (per unit) ------------------------------------------------------

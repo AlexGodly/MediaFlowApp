@@ -16,7 +16,7 @@ A release only happens when the version is new, so every change must:
 
 ## Product rules
 
-- Goal: every feature of the latest MediaFlow website (repo `AlexGodly/MediaFlow`) natively, one area per beta. **Logging is the top priority** and must never regress.
+- Goal: every feature of the latest MediaFlow website (repo `AlexGodly/MediaFlow`) natively. Normally one area per beta; the owner may ask for more in one release (Beta 14 brought every area at once). **Logging is the top priority** and must never regress.
 - Writes to the account must match what the website would write. Port the website's logic, then prove it with golden fixtures generated from the real website (`tool/website_reference/`), as `test/logging_golden_test.dart` does for logging.
 - Cloud writes: compare-and-swap on `mediaflow_states.updated_at`, replayable operations with fixed ids, preserve every field the app doesn't understand.
 - No Supabase schema/policy changes without the owner's explicit approval (project `wgeijxfdpgehesxialxm`).

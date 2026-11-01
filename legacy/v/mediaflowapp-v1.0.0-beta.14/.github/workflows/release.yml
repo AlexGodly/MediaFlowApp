@@ -31,6 +31,7 @@ jobs:
   build:
     needs: archive-check
     uses: ./.github/workflows/build.yml
+    secrets: inherit
     with:
       app_version: 1.0.0-beta.14
 

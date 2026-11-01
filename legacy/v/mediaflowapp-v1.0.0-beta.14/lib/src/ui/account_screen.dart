@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
+import 'app.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -27,8 +27,7 @@ class AccountScreen extends StatelessWidget {
       );
       if (ok != true) return;
     }
-    await account.forget();
-    await Supabase.instance.client.auth.signOut();
+    await AuthGate.signOut(account);
   }
 
   @override

@@ -3,7 +3,7 @@
 Every tracked source file outside the shared `legacy/` directory, as released in `mediaflowapp-v1.0.0-beta.14`.
 
 - App: native Flutter (Android `com.alexgodly.mediaflow`, Windows, iOS)
-- Parent commit: `d1af27fbed0a88239d81c4db866acb76cb02ab2b`
-- Beta 14: Log tab polish — Advanced label, recommended title cover.
+- Parent commit: `ed894d8edc697feba6aac8481a223087cbade828`
+- Beta 14: the whole website in the app — Log tab tools (Logging Library, + button, arrange, collapse, XP preview), full Library, History, Collections, Personal Order, Statistics, Extras, Settings, offline-first edits with newest-wins replay.
 
 CI verifies every mirrored file byte-for-byte; this metadata file is the only extra file.

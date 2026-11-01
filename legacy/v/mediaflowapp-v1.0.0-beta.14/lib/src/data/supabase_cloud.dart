@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config.dart';
@@ -8,8 +10,21 @@ import 'sync_engine.dart';
 /// signed-in user's session and the row-level security policies the website
 /// already relies on; no service key, no schema changes.
 class SupabaseCloud implements CloudBackend {
-  SupabaseCloud(this.client);
-  final SupabaseClient client;
+  SupabaseCloud(this._client);
+  final SupabaseClient Function() _client;
+
+  /// The signed-in client. Throws [NotSignedIn] when there is no session (the
+  /// device copy stays usable; changes wait until the user signs in again).
+  SupabaseClient get client {
+    final SupabaseClient c;
+    try {
+      c = _client();
+    } catch (_) {
+      throw const SocketException('MediaFlow cloud is not reachable yet');
+    }
+    if (c.auth.currentSession == null) throw NotSignedIn();
+    return c;
+  }
 
   @override
   Future<CloudSnapshot?> fetch(String userId) async {

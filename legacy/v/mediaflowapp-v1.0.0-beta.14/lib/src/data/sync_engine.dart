@@ -25,6 +25,13 @@ class MissingCloudRow implements Exception {
       'No MediaFlow data exists for this account yet. Sign in on the MediaFlow website once to set it up, then sync again.';
 }
 
+/// The device has the account but no valid sign-in (expired or signed out
+/// elsewhere). Everything keeps working on the device; uploads wait.
+class NotSignedIn implements Exception {
+  @override
+  String toString() => 'Sign in again to upload your changes. Everything you do is kept on this device until then.';
+}
+
 class CloudBusy implements Exception {
   @override
   String toString() => 'Your account kept changing while syncing. Your changes are safe on this device; try again.';

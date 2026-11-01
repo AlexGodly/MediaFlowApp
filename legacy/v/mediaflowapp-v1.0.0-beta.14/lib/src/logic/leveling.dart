@@ -26,6 +26,20 @@ const Map<String, num> _defaultScalars = {
   'batchLogXP': 15,
   // v334
   'firstTitleStartXP': 40,
+  // v44 / v123
+  'libraryEditXP': 5,
+  'manualCoverXP': 15,
+  'ratingXP': 10,
+  // v348 action rewards
+  'collectionAddTitleXP': 8,
+  'orderAddTitleXP': 6,
+  'orderAddCollectionXP': 12,
+  'orderReorderTitleXP': 4,
+  'orderReorderCollectionXP': 6,
+  'collectionReorderTitleXP': 4,
+  // v334 collections
+  'collectionCreateXP': 35,
+  'collectionEditXP': 10,
 };
 
 class Leveling {
@@ -228,3 +242,6 @@ double _storedXP(Map<String, dynamic> s, Leveling l, AccountView Function() view
   final total = base + (respect < 0 ? 0.0 : respect);
   return total < 0 ? 0.0 : total;
 }
+
+/// `v150BaseSessionXP` (public).
+double baseSessionXP(Map<String, dynamic> s, Leveling l, AccountView Function() view) => _storedXP(s, l, view);
