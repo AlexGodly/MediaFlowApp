@@ -27,7 +27,7 @@ String _json(Object? v) => jsonEncode(v);
 class Change {
   Change(this.t, this.path, this.value, this.prev, [this.index]);
 
-  final String t; // set | insert | remove | order | add | del
+  final String t; // set (null value: remove the field) | null (set the field to null) | insert | remove | order | add | del
   final List<String> path;
   final Object? value;
   final Object? prev;
@@ -50,6 +50,7 @@ class Change {
         'add' => Change('del', path, value, null),
         'del' => Change('add', path, value, null),
         'order' => Change('order', path, prev, value),
+        'null' => Change('set', path, prev, null),
         _ => Change('set', path, prev, value),
       };
 }
@@ -118,6 +119,12 @@ double _stamp(Map<String, dynamic> root, List<String> path) {
   return stamp;
 }
 
+/// Whether the field at [path] exists (possibly with the value null).
+bool _has(Map<String, dynamic> root, List<String> path) {
+  final parent = path.length == 1 ? root : readPath(root, path.sublist(0, path.length - 1));
+  return parent is Map && parent.containsKey(path.last);
+}
+
 bool applyChange(Map<String, dynamic> state, Change c, int createdAt) {
   switch (c.t) {
     case 'insert':
@@ -165,13 +172,16 @@ bool applyChange(Map<String, dynamic> state, Change c, int createdAt) {
       if (i < 0) return false;
       list.removeAt(i);
       return true;
-    default:
+    default: // 'set', and 'null' (the field stays, with the value null)
+      final keepNull = c.t == 'null';
       final cur = readPath(state, c.path);
-      if (_deepEq(cur, c.value)) return false;
+      if (c.value == null && !keepNull ? !_has(state, c.path) : _deepEq(cur, c.value) && (cur != null || _has(state, c.path))) {
+        return false;
+      }
       if (!_deepEq(cur, c.prev) && _stamp(state, c.path.sublist(0, c.path.length - 1)) > createdAt) return false;
       final p = _parent(state, c.path);
       if (p == null) return false;
-      if (c.value == null) {
+      if (c.value == null && !keepNull) {
         p.remove(c.path.last);
       } else {
         p[c.path.last] = _clone(c.value);
@@ -257,13 +267,32 @@ bool _deepEq(Object? a, Object? b) {
 
 List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
   final out = <Change>[];
-  void diff(List<String> path, Object? x, Object? y) {
+  late final void Function(List<String> path, Object? x, Object? y) diff;
+
+  // One field of a map: null-valued and missing fields are told apart, like
+  // in the saved JSON (the website writes `field: null`).
+  void field(List<String> parent, Map x, bool yHas, Object? yv, String k) {
+    final path = [...parent, k];
+    final xHas = x.containsKey(k);
+    final xv = x[k];
+    if (yHas && yv == null) {
+      if (!xHas || xv != null) out.add(Change('null', path, null, _clone(xv)));
+      return;
+    }
+    if (!yHas) {
+      if (xHas) out.add(Change('set', path, null, _clone(xv)));
+      return;
+    }
+    diff(path, xv, yv);
+  }
+
+  diff = (List<String> path, Object? x, Object? y) {
     if (identical(x, y)) return;
     // Maps are walked key by key (an unchanged map yields nothing), so each
     // value is compared once instead of once per level above it.
     if (x is Map && y is Map) {
       for (final k in <String>{...x.keys.map((e) => '$e'), ...y.keys.map((e) => '$e')}) {
-        diff([...path, k], x[k], y[k]);
+        field(path, x, y.containsKey(k), y[k], k);
       }
       return;
     }
@@ -309,20 +338,20 @@ List<Change> diffStates(Map<String, dynamic> a, Map<String, dynamic> b) {
         return;
       }
     }
-    out.add(Change('set', path, _clone(y), _clone(x)));
-  }
+    out.add(Change(y == null ? 'null' : 'set', path, _clone(y), _clone(x)));
+  };
 
   // A LazyStateCopy only differs where the edit touched it.
   if (b is LazyStateCopy && identical(b.original, a)) {
     for (final k in b.touched) {
       if (k == 'savedAt') continue;
-      diff([k], a[k], b.peek(k));
+      field(const [], a, b.containsKey(k), b.peek(k), k);
     }
     return out;
   }
   for (final k in <String>{...a.keys, ...b.keys}) {
     if (k == 'savedAt') continue;
-    diff([k], a[k], b[k]);
+    field(const [], a, b.containsKey(k), b[k], k);
   }
   return out;
 }
