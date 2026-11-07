@@ -435,7 +435,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   sliver: SliverGrid.builder(
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 130, mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 0.52),
                     itemCount: pageItems.length,
-                    itemBuilder: (context, i) => _CoverTile(
+                    itemBuilder: (context, i) => LibraryCoverTile(
                       title: pageItems[i],
                       category: view.category(pageItems[i].categoryId),
                       selected: _selected.contains(pageItems[i].id),
@@ -449,7 +449,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   sliver: SliverList.builder(
                     itemCount: pageItems.length,
-                    itemBuilder: (context, i) => _TitleRow(
+                    itemBuilder: (context, i) => LibraryTitleRow(
                       title: pageItems[i],
                       category: view.category(pageItems[i].categoryId),
                       layout: _view,
@@ -490,13 +490,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   void _toggle(String id) => _selected.contains(id) ? _selected.remove(id) : _selected.add(id);
 }
 
-class _TitleRow extends StatelessWidget {
-  const _TitleRow({required this.title, required this.category, required this.layout, required this.selected, required this.onSelect, required this.onTap});
+/// A Library title as a list / compact / card row (shared with Collections).
+class LibraryTitleRow extends StatelessWidget {
+  const LibraryTitleRow(
+      {super.key, required this.title, required this.category, required this.layout, required this.selected, required this.onSelect, required this.onTap, this.trailing});
   final LibraryTitle title;
   final Category category;
   final String layout;
   final bool selected;
   final VoidCallback onSelect, onTap;
+
+  /// At the end of the row (e.g. a menu).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -515,6 +520,7 @@ class _TitleRow extends StatelessWidget {
             Expanded(child: Text(title.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
             Text(progressText(title, category), style: const TextStyle(color: MF.textDim, fontSize: 12)),
             const SizedBox(width: 8),
+            if (trailing != null) trailing!,
           ]),
         ),
       );
@@ -539,19 +545,26 @@ class _TitleRow extends StatelessWidget {
       onLongPress: onSelect,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-        child: Row(children: [check, cover, const SizedBox(width: 12), body]),
+        child: Row(children: [check, cover, const SizedBox(width: 12), body, if (trailing != null) trailing!]),
       ),
     );
     return layout == 'cards' ? Card(margin: const EdgeInsets.only(bottom: 8), child: row) : row;
   }
 }
 
-class _CoverTile extends StatelessWidget {
-  const _CoverTile({required this.title, required this.category, required this.selected, required this.onTap, required this.onLongPress});
+/// A Library title as a cover tile (shared with Collections).
+class LibraryCoverTile extends StatelessWidget {
+  const LibraryCoverTile({super.key, required this.title, required this.category, required this.selected, required this.onTap, required this.onLongPress, this.showTitle = true, this.trailing});
   final LibraryTitle title;
   final Category category;
   final bool selected;
   final VoidCallback onTap, onLongPress;
+
+  /// "Covers + titles" (true) or "Covers" (false).
+  final bool showTitle;
+
+  /// Shown in the cover's top-left corner (e.g. a menu).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -563,9 +576,12 @@ class _CoverTile extends StatelessWidget {
           Stack(children: [
             Cover(title: title, category: category, width: c.maxWidth),
             if (selected) const Positioned(right: 4, top: 4, child: Icon(Icons.check_circle_rounded, color: MF.accent)),
+            if (trailing != null) Positioned(left: 0, top: 0, child: trailing!),
           ]),
-          const SizedBox(height: 4),
-          Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+          if (showTitle) ...[
+            const SizedBox(height: 4),
+            Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+          ],
         ]),
       ),
     );

@@ -21,7 +21,7 @@ Map<String, dynamic> _account() {
 Map<String, dynamic> _item(Map<String, dynamic> s, String id) =>
     (s['library'] as List).cast<Map>().firstWhere((i) => i['id'] == id).cast<String, dynamic>();
 
-BatchLogOp _log(String id, int reached) => BatchLogOp(LogRequest.create([LogEntry(libraryId: id, reached: reached)]));
+BatchLogOp _log(String id, double reached) => BatchLogOp(LogRequest.create([LogEntry(libraryId: id, reached: reached)]));
 
 void main() {
   test('a moved account is read from its records', () async {

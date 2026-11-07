@@ -11,7 +11,7 @@ import 'sync_engine.dart';
 /// moved the account over. Uses the signed-in user's session and the
 /// row-level security policies the website already relies on; no service key,
 /// no schema changes.
-class SupabaseCloud implements CloudBackend, RecordBackend {
+class SupabaseCloud implements RecordBackend {
   SupabaseCloud(this._client);
   final SupabaseClient Function() _client;
 

@@ -39,7 +39,7 @@ abstract class CloudBackend {
 /// The website's per-record storage (v556, `mediaflow_records`). Accounts the
 /// website has moved over (a `meta`/`store` row exists) are synced record by
 /// record; other accounts keep using the single `mediaflow_states` row.
-abstract class RecordBackend {
+abstract class RecordBackend implements CloudBackend {
   /// True when the account has moved to per-record storage.
   Future<bool> usesRecords(String userId);
 
