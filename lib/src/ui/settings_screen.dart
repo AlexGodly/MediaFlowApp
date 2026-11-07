@@ -13,6 +13,8 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
+import '../platform/desktop_tray.dart';
+import '../platform/reminders.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
@@ -586,6 +588,82 @@ class _AppSettingsState extends State<_AppSettings> {
               ),
             ]),
           ),
+          SectionCard(
+            prefKey: 'app.reminder',
+            icon: Icons.notifications_active_rounded,
+            title: 'Streak reminder',
+            subtitle: "A daily nudge when you haven't logged yet",
+            child: Column(children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Remind me if I haven\'t logged today'),
+                subtitle: Text(Platform.isWindows
+                    ? 'Shown while MediaFlow is running (it can keep running in the tray).'
+                    : 'So your Day Streak doesn\'t break.'),
+                value: Reminders.instance.enabled,
+                onChanged: (v) async {
+                  await Reminders.instance.setEnabled(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                enabled: Reminders.instance.enabled,
+                title: const Text('Time'),
+                trailing: Text(
+                  '${Reminders.instance.time.h.toString().padLeft(2, '0')}:${Reminders.instance.time.m.toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                onTap: () async {
+                  final t = Reminders.instance.time;
+                  final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: t.h, minute: t.m));
+                  if (picked == null) return;
+                  await Reminders.instance.setTime(picked.hour, picked.minute);
+                  if (mounted) setState(() {});
+                },
+              ),
+            ]),
+          ),
+          if (DesktopTray.supported)
+            SectionCard(
+              prefKey: 'app.windows',
+              icon: Icons.desktop_windows_rounded,
+              title: 'Windows',
+              subtitle: 'Tray icon and start-up',
+              child: Column(children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Keep running in the tray when closed'),
+                  subtitle: const Text('Closing the window hides MediaFlow to the tray. Quit from the tray icon.'),
+                  value: DesktopTray.instance.closeToTray,
+                  onChanged: (v) async {
+                    await DesktopTray.instance.setCloseToTray(v);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Start with Windows'),
+                  value: DesktopTray.instance.startWithWindows,
+                  onChanged: (v) async {
+                    await DesktopTray.instance.setStartWithWindows(v);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Start minimised to the tray'),
+                  subtitle: const Text('When Windows starts MediaFlow (needs "Keep running in the tray").'),
+                  value: DesktopTray.instance.startMinimized,
+                  onChanged: !DesktopTray.instance.closeToTray
+                      ? null
+                      : (v) async {
+                          await DesktopTray.instance.setStartMinimized(v);
+                          if (mounted) setState(() {});
+                        },
+                ),
+              ]),
+            ),
           SectionCard(
             prefKey: 'app.sync',
             icon: Icons.sync_rounded,

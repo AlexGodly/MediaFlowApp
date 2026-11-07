@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'src/config.dart';
 import 'src/data/app_prefs.dart';
+import 'src/platform/desktop_tray.dart';
+import 'src/platform/reminders.dart';
 import 'src/ui/app.dart';
 import 'src/ui/theme_controller.dart';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppPrefs.instance.load();
   // Open in the theme last used on this device.
@@ -17,5 +21,8 @@ Future<void> main() async {
     // Offline start: the saved session is still read from the device.
     debugPrint('Supabase initialisation: $e');
   }
+  // Windows: tray icon, close to tray, start with Windows.
+  await DesktopTray.instance.init(args);
+  unawaited(Reminders.instance.init());
   runApp(const MediaFlowApp());
 }
