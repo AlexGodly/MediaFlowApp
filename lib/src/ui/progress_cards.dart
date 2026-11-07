@@ -75,22 +75,13 @@ class _LevelingCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.auto_awesome_rounded, color: MF.accent, size: 20),
             const SizedBox(width: 8),
-            const Text('LEVELING', style: _label),
-            const Spacer(),
-            if (compact) ...[
-              Semantics(
-                label: 'Day streak ${p.streak}, times ${p.multiplier.toStringAsFixed(2)} XP',
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text('${p.streak}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                  Icon(Icons.local_fire_department_rounded, color: p.streak > 0 ? MF.warn : MF.textDim, size: 20),
-                  const SizedBox(width: 4),
-                  Text('×${p.multiplier.toStringAsFixed(2)} XP',
-                      style: const TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w800)),
-                ]),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Text('Lv. ${l.level}', style: TextStyle(color: MF.accent, fontSize: compact ? 22 : 26, fontWeight: FontWeight.w900)),
+            const Expanded(child: Text('LEVELING', maxLines: 1, overflow: TextOverflow.ellipsis, style: _label)),
+            Flexible(
+              child: Text('Lv. ${l.level}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: MF.accent, fontSize: compact ? 22 : 26, fontWeight: FontWeight.w900)),
+            ),
           ]),
           const SizedBox(height: 6),
           Row(children: [
@@ -99,7 +90,10 @@ class _LevelingCard extends StatelessWidget {
                   maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
             ),
             const SizedBox(width: 8),
-            Text('${_xp(l.current)} / ${_xp(l.needed)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Text('${_xp(l.current)} / ${_xp(l.needed)}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ]),
           const SizedBox(height: 8),
           ClipRRect(
@@ -117,10 +111,29 @@ class _LevelingCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            p.readyForNext ? 'Ready for Level $next' : '${_xp(p.toNext)} XP to Level $next',
-            style: const TextStyle(color: MF.textDim, fontSize: 12),
-          ),
+          Row(children: [
+            Expanded(
+              child: Text(
+                p.readyForNext ? 'Ready for Level $next' : '${_xp(p.toNext)} XP to Level $next',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: MF.textDim, fontSize: 12),
+              ),
+            ),
+            if (compact) ...[
+              const SizedBox(width: 8),
+              Semantics(
+                label: 'Day streak ${p.streak}, times ${p.multiplier.toStringAsFixed(2)} XP',
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${p.streak}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                  Icon(Icons.local_fire_department_rounded, color: p.streak > 0 ? MF.warn : MF.textDim, size: 20),
+                  const SizedBox(width: 4),
+                  Text('×${p.multiplier.toStringAsFixed(2)} XP',
+                      style: const TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w800)),
+                ]),
+              ),
+            ],
+          ]),
         ]),
       ),
     );
