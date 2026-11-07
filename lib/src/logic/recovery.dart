@@ -75,7 +75,7 @@ Map<String, dynamic> metadataSettingsToSave(Map<String, dynamic>? settings, List
 List<String> metadataProvidersFor(Map<String, dynamic>? settings, String categoryId) {
   final preset = asMap(asMap(settings?['v453RecoveryPresets'])?[categoryId])?['metadata'];
   if (preset is List) return [...{...preset.whereType<String>()}];
-  return List<String>.of(metadataPreferences(settings)['enabled'] as List);
+  return (metadataPreferences(settings)['enabled'] as List).cast<String>().toList();
 }
 
 /// What `mf453SavePreset(category, 'metadata', providers)` writes to
