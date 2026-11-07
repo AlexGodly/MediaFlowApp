@@ -17,30 +17,13 @@ on:
         description: Password of that key store and key. Optional.
         required: false
       DISCORD_SDK_TOKEN:
-        description: Read-only token for the private Discord Social SDK release (phones). Optional.
+        description: Read-only token for the private Discord Social SDK release (Rich Presence). Optional.
         required: false
 
 permissions:
   contents: read
 
 jobs:
-  discord-sdk-probe:
-    name: Discord SDK contents (temporary)
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Download and list the Social SDK
-        env:
-          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then echo "::warning title=Discord SDK::DISCORD_SDK_TOKEN is not set"; exit 0; fi
-          gh release list -R AlexGodly/discord-social-sdk || true
-          gh release download 1.10.19337 -R AlexGodly/discord-social-sdk -p 'DiscordSocialSdk-1.10.19337.zip' -D sdk
-          cd sdk && unzip -q *.zip 'discord_social_sdk/include/cdiscord.h' 'discord_social_sdk/lib/release/discord_partner_sdk.aar' 'discord_social_sdk/License-Notices.txt'
-          echo "==== AAR"; unzip -l discord_social_sdk/lib/release/discord_partner_sdk.aar
-          mkdir aar && cd aar && unzip -q ../discord_social_sdk/lib/release/discord_partner_sdk.aar && cat AndroidManifest.xml; ls jni/* 2>/dev/null; unzip -l classes.jar | awk '{print $4}' | grep -v '/$' | head -60; cd ..
-          echo "==== HEADER"; grep -v '^\s*$' discord_social_sdk/include/cdiscord.h | grep -v '^\s*//' | sed -n '1,4000p'
-
   test:
     name: Analyze and test
     runs-on: ubuntu-latest
@@ -97,6 +80,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python tool/discord_sdk.py android
       - name: Generate and brand the Android project
         run: |
           flutter create --platforms=android --org com.alexgodly --project-name mediaflow .
@@ -148,6 +137,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python tool/discord_sdk.py windows
       - name: Generate and brand the Windows project
         shell: bash
         run: |
@@ -196,12 +191,22 @@ jobs:
         with:
           channel: stable
           cache: true
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python3 tool/discord_sdk.py ios
       - name: Generate and brand the iOS project
         run: |
           flutter create --platforms=ios --org com.alexgodly --project-name mediaflow .
           git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
           python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
           python3 tool/prepare_platforms.py ios
+          if [ -d ios/DiscordPartnerSdk ]; then
+            flutter build ios --config-only --release --no-codesign
+            python3 tool/prepare_platforms.py ios-podfile
+          fi
       - name: Build (no code signing)
         run: |
           set +e

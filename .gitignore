@@ -26,3 +26,4 @@ dist/
 *.jks
 key.properties
 __pycache__/
+.discord-sdk/
