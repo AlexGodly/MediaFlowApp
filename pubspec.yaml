@@ -3,7 +3,7 @@ description: MediaFlow by Alex Godly — native app for Android, Windows and iOS
 publish_to: none
 
 # Build number = beta number. The user-visible label lives in lib/src/config.dart.
-version: 2.0.0+20
+version: 3.0.0+21
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
