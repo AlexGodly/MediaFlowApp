@@ -620,6 +620,10 @@ bool _sameJson(Map<String, dynamic> a, Map<String, dynamic> b) {
 }
 
 /// `mf437SetRating` for a verified source.
+bool setRatingInEnvelope(Map<String, dynamic> env, String key, Map<String, dynamic> rating,
+        {required String source, required bool force, required int updatedAt}) =>
+    _setRating(env, key, rating, source: source, force: force, updatedAt: updatedAt);
+
 bool _setRating(Map<String, dynamic> env, String key, Map<String, dynamic> rating,
     {required String source, required bool force, required int updatedAt}) {
   final def = kRatingMap[key];
