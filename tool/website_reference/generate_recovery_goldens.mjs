@@ -67,9 +67,9 @@ const code = [
   cnst('MF437_RATING_SOURCES'), cnst('MF437_ADDITIONAL_IDS'),
   "for(const [key,label] of MF437_ADDITIONAL_IDS){if(!V377_ID_PROVIDERS.some(row=>row[0]===key))V377_ID_PROVIDERS.push([key,label,'Optional verified provider ID']);}",
   cnst('MF437_SCHEMA_VERSION'), cnst('MF437_MEDIA_TYPES'), cnst('MF437_RATING_MAP'),
-  'const MF437_FIELD_MAP=new Map();',
+  cnst('MF437_FIELDS'), cnst('MF437_FIELD_MAP'),
   cnst('mf437Object'), cnst('mf437Copy'),
-  fn('mf437Normalized'), fn('mf437Clean'), fn('mf437FieldCompare'), fn('mf437SetRating'),
+  fn('mf437Normalized'), fn('mf437Clean'), fn('mf437FieldCompare'), fn('mf437SetField'), fn('mf437SetRating'),
   cnst('mf439Plain'), fn('mf439TitleVariants'), fn('mf439Norm'), fn('mf439Year'), cnst('mf439StringList'),
   cnst('MF439_LEGACY_FIELDS'), cnst('mf439Has'),
   fn('mf439FieldDefinition'), fn('mf439FieldValue'), fn('mf439IsProtected'), fn('mf439Value'), fn('mf439ValueKey'),
@@ -112,6 +112,28 @@ const scenarios = [
     rows: [
       row('tmdb', 438631, 'Dune', { year: 2021, externalIds: { tmdb: '438631' }, legacy: { mediaFormat: 'Movie', synopsis: 'Paul Atreides…' }, ratings: { tmdb: { score: 7.8, scale: 10, votes: 12000 } } }),
       row('omdb', 'tt1160419', 'Dune', { year: 2021, externalIds: { imdb: 'tt1160419' }, legacy: { mediaFormat: 'movie (feature)' }, ratings: { imdb: { score: 8.0, scale: 10, votes: 900000 } } }),
+    ],
+  },
+  {
+    name: 'universal fields: missing ones filled, locked and existing kept, counts parsed',
+    mode: 'automatic',
+    item: { id: 'm3', title: 'Frieren', year: 2023, modifiedAt: 9, externalIds: { mal: '52991' },
+      universalMetadata: { schemaVersion: 1, mediaType: 'anime', fields: { creators: ['Kanehito Yamada'] }, locks: { 'field.animeSeason': true }, updatedAt: 3 } },
+    rows: [
+      row('jikan', 52991, 'Sousou no Frieren', { year: 2023, aliases: ['Frieren'], externalIds: { mal: '52991' },
+        fields: { originalTitle: '葬送のフリーレン', animeSeason: 'fall', episodeCount: 28, chapterCount: null, mangaAuthors: [], creators: ['Someone'] } }),
+      row('anilist', 154587, 'Frieren', { year: 2023, externalIds: { anilist: '154587', mal: '52991' },
+        fields: { originalTitle: '葬送のフリーレン', alternateTitles: ['Frieren: Beyond Journey\'s End', 'Frieren at the Funeral'], episodeCount: '28', officialWebsite: 'https://frieren-anime.jp' } }),
+    ],
+  },
+  {
+    name: 'universal fields in review: decimal hours and list values',
+    mode: 'review',
+    select: { 'field.platforms': 0, 'field.mainStoryHours': 0 },
+    item: { id: 'm4', title: 'Steins;Gate', modifiedAt: 2 },
+    rows: [
+      row('vndb', 'v2002', 'Steins;Gate', { externalIds: { vndb: 'v2002' },
+        fields: { originalTitle: 'シュタインズ・ゲート', platforms: ['win', 'ps3', 'win'], mainStoryHours: 31.666, ifPlatforms: ['win'] } }),
     ],
   },
 ];

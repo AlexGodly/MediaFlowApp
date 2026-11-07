@@ -44,7 +44,7 @@ void main() {
       );
       expect([for (final e in preview.errors) e.$1], want['errors']);
       final r = (want['result'] as Map).cast<String, dynamic>();
-      expect([res.changed, res.legacy, res.ratings], [r['changed'], r['legacy'], r['ratings']]);
+      expect([res.changed, res.legacy, res.fields, res.ratings], [r['changed'], r['legacy'], r['fields'], r['ratings']]);
       expect(jsStringify(item), want['itemJson'], reason: 'saved title must be byte-identical');
     });
   }
