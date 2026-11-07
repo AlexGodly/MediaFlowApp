@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/account_controller.dart';
 import '../data/recovery_runner.dart';
+import 'app_shortcuts.dart';
 import 'desktop_tray.dart';
 
 /// The progress line shown in the notification / tray.
@@ -66,6 +67,7 @@ class BackgroundWork with WidgetsBindingObserver {
       if (Platform.isAndroid) {
         _channel.setMethodCallHandler((call) async {
           if (call.method == 'action') _action('${call.arguments}');
+          if (call.method == 'launchAction') unawaited(AppShortcuts.instance.takeLaunchAction());
           return null;
         });
       }

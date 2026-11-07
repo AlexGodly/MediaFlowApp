@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../platform/app_shortcuts.dart';
 import 'account_screen.dart';
 import 'collections_screen.dart';
 import 'extras_screen.dart';
@@ -73,6 +74,12 @@ class _HomeShellState extends State<HomeShell> {
   Widget _page(Section s) => _pages[s] ??= sectionPage(s, widget.account);
 
   @override
+  void dispose() {
+    AppShortcuts.instance.request.removeListener(_onShortcut);
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(HomeShell old) {
     super.didUpdateWidget(old);
     if (!identical(old.account, widget.account)) _pages.clear();
@@ -82,6 +89,32 @@ class _HomeShellState extends State<HomeShell> {
         _section = s;
         _moreOpen = false;
       });
+
+  // App-icon shortcuts and the home-screen widget.
+  @override
+  void initState() {
+    super.initState();
+    AppShortcuts.instance.request.addListener(_onShortcut);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onShortcut());
+  }
+
+  int _shortcutSeen = 0;
+  void _onShortcut() {
+    final r = AppShortcuts.instance.request.value;
+    if (r == null || r.$2 <= _shortcutSeen || !mounted) return;
+    _shortcutSeen = r.$2;
+    final account = widget.account;
+    switch (r.$1) {
+      case 'log':
+        _go(Section.log);
+      case 'library':
+        _go(Section.library);
+      case 'add':
+        if (account.hasData) Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: account)));
+      case 'recovery':
+        if (account.hasData) openRecovery(context, account);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

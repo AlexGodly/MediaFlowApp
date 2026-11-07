@@ -48,6 +48,13 @@ BACKGROUND_SERVICE = """
         <service android:name=".BackgroundWorkService"
                  android:exported="false"
                  android:foregroundServiceType="dataSync" />
+        <!-- Home-screen widget. -->
+        <receiver android:name=".MediaFlowWidget" android:exported="false" android:label="MediaFlow">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mediaflow_widget_info" />
+        </receiver>
 """
 
 
@@ -203,11 +210,18 @@ MAIN_ACTIVITY = """class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         BackgroundWorkService.activityAlive = true
+        BackgroundWorkService.takeIntent(intent)
 %(discord)s    }
 
     override fun onDestroy() {
         BackgroundWorkService.activityAlive = false
         super.onDestroy()
+    }
+
+    // Home-screen widget buttons and shortcuts open the app with an action.
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        BackgroundWorkService.takeIntent(intent)
     }
 
     // A recovery keeps running after the app is swiped away: the engine (and
@@ -246,8 +260,15 @@ def android_activity(discord):
     pkg = re.search(r"^package\s+([\w.]+)", text, flags=re.M)
     if not pkg:
         sys.exit("MainActivity.kt has no package")
-    service = (ROOT / "tool/android/BackgroundWorkService.kt").read_text(encoding="utf-8").replace("{{PACKAGE}}", pkg.group(1))
-    (acts[0].parent / "BackgroundWorkService.kt").write_text(service, encoding="utf-8")
+    for name in ("BackgroundWorkService.kt", "MediaFlowWidget.kt"):
+        src = (ROOT / "tool/android" / name).read_text(encoding="utf-8").replace("{{PACKAGE}}", pkg.group(1))
+        (acts[0].parent / name).write_text(src, encoding="utf-8")
+    # The widget's layout, look and description.
+    res = ROOT / "android/app/src/main/res"
+    for f in (ROOT / "tool/android/res").rglob("*.xml"):
+        dest = res / f.relative_to(ROOT / "tool/android/res")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
     if "BackgroundWorkService" in text:
         return
     m = re.search(r"class MainActivity\s*:\s*FlutterActivity\(\)\s*(\{\s*\})?", text)

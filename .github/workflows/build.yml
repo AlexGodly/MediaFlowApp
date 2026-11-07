@@ -111,15 +111,33 @@ jobs:
           code=$?
           cat build.log
           [ $code -eq 0 ] || python tool/ci_annotate.py build build.log
-          exit $code
-      - name: Stage APK
-        run: |
+          [ $code -eq 0 ] || exit $code
+          # Universal APK staged before the per-ABI build reuses the folder.
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/MediaFlow-${{ inputs.app_version }}-Android.apk"
+      - name: Build per-ABI APKs
+        run: |
+          set +e
+          flutter build apk --release --split-per-abi > build-abi.log 2>&1
+          code=$?
+          cat build-abi.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build-abi.log
+          exit $code
+      - name: Stage APKs
+        run: |
+          v="${{ inputs.app_version }}"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" "dist/MediaFlow-${v}-Android-${abi}.apk"
+          done
           ls -la dist
+          # Each phone type's APK holds only its own libraries.
+          unzip -l "dist/MediaFlow-${v}-Android-arm64-v8a.apk" | grep -q 'lib/armeabi-v7a/' && { echo "::error::arm64 APK is not split"; exit 1; } || true
           if [ -d .discord-sdk/out/android ]; then
-            unzip -l dist/*-Android.apk | grep -E 'lib/arm64-v8a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from the APK"; exit 1; }
-            unzip -l dist/*-Android.apk | grep -c 'lib/x86/' && { echo "::error::32-bit x86 libraries should be excluded"; exit 1; } || true
+            for f in "dist/MediaFlow-${v}-Android.apk" "dist/MediaFlow-${v}-Android-arm64-v8a.apk"; do
+              unzip -l "$f" | grep -E 'lib/arm64-v8a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from $f"; exit 1; }
+            done
+            unzip -l "dist/MediaFlow-${v}-Android-armeabi-v7a.apk" | grep -E 'lib/armeabi-v7a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from the armeabi-v7a APK"; exit 1; }
+            unzip -l "dist/MediaFlow-${v}-Android.apk" | grep -c 'lib/x86/' && { echo "::error::32-bit x86 libraries should be excluded"; exit 1; } || true
           fi
       - uses: actions/upload-artifact@v4
         with:

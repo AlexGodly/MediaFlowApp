@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:path_provider/path_provider.dart';
 
 import '../state/state_codec.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
+import 'background_worker.dart';
 import 'records.dart';
 
 /// What the app keeps on the device for one account: the last cloud copy it
@@ -105,11 +105,11 @@ CachedAccount readCachedAccount(String path, String pendingPath, String userId) 
 }
 
 Future<CachedAccount> _readInBackground(String path, String pendingPath, String userId) =>
-    Isolate.run(() => readCachedAccount(path, pendingPath, userId));
+    runOnWorker(() => readCachedAccount(path, pendingPath, userId));
 
 /// Writes [data] as JSON to [path] atomically (temp file + rename), in the
 /// background.
-Future<void> _writeInBackground(String path, Object data) => Isolate.run(() {
+Future<void> _writeInBackground(String path, Object data) => runOnWorker(() {
       final tmp = File('$path.tmp');
       tmp.parent.createSync(recursive: true);
       tmp.writeAsStringSync(jsonEncode(data), flush: true);

@@ -34,6 +34,16 @@ class BackgroundWorkService : Service() {
         private var running: BackgroundWorkService? = null
         private val main = Handler(Looper.getMainLooper())
 
+        /** A widget button / shortcut that opened the app ("log", "add", …). */
+        @Volatile var pendingAction: String? = null
+
+        fun takeIntent(intent: Intent?) {
+            val a = intent?.getStringExtra("mediaflow_action") ?: return
+            intent.removeExtra("mediaflow_action")
+            pendingAction = a
+            main.post { channel?.invokeMethod("launchAction", null) }
+        }
+
         fun attach(context: Context, engine: FlutterEngine) {
             val app = context.applicationContext
             val ch = MethodChannel(engine.dartExecutor.binaryMessenger, "mediaflow/background")
@@ -69,6 +79,19 @@ class BackgroundWorkService : Service() {
                                 FlutterEngineCache.getInstance().remove(ENGINE_ID)
                             }
                         }
+                    }
+                    "takeAction" -> {
+                        result.success(pendingAction)
+                        pendingAction = null
+                    }
+                    "widget" -> {
+                        @Suppress("UNCHECKED_CAST")
+                        val data = (call.arguments as? Map<String, Any?>) ?: emptyMap()
+                        val edit = app.getSharedPreferences(MediaFlowWidget.PREFS, Context.MODE_PRIVATE).edit()
+                        for ((k, v) in data) edit.putString(k, v?.toString() ?: "")
+                        edit.apply()
+                        try { MediaFlowWidget.refreshAll(app) } catch (e: Exception) { }
+                        result.success(true)
                     }
                     else -> result.notImplemented()
                 }

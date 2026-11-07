@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io' show gzip;
 import 'dart:isolate';
 
+import '../data/background_worker.dart';
 import '../util/js.dart' show jsonClone;
 
 /// The website stores `state_data` either as plain JSON or, in current versions,
@@ -39,14 +40,14 @@ Map<String, dynamic> deepCopyState(Map<String, dynamic> state) => jsonClone(stat
 
 // Background helpers. Kept top-level so the isolate closure captures only its
 // arguments (a closure inside a class method could capture unsendable objects).
-Future<Map<String, dynamic>> decodeStateDataInBackground(Object? raw) => Isolate.run(() => decodeStateData(raw));
+Future<Map<String, dynamic>> decodeStateDataInBackground(Object? raw) => runOnWorker(() => decodeStateData(raw));
 
 Future<Map<String, dynamic>> encodeStateDataInBackground(Map<String, dynamic> state) =>
-    Isolate.run(() => encodeStateData(state));
+    runOnWorker(() => encodeStateData(state));
 
-Future<String> jsonEncodeInBackground(Object? value) => Isolate.run(() => jsonEncode(value));
+Future<String> jsonEncodeInBackground(Object? value) => runOnWorker(() => jsonEncode(value));
 
-Future<Object?> jsonDecodeInBackground(String text) => Isolate.run(() => jsonDecode(text));
+Future<Object?> jsonDecodeInBackground(String text) => runOnWorker(() => jsonDecode(text));
 
 /// A full copy made by handing the account to an isolate (the hand-over is the
 /// copy; the isolate gives it straight back without copying again).
