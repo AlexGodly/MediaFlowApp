@@ -24,6 +24,7 @@ import '../util/js.dart';
 import 'log_sheet.dart';
 import 'home_shell.dart' show Section;
 import 'logging_library.dart';
+import '../platform/discord_presence.dart' show DiscordPresence;
 import 'presence.dart';
 import 'progress_cards.dart';
 import 'reroll_history.dart';
@@ -1359,25 +1360,63 @@ class _LogScreenState extends State<LogScreen> {
     if (ok == true && mounted) await _submit();
   }
 
-  /// Discord: "Logging Frieren · Episode 12 / 28" while the form is open,
-  /// "Up next: Frieren" while a recommendation waits.
+  /// Discord: while the form is open the title and progress come from the log
+  /// draft (the entry edited last, the first, or all of them — Settings), so
+  /// typing "13" shows 13 right away; "Up next" while a recommendation waits.
   void _reportPresence(AccountView view, Map<String, dynamic>? task, bool formOpen) {
     PresenceInfo? info;
     final t = formOpen ? _task : task;
     if (t != null && (formOpen || view.state['sessionActive'] == true)) {
-      final id = jsStr(t['libraryId']);
-      final item = id.isEmpty ? null : view.library.where((x) => x.id == id).firstOrNull?.raw;
-      final cat = view.category(jsStr(item?['categoryId'] ?? t['categoryId']));
-      final data = item ?? <String, dynamic>{'title': t['title'], 'categoryId': cat.id};
-      String? state;
-      if (item != null) {
-        final unit = unitLabel(cat.unit, 1);
-        final word = unit.isEmpty ? 'Progress' : '${unit[0].toUpperCase()}${unit.substring(1)}';
-        state = jsTruthy(item['total']) ? '$word ${_num(item['progress'])} / ${_num(item['total'])}' : '$word ${_num(item['progress'])}';
+      Map<String, dynamic>? itemOf(Object? id) =>
+          jsStr(id).isEmpty ? null : view.library.where((x) => x.id == jsStr(id)).firstOrNull?.raw;
+      final ed = formOpen ? _editor(view) : null;
+      final entries = ed?.entries.where((e) => jsStr(e['title']).isNotEmpty || jsTruthy(e['libraryId'])).toList() ?? const [];
+      Map<String, dynamic>? entry;
+      if (entries.isNotEmpty) {
+        final mode = DiscordPresence.instance.config.draftEntry;
+        if (mode == 'first') {
+          entry = entries.first;
+        } else {
+          entry = entries.last;
+          var latest = -1.0;
+          for (final e in entries) {
+            final at = jsNum(e['v369UpdatedAt']);
+            if (at > latest) {
+              latest = at;
+              entry = e;
+            }
+          }
+          if (latest <= 0) entry = entries.last;
+        }
       }
-      info = formOpen
-          ? titlePresence('Logging', data, cat, state: state)
-          : titlePresence('Up next:', data, cat, state: state, genericVerb: 'Deciding on');
+      final item = itemOf(entry?['libraryId'] ?? t['libraryId']);
+      final cat = view.category(jsStr(item?['categoryId'] ?? entry?['categoryId'] ?? t['categoryId']));
+      final data = item ?? <String, dynamic>{'title': entry?['title'] ?? t['title'], 'categoryId': cat.id};
+      double? progress;
+      String? season;
+      if (ed != null && entry != null && item != null) {
+        if (ed.itemized) {
+          progress = ed.projectedProgress(item, entry);
+        } else if (entry['v179EndProgress'] != null) {
+          progress = jsNum(entry['v179EndProgress']);
+        } else {
+          final start = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
+          progress = start + jsNum(entry['qty']);
+        }
+        season = jsStr(ed.selectedSeason(entry, item)?['name']);
+      }
+      final others = entries.length > 1 ? entries.length - 1 : 0;
+      final allMode = DiscordPresence.instance.config.draftEntry == 'all' && others > 0;
+      info = titlePresence(
+        formOpen ? 'logging' : 'upNext',
+        allMode ? {...data, 'title': '${cleanTitle(data['title'])} + $others more'} : data,
+        cat,
+        progress: progress,
+        season: season,
+        more: others > 0 && !allMode ? '+$others more' : '',
+        count: entries.length,
+        action: formOpen ? 'Logging' : '',
+      );
     }
     PresenceHub.instance.section(Section.log, info);
   }

@@ -98,7 +98,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   @override
   Widget build(BuildContext context) {
     return PresenceScope(
-      info: const PresenceInfo(details: 'Recovering covers and details', state: 'Recovery Workspace'),
+      info: const PresenceInfo(situation: 'recovery'),
       child: DefaultTabController(
         length: 3,
         initialIndex: widget.initialTab,

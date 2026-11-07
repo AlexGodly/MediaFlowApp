@@ -5,7 +5,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mediaflow/src/platform/discord_presence.dart';
+import 'package:mediaflow/src/logic/presence_templates.dart';
 import 'package:mediaflow/src/ui/home_shell.dart' show Section;
 import 'package:mediaflow/src/ui/presence.dart';
 
@@ -13,7 +13,8 @@ void main() {
   test('every section of the app has a Discord status', () {
     for (final s in Section.values) {
       final info = sectionPresence(s);
-      expect(info.details.trim().length, greaterThanOrEqualTo(2), reason: '$s');
+      expect(info.situation, isNotEmpty, reason: '$s');
+      expect(PresenceConfig.of({}).template(info.situation).$1, isNotEmpty, reason: '$s');
     }
   });
 
@@ -49,17 +50,26 @@ void main() {
     }
   });
 
-  test('privacy: titles and covers are hidden unless "everything" is chosen', () {
-    const info = PresenceInfo(
-      details: 'Logging Frieren',
-      genericDetails: 'Logging anime',
-      state: 'Episode 12 / 28',
-      title: 'Frieren',
-      cover: 'https://example.com/frieren.jpg',
-      categoryName: 'Anime',
-      categoryId: 'anime',
-      kind: PresenceKind.watching,
-    );
-    expect(info.key, contains('Frieren'));
+  test('templates: empty pieces disappear with their separators', () {
+    const v = {'title': 'Frieren', 'action': 'Logging', 'unit': 'Episode', 'progress': '12', 'total': '28'};
+    expect(renderPresence('{action} {title}', v), 'Logging Frieren');
+    expect(renderPresence('{unit} {progress} / {total} · {more}', v), 'Episode 12 / 28');
+    expect(renderPresence('{unit} {progress} / {total}', {...v}..remove('total')), 'Episode 12');
+    expect(renderPresence('{title} · {more}', {...v, 'more': '+2 more'}), 'Frieren · +2 more');
+    expect(renderPresence('{action} {title}', {...v, 'action': ''}), 'Frieren');
+    expect(renderPresence('Level {level} · {streak}-day streak', {'level': '24'}), 'Level 24');
+    expect(renderPresence('', v), '');
+  });
+
+  test('presets, custom lines and settings are saved like any account setting', () {
+    final c = PresenceConfig.of({});
+    expect(c.preset, 'detailed');
+    expect(c.statusLine, 'name');
+    expect(c.template('logging').$1, '{action} {title}');
+    final custom = PresenceConfig(c.withTemplate('logging', '{title}', 'Ep {progress}'));
+    expect(custom.preset, 'custom');
+    expect(custom.template('logging'), ('{title}', 'Ep {progress}'));
+    expect(custom.template('library'), c.template('library'), reason: 'other situations keep what the preset showed');
+    expect(PresenceConfig.of({'mediaflowAppDiscord': {'statusLine': 'details', 'timer': 'nope'}}).timer, 'title');
   });
 }

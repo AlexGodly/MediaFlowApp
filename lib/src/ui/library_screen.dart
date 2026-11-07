@@ -610,7 +610,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    return PresenceScope(info: const PresenceInfo(details: 'Rating the Library'), child: LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(situation: 'library', values: {'action': 'Rating the Library'}), child: LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -711,7 +711,7 @@ class MissingCoversScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PresenceScope(info: const PresenceInfo(details: 'Finding missing covers'), child: LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(situation: 'recovery'), child: LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

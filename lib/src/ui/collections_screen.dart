@@ -576,7 +576,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         final pages = rows.isEmpty ? 1 : (rows.length / size).ceil();
         if (_page > pages - 1) _page = pages - 1;
         final shown = rows.skip(_page * size).take(size).toList();
-        return PresenceScope(info: PresenceInfo(details: 'Browsing a collection', state: '${cleanTitle(c['title'])} · ${ids.length} title${ids.length == 1 ? '' : 's'}'), child: Scaffold(
+        return PresenceScope(info: PresenceInfo(situation: 'collection', values: {'collection': cleanTitle(c['title']), 'count': '${ids.length}'}), child: Scaffold(
           appBar: AppBar(
             title: Text(jsStr(c['title'])),
             actions: [
@@ -1053,7 +1053,7 @@ Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, 
     useSafeArea: true,
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
-      info: const PresenceInfo(details: 'Adding titles to a collection'),
+      info: const PresenceInfo(situation: 'collections'),
       child: _TitlePicker(view: view, exclude: exclude, title: title),
     ),
   );

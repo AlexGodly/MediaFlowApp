@@ -78,7 +78,7 @@ class _StatsScreenState extends State<StatsScreen> {
           final view = account.view;
           if (view == null) return const SizedBox.shrink();
           final m = memoFor(view, 'stats', () => StatsModel(view.state, DateTime.now()));
-          PresenceHub.instance.section(Section.stats, PresenceInfo(details: 'Checking stats', state: 'Level ${m.level.level}'));
+          PresenceHub.instance.section(Section.stats, PresenceInfo(situation: 'stats', values: {'level': '${m.level.level}', 'streak': '${m.streak}'}));
           bool on(String k) => statsComponentVisible(view.state, k);
           return Center(
             child: ConstrainedBox(

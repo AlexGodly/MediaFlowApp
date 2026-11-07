@@ -58,7 +58,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return PresenceScope(info: const PresenceInfo(details: 'Signing in'), child: Scaffold(
+    return PresenceScope(info: const PresenceInfo(situation: 'other'), child: Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

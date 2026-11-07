@@ -11,28 +11,30 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../logic/presence_templates.dart';
+import '../logic/stats.dart' show StatsModel;
 import '../platform/discord_presence.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
+import 'widgets.dart' show memoFor;
 
 export '../platform/discord_presence.dart' show PresenceInfo, PresenceKind;
 
 /// The default status of each section.
-PresenceInfo sectionPresence(Section s, [AccountView? view]) => switch (s) {
-      Section.log => const PresenceInfo(details: 'Picking something to log'),
-      Section.library => PresenceInfo(
-          details: 'Browsing the Library',
-          state: view == null ? null : '${fmtCount(view.library.length)} title${view.library.length == 1 ? '' : 's'}',
-        ),
-      Section.history => const PresenceInfo(details: 'Looking through History'),
-      Section.extras => const PresenceInfo(details: 'Looking back', state: 'On This Day and tools'),
-      Section.collections => const PresenceInfo(details: 'Organising collections'),
-      Section.order => const PresenceInfo(details: 'Planning the Personal Order'),
-      Section.stats => const PresenceInfo(details: 'Checking stats'),
-      Section.settings => const PresenceInfo(details: 'Tidying up settings'),
-      Section.account => const PresenceInfo(details: 'Managing the account'),
-    };
+PresenceInfo sectionPresence(Section s, [AccountView? view]) => PresenceInfo(
+      situation: switch (s) {
+        Section.log => 'picking',
+        Section.library => 'library',
+        Section.history => 'history',
+        Section.extras => 'extras',
+        Section.collections => 'collections',
+        Section.order => 'order',
+        Section.stats => 'stats',
+        Section.settings => 'settings',
+        Section.account => 'account',
+      },
+    );
 
 String fmtCount(int n) {
   final s = '$n';
@@ -65,15 +67,33 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
       PresenceKind.other => fallback,
     };
 
-/// A status about one title (cover when there is one).
-PresenceInfo titlePresence(String verb, Map<String, dynamic> item, Category cat, {String? state, String? genericVerb}) {
+/// A status about one title: its name, progress (from the log draft while
+/// logging) and cover.
+PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category cat,
+    {double? progress, String? season, String more = '', int count = 0, String action = ''}) {
   final title = cleanTitle(item['title']);
   final cover = jsStr(item['coverUrl']).trim();
+  final p = progress ?? jsNumOrNull(item['progress']);
+  final total = jsNumOrNull(item['total']);
+  final hasProgress = p != null && (p > 0 || (total ?? 0) > 0);
+  String num(double v) => v == v.truncateToDouble() ? fmtCount(v.toInt()) : v.toStringAsFixed(1);
+  final unit = unitLabel(cat.unit, 1);
   return PresenceInfo(
-    details: '$verb $title',
-    genericDetails: '${genericVerb ?? verb} ${cat.name.toLowerCase()}',
-    state: state,
-    title: title,
+    situation: situation,
+    values: {
+      'title': title,
+      'category': cat.name,
+      'verb': presenceVerb(cat, fallback: 'Logging'),
+      'action': action.isEmpty ? presenceVerb(cat, fallback: 'Logging') : action,
+      if (hasProgress) 'progress': num(p),
+      if (hasProgress && total != null && total > 0) 'total': num(total),
+      if (hasProgress && total != null && total > 0) 'percent': '${(p / total * 100).clamp(0, 100).round()}%',
+      if (hasProgress) 'unit': capFirst(unit),
+      'units': unitLabel(cat.unit, 2),
+      if ((season ?? '').isNotEmpty) 'season': season!,
+      if (more.isNotEmpty) 'more': more,
+      if (count > 0) 'count': '$count',
+    },
     cover: cover.startsWith('https://') ? cover : null,
     categoryName: cat.name,
     categoryId: cat.id,
@@ -93,8 +113,30 @@ class PresenceHub {
   /// The section on screen (from the app's navigation).
   void setSection(Section s, AccountView? view) {
     _section = s;
-    _view = view;
+    if (!identical(view, _view)) {
+      _view = view;
+      _globals = null;
+      DiscordPresence.instance.globals ??= () => _globals ??= _computeGlobals();
+      DiscordPresence.instance.setConfig(PresenceConfig.of(asMap(view?.state['settings'])));
+    }
     _update();
+  }
+
+  Map<String, String>? _globals;
+  Map<String, String> _computeGlobals() {
+    final v = _view;
+    if (v == null) return const {};
+    try {
+      final m = memoFor(v, 'stats', () => StatsModel(v.state, DateTime.now()));
+      return {
+        'level': '${m.level.level}',
+        'xp': fmtCount(m.xp.total.round()),
+        'streak': '${m.streak}',
+        'library': fmtCount(v.library.length),
+      };
+    } catch (_) {
+      return {'library': fmtCount(v.library.length)};
+    }
   }
 
   /// A section's own, more precise status (null: back to its default).
@@ -180,10 +222,9 @@ class PresenceIdleWatcher extends StatefulWidget {
 }
 
 class _PresenceIdleWatcherState extends State<PresenceIdleWatcher> {
-  static const _after = Duration(minutes: 5);
   DateTime _last = DateTime.now();
   late final _timer = Stream.periodic(const Duration(seconds: 30)).listen((_) {
-    DiscordPresence.instance.setIdle(DateTime.now().difference(_last) >= _after);
+    DiscordPresence.instance.setIdle(DateTime.now().difference(_last) >= Duration(minutes: DiscordPresence.instance.config.idleMinutes));
   });
 
   bool _key(KeyEvent _) {
