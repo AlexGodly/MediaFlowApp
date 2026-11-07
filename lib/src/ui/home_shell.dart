@@ -13,6 +13,7 @@ import 'presence.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
+import 'theme_controller.dart' show CoverBackdrop;
 import 'widgets.dart';
 
 /// The app's sections. Phones show Log · Library · History · Extras · More;
@@ -113,7 +114,8 @@ class _HomeShellState extends State<HomeShell> {
         if (wide) {
           return Scaffold(
             floatingActionButton: fab,
-            body: Row(children: [
+            body: CoverBackdrop(
+              child: Row(children: [
               SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: MediaQuery.sizeOf(context).height),
@@ -139,7 +141,8 @@ class _HomeShellState extends State<HomeShell> {
               ),
               const VerticalDivider(width: 1),
               Expanded(child: body),
-            ]),
+              ]),
+            ),
           );
         }
         final tabIndex = showMore || !Section.phoneTabs.contains(_section) ? 4 : Section.phoneTabs.indexOf(_section);
@@ -151,7 +154,7 @@ class _HomeShellState extends State<HomeShell> {
           },
           child: Scaffold(
             floatingActionButton: fab,
-            body: body,
+            body: CoverBackdrop(child: body),
             bottomNavigationBar: NavigationBar(
               selectedIndex: tabIndex,
               onDestinationSelected: (i) {
