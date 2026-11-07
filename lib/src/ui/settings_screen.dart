@@ -541,9 +541,9 @@ class _AppSettingsState extends State<_AppSettings> {
       final j = jsonDecode(body) as Map;
       final name = '${j['name'] ?? j['tag_name'] ?? ''}';
       final tag = '${j['tag_name'] ?? ''}';
-      final mine = 'mediaflowapp-v${kAppVersionLabel.replaceAll(' Beta ', '-beta.').replaceAll(' ', '')}'.toLowerCase();
-      result = tag.toLowerCase() == mine ? 'You have the latest version ($kAppVersionLabel).' : 'Newer version available: $name';
-      if (tag.toLowerCase() != mine) prefs.set('updateUrl', '${j['html_url'] ?? ''}');
+      final newer = isNewerVersion(tag, kAppVersionLabel);
+      result = newer ? 'Newer version available: $name' : 'You have the latest version ($kAppVersionLabel).';
+      if (newer) prefs.set('updateUrl', '${j['html_url'] ?? ''}');
     } catch (_) {
       result = 'Could not check for updates (offline?).';
     }

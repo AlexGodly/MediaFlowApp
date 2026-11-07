@@ -6,14 +6,20 @@
 
 **The app is native Flutter** (owner's decision, Beta 12). No WebView builds.
 
-**Versions** (stable since 1.0.0; Beta 16 was the last pre-release): `X.Y.Z` — a new minor version (1.1.0, 1.2.0…) for releases with features, a patch version (1.0.1…) for fix-only releases. The build number after `+` keeps counting up by one every release (1.0.0 is build 17) so each release installs over the previous one.
+**Versions** (owner's decision, 2.0.0.560): `MAJOR.FEATURE.FIX.WEBSITE`.
+- **MAJOR**: a big update — several changes at once (not one simple thing).
+- **FEATURE**: one feature / one area.
+- **FIX**: a bug fix or a very small change.
+- **WEBSITE**: the MediaFlow website version (repo `AlexGodly/MediaFlow`, e.g. v560) whose features the app matches.
+- Raising a number resets the ones after it to 0 (except WEBSITE, which always shows the matched website version): 2.0.0.560 → 2.1.0.560 (a feature) → 2.1.1.560 (a fix) → 3.0.0.565 (a big update that also catches up to website v565).
+- Stores only take three numbers, so `pubspec.yaml` has `version: MAJOR.FEATURE.FIX+N`; the label, workflow and tag carry all four. The build number after `+` keeps counting up by one every release (2.0.0.560 is build 20) so each release installs over the previous one. 1.0.0–1.2.0 used `X.Y.Z`; Beta 16 was the last pre-release.
 
 A release only happens when the version is new, so every change must:
 
-1. Bump the version everywhere: `pubspec.yaml` (`version: X.Y.Z+N`), `kAppVersionLabel` in `lib/src/config.dart` (`'X.Y.Z'`), and `APP_VERSION` / `TAG` (`mediaflowapp-vX.Y.Z`) / `app_version` in `.github/workflows/release.yml`.
-2. Add `docs/releases/mediaflowapp-vX.Y.Z.md`.
+1. Bump the version everywhere: `pubspec.yaml` (`version: MAJOR.FEATURE.FIX+N`), `kAppVersionLabel` in `lib/src/config.dart` (`'MAJOR.FEATURE.FIX.WEBSITE'`), and `APP_VERSION` / `TAG` (`mediaflowapp-v<label>`) / `app_version` in `.github/workflows/release.yml`.
+2. Add `docs/releases/mediaflowapp-v<label>.md`.
 3. Push to a branch first and let `ci.yml` pass (tests + all three builds); this workspace can't run Flutter, so CI is the compiler.
-4. Refresh the byte-identical source archive `legacy/v/mediaflowapp-vX.Y.Z/` (every tracked file outside `legacy/`, plus `ARCHIVE_METADATA.md`; `python tool/make_release_archive.py --tag <tag>`) as the **last** step before merging. `python tool/verify_release_archive.py --tag <tag>` and `python tool/release_guard.py` must pass.
+4. Refresh the byte-identical source archive `legacy/v/mediaflowapp-v<label>/` (every tracked file outside `legacy/`, plus `ARCHIVE_METADATA.md`; `python tool/make_release_archive.py --tag <tag>`) as the **last** step before merging. `python tool/verify_release_archive.py --tag <tag>` and `python tool/release_guard.py` must pass.
 5. After merging, check the release run and confirm the release has the APK, Setup.exe, portable zip and IPA and is marked Latest (not a pre-release); fix and re-release if any platform failed.
 
 ## Product rules
@@ -21,4 +27,5 @@ A release only happens when the version is new, so every change must:
 - Goal: every feature of the latest MediaFlow website (repo `AlexGodly/MediaFlow`) natively. Normally one area per release; the owner may ask for more in one release (Beta 14 brought every area at once). **Logging is the top priority** and must never regress.
 - Writes to the account must match what the website would write. Port the website's logic, then prove it with golden fixtures generated from the real website (`tool/website_reference/`), as `test/logging_golden_test.dart` does for logging.
 - Cloud writes: compare-and-swap on `mediaflow_states.updated_at`, replayable operations with fixed ids, preserve every field the app doesn't understand.
+- Accounts the website moved to per-record storage (website v556, `mediaflow_records`) sync record by record exactly as the website writes them (`test/records_golden_test.dart`), plus the `mf556` fallback copy in `mediaflow_states`.
 - No Supabase schema/policy changes without the owner's explicit approval (project `wgeijxfdpgehesxialxm`).

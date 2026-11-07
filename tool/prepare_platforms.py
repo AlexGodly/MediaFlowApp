@@ -129,6 +129,15 @@ def windows_cmake(text):
     text, n = re.subn(r'set\(BINARY_NAME "[^"]*"\)', f'set(BINARY_NAME "{NAME}")', text, count=1)
     if n != 1:
         sys.exit("windows/CMakeLists.txt has no BINARY_NAME")
+    # flutter_local_notifications_windows still includes <experimental/coroutine>,
+    # which newer Visual Studio refuses unless this is defined (for every plugin).
+    flag = "add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+    if flag not in text:
+        text, n = re.subn(r'(add_definitions\(-DUNICODE -D_UNICODE\))', r'\1\n' + flag, text, count=1)
+        if n != 1:
+            text, n = re.subn(r'(project\([^)]*\)\n)', r'\1' + flag + '\n', text, count=1)
+        if n != 1:
+            sys.exit("windows/CMakeLists.txt: no place for the coroutine flag")
     return text
 
 
