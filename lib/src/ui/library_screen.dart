@@ -15,6 +15,8 @@ import '../logic/library_logic.dart';
 import '../logic/library_index.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
+import 'recovery_screen.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -277,6 +279,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'repairAll') _repair(selectedOnly: false);
+                  if (v == 'recovery' && context.mounted) await openRecovery(context, account);
                   if (v == 'undo') {
                     final l = await account.undo();
                     if (l != null && context.mounted) _toast(context, 'Undid $l');
@@ -289,6 +292,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'undo', enabled: account.undoStack.isNotEmpty, child: const Text('Undo')),
                   PopupMenuItem(value: 'redo', enabled: account.redoStack.isNotEmpty, child: const Text('Redo')),
+                  const PopupMenuItem(value: 'recovery', child: Text('Recovery Workspace (covers & details)')),
                   const PopupMenuItem(value: 'repairAll', child: Text('Fix all completed progress')),
                 ],
               ),
@@ -606,7 +610,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    return LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(details: 'Rating the Library'), child: LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -669,7 +673,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
                 ),
         );
       },
-    );
+    ));
   }
 }
 
@@ -707,7 +711,7 @@ class MissingCoversScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(details: 'Finding missing covers'), child: LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;
@@ -727,7 +731,7 @@ class MissingCoversScreen extends StatelessWidget {
           },
         );
       },
-    );
+    ));
   }
 
   Widget _missingList(AccountView view, LibraryIndex index, Int32List rank) {

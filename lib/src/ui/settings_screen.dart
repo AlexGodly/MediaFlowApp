@@ -17,6 +17,7 @@ import '../platform/desktop_tray.dart';
 import '../platform/reminders.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
 import 'theme.dart';
@@ -626,6 +627,7 @@ class _AppSettingsState extends State<_AppSettings> {
               ),
             ]),
           ),
+          discordSection(widget.account),
           if (DesktopTray.supported)
             SectionCard(
               prefKey: 'app.windows',

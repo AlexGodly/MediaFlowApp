@@ -13,6 +13,8 @@ import '../data/rating_sources.dart';
 import '../data/ratings_refresh.dart';
 import '../logic/ratings_engine.dart';
 import '../util/js.dart';
+import 'presence.dart';
+import 'recovery_screen.dart' show openRecovery;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -114,7 +116,10 @@ Future<void> showExternalIds(BuildContext context, AccountController account, St
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => SizedBox(height: MediaQuery.sizeOf(c).height * 0.92, child: _IdsEditor(account: account, id: id)),
+    builder: (c) => PresenceScope(
+      info: const PresenceInfo(details: 'Finding title IDs'),
+      child: SizedBox(height: MediaQuery.sizeOf(c).height * 0.92, child: _IdsEditor(account: account, id: id)),
+    ),
   );
 }
 
@@ -566,7 +571,7 @@ class BulkRatingsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: RatingsRefresh.instance,
+      listenable: Listenable.merge([RatingsRefresh.instance, account]),
       builder: (context, _) {
         final b = RatingsRefresh.instance;
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -574,6 +579,24 @@ class BulkRatingsCard extends StatelessWidget {
             'Uses saved IDs first, finds missing IDs (Wikidata links and every known title name), then rechecks with the new IDs. '
             'Seasons share the whole show’s IMDb and TMDB rating. Saved IDs are never replaced, and uncertain matches are skipped rather than guessed.',
             style: TextStyle(color: MF.textDim, fontSize: 12),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Automatically retrieve missing ratings'),
+            subtitle: Text(
+              'While MediaFlow is open, one title at a time (up to 60 an hour). Shared with the website. ${RatingsAutoCatchUp.autoNote}',
+              style: TextStyle(fontSize: 12, color: MF.textDim),
+            ),
+            value: RatingsAutoCatchUp.prefs(asMap(account.view?.state['settings']))['enabled'] == true,
+            onChanged: (v) => RatingsAutoCatchUp.setEnabled(account, v),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => openRecovery(context, account),
+              icon: const Icon(Icons.healing_rounded),
+              label: const Text('Open the Recovery Workspace (covers, details, sources)'),
+            ),
           ),
           const SizedBox(height: 10),
           if (b.bulkRunning) ...[

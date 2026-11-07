@@ -22,7 +22,9 @@ import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'log_sheet.dart';
+import 'home_shell.dart' show Section;
 import 'logging_library.dart';
+import 'presence.dart';
 import 'progress_cards.dart';
 import 'reroll_history.dart';
 import 'task_progress_card.dart';
@@ -98,11 +100,13 @@ class _LogScreenState extends State<LogScreen> {
     super.initState();
     _adopt();
     account.addListener(_onAccount);
+    account.startLiveDraft(); // follow a log continued on the website
   }
 
   @override
   void dispose() {
     account.removeListener(_onAccount);
+    account.stopLiveDraft();
     _noteTimer?.cancel();
     _xpTimer?.cancel();
     _note.dispose();
@@ -365,6 +369,7 @@ class _LogScreenState extends State<LogScreen> {
     final active = state['sessionActive'] == true;
     final formOpen = _task != null && _logDraft != null;
     final progress = formOpen ? _taskProgress(view) : null;
+    _reportPresence(view, task, formOpen);
     return Scaffold(
       floatingActionButton: _fab(view, task, active),
       appBar: AppBar(
@@ -1352,6 +1357,29 @@ class _LogScreenState extends State<LogScreen> {
       ),
     );
     if (ok == true && mounted) await _submit();
+  }
+
+  /// Discord: "Logging Frieren · Episode 12 / 28" while the form is open,
+  /// "Up next: Frieren" while a recommendation waits.
+  void _reportPresence(AccountView view, Map<String, dynamic>? task, bool formOpen) {
+    PresenceInfo? info;
+    final t = formOpen ? _task : task;
+    if (t != null && (formOpen || view.state['sessionActive'] == true)) {
+      final id = jsStr(t['libraryId']);
+      final item = id.isEmpty ? null : view.library.where((x) => x.id == id).firstOrNull?.raw;
+      final cat = view.category(jsStr(item?['categoryId'] ?? t['categoryId']));
+      final data = item ?? <String, dynamic>{'title': t['title'], 'categoryId': cat.id};
+      String? state;
+      if (item != null) {
+        final unit = unitLabel(cat.unit, 1);
+        final word = unit.isEmpty ? 'Progress' : '${unit[0].toUpperCase()}${unit.substring(1)}';
+        state = jsTruthy(item['total']) ? '$word ${_num(item['progress'])} / ${_num(item['total'])}' : '$word ${_num(item['progress'])}';
+      }
+      info = formOpen
+          ? titlePresence('Logging', data, cat, state: state)
+          : titlePresence('Up next:', data, cat, state: state, genericVerb: 'Deciding on');
+    }
+    PresenceHub.instance.section(Section.log, info);
   }
 
   // ---- Quick entries -------------------------------------------------------------------

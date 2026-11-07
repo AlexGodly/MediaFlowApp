@@ -9,9 +9,11 @@ import 'library_screen.dart';
 import 'log_screen.dart';
 import 'log_sheet.dart';
 import 'order_screen.dart';
+import 'presence.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
+import 'theme_controller.dart' show CoverBackdrop;
 import 'widgets.dart';
 
 /// The app's sections. Phones show Log · Library · History · Extras · More;
@@ -87,6 +89,8 @@ class _HomeShellState extends State<HomeShell> {
         final account = widget.account;
         final wide = MediaQuery.sizeOf(context).width >= 900;
         final showMore = !wide && _moreOpen;
+        // Discord Rich Presence follows the section on screen.
+        PresenceHub.instance.setSection(_section, account.view);
         final visible = Section.values;
         if (!showMore) _visited.add(_section);
         final body = !account.hasData
@@ -110,7 +114,8 @@ class _HomeShellState extends State<HomeShell> {
         if (wide) {
           return Scaffold(
             floatingActionButton: fab,
-            body: Row(children: [
+            body: CoverBackdrop(
+              child: Row(children: [
               SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: MediaQuery.sizeOf(context).height),
@@ -136,7 +141,8 @@ class _HomeShellState extends State<HomeShell> {
               ),
               const VerticalDivider(width: 1),
               Expanded(child: body),
-            ]),
+              ]),
+            ),
           );
         }
         final tabIndex = showMore || !Section.phoneTabs.contains(_section) ? 4 : Section.phoneTabs.indexOf(_section);
@@ -148,7 +154,7 @@ class _HomeShellState extends State<HomeShell> {
           },
           child: Scaffold(
             floatingActionButton: fab,
-            body: body,
+            body: CoverBackdrop(child: body),
             bottomNavigationBar: NavigationBar(
               selectedIndex: tabIndex,
               onDestinationSelected: (i) {

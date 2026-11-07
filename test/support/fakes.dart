@@ -148,6 +148,15 @@ class FakeRecordCloud extends FakeCloud implements RecordBackend {
   }
 
   @override
+  Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since) async {
+    final out = rows.values
+        .where((r) => r.kind == 'doc' && recordIds.contains(r.recordId) && (since.isEmpty || r.updatedAt.compareTo(since) > 0))
+        .toList()
+      ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+    return out;
+  }
+
+  @override
   Future<void> writeFallback(String userId, Object payload, String deviceId) async {
     fallbackWrites++;
     fallback = payload;

@@ -3,10 +3,11 @@
 // and the Dynamic Cover Theme with its sources and rotation.
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
@@ -31,6 +32,11 @@ class ThemeController extends ChangeNotifier {
 
   /// What the Dynamic Cover Theme is showing (Settings shows it).
   String status = 'Selected theme';
+
+  /// The cover shown as a soft blurred backdrop while the Dynamic Cover Theme
+  /// uses it (website v160 `--v160-cover-image`); null otherwise.
+  File? coverVisual;
+  final Map<String, File> _files = {};
 
   AccountController? _account;
   String _inputs = '';
@@ -107,6 +113,7 @@ class ThemeController extends ChangeNotifier {
     final base = staticPalette(settings, kWebsiteThemes);
     if (settings['dynamicCoverTheme'] != true) {
       status = 'Selected theme';
+      _setVisual(null);
       _apply(base);
       return;
     }
@@ -114,6 +121,7 @@ class ThemeController extends ChangeNotifier {
     final sources = coverSources(mode);
     if (sources.isEmpty) {
       status = 'Selected theme fallback (no cover available)';
+      _setVisual(null);
       _apply(base);
       return;
     }
@@ -126,11 +134,15 @@ class ThemeController extends ChangeNotifier {
       if (accent == null) continue;
       _rotationIndex = (_rotationIndex + n) % sources.length;
       status = source.label;
+      _setVisual(_files[source.url]);
       _apply(paletteFromAccent(accent, light: light));
       break;
     }
     if (seq != _seq) return;
-    if (status.startsWith('Selected')) _apply(base);
+    if (status.startsWith('Selected')) {
+      _setVisual(null);
+      _apply(base);
+    }
     if (sources.length > 1) {
       final secs = clampInterval(_intervalFor(settings, mode));
       _rotation = Timer(Duration(seconds: secs), () {
@@ -228,6 +240,7 @@ class ThemeController extends ChangeNotifier {
         try {
           final file = await CoverCache.instance.file(url);
           if (file == null) return null;
+          _files[url] = file;
           final bytes = await file.readAsBytes();
           final codec = await ui.instantiateImageCodec(Uint8List.fromList(bytes), targetWidth: 48, targetHeight: 64);
           final frame = await codec.getNextFrame();
@@ -239,6 +252,12 @@ class ThemeController extends ChangeNotifier {
           return null;
         }
       });
+
+  void _setVisual(File? f) {
+    if (f?.path == coverVisual?.path) return;
+    coverVisual = f;
+    notifyListeners();
+  }
 
   void _apply(Palette p, {bool notify = true}) {
     if (p == palette && notify) return;
@@ -292,4 +311,55 @@ class _ThemeRebuilderState extends State<ThemeRebuilder> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// Website v160: while the Dynamic Cover Theme uses a cover, the cover itself
+/// sits behind the app as a faint, blurred backdrop (13 % opacity, 46 px blur,
+/// under a fade to the background colour). Used behind the main sections.
+class CoverBackdrop extends StatelessWidget {
+  const CoverBackdrop({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final file = ThemeController.instance.coverVisual;
+        if (file == null) return child;
+        final bg = MF.background;
+        return Stack(fit: StackFit.expand, children: [
+          ColoredBox(color: bg),
+          IgnorePointer(
+            child: Opacity(
+              opacity: .13,
+              child: Transform.scale(
+                scale: 1.09,
+                child: ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 46, sigmaY: 46, tileMode: TileMode.decal),
+                  child: Image.file(file, fit: BoxFit.cover, alignment: const Alignment(0, -0.52), gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                ),
+              ),
+            ),
+          ),
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [bg.withValues(alpha: .74), bg.withValues(alpha: .92)],
+                ),
+              ),
+            ),
+          ),
+          Theme(
+            data: Theme.of(context).copyWith(scaffoldBackgroundColor: Colors.transparent),
+            child: child,
+          ),
+        ]);
+      },
+    );
+  }
 }

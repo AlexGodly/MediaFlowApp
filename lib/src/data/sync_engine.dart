@@ -52,6 +52,10 @@ abstract class RecordBackend implements CloudBackend {
   /// Rewrites the single-row fallback copy (`mediaflow_states`) with the
   /// website's v556 marker, so the website does not merge it as an old save.
   Future<void> writeFallback(String userId, Object payload, String deviceId);
+
+  /// The `doc` rows [recordIds] if changed after [since] (all of them when
+  /// empty): the live logging draft is read this way every few seconds.
+  Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since);
 }
 
 class MissingCloudRow implements Exception {
@@ -332,6 +336,21 @@ Future<SyncResult> syncRecords(
 }) async {
   final usable = knownRaw != null && knownIndex != null && knownIndex.cursor.isNotEmpty;
   final rows = await cloud.fetchRecords(userId, usable ? recordsSince(knownIndex.cursor) : '');
+  // Nothing new in the cloud and nothing to upload (the usual minute-by-minute
+  // check): keep what the device has, without copying the account anywhere.
+  // (The pull overlaps the last few seconds, so rows this device already has
+  // come back; they are recognised by their hash.)
+  bool known(RecordRow r) {
+    if (r.kind == 'meta') return true;
+    final cur = knownIndex!.entries[recordKey(r.kind, r.recordId)];
+    final data = r.deleted ? null : r.data;
+    if (data == null) return cur == null;
+    return cur != null && cur.$2 == recHash(data, r.pos);
+  }
+
+  if (usable && pending.isEmpty && rows.every(known)) {
+    return SyncResult(null, knownRaw, knownIndex.cursor, 0, const [], knownIndex);
+  }
   final step = await _recordStepInBackground(background, usable ? knownRaw : null, usable ? knownIndex : null, rows, pending);
   if (step.uploads.isNotEmpty) await cloud.uploadRecords(userId, step.uploads, deviceId);
   // The cursor stays where the pull ended: this device's own rows come back

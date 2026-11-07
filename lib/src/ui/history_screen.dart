@@ -14,6 +14,7 @@ import '../data/app_prefs.dart';
 import '../logic/history_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -183,7 +184,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: MF.surface,
-      builder: (c) => _SessionEditor(view: view, log: log),
+      builder: (c) => PresenceScope(info: const PresenceInfo(details: 'Editing History'), child: _SessionEditor(view: view, log: log)),
     );
     if (result == null || !mounted) return;
     if (result.delete) {

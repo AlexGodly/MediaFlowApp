@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../config.dart';
+import 'presence.dart';
 import 'theme.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -57,7 +58,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PresenceScope(info: const PresenceInfo(details: 'Signing in'), child: Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -126,6 +127,6 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }

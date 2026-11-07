@@ -248,6 +248,9 @@ class EditOp extends AccountOp {
 /// Structural equality (no JSON text): fast, and 1 equals 1.0 like in JSON numbers.
 bool _deepEq(Object? a, Object? b) {
   if (identical(a, b)) return true;
+  // An untouched copy-on-write part is the original (see lazy_copy.dart).
+  if (b is CowValue && identical(b.source, a) && b.pristine) return true;
+  if (a is CowValue && identical(a.source, b) && a.pristine) return true;
   if (a is Map && b is Map) {
     if (a.length != b.length) return false;
     for (final e in a.entries) {

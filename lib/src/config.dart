@@ -6,7 +6,7 @@ const String kStateTable = 'mediaflow_states';
 
 const String kWebsiteUrl = 'https://alexgodly.github.io/MediaFlow/';
 /// MAJOR.FEATURE.FIX.WEBSITE — see CLAUDE.md "Versions".
-const String kAppVersionLabel = '2.0.0.560';
+const String kAppVersionLabel = '3.0.0.561';
 
 /// Whether a release tag (`mediaflowapp-v2.1.0.561`) is newer than [current],
 /// comparing the numbers in order (a missing number counts as 0).

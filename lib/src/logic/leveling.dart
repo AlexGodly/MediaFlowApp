@@ -26,6 +26,7 @@ const Map<String, num> _defaultScalars = {
   'batchLogXP': 15,
   // v334
   'firstTitleStartXP': 40,
+  'activeTimeXPPerMinute': 2,
   // v44 / v123
   'libraryEditXP': 5,
   'manualCoverXP': 15,

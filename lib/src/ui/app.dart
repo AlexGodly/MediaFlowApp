@@ -8,10 +8,14 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/metadata_search.dart' show providerGateway;
+import '../data/ratings_refresh.dart';
 import '../data/supabase_cloud.dart';
+import '../platform/app_time.dart';
 import '../platform/desktop_tray.dart';
+import '../platform/discord_presence.dart';
 import '../platform/reminders.dart';
 import 'home_shell.dart';
+import 'presence.dart';
 import 'sign_in_screen.dart';
 import 'theme.dart';
 import 'theme_controller.dart';
@@ -33,7 +37,7 @@ class MediaFlowApp extends StatelessWidget {
           theme: theme,
           darkTheme: theme,
           themeMode: MF.light ? ThemeMode.light : ThemeMode.dark,
-          builder: (context, child) => ThemeRebuilder(child: child ?? const SizedBox.shrink()),
+          builder: (context, child) => PresenceIdleWatcher(child: ThemeRebuilder(child: child ?? const SizedBox.shrink())),
           home: const AuthGate(),
         );
       },
@@ -131,6 +135,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void _detach() {
     final old = _account;
     if (old == null || !mounted) return;
+    AppTime.instance.detach(old);
+    RatingsRefresh.instance.stopAuto();
     setState(() => _account = null);
     old.dispose();
   }
@@ -161,6 +167,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     )..startAutoPull();
     ThemeController.instance.attach(account);
     Reminders.instance.attach(account);
+    AppTime.instance.attach(account);
+    RatingsRefresh.instance.startAuto(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
     if (mounted) {
       setState(() => _account = account);
@@ -177,11 +185,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       if (AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
       _account?.startAutoPull();
+      DiscordPresence.instance.resume();
     }
     // Leaving the app: upload an unsaved logging draft so the website sees it.
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    // (Inactive = still on screen but not focused, e.g. a Windows window
+    // next to the website: it keeps following live changes.)
+    if (state == AppLifecycleState.inactive) _account?.flushDraft();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _account?.stopAutoPull();
       _account?.flushDraft();
+      // Phones suspend apps in the background: don't leave a stale status.
+      if (DiscordPresence.mobile) DiscordPresence.instance.pause();
     }
   }
 

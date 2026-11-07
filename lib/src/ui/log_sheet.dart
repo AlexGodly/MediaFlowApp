@@ -5,6 +5,7 @@ import '../data/account_controller.dart';
 import '../logic/log_engine.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -26,9 +27,12 @@ Future<void> _openSheet(BuildContext context, Widget child) {
     useSafeArea: true,
     backgroundColor: MF.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-    builder: (_) => Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: child,
+    builder: (_) => PresenceScope(
+      info: const PresenceInfo(details: 'Logging titles', state: 'Batch Log'),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: child,
+      ),
     ),
   );
 }

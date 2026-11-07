@@ -12,7 +12,7 @@ import '../logic/extras.dart';
 import '../logic/resume.dart';
 import '../state/models.dart';
 import '../util/js.dart';
-import 'otd_recovery.dart';
+import 'recovery_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -186,7 +186,7 @@ class _OnThisDayCard extends StatelessWidget {
           : IconButton(
               tooltip: 'Recover covers / details for these ${ids.length} title${ids.length == 1 ? '' : 's'}',
               icon: const Icon(Icons.settings_backup_restore_rounded),
-              onPressed: () => showOnThisDayRecovery(context, account, ids),
+              onPressed: () => openRecovery(context, account, ids: ids, label: 'On This Day'),
             ),
       child: groups.isEmpty
           ? Text(
