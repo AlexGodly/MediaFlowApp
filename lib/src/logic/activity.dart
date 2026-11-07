@@ -17,8 +17,13 @@ T _clone<T>(T v) => jsonClone(v) as T;
 /// original), so nothing is copied for them.
 Map<String, dynamic> coreSnapshot(Map<String, dynamic> state) {
   final lazy = state is LazyStateCopy ? state : null;
-  Object? part(String k, Object fallback) =>
-      lazy != null && !lazy.isTouched(k) ? (lazy.original[k] ?? fallback) : _clone(state[k] ?? fallback);
+  Object? part(String k, Object fallback) {
+    if (lazy != null && !lazy.isTouched(k)) return lazy.original[k] ?? fallback;
+    final v = lazy != null ? lazy.peek(k) : state[k];
+    // A copy-on-write part shares its unchanged titles with the original.
+    if (v is CowValue) return v.snapshot() ?? fallback;
+    return _clone(v ?? fallback);
+  }
   return {
     'library': asList(part('library', const [])),
     'sessions': asList(part('sessions', const [])),
