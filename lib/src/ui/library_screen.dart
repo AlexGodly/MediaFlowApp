@@ -16,6 +16,7 @@ import '../logic/library_index.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'presence.dart';
+import 'recovery_screen.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -278,6 +279,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'repairAll') _repair(selectedOnly: false);
+                  if (v == 'recovery' && context.mounted) await openRecovery(context, account);
                   if (v == 'undo') {
                     final l = await account.undo();
                     if (l != null && context.mounted) _toast(context, 'Undid $l');
@@ -290,6 +292,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'undo', enabled: account.undoStack.isNotEmpty, child: const Text('Undo')),
                   PopupMenuItem(value: 'redo', enabled: account.redoStack.isNotEmpty, child: const Text('Redo')),
+                  const PopupMenuItem(value: 'recovery', child: Text('Recovery Workspace (covers & details)')),
                   const PopupMenuItem(value: 'repairAll', child: Text('Fix all completed progress')),
                 ],
               ),
