@@ -663,13 +663,27 @@ class LogDraftEditor {
     return created;
   }
 
+  /// The number in the "Episode number" box: the one you typed, else
+  /// [nextNumber]. Logging always uses exactly this number.
+  int nextShown(Map<String, dynamic> e, Map<String, dynamic>? i) {
+    final stored = jsNum(e['v369NextNumber']).floor();
+    return stored != 0 ? stored : nextNumber(e, i);
+  }
+
+  /// `v369SetNext`: type the number of the next episode/chapter to log.
+  void setNext(int index, Object? value) {
+    final e = entry(index);
+    if (e == null) return;
+    final n = jsNum(value).floor();
+    e['v369NextNumber'] = n < 1 ? 1 : (n > 999999 ? 999999 : n);
+  }
+
   /// `v369AddUnit`: the next episode/chapter, stamped now.
   String? addUnit(int index, {bool forceRepeat = false}) {
     final e = entry(index), i = item(e?['libraryId']);
     if (e == null || i == null) return null;
     final season = selectedSeason(e, i);
-    final storedNext = jsNum(e['v369NextNumber']).floor();
-    final number = storedNext != 0 ? storedNext : nextNumber(e, i);
+    final number = nextShown(e, i);
     if (number < 1 || number > 999999 || (season != null && jsNum(season['total']) > 0 && number > jsNum(season['total']))) {
       return 'Enter a valid episode/chapter/issue number for this title.';
     }
@@ -709,6 +723,13 @@ class LogDraftEditor {
     final tomb = asMap(e['v369DeletedUnits']) ?? <String, dynamic>{};
     e['v369DeletedUnits'] = {...tomb, jsStr(deleted?['id']): clock()};
     list.removeAt(pos);
+    // Deleting the unit just logged (8, with "next" still 9) gives its number
+    // back, so the box says 8 again instead of carrying on from 9.
+    if (deleted != null &&
+        deleted['isRepeat'] != true &&
+        jsNum(e['v369NextNumber']).floor() == jsNum(deleted['number']).floor() + 1) {
+      e.remove('v369NextNumber');
+    }
     e['v369UpdatedAt'] = clock();
     sync369();
   }

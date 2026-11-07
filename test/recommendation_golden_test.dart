@@ -242,6 +242,37 @@ void main() {
       expect(ed.logDraft['v179Mode'], want['v179Mode']);
     });
 
+    test('per-unit: type the next number; deleting the last unit gives its number back', () {
+      final fx = _load('rec-itemized-units');
+      final state = stateFor(fx);
+      var clock = 1793433603000;
+      final ed = LogDraftEditor.open(state, _copy(fx['task']), clock: () => clock += 10);
+      ed.entryDraft = {'title': 'Test Anime Alpha', 'qty': 1, 'libraryId': 'lib_alpha'};
+      expect(ed.addQuickEntry(), isNull);
+      final e = ed.entry(0)!, i = ed.item('lib_alpha');
+      final first = ed.nextShown(e, i);
+      expect(ed.addUnit(0), isNull);
+      expect(ed.nextShown(e, i), first + 1);
+      expect(ed.addUnit(0), isNull);
+      expect(ed.nextShown(e, i), first + 2);
+      // Delete the last one: the box goes back to its number.
+      ed.removeUnit(0, 1);
+      expect(ed.nextShown(e, i), first + 1);
+      // Typing a number logs exactly that number.
+      ed.setNext(0, first + 5);
+      expect(ed.nextShown(e, i), first + 5);
+      expect(ed.addUnit(0), isNull);
+      expect(ed.units(e).last['number'], first + 5);
+      // A number behind saved progress needs "Log rewatch / reread".
+      final saved = (i!['progress'] as num).floor();
+      if (saved >= 1) {
+        ed.setNext(0, saved);
+        expect(ed.addUnit(0), isNotNull);
+        expect(ed.addUnit(0, forceRepeat: true), isNull);
+        expect(ed.units(e).last['isRepeat'], isTrue);
+      }
+    });
+
     test('per-unit entries with seasons, durations and times', () {
       final fx = _load('rec-itemized-units');
       final state = stateFor(fx);

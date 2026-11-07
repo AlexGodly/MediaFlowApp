@@ -5,6 +5,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +36,12 @@ String _num(Object? v) => fmtNumber(jsNum(v));
 /// The Log page names every category's unit "unit" / "units" (the category's own
 /// unit is still saved with the account; only the words shown here change).
 String _units(Object? unit, num count) => count == 1 ? 'unit' : 'units';
+
+/// Inside a title's own logging controls the category's word is used
+/// ("Log Episode", "Episode reached", "+3 chapters"); everywhere else "units".
+String _word(String unit, num count) => unitLabel(unit, count);
+
+const int _stepLimit = 999999;
 
 String _hms(num seconds) {
   final s = seconds.round();
@@ -1364,7 +1371,8 @@ class _LogScreenState extends State<LogScreen> {
       if (LogDraftEditor.seasonsOf(item).isNotEmpty) '${LogDraftEditor.seasonsOf(item).length} seasons',
       if (e['isRepeat'] == true) 'Rewatch / reread',
     ];
-    final start = jsNum(e['v179StartProgress']);
+    final start = math.max(0.0, jsNum(e['v179StartProgress']));
+    final total = item == null ? 0.0 : jsNum(item['total']).floorToDouble();
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(10, 10, 4, 10),
@@ -1377,7 +1385,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                collapsed ? '+${fmtNumber(qty)} ${_units(cat.unit, qty)}' : parts.join(' · '),
+                collapsed ? '+${fmtNumber(qty)} ${_word(cat.unit, qty)}' : parts.join(' · '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: MF.textDim, fontSize: 12),
@@ -1397,7 +1405,9 @@ class _LogScreenState extends State<LogScreen> {
                     ? CommitField(
                         key: ValueKey('end-${entryKey(e)}'),
                         value: _plain(e['v179EndProgress']),
-                        label: item == null ? '${_cap(_units(cat.unit, 1))} reached' : _progressLabel(item, cat),
+                        label: _progressLabel(cat),
+                        min: start.floor(),
+                        max: total > 0 ? math.max(start, total).floor() : _stepLimit,
                         helper: item == null ? null : 'Saved at ${_num(start)}${jsTruthy(item['total']) ? ' of ${_num(item['total'])}' : ''}',
                         onCommit: (t) => _edit((x) {
                           final v = double.tryParse(t.replaceAll(',', '.')) ?? 0;
@@ -1412,8 +1422,10 @@ class _LogScreenState extends State<LogScreen> {
                     : CommitField(
                         key: ValueKey('qty-${entryKey(e)}'),
                         value: _plain(qty),
-                        label: 'Consumed',
+                        label: 'Amount consumed',
                         decimal: false,
+                        min: 0,
+                        max: total > 0 ? math.max(0, total - start).floor() : _stepLimit,
                         onCommit: (t) => _edit((x) {
                           x.setEntryQty(index, double.tryParse(t.replaceAll(',', '.')) ?? 0);
                           return null;
@@ -1422,7 +1434,7 @@ class _LogScreenState extends State<LogScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                '+${fmtNumber(qty)} ${_units(cat.unit, qty)}',
+                '+${fmtNumber(qty)} ${_word(cat.unit, qty)}',
                 style: TextStyle(fontWeight: FontWeight.w800, color: qty > 0 ? MF.accent : MF.textDim),
               ),
             ]),
@@ -1432,10 +1444,7 @@ class _LogScreenState extends State<LogScreen> {
     );
   }
 
-  String _progressLabel(Map<String, dynamic> item, Category cat) {
-    final noun = _cap(_units(cat.unit, 1));
-    return '$noun reached';
-  }
+  String _progressLabel(Category cat) => '${_cap(_word(cat.unit, 1))} reached';
 
   // ---- Advanced entries ------------------------------------------------------------------
 
@@ -1448,7 +1457,7 @@ class _LogScreenState extends State<LogScreen> {
     final method = LogDraftEditor.method(e);
     final seasons = LogDraftEditor.seasonsOf(item);
     final selected = item == null ? null : ed.selectedSeason(e, item);
-    final noun = _cap(_units(cat.unit, 1));
+    final noun = _cap(_word(cat.unit, 1));
     final collapsed = e['v369Collapsed'] == true;
     final showAll = e['v369ShowAll'] == true;
     final title = cleanTitle(e['title']);
@@ -1465,7 +1474,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                '${units.length} ${_units(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
+                '${units.length} ${_word(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
                 '${item != null ? ' · saved ${_num(item['progress'])}${jsTruthy(item['total']) ? '/${_num(item['total'])}' : ''}' : ''}'
                 '${e['isRepeat'] == true ? ' · rewatch' : ''}',
                 style: const TextStyle(color: MF.textDim, fontSize: 12),
@@ -1534,22 +1543,7 @@ class _LogScreenState extends State<LogScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(onPressed: () => _toggleFlag(e, 'v369ShowAll'), child: Text('Show the last $_shownUnits')),
                   ),
-                Row(children: [
-                  Expanded(
-                    child: FilledButton.tonalIcon(
-                      onPressed: item == null ? null : () => _edit((x) => x.addUnit(index)),
-                      icon: const Icon(Icons.add_rounded),
-                      label: Text(item == null ? 'Add' : 'Add $noun ${ed.nextNumber(e, item)}'),
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    tooltip: 'More',
-                    onSelected: (v) {
-                      if (v == 'repeat') _edit((x) => x.addUnit(index, forceRepeat: true));
-                    },
-                    itemBuilder: (_) => const [PopupMenuItem(value: 'repeat', child: Text('Add a rewatch of an earlier unit'))],
-                  ),
-                ]),
+                if (item != null) _addUnitRow(ed, index, e, item, selected, cat, noun),
               ] else
                 _bulkPanel(ed, index, e, item, selected, cat, method),
             ]),
@@ -1557,6 +1551,81 @@ class _LogScreenState extends State<LogScreen> {
         ],
       ]),
     );
+  }
+
+  /// The website's "Log another episode" row: type (or step) the number, then
+  /// log exactly that number. "Log rewatch / reread" logs a number behind your
+  /// saved progress as a rewatch.
+  Widget _addUnitRow(LogDraftEditor ed, int index, Map<String, dynamic> e, Map<String, dynamic> item,
+      Map<String, dynamic>? season, Category cat, String noun) {
+    final next = ed.nextShown(e, item);
+    final limit = jsNum(season != null ? season['total'] : null).floor();
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Log another ${_word(cat.unit, 1)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        CommitField(
+          key: ValueKey('next-${entryKey(e)}-${jsStr(season?['id'])}'),
+          value: '$next',
+          label: '$noun number',
+          decimal: false,
+          min: 1,
+          max: limit > 0 ? limit : _stepLimit,
+          onCommit: (t) => _edit((x) {
+            x.setNext(index, int.tryParse(t.trim()) ?? 1);
+            return null;
+          }),
+        ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 6, children: [
+          FilledButton.icon(
+            onPressed: () {
+              FocusScope.of(context).unfocus(); // apply a number still being typed first
+              _edit((x) => x.addUnit(index));
+            },
+            icon: const Icon(Icons.add_rounded),
+            label: Text('Log $noun'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {
+              FocusScope.of(context).unfocus();
+              _edit((x) => x.addUnit(index, forceRepeat: true));
+            },
+            icon: const Icon(Icons.replay_rounded),
+            label: const Text('Log rewatch / reread'),
+          ),
+        ]),
+      ]),
+    );
+  }
+
+  /// The website's per-unit "Episode #" box.
+  Future<void> _editUnitNumber(int index, int pos, String noun, int current) async {
+    final c = TextEditingController(text: '$current');
+    final n = await showDialog<int>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('$noun number'),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: InputDecoration(labelText: '$noun #'),
+          onSubmitted: (t) => Navigator.pop(d, int.tryParse(t)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, int.tryParse(c.text)), child: const Text('Save')),
+        ],
+      ),
+    );
+    c.dispose();
+    if (n == null || n == current || !mounted) return;
+    _edit((x) => x.editUnit(index, pos, 'number', n));
   }
 
   Widget _unitRow(LogDraftEditor ed, int index, int pos, Map<String, dynamic> u, String noun) {
@@ -1572,6 +1641,13 @@ class _LogScreenState extends State<LogScreen> {
             Text('$season$noun ${_num(u['number'])}${u['isRepeat'] == true ? ' · rewatch' : ''}',
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             Wrap(spacing: 4, children: [
+              ActionChip(
+                visualDensity: VisualDensity.compact,
+                avatar: const Icon(Icons.tag_rounded, size: 16),
+                tooltip: 'Change the $noun number',
+                label: Text('$noun # ${_num(u['number'])}'),
+                onPressed: () => _editUnitNumber(index, pos, noun, jsNum(u['number']).floor()),
+              ),
               ActionChip(
                 visualDensity: VisualDensity.compact,
                 avatar: const Icon(Icons.timer_outlined, size: 16),
@@ -1675,7 +1751,10 @@ class _LogScreenState extends State<LogScreen> {
     final base = LogDraftEditor.bulkBase(e, item, season);
     final highest = rel.units.isEmpty ? base : rel.units.map((u) => jsNum(u['number']).toInt()).reduce((a, b) => a > b ? a : b);
     final value = method == 'last' ? highest : rel.units.length;
-    final label = method == 'last' ? '${_cap(_units(cat.unit, 1))} reached' : '${_cap(_units(cat.unit, 2))} consumed';
+    final label = method == 'last' ? '${_cap(_word(cat.unit, 1))} reached' : 'Amount consumed';
+    // `mf504AdvancedBounds`.
+    final limit = jsNum(season != null ? season['total'] : item['total']).floor();
+    final countMax = math.min(2000, limit > 0 ? math.max(0, limit - base) : 2000);
     final stamp = ed.bulkStamp(e, method);
     final manual = e['v394RuntimeManual'] == true;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -1684,7 +1763,9 @@ class _LogScreenState extends State<LogScreen> {
         value: '$value',
         label: label,
         decimal: false,
-        helper: 'Saved progress: $base · draft: ${rel.units.length}',
+        min: method == 'last' ? base : 0,
+        max: method == 'last' ? base + countMax : countMax,
+        helper: 'Saved progress: $base · draft: ${rel.units.length} ${_word(cat.unit, rel.units.length)}',
         onCommit: (t) => _setQuantity(index, t),
       ),
       const SizedBox(height: 8),
@@ -1761,13 +1842,26 @@ class _LogScreenState extends State<LogScreen> {
 /// A number field that applies its value when you leave it or press enter
 /// (the website's `onchange`), not on every keystroke.
 class CommitField extends StatefulWidget {
-  const CommitField({super.key, required this.value, required this.onCommit, this.label, this.helper, this.decimal = true});
+  const CommitField({
+    super.key,
+    required this.value,
+    required this.onCommit,
+    this.label,
+    this.helper,
+    this.decimal = true,
+    this.min,
+    this.max,
+  });
 
   final String value;
   final ValueChanged<String> onCommit;
   final String? label;
   final String? helper;
   final bool decimal;
+
+  /// With both set, − and + buttons step the whole number by one within
+  /// [min]–[max] (the website's v504 quantity steppers). Typing still works.
+  final int? min, max;
 
   @override
   State<CommitField> createState() => _CommitFieldState();
@@ -1810,16 +1904,55 @@ class _CommitFieldState extends State<CommitField> {
     super.dispose();
   }
 
+  int? get _current {
+    final n = num.tryParse(_c.text.trim().replaceAll(',', '.')) ?? num.tryParse(widget.value.replaceAll(',', '.'));
+    return n?.floor();
+  }
+
+  void _step(int delta) {
+    final lo = widget.min!, hi = widget.max!;
+    final current = _current;
+    if (current == null) return;
+    final next = (current + delta).clamp(lo, hi < lo ? lo : hi);
+    if (next == current) return;
+    _c.text = '$next';
+    _sent = '$next';
+    widget.onCommit('$next');
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    final field = TextField(
       controller: _c,
       focusNode: _focus,
       keyboardType: TextInputType.numberWithOptions(decimal: widget.decimal),
       inputFormatters: [FilteringTextInputFormatter.allow(widget.decimal ? RegExp(r'[0-9.,]') : RegExp(r'[0-9]'))],
       decoration: InputDecoration(labelText: widget.label, helperText: widget.helper, isDense: true),
+      onChanged: widget.min == null ? null : (_) => setState(() {}), // keep − / + enabled correctly
       onSubmitted: (_) => _commit(),
       onTapOutside: (_) => _focus.unfocus(),
     );
+    final lo = widget.min, hi = widget.max;
+    if (lo == null || hi == null) return field;
+    final current = _current;
+    final what = (widget.label ?? 'value').toLowerCase();
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      IconButton.outlined(
+        tooltip: 'Decrease $what',
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(Icons.remove_rounded),
+        onPressed: current == null || current <= lo ? null : () => _step(-1),
+      ),
+      const SizedBox(width: 6),
+      Expanded(child: field),
+      const SizedBox(width: 6),
+      IconButton.outlined(
+        tooltip: 'Increase $what',
+        visualDensity: VisualDensity.compact,
+        icon: const Icon(Icons.add_rounded),
+        onPressed: current == null || current >= hi ? null : () => _step(1),
+      ),
+    ]);
   }
 }
