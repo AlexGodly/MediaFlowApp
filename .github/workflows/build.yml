@@ -117,6 +117,10 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk "dist/MediaFlow-${{ inputs.app_version }}-Android.apk"
           ls -la dist
+          if [ -d .discord-sdk/out/android ]; then
+            unzip -l dist/*-Android.apk | grep -E 'lib/arm64-v8a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from the APK"; exit 1; }
+            unzip -l dist/*-Android.apk | grep -c 'lib/x86/' && { echo "::error::32-bit x86 libraries should be excluded"; exit 1; } || true
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: android
@@ -165,6 +169,7 @@ jobs:
           New-Item -ItemType Directory -Force dist | Out-Null
           $release = "build\windows\x64\runner\Release"
           if (-not (Test-Path "$release\MediaFlow.exe")) { Get-ChildItem $release; throw "MediaFlow.exe not built" }
+          if ((Test-Path ".discord-sdk\out\windows") -and -not (Test-Path "$release\discord_partner_sdk.dll")) { Get-ChildItem $release; throw "Discord SDK missing next to MediaFlow.exe" }
           Compress-Archive -Path "$release\*" -DestinationPath "dist\MediaFlow-${{ inputs.app_version }}-Windows-x64-portable.zip"
       - name: Installer (Inno Setup)
         shell: pwsh
@@ -221,6 +226,9 @@ jobs:
           test -d "$APP"
           mkdir -p dist ipa/Payload
           cp -R "$APP" ipa/Payload/
+          if [ -d ios/DiscordPartnerSdk ]; then
+            ls "$APP/Frameworks" | grep -q discord_partner_sdk.framework || { ls "$APP/Frameworks"; echo "::error::Discord SDK missing from the iOS app"; exit 1; }
+          fi
           (cd ipa && zip -qry "../dist/MediaFlow-${{ inputs.app_version }}-iOS-unsigned.ipa" Payload)
           ls -la dist
       - uses: actions/upload-artifact@v4
