@@ -19,6 +19,7 @@ import '../logic/log_arrange.dart' show compareTitlesNatural;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'library_screen.dart' show LibraryCoverTile, LibraryTitleRow;
+import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -575,7 +576,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         final pages = rows.isEmpty ? 1 : (rows.length / size).ceil();
         if (_page > pages - 1) _page = pages - 1;
         final shown = rows.skip(_page * size).take(size).toList();
-        return Scaffold(
+        return PresenceScope(info: PresenceInfo(details: 'Browsing a collection', state: '${cleanTitle(c['title'])} · ${ids.length} title${ids.length == 1 ? '' : 's'}'), child: Scaffold(
           appBar: AppBar(
             title: Text(jsStr(c['title'])),
             actions: [
@@ -676,7 +677,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
               ),
             ],
           ]),
-        );
+        ));
       },
     );
   }
@@ -1051,7 +1052,10 @@ Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, 
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => _TitlePicker(view: view, exclude: exclude, title: title),
+    builder: (c) => PresenceScope(
+      info: const PresenceInfo(details: 'Adding titles to a collection'),
+      child: _TitlePicker(view: view, exclude: exclude, title: title),
+    ),
   );
 }
 

@@ -13,6 +13,7 @@ import '../data/ratings_refresh.dart';
 import '../logic/extras.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart' show TitleEditor, openTitle;
 import 'widgets.dart';
@@ -40,13 +41,15 @@ Future<void> showOnThisDayRecovery(BuildContext context, AccountController accou
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => SizedBox(
+    builder: (c) => PresenceScope(
+      info: const PresenceInfo(details: 'Recovering covers and details', state: 'On This Day'),
+      child: SizedBox(
       height: MediaQuery.sizeOf(c).height * 0.8,
       child: LiveBuilder(
         listenable: Listenable.merge([account, RatingsRefresh.instance]),
         builder: (c, _) => _OtdRecovery(account: account, ids: ids, outer: context),
       ),
-    ),
+    )),
   );
 }
 

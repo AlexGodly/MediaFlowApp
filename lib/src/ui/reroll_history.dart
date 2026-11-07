@@ -10,6 +10,7 @@ import '../logic/rec_submit.dart' show respectSlotLimit;
 import '../logic/recommend.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart' show openTitle;
 import 'widgets.dart';
@@ -26,7 +27,12 @@ Future<void> showRerollHistory(BuildContext context, AccountController account) 
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => SizedBox(
+    builder: (c) => PresenceScope(
+      info: PresenceInfo(
+        details: 'Rerolling recommendations',
+        state: 'Reroll #${titleRerollCount(asMap(account.view?.state['currentTask']))}',
+      ),
+      child: SizedBox(
       height: MediaQuery.sizeOf(c).height * 0.85,
       child: LiveBuilder(
         listenable: account,
@@ -46,7 +52,7 @@ Future<void> showRerollHistory(BuildContext context, AccountController account) 
           );
         },
       ),
-    ),
+    )),
   );
 }
 

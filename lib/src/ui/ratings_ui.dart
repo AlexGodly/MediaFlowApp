@@ -13,6 +13,7 @@ import '../data/rating_sources.dart';
 import '../data/ratings_refresh.dart';
 import '../logic/ratings_engine.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -114,7 +115,10 @@ Future<void> showExternalIds(BuildContext context, AccountController account, St
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => SizedBox(height: MediaQuery.sizeOf(c).height * 0.92, child: _IdsEditor(account: account, id: id)),
+    builder: (c) => PresenceScope(
+      info: const PresenceInfo(details: 'Finding title IDs'),
+      child: SizedBox(height: MediaQuery.sizeOf(c).height * 0.92, child: _IdsEditor(account: account, id: id)),
+    ),
   );
 }
 

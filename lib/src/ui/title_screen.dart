@@ -13,6 +13,7 @@ import '../logic/library_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'log_sheet.dart';
+import 'presence.dart';
 import 'ratings_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -113,7 +114,7 @@ class TitleScreen extends StatelessWidget {
         final meta = asMap(raw['universalMetadata']);
         final description = jsStr(raw['description']).isNotEmpty ? jsStr(raw['description']) : jsStr(meta?['description']);
         final repeats = jsNum(raw['manualRepeatAmount']);
-        return Scaffold(
+        return PresenceScope(info: titlePresence('Looking at', raw, cat, state: total == null || total == 0 ? null : 'Progress ${fmtNumber(t.progress)} / ${fmtNumber(total)}'), child: Scaffold(
           appBar: AppBar(
             title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: [
@@ -230,7 +231,7 @@ class TitleScreen extends StatelessWidget {
               ]),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -565,7 +566,7 @@ class _TitleEditorState extends State<TitleEditor> {
     final view = account.view!;
     final cat = view.category(_category);
     final unit = cat.unit;
-    return Scaffold(
+    return PresenceScope(info: widget.id == null ? const PresenceInfo(details: 'Adding a title to the Library') : titlePresence('Editing', <String, dynamic>{'title': _f.title, 'coverUrl': _f.coverUrl, 'categoryId': cat.id}, cat), child: Scaffold(
       appBar: AppBar(
         title: Text(widget.id == null ? 'Add title' : 'Edit title'),
         actions: [
@@ -756,6 +757,6 @@ class _TitleEditorState extends State<TitleEditor> {
           ]),
         ),
       ),
-    );
+    ));
   }
 }

@@ -9,6 +9,7 @@ import 'library_screen.dart';
 import 'log_screen.dart';
 import 'log_sheet.dart';
 import 'order_screen.dart';
+import 'presence.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
@@ -87,6 +88,8 @@ class _HomeShellState extends State<HomeShell> {
         final account = widget.account;
         final wide = MediaQuery.sizeOf(context).width >= 900;
         final showMore = !wide && _moreOpen;
+        // Discord Rich Presence follows the section on screen.
+        PresenceHub.instance.setSection(_section, account.view);
         final visible = Section.values;
         if (!showMore) _visited.add(_section);
         final body = !account.hasData

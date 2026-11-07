@@ -9,6 +9,8 @@ import '../data/account_controller.dart';
 import '../logic/stats.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'home_shell.dart' show Section;
+import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -76,6 +78,7 @@ class _StatsScreenState extends State<StatsScreen> {
           final view = account.view;
           if (view == null) return const SizedBox.shrink();
           final m = memoFor(view, 'stats', () => StatsModel(view.state, DateTime.now()));
+          PresenceHub.instance.section(Section.stats, PresenceInfo(details: 'Checking stats', state: 'Level ${m.level.level}'));
           bool on(String k) => statsComponentVisible(view.state, k);
           return Center(
             child: ConstrainedBox(

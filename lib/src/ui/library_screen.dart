@@ -15,6 +15,7 @@ import '../logic/library_logic.dart';
 import '../logic/library_index.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -606,7 +607,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    return LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(details: 'Rating the Library'), child: LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -669,7 +670,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
                 ),
         );
       },
-    );
+    ));
   }
 }
 
@@ -707,7 +708,7 @@ class MissingCoversScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(details: 'Finding missing covers'), child: LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;
@@ -727,7 +728,7 @@ class MissingCoversScreen extends StatelessWidget {
           },
         );
       },
-    );
+    ));
   }
 
   Widget _missingList(AccountView view, LibraryIndex index, Int32List rank) {
