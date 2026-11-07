@@ -33,13 +33,10 @@ class ProgressCards extends StatelessWidget {
           ),
         );
       }
+      // Phones: one compact card, so the task stays near the top.
       return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          level,
-          const SizedBox(height: 10),
-          streak,
-        ]),
+        padding: const EdgeInsets.only(bottom: 12),
+        child: _LevelingCard(p, compact: true),
       );
     });
   }
@@ -60,8 +57,11 @@ class _Card extends StatelessWidget {
 const _label = TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.1);
 
 class _LevelingCard extends StatelessWidget {
-  const _LevelingCard(this.p);
+  const _LevelingCard(this.p, {this.compact = false});
   final ProgressSummary p;
+
+  /// Phones: the Day Streak goes in this card's header.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +75,22 @@ class _LevelingCard extends StatelessWidget {
           Row(children: [
             const Icon(Icons.auto_awesome_rounded, color: MF.accent, size: 20),
             const SizedBox(width: 8),
-            const Expanded(child: Text('LEVELING', style: _label)),
-            Text('Lv. ${l.level}', style: const TextStyle(color: MF.accent, fontSize: 26, fontWeight: FontWeight.w900)),
+            const Text('LEVELING', style: _label),
+            const Spacer(),
+            if (compact) ...[
+              Semantics(
+                label: 'Day streak ${p.streak}, times ${p.multiplier.toStringAsFixed(2)} XP',
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('${p.streak}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                  Icon(Icons.local_fire_department_rounded, color: p.streak > 0 ? MF.warn : MF.textDim, size: 20),
+                  const SizedBox(width: 4),
+                  Text('×${p.multiplier.toStringAsFixed(2)} XP',
+                      style: const TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w800)),
+                ]),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Text('Lv. ${l.level}', style: TextStyle(color: MF.accent, fontSize: compact ? 22 : 26, fontWeight: FontWeight.w900)),
           ]),
           const SizedBox(height: 6),
           Row(children: [

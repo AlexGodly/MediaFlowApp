@@ -149,25 +149,29 @@ class LibraryIndex {
 
   // ---- natural title order ----------------------------------------------------
 
-  Int32List? _rank;
-  Future<Int32List>? _rankJob;
+  // The Library page names an empty title "Untitled"; the Logging Library
+  // compares the bare (empty) title. They only differ when a title is empty.
+  late final bool _hasEmptyTitle = items.any((it) => cleanTitle(it['title']).isEmpty);
 
-  /// The title rank if ready; otherwise starts it and returns null.
-  Int32List? get rankNow => _rank;
+  final Map<bool, Int32List> _ranks = {};
+  final Map<bool, Future<Int32List>> _rankJobs = {};
 
-  Future<Int32List> rank() {
-    final ready = _rank;
+  List<String> _rankTitles(bool bare) =>
+      bare ? [for (final it in items) cleanTitle(it['title'])] : [for (final t in titles) t.title];
+
+  /// Natural title order for the Library page ([bare] false) or the Logging
+  /// Library ([bare] true). Ready ranks come back synchronously.
+  Future<Int32List> rank({bool bare = false}) {
+    final which = bare && _hasEmptyTitle;
+    final ready = _ranks[which];
     if (ready != null) return SynchronousFuture(ready);
-    final job = _rankJob;
+    final job = _rankJobs[which];
     if (job != null) return job;
-    final titleList = [for (final t in titles) t.title];
-    if (length < kLibraryBackgroundThreshold) {
-      final r = titleRanks(titleList);
-      _rank = r;
-      return SynchronousFuture(r);
-    }
-    return _rankJob = _ranksInBackground(titleList).then((r) => _rank = r);
+    if (length < kLibraryBackgroundThreshold) return SynchronousFuture(_rankNow(which));
+    return _rankJobs[which] = _ranksInBackground(_rankTitles(which)).then((r) => _ranks[which] = r);
   }
+
+  Int32List _rankNow(bool which) => _ranks[which] ??= titleRanks(_rankTitles(which));
 
   // ---- per-field sort values -----------------------------------------------------
 
@@ -266,26 +270,26 @@ class LibraryIndex {
   /// The whole Library in the Library page's order (`v189CompareLibraryItems`).
   /// Ready orders come back synchronously.
   Future<Int32List> libraryOrder(String sort, String dir, int seed) =>
-      _order('lib|$sort|$dir|${sort == 'random' ? seed : 0}', (rank) => _librarySpec(sort, dir, seed, rank));
+      _order('lib|$sort|$dir|${sort == 'random' ? seed : 0}', false, (rank) => _librarySpec(sort, dir, seed, rank));
 
   /// The Logging Library's order (`v373CompareData`) for the sorts that don't
   /// depend on the draft; "Log added" is handled by the caller.
   Future<Int32List> pickerOrder(String sort, String dir, int seed) =>
-      _order('pick|$sort|$dir|${sort == 'random' ? seed : 0}', (rank) => _pickerSpec(sort, dir, seed, rank));
+      _order('pick|$sort|$dir|${sort == 'random' ? seed : 0}', true, (rank) => _pickerSpec(sort, dir, seed, rank));
 
-  Future<Int32List> _order(String cacheKey, SortSpec Function(Int32List rank) spec) {
+  Future<Int32List> _order(String cacheKey, bool bare, SortSpec Function(Int32List rank) spec) {
     final ready = _orders[cacheKey];
     if (ready != null) return SynchronousFuture(ready);
     final all = Int32List.fromList(List<int>.generate(length, (i) => i));
     if (length < kLibraryBackgroundThreshold) {
       // Small Library: done now, so the first frame already has it.
-      final rank = _rank ??= titleRanks([for (final t in titles) t.title]);
+      final rank = _rankNow(bare && _hasEmptyTitle);
       final out = sortRows(all, spec(rank), rank);
       _orders[cacheKey] = out;
       return SynchronousFuture(out);
     }
     return _orderJobs[cacheKey] ??= () async {
-      final rank = await this.rank();
+      final rank = await this.rank(bare: bare);
       final out = await _sortInBackground(all, spec(rank), rank);
       _orders[cacheKey] = out;
       _orderJobs.remove(cacheKey);

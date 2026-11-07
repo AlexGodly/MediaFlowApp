@@ -113,6 +113,8 @@ void main() {
 
     // The recommended task is on the Log tab.
     expect(find.text('Log & Complete'), findsOneWidget);
+    await tester.ensureVisible(find.text('Log & Complete'));
+    await tester.pump();
     await tester.tap(find.text('Log & Complete'));
     await _settle(tester);
 
