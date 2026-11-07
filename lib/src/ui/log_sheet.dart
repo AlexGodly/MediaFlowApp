@@ -75,17 +75,17 @@ class _TitleSheet extends StatelessWidget {
                   Row(children: [
                     CategoryBadge(cat, size: 22),
                     const SizedBox(width: 6),
-                    Flexible(child: Text(cat.name, style: const TextStyle(color: MF.textDim))),
+                    Flexible(child: Text(cat.name, style: TextStyle(color: MF.textDim))),
                   ]),
                   const SizedBox(height: 8),
                   Text(statusLabel(title.status),
                       style: TextStyle(color: statusColor(title.status), fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text(progressText(title, cat), style: const TextStyle(color: MF.text)),
+                  Text(progressText(title, cat), style: TextStyle(color: MF.text)),
                   if (title.rating != null && title.rating! > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('Rated ${fmtNumber(title.rating!)}', style: const TextStyle(color: MF.textDim)),
+                      child: Text('Rated ${fmtNumber(title.rating!)}', style: TextStyle(color: MF.textDim)),
                     ),
                 ]),
               ),
@@ -100,7 +100,7 @@ class _TitleSheet extends StatelessWidget {
                   child: Text(
                     '${jsStr(s['name']).isEmpty ? 'Season' : jsStr(s['name'])} · ${fmtNumber(jsNum(s['progress']))}'
                     '${jsNum(s['total']) > 0 ? ' / ${fmtNumber(jsNum(s['total']))}' : ''}',
-                    style: const TextStyle(color: MF.textDim),
+                    style: TextStyle(color: MF.textDim),
                   ),
                 ),
             ],
@@ -126,7 +126,7 @@ class _TitleSheet extends StatelessWidget {
                 child: Text(
                   '${fmtDay(l.date)} · ${fmtNumber(l.amount)} ${unitLabel(l.unit.isEmpty ? cat.unit : l.unit, l.amount)}'
                   ' · ${fmtMinutes(l.minutes)} · +${fmtNumber(l.xp)} XP',
-                  style: const TextStyle(color: MF.textDim),
+                  style: TextStyle(color: MF.textDim),
                 ),
               ),
           ]),
@@ -292,7 +292,7 @@ class _LogFormState extends State<LogForm> {
               Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
-              Text('${cat.name} · ${progressText(title, cat)}', style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              Text('${cat.name} · ${progressText(title, cat)}', style: TextStyle(color: MF.textDim, fontSize: 13)),
             ]),
           ),
           if (widget.libraryId == null)
@@ -389,7 +389,7 @@ class _LogFormState extends State<LogForm> {
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         ),
         const SizedBox(height: 8),
-        const Text('Saved on this device instantly, then synced to your MediaFlow account.',
+        Text('Saved on this device instantly, then synced to your MediaFlow account.',
             textAlign: TextAlign.center, style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]),
     );
@@ -420,7 +420,7 @@ class _LogFormState extends State<LogForm> {
         const SizedBox(height: 8),
         Flexible(
           child: matches.isEmpty
-              ? const Padding(
+              ? Padding(
                   padding: EdgeInsets.all(24),
                   child: Text('No matching titles. Add new titles on the MediaFlow website for now.',
                       textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
@@ -436,7 +436,7 @@ class _LogFormState extends State<LogForm> {
                       leading: Cover(title: t, category: cat, width: 34),
                       title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text('${cat.name} · ${progressText(t, cat)}',
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim)),
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim)),
                       onTap: () => setState(() {
                         _libraryId = t.id;
                         _selectDefaults();

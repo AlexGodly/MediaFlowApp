@@ -29,9 +29,28 @@ def edit(path, fn, required=True):
         p.write_text(after, encoding="utf-8")
 
 
+NOTIFICATION_RECEIVERS = """
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+"""
+
+
 def android_manifest(text):
-    if "android.permission.INTERNET" not in text:
-        text = re.sub(r"(<manifest[^>]*>)", r'\1\n    <uses-permission android:name="android.permission.INTERNET"/>', text, count=1)
+    for perm in ("INTERNET", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED"):
+        if f"android.permission.{perm}" not in text:
+            text = re.sub(r"(<manifest[^>]*>)", rf'\1\n    <uses-permission android:name="android.permission.{perm}"/>', text, count=1)
+    # The daily streak reminder (flutter_local_notifications) needs its receivers.
+    if "ScheduledNotificationReceiver" not in text:
+        text, n = re.subn(r"(<application[^>]*>)", lambda m: m.group(1) + NOTIFICATION_RECEIVERS, text, count=1)
+        if n != 1:
+            sys.exit("AndroidManifest.xml has no <application> element")
     text, n = re.subn(r'android:label="[^"]*"', f'android:label="{NAME}"', text, count=1)
     if n != 1:
         sys.exit("AndroidManifest.xml has no android:label to set")
@@ -60,10 +79,23 @@ SIGNING_CONFIG = """
 """
 
 
+def android_desugaring(text):
+    """flutter_local_notifications (the streak reminder) needs core library
+    desugaring."""
+    if "isCoreLibraryDesugaringEnabled" not in text:
+        text, n = re.subn(r"(compileOptions\s*\{)", r"\1\n        isCoreLibraryDesugaringEnabled = true", text, count=1)
+        if n != 1:
+            sys.exit("android/app/build.gradle.kts has no compileOptions block")
+    if "desugar_jdk_libs" not in text:
+        text = text.rstrip() + '\n\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
+    return text
+
+
 def android_gradle(text):
     """Release builds use the permanent MediaFlow key when CI provides
     android/key.properties (from the repository secrets); otherwise Flutter's
-    debug key, as before. A stable key lets each beta install over the last."""
+    debug key, as before. A stable key lets each release install over the last."""
+    text = android_desugaring(text)
     if "mediaflowRelease" in text:
         return text
     m = re.search(r"^plugins\s*\{.*?^\}\s*$", text, re.S | re.M)
@@ -97,6 +129,15 @@ def windows_cmake(text):
     text, n = re.subn(r'set\(BINARY_NAME "[^"]*"\)', f'set(BINARY_NAME "{NAME}")', text, count=1)
     if n != 1:
         sys.exit("windows/CMakeLists.txt has no BINARY_NAME")
+    # flutter_local_notifications_windows still includes <experimental/coroutine>,
+    # which newer Visual Studio refuses unless this is defined (for every plugin).
+    flag = "add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+    if flag not in text:
+        text, n = re.subn(r'(add_definitions\(-DUNICODE -D_UNICODE\))', r'\1\n' + flag, text, count=1)
+        if n != 1:
+            text, n = re.subn(r'(project\([^)]*\)\n)', r'\1' + flag + '\n', text, count=1)
+        if n != 1:
+            sys.exit("windows/CMakeLists.txt: no place for the coroutine flag")
     return text
 
 

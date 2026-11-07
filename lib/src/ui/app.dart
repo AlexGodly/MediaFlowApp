@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,22 +9,34 @@ import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/metadata_search.dart' show providerGateway;
 import '../data/supabase_cloud.dart';
+import '../platform/desktop_tray.dart';
+import '../platform/reminders.dart';
 import 'home_shell.dart';
 import 'sign_in_screen.dart';
 import 'theme.dart';
+import 'theme_controller.dart';
 
 class MediaFlowApp extends StatelessWidget {
   const MediaFlowApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MediaFlow',
-      debugShowCheckedModeBanner: false,
-      theme: MF.theme(),
-      darkTheme: MF.theme(),
-      themeMode: ThemeMode.dark,
-      home: const AuthGate(),
+    // The account's theme (the website's theme system): the whole app is
+    // redrawn when it changes.
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = MF.theme();
+        return MaterialApp(
+          title: 'MediaFlow',
+          debugShowCheckedModeBanner: false,
+          theme: theme,
+          darkTheme: theme,
+          themeMode: MF.light ? ThemeMode.light : ThemeMode.dark,
+          builder: (context, child) => ThemeRebuilder(child: child ?? const SizedBox.shrink()),
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }
@@ -122,6 +135,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     old.dispose();
   }
 
+  /// This install's id on per-record cloud rows (kept across launches).
+  static String _deviceId() {
+    final saved = AppPrefs.instance.get<String>('recordDeviceId', '');
+    if (saved.isNotEmpty) return saved;
+    final r = Random.secure();
+    final id = 'app-${List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join()}';
+    unawaited(AppPrefs.instance.set('recordDeviceId', id));
+    return id;
+  }
+
   void _attach(String userId, String email) {
     // TMDB covers go through MediaFlow's provider gateway as this account
     // (the TMDB key stays on the server, as on the website).
@@ -134,7 +157,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       email: email,
       cloud: SupabaseCloud(() => Supabase.instance.client),
       cache: FileAccountCache(),
-    );
+      deviceId: _deviceId(),
+    )..startAutoPull();
+    ThemeController.instance.attach(account);
+    Reminders.instance.attach(account);
+    DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
     if (mounted) {
       setState(() => _account = account);
     } else {
@@ -147,9 +174,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+    if (state == AppLifecycleState.resumed) {
+      if (AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+      _account?.startAutoPull();
+    }
     // Leaving the app: upload an unsaved logging draft so the website sees it.
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _account?.flushDraft();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _account?.stopAutoPull();
+      _account?.flushDraft();
+    }
   }
 
   @override

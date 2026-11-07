@@ -57,14 +57,14 @@ class AccountScreen extends StatelessWidget {
                   radius: 26,
                   backgroundColor: MF.accentSoft,
                   child: Text(name.isEmpty ? '?' : name[0].toUpperCase(),
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: MF.accent)),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: MF.accent)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                     if (account.email.isNotEmpty && account.email != name)
-                      Text(account.email, style: const TextStyle(color: MF.textDim)),
+                      Text(account.email, style: TextStyle(color: MF.textDim)),
                   ]),
                 ),
               ]),
@@ -111,7 +111,7 @@ class AccountScreen extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Text('MediaFlow $kAppVersionLabel', style: TextStyle(color: MF.textDim, fontSize: 12)),
           ),
         ],
@@ -134,7 +134,7 @@ class _Tile extends StatelessWidget {
           child: Column(children: [
             Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text(label, style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),
       ),

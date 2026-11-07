@@ -246,7 +246,7 @@ class _Loading extends StatelessWidget {
         ]),
       );
     }
-    return const Center(
+    return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         CircularProgressIndicator(),
         SizedBox(height: 16),

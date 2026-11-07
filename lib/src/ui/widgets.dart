@@ -252,7 +252,7 @@ class EmptyState extends StatelessWidget {
           Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
           if (body != null) ...[
             const SizedBox(height: 6),
-            Text(body!, textAlign: TextAlign.center, style: const TextStyle(color: MF.textDim)),
+            Text(body!, textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
           ],
         ]),
       ),
@@ -344,7 +344,7 @@ class _SectionCardState extends State<SectionCard> {
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
         color: MF.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: MF.border)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: MF.border)),
         clipBehavior: Clip.antiAlias,
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           InkWell(
@@ -357,7 +357,7 @@ class _SectionCardState extends State<SectionCard> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
                     if (widget.subtitle != null)
-                      Text(widget.subtitle!, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                      Text(widget.subtitle!, style: TextStyle(color: MF.textDim, fontSize: 12)),
                   ]),
                 ),
                 if (widget.trailing != null) widget.trailing!,

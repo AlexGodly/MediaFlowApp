@@ -13,10 +13,14 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
+import '../platform/desktop_tray.dart';
+import '../platform/reminders.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
+import 'ratings_ui.dart';
 import 'theme.dart';
+import 'theme_settings.dart';
 import 'widgets.dart';
 
 void _toast(BuildContext context, String text) =>
@@ -209,9 +213,18 @@ class _AccountSettings extends StatelessWidget {
         if (view == null) return const SizedBox.shrink();
         final state = view.state;
         return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 40), children: [
-          const Text('These settings belong to your account: the website uses them too.', style: TextStyle(color: MF.textDim)),
+          Text('These settings belong to your account: the website uses them too.', style: TextStyle(color: MF.textDim)),
           const SizedBox(height: 10),
           _intensity(context, state),
+          SectionCard(
+            prefKey: 'settings.theme',
+            initiallyOpen: false,
+            icon: Icons.palette_rounded,
+            title: 'Theme',
+            subtitle: 'Themes, Light / Dark and Dynamic Cover Theme',
+            child: ThemeSettings(account: account, view: view),
+          ),
+          bulkRatingsSection(account),
           for (final sec in _sections)
             SectionCard(
               prefKey: 'settings.${sec.$1}',
@@ -464,7 +477,7 @@ class _CategoriesEditor extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                 Text('${fmtNumber(c.target ?? 1)} ${unitLabel(c.unit, c.target ?? 1)} per task · ${fmtNumber(c.minutesPerUnit)} min each',
-                    style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                    style: TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
           ),
@@ -528,9 +541,9 @@ class _AppSettingsState extends State<_AppSettings> {
       final j = jsonDecode(body) as Map;
       final name = '${j['name'] ?? j['tag_name'] ?? ''}';
       final tag = '${j['tag_name'] ?? ''}';
-      final mine = 'mediaflowapp-v${kAppVersionLabel.replaceAll(' Beta ', '-beta.').replaceAll(' ', '')}'.toLowerCase();
-      result = tag.toLowerCase() == mine ? 'You have the latest version ($kAppVersionLabel).' : 'Newer version available: $name';
-      if (tag.toLowerCase() != mine) prefs.set('updateUrl', '${j['html_url'] ?? ''}');
+      final newer = isNewerVersion(tag, kAppVersionLabel);
+      result = newer ? 'Newer version available: $name' : 'You have the latest version ($kAppVersionLabel).';
+      if (newer) prefs.set('updateUrl', '${j['html_url'] ?? ''}');
     } catch (_) {
       result = 'Could not check for updates (offline?).';
     }
@@ -553,7 +566,7 @@ class _AppSettingsState extends State<_AppSettings> {
         final updateUrl = prefs.get<String>('updateUrl', '');
         final start = prefs.get<String>('startTab', 'log');
         return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 40), children: [
-          const Text('These settings are for this device only.', style: TextStyle(color: MF.textDim)),
+          Text('These settings are for this device only.', style: TextStyle(color: MF.textDim)),
           const SizedBox(height: 10),
           SectionCard(
             prefKey: 'app.general',
@@ -578,6 +591,82 @@ class _AppSettingsState extends State<_AppSettings> {
             ]),
           ),
           SectionCard(
+            prefKey: 'app.reminder',
+            icon: Icons.notifications_active_rounded,
+            title: 'Streak reminder',
+            subtitle: "A daily nudge when you haven't logged yet",
+            child: Column(children: [
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Remind me if I haven\'t logged today'),
+                subtitle: Text(Platform.isWindows
+                    ? 'Shown while MediaFlow is running (it can keep running in the tray).'
+                    : 'So your Day Streak doesn\'t break.'),
+                value: Reminders.instance.enabled,
+                onChanged: (v) async {
+                  await Reminders.instance.setEnabled(v);
+                  if (mounted) setState(() {});
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                enabled: Reminders.instance.enabled,
+                title: const Text('Time'),
+                trailing: Text(
+                  '${Reminders.instance.time.h.toString().padLeft(2, '0')}:${Reminders.instance.time.m.toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                onTap: () async {
+                  final t = Reminders.instance.time;
+                  final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: t.h, minute: t.m));
+                  if (picked == null) return;
+                  await Reminders.instance.setTime(picked.hour, picked.minute);
+                  if (mounted) setState(() {});
+                },
+              ),
+            ]),
+          ),
+          if (DesktopTray.supported)
+            SectionCard(
+              prefKey: 'app.windows',
+              icon: Icons.desktop_windows_rounded,
+              title: 'Windows',
+              subtitle: 'Tray icon and start-up',
+              child: Column(children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Keep running in the tray when closed'),
+                  subtitle: const Text('Closing the window hides MediaFlow to the tray. Quit from the tray icon.'),
+                  value: DesktopTray.instance.closeToTray,
+                  onChanged: (v) async {
+                    await DesktopTray.instance.setCloseToTray(v);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Start with Windows'),
+                  value: DesktopTray.instance.startWithWindows,
+                  onChanged: (v) async {
+                    await DesktopTray.instance.setStartWithWindows(v);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Start minimised to the tray'),
+                  subtitle: const Text('When Windows starts MediaFlow (needs "Keep running in the tray").'),
+                  value: DesktopTray.instance.startMinimized,
+                  onChanged: !DesktopTray.instance.closeToTray
+                      ? null
+                      : (v) async {
+                          await DesktopTray.instance.setStartMinimized(v);
+                          if (mounted) setState(() {});
+                        },
+                ),
+              ]),
+            ),
+          SectionCard(
             prefKey: 'app.sync',
             icon: Icons.sync_rounded,
             title: 'Sync & offline',
@@ -595,7 +684,7 @@ class _AppSettingsState extends State<_AppSettings> {
                 subtitle: Text(account.lastSynced == null ? 'Not synced yet this session' : 'Last synced ${TimeOfDay.fromDateTime(account.lastSynced!).format(context)}'),
                 trailing: FilledButton.tonal(onPressed: account.sync, child: const Text('Sync now')),
               ),
-              const Text('Offline, everything still works: changes are kept on this device and uploaded when you are back online. '
+              Text('Offline, everything still works: changes are kept on this device and uploaded when you are back online. '
                   'If the same thing was changed elsewhere, the newest change wins.', style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),

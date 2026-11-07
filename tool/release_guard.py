@@ -1,10 +1,11 @@
 """One consistent version across pubspec, the in-app label, the release workflow,
 release notes and the source archive.
 
-Stable releases (from 1.0.0, build 17): pubspec `version: X.Y.Z+N`, in-app label
-'X.Y.Z', workflow APP_VERSION 'X.Y.Z', tag 'mediaflowapp-vX.Y.Z', published as a
-normal (latest) GitHub release, never a pre-release. The build number N keeps
-counting up from the betas so every release installs over the previous one."""
+Versions are MAJOR.FEATURE.FIX.WEBSITE (from 2.0.0.560; 1.0.0 to 1.2.0 used
+X.Y.Z): pubspec `version: MAJOR.FEATURE.FIX+N` (stores take three numbers), the
+in-app label, workflow APP_VERSION and tag 'mediaflowapp-v<label>' carry all
+four, published as a normal (latest) GitHub release, never a pre-release. The
+build number N keeps counting up so every release installs over the previous one."""
 from pathlib import Path
 import re
 import sys
@@ -21,6 +22,13 @@ if not m:
 app_version, build_number = m.group(1), int(m.group(2))
 if build_number <= 16:
     sys.exit("Stable releases start at build 17 (Beta 16 was the last pre-release)")
+label_m = re.search(r"kAppVersionLabel = '([^']+)'", config)
+label = label_m.group(1) if label_m else ""
+four = re.fullmatch(r"(\d+\.\d+\.\d+)\.(\d+)", label)
+if four:
+    if four.group(1) != app_version:
+        sys.exit(f"In-app label {label} must start with the pubspec version {app_version}")
+    app_version = label
 tag = f"mediaflowapp-v{app_version}"
 
 checks = {

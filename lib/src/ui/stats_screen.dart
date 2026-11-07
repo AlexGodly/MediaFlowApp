@@ -145,13 +145,13 @@ class _StatsScreenState extends State<StatsScreen> {
         padding: const EdgeInsets.only(bottom: 14),
         child: Material(
           color: MF.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: MF.border)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: MF.border)),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Row(children: [
                 Expanded(
-                  child: Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                  child: Text(label, style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                 ),
                 if (trailing != null) trailing,
               ]),
@@ -181,28 +181,28 @@ class _StatsScreenState extends State<StatsScreen> {
       );
 
   Widget _period(String label, Totals t) => _tile([
-        Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+        Text(label, style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
         const SizedBox(height: 6),
         Text(fmtMinutes(t.minutes), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(height: 4),
-        Text(t.unitsText(), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+        Text(t.unitsText(), style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]);
 
   Widget _big(String label, String value, String hint) => _tile([
-        Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+        Text(label, style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
         const SizedBox(height: 6),
         Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-        Text(hint, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+        Text(hint, style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]);
 
   Widget _records(List<(String, String)> rows) => rows.isEmpty
-      ? const Text('No data yet.', style: TextStyle(color: MF.textDim))
+      ? Text('No data yet.', style: TextStyle(color: MF.textDim))
       : Column(children: [
           for (final r in rows)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(children: [
-                Expanded(child: Text(r.$1, style: const TextStyle(color: MF.textDim))),
+                Expanded(child: Text(r.$1, style: TextStyle(color: MF.textDim))),
                 const SizedBox(width: 10),
                 Flexible(child: Text(r.$2, textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800))),
               ]),
@@ -268,7 +268,7 @@ class _StatsScreenState extends State<StatsScreen> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text(account.email, style: const TextStyle(color: MF.textDim, fontSize: 13)),
+            Text(account.email, style: TextStyle(color: MF.textDim, fontSize: 13)),
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6, children: [
               _pill('${m.titles} titles'),
@@ -307,7 +307,7 @@ class _StatsScreenState extends State<StatsScreen> {
             decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(x.$1, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-              Text(x.$2, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+              Text(x.$2, style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
       ]),
@@ -321,7 +321,7 @@ class _StatsScreenState extends State<StatsScreen> {
       'LEVELING',
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Level ${l.level}', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-        Text('${fmtNumber(l.xp)} lifetime XP', style: const TextStyle(color: MF.textDim)),
+        Text('${fmtNumber(l.xp)} lifetime XP', style: TextStyle(color: MF.textDim)),
         const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
@@ -333,7 +333,7 @@ class _StatsScreenState extends State<StatsScreen> {
           Text('${l.pct}%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
         ]),
         Text(left <= 0 ? 'Ready for the next level' : '${fmtNumber(left)} XP to Level ${l.level + 1}',
-            style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]),
     );
   }
@@ -352,7 +352,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return _card(
       '30-DAY CATEGORY MIX',
       rows.isEmpty
-          ? const Text('No data yet.', style: TextStyle(color: MF.textDim))
+          ? Text('No data yet.', style: TextStyle(color: MF.textDim))
           : Column(children: [
               for (final x in rows) _barRow(_catLabel(view, x.cat), x.minutes / max, _catColor(view, x.cat['id']), fmtMinutes(x.minutes)),
             ]),
@@ -428,7 +428,7 @@ class _StatsScreenState extends State<StatsScreen> {
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: columns),
         ),
         const SizedBox(height: 8),
-        const Text('Each square is one day. Intensity is based on minutes logged that day; outlined squares mark titles started (blue) or finished (green).',
+        Text('Each square is one day. Intensity is based on minutes logged that day; outlined squares mark titles started (blue) or finished (green).',
             style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]),
       trailing: CompactDropdown<int>(value: year, items: [for (final y in years) (y, '$y')], onChanged: (y) => setState(() => _year = y)),
@@ -470,7 +470,7 @@ class _StatsScreenState extends State<StatsScreen> {
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+          Text(label, style: TextStyle(color: MF.textDim, fontSize: 12)),
         ]),
       );
 
@@ -479,7 +479,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return _card(
       'CATEGORY BALANCE — LAST 7 DAYS',
       rows.isEmpty
-          ? const Text('No enabled categories.', style: TextStyle(color: MF.textDim))
+          ? Text('No enabled categories.', style: TextStyle(color: MF.textDim))
           : Column(children: [
               for (final x in rows) _barRow(_catLabel(view, x.cat), x.pct / 100, _catColor(view, x.cat['id']), fmtMinutes(x.minutes)),
             ]),
@@ -491,7 +491,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return _card(
       'RECENT SATURATION',
       rows.isEmpty
-          ? const Text('No enabled categories.', style: TextStyle(color: MF.textDim))
+          ? Text('No enabled categories.', style: TextStyle(color: MF.textDim))
           : Column(children: [
               for (final x in rows)
                 Padding(
@@ -559,7 +559,7 @@ class _StatsScreenState extends State<StatsScreen> {
     return _card(
       'TITLE COMPLETION TIMELINE',
       rows.isEmpty
-          ? const Text('No completed titles have a recorded completion date yet.', style: TextStyle(color: MF.textDim))
+          ? Text('No completed titles have a recorded completion date yet.', style: TextStyle(color: MF.textDim))
           : Column(children: [
               for (final x in rows.take(_timelineShown))
                 Padding(
@@ -567,11 +567,11 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: Row(children: [
                     Container(width: 10, height: 10, decoration: BoxDecoration(color: _catColor(view, x.categoryId), shape: BoxShape.circle)),
                     const SizedBox(width: 10),
-                    SizedBox(width: 96, child: Text(_date(x.completedAt), style: const TextStyle(color: MF.textDim, fontSize: 12))),
+                    SizedBox(width: 96, child: Text(_date(x.completedAt), style: TextStyle(color: MF.textDim, fontSize: 12))),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(x.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        Text(view.category(jsStr(x.categoryId)).name, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                        Text(view.category(jsStr(x.categoryId)).name, style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ]),
                     ),
                   ]),
@@ -618,7 +618,7 @@ class BarChart extends StatelessWidget {
                   child: (i % labelEvery == 0 || i == bars.length - 1) && bars[i].$1.isNotEmpty
                       ? OverflowBox(
                           maxWidth: 60,
-                          child: Text(bars[i].$1, textAlign: TextAlign.center, maxLines: 2, style: const TextStyle(color: MF.textDim, fontSize: 10)),
+                          child: Text(bars[i].$1, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(color: MF.textDim, fontSize: 10)),
                         )
                       : null,
                 ),

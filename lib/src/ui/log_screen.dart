@@ -455,7 +455,7 @@ class _LogScreenState extends State<LogScreen> {
           color: MF.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: MF.border),
+            side: BorderSide(color: MF.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: Padding(
@@ -468,7 +468,7 @@ class _LogScreenState extends State<LogScreen> {
   Widget _startCard(AccountView view) {
     final respect = normalizeRespectState(view.state['respectState']);
     return _panel(children: [
-      const Row(children: [
+      Row(children: [
         Icon(Icons.auto_awesome_rounded, color: MF.accent),
         SizedBox(width: 10),
         Text('MediaFlow Recommends', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: MF.accent)),
@@ -476,7 +476,7 @@ class _LogScreenState extends State<LogScreen> {
       const SizedBox(height: 14),
       const Text('Start a session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
       const SizedBox(height: 6),
-      const Text('MediaFlow will hand you one category at a time — you pick the titles.',
+      Text('MediaFlow will hand you one category at a time — you pick the titles.',
           style: TextStyle(color: MF.textDim)),
       const SizedBox(height: 14),
       _streaks(respect),
@@ -538,7 +538,7 @@ class _LogScreenState extends State<LogScreen> {
     final rerolls = titleRerollCount(task);
     final bonus = _respectPreview(view.state, task);
     return _panel(children: [
-      const Row(children: [
+      Row(children: [
         Icon(Icons.auto_awesome_rounded, color: MF.accent, size: 18),
         SizedBox(width: 8),
         Text('MediaFlow Recommends', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: MF.accent)),
@@ -552,7 +552,7 @@ class _LogScreenState extends State<LogScreen> {
             Text(cat.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
             const SizedBox(height: 2),
             Text.rich(TextSpan(children: [
-              const TextSpan(text: 'Consume ', style: TextStyle(color: MF.textDim)),
+              TextSpan(text: 'Consume ', style: TextStyle(color: MF.textDim)),
               TextSpan(text: amount, style: const TextStyle(fontWeight: FontWeight.w800)),
             ])),
           ]),
@@ -568,10 +568,10 @@ class _LogScreenState extends State<LogScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Recommended title', style: TextStyle(fontSize: 11, color: MF.textDim, fontWeight: FontWeight.w700)),
+                Text('Recommended title', style: TextStyle(fontSize: 11, color: MF.textDim, fontWeight: FontWeight.w700)),
                 Text(title.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                if (inLibrary) Text(progressText(title, cat), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                if (inLibrary) Text(progressText(title, cat), style: TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
           ]),
@@ -587,9 +587,9 @@ class _LogScreenState extends State<LogScreen> {
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Padding(padding: EdgeInsets.only(top: 6), child: Icon(Icons.circle, size: 6, color: MF.accent)),
+              Padding(padding: EdgeInsets.only(top: 6), child: Icon(Icons.circle, size: 6, color: MF.accent)),
               const SizedBox(width: 8),
-              Expanded(child: Text(r, style: const TextStyle(color: MF.textDim, fontSize: 13))),
+              Expanded(child: Text(r, style: TextStyle(color: MF.textDim, fontSize: 13))),
             ]),
           ),
       ],
@@ -731,15 +731,15 @@ class _LogScreenState extends State<LogScreen> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             if (title != null) ...[
-              const Text('RECOMMENDED TITLE',
+              Text('RECOMMENDED TITLE',
                   style: TextStyle(color: MF.accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.6)),
               const SizedBox(height: 2),
               Text(title.title, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
-              Text('${cat.name} · Consume $amount', style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              Text('${cat.name} · Consume $amount', style: TextStyle(color: MF.textDim, fontSize: 13)),
             ] else ...[
               Text(cat.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-              Text('Consume $amount', style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              Text('Consume $amount', style: TextStyle(color: MF.textDim, fontSize: 13)),
             ],
           ]),
         ),
@@ -829,9 +829,9 @@ class _LogScreenState extends State<LogScreen> {
     return _panel(padding: const EdgeInsets.fromLTRB(16, 4, 16, 8), children: [
       ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.local_library_rounded, color: MF.accent),
+        leading: Icon(Icons.local_library_rounded, color: MF.accent),
         title: const Text('Logging Library', style: TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: const Text('Search, filter and add titles from your Library', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        subtitle: Text('Search, filter and add titles from your Library', style: TextStyle(color: MF.textDim, fontSize: 12)),
         trailing: Icon(_picker.open ? Icons.expand_less_rounded : Icons.expand_more_rounded),
         onTap: () {
           setState(() => _picker.open = !_picker.open);
@@ -861,7 +861,7 @@ class _LogScreenState extends State<LogScreen> {
             final view = account.view;
             final ed = view == null ? null : _editor(view);
             if (view == null || ed == null) {
-              return const Center(child: Text('Logging was closed.', style: TextStyle(color: MF.textDim)));
+              return Center(child: Text('Logging was closed.', style: TextStyle(color: MF.textDim)));
             }
             final n = ed.entries.length;
             return Column(children: [
@@ -871,7 +871,7 @@ class _LogScreenState extends State<LogScreen> {
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const Text('Add titles', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                      Text('$n title${n == 1 ? '' : 's'} in this log', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                      Text('$n title${n == 1 ? '' : 's'} in this log', style: TextStyle(color: MF.textDim, fontSize: 12)),
                     ]),
                   ),
                   FilledButton(onPressed: () => Navigator.pop(c), child: const Text('Done')),
@@ -892,25 +892,25 @@ class _LogScreenState extends State<LogScreen> {
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
         color: MF.raised,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: MF.border)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: MF.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
             child: Row(children: [
-              const Icon(Icons.space_dashboard_rounded, color: MF.accent),
+              Icon(Icons.space_dashboard_rounded, color: MF.accent),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('Logging Workspace', style: TextStyle(fontWeight: FontWeight.w800)),
                   Text(
                     '$titles title${titles == 1 ? '' : 's'} · ${fmtNumber(units)} unit${units == 1 ? '' : 's'} staged',
-                    style: const TextStyle(color: MF.textDim, fontSize: 12),
+                    style: TextStyle(color: MF.textDim, fontSize: 12),
                   ),
                 ]),
               ),
-              Text(collapsed ? 'Expand' : 'Collapse', style: const TextStyle(color: MF.textDim, fontSize: 13)),
+              Text(collapsed ? 'Expand' : 'Collapse', style: TextStyle(color: MF.textDim, fontSize: 13)),
               Icon(collapsed ? Icons.expand_more_rounded : Icons.expand_less_rounded, color: MF.textDim),
             ]),
           ),
@@ -946,7 +946,7 @@ class _LogScreenState extends State<LogScreen> {
           ed.itemized
               ? 'No titles yet. Add titles from the Logging Library, then log each unit.'
               : 'No titles yet. Add titles from the Logging Library, or type a new title in its search.',
-          style: const TextStyle(color: MF.textDim),
+          style: TextStyle(color: MF.textDim),
         ),
         const SizedBox(height: 10),
         Align(
@@ -959,7 +959,7 @@ class _LogScreenState extends State<LogScreen> {
         ),
       ] else if (hidden) ...[
         const SizedBox(height: 4),
-        Text('${entries.length} added title${entries.length == 1 ? '' : 's'} hidden.', style: const TextStyle(color: MF.textDim)),
+        Text('${entries.length} added title${entries.length == 1 ? '' : 's'} hidden.', style: TextStyle(color: MF.textDim)),
       ] else ...[
         const SizedBox(height: 6),
         // "Arrange your session" (v373).
@@ -1019,7 +1019,7 @@ class _LogScreenState extends State<LogScreen> {
       ],
       if (!ed.itemized && ed.mode == 'amount' && entries.isEmpty) ...[
         const SizedBox(height: 10),
-        const Text('Or log just an amount for this category:', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        Text('Or log just an amount for this category:', style: TextStyle(color: MF.textDim, fontSize: 12)),
         const SizedBox(height: 6),
         _numberField(
           label: 'How many ${_units(unit, 2)}',
@@ -1097,13 +1097,13 @@ class _LogScreenState extends State<LogScreen> {
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('This log', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text('This log', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
             Text('${fmtNumber(amount)} ${_units(unit, amount)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           ]),
         ),
         if (derived)
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            const Text('Time', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+            Text('Time', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
             Text(ed.itemized ? _hms(jsNum(_logDraft!['v369DurationSeconds'])) : fmtMinutes(minutes),
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           ]),
@@ -1148,7 +1148,7 @@ class _LogScreenState extends State<LogScreen> {
     final attention = xp?.error;
     return _panel(children: [
       Row(children: [
-        const Icon(Icons.bolt_rounded, color: MF.accent),
+        Icon(Icons.bolt_rounded, color: MF.accent),
         const SizedBox(width: 8),
         const Expanded(child: Text('XP for this log', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
         if (_xpBusy) ...[
@@ -1156,19 +1156,19 @@ class _LogScreenState extends State<LogScreen> {
           const SizedBox(width: 10),
         ],
         Text(xp == null || attention != null ? '—' : '+${fmtNumber(xp.total)} XP',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: MF.accent)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: MF.accent)),
       ]),
       if (xp == null)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 6),
           child: Text('Calculating…', style: TextStyle(color: MF.textDim, fontSize: 13)),
         )
       else if (attention != null) ...[
         const SizedBox(height: 8),
         const Text('Draft needs attention', style: TextStyle(color: MF.bad, fontWeight: FontWeight.w800)),
-        Text(attention, style: const TextStyle(color: MF.textDim, fontSize: 13)),
+        Text(attention, style: TextStyle(color: MF.textDim, fontSize: 13)),
       ] else if (!xp.eligible)
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(top: 6),
           child: Text('Add titles and what you consumed to see the XP this log earns.', style: TextStyle(color: MF.textDim, fontSize: 13)),
         )
@@ -1203,7 +1203,7 @@ class _LogScreenState extends State<LogScreen> {
                           '${fmtNumber(jsNum(c['amount']))} ${_units(jsStr(c['unit']), jsNum(c['amount']))}'
                           ' · ${fmtMinutes(jsNum(c['minutes']))}'
                           ' · ${fmtNumber(jsRound(jsNum(c['base'])))} × ${fmtNumber(jsNum(c['rotation']))}',
-                          style: const TextStyle(color: MF.textDim, fontSize: 12),
+                          style: TextStyle(color: MF.textDim, fontSize: 12),
                         ),
                       ]),
                     ),
@@ -1229,7 +1229,7 @@ class _LogScreenState extends State<LogScreen> {
   Widget _detail(String label, Object? value) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(children: [
-          Expanded(child: Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12))),
+          Expanded(child: Text(label, style: TextStyle(color: MF.textDim, fontSize: 12))),
           Text(value is num ? fmtNumber(jsRound(value.toDouble())) : '$value', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
       );
@@ -1241,7 +1241,7 @@ class _LogScreenState extends State<LogScreen> {
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text('XP for this log: +${fmtNumber(xp.total)} XP',
-              textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800, color: MF.accent)),
+              textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w800, color: MF.accent)),
         ),
       if (_error != null) ...[
         Text(_error!, style: const TextStyle(color: MF.bad)),
@@ -1259,7 +1259,7 @@ class _LogScreenState extends State<LogScreen> {
         onPressed: _busy ? null : () => _confirm('Discard this log?', 'The draft is removed here and on the website.', 'Discard', _closeForm),
         child: const Text('Cancel'),
       ),
-      const Text('Your draft is saved to your account as you go — open it on the website to continue there.',
+      Text('Your draft is saved to your account as you go — open it on the website to continue there.',
           textAlign: TextAlign.center, style: TextStyle(color: MF.textDim, fontSize: 12)),
     ]);
   }
@@ -1388,7 +1388,7 @@ class _LogScreenState extends State<LogScreen> {
                 collapsed ? '+${fmtNumber(qty)} ${_word(cat.unit, qty)}' : parts.join(' · '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: MF.textDim, fontSize: 12),
+                style: TextStyle(color: MF.textDim, fontSize: 12),
               ),
             ]),
           ),
@@ -1477,7 +1477,7 @@ class _LogScreenState extends State<LogScreen> {
                 '${units.length} ${_word(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
                 '${item != null ? ' · saved ${_num(item['progress'])}${jsTruthy(item['total']) ? '/${_num(item['total'])}' : ''}' : ''}'
                 '${e['isRepeat'] == true ? ' · rewatch' : ''}',
-                style: const TextStyle(color: MF.textDim, fontSize: 12),
+                style: TextStyle(color: MF.textDim, fontSize: 12),
               ),
             ]),
           ),
@@ -1532,7 +1532,7 @@ class _LogScreenState extends State<LogScreen> {
                     child: Row(children: [
                       Expanded(
                         child: Text('Showing the last $_shownUnits of ${units.length}',
-                            style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                            style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ),
                       TextButton(onPressed: () => _toggleFlag(e, 'v369ShowAll'), child: const Text('Show all')),
                     ]),
@@ -1786,7 +1786,7 @@ class _LogScreenState extends State<LogScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('Customize total runtime'),
             Text(manual ? _hms(ed.runtimeSeconds(e)) : 'Automatic: ${_hms(ed.runtimeSeconds(e))}',
-                style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),
         Switch(value: manual, onChanged: (v) => _edit((x) => x.toggleRuntime(index, v))),

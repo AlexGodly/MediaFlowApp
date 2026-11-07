@@ -74,11 +74,11 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text('MediaFlow',
+                  Text('MediaFlow',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: MF.text)),
                   const SizedBox(height: 6),
-                  const Text('Sign in with your MediaFlow account',
+                  Text('Sign in with your MediaFlow account',
                       textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
                   const SizedBox(height: 28),
                   TextField(

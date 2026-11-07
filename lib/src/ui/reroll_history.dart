@@ -34,7 +34,7 @@ Future<void> showRerollHistory(BuildContext context, AccountController account) 
           final view = account.view;
           final task = asMap(view?.state['currentTask']);
           if (view == null || task == null) {
-            return const Center(child: Text('There is no current title-reroll history.', style: TextStyle(color: MF.textDim)));
+            return Center(child: Text('There is no current title-reroll history.', style: TextStyle(color: MF.textDim)));
           }
           return _RerollHistory(
             view: view,
@@ -85,7 +85,7 @@ class _RerollHistory extends StatelessWidget {
                   child: Text(
                     '${cat.name} · $rerolls title reroll${rerolls == 1 ? '' : 's'} · '
                     '${history.length} recommendation${history.length == 1 ? '' : 's'} shown',
-                    style: const TextStyle(color: MF.textDim, fontSize: 13),
+                    style: TextStyle(color: MF.textDim, fontSize: 13),
                   ),
                 ),
               ]),
@@ -99,9 +99,9 @@ class _RerollHistory extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
         child: Text.rich(
-          TextSpan(style: const TextStyle(color: MF.textDim, fontSize: 13, height: 1.35), children: [
+          TextSpan(style: TextStyle(color: MF.textDim, fontSize: 13, height: 1.35), children: [
             const TextSpan(text: 'This task can earn exact-title Respect XP from the '),
-            TextSpan(text: 'first $target', style: const TextStyle(color: MF.text, fontWeight: FontWeight.w800)),
+            TextSpan(text: 'first $target', style: TextStyle(color: MF.text, fontWeight: FontWeight.w800)),
             const TextSpan(
               text: ' MediaFlow recommends. You can reroll as much as you want without a reroll penalty. '
                   'Extra recommendations stay available to watch, but a title shown after the task\'s Respect '
@@ -112,7 +112,7 @@ class _RerollHistory extends StatelessWidget {
       ),
       Expanded(
         child: history.isEmpty
-            ? const Center(child: Text('No recommendation history yet.', style: TextStyle(color: MF.textDim)))
+            ? Center(child: Text('No recommendation history yet.', style: TextStyle(color: MF.textDim)))
             : Scrollbar(
                 child: ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -165,7 +165,7 @@ class _RerollHistory extends StatelessWidget {
     ]);
   }
 
-  Widget _meta(String text) => Text(text, style: const TextStyle(color: MF.textDim, fontSize: 12));
+  Widget _meta(String text) => Text(text, style: TextStyle(color: MF.textDim, fontSize: 12));
 
   Widget _badge(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
