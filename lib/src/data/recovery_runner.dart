@@ -197,7 +197,20 @@ class RecoveryRunner extends ChangeNotifier {
         if (!url.startsWith('https://') || found.containsKey(url)) continue;
         final ev = coverEvidence(item, r.title, r.year);
         if (ev.confidence < 0.65) continue;
-        found[url] = CoverCandidate(url: url, provider: r.source.toLowerCase(), title: r.title, year: r.year, confidence: ev.confidence, reason: ev.reason);
+        final provider = coverProviderId(r.source);
+        var recordId = (r.externalId ?? '').trim();
+        if (provider == 'openlibrary') recordId = recordId.replaceFirst(RegExp(r'^/works/'), '');
+        found[url] = CoverCandidate(
+          url: url,
+          provider: provider,
+          title: r.title,
+          year: r.year,
+          confidence: ev.confidence,
+          reason: ev.reason,
+          recordId: recordId,
+          externalIdKey: r.externalIdKey.isNotEmpty ? r.externalIdKey : coverExternalIdKey(provider),
+          reportedIds: r.linkedIds,
+        );
       }
       if (found.values.any((c) => c.confidence >= 0.94)) break;
     }
@@ -206,11 +219,12 @@ class RecoveryRunner extends ChangeNotifier {
     return list;
   }
 
-  Future<bool> _applyCover(AccountController account, String id, CoverCandidate c, int expected, RecoveryJob? job) async {
+  Future<bool> _applyCover(AccountController account, String id, CoverCandidate c, int expected, RecoveryJob? job,
+      {bool manual = false, bool linkIds = true}) async {
     double? xp;
     await account.edit((s, now) {
       var k = 0;
-      xp = applyRecoveredCover(s, id, c, expected, now, () => mediaFlowUid(now + k++));
+      xp = applyRecoveredCover(s, id, c, expected, now, () => mediaFlowUid(now + k++), manual: manual, linkIds: linkIds);
     }, label: 'Cover Recovery');
     if (xp == null) return false;
     if (job != null) {
@@ -221,8 +235,8 @@ class RecoveryRunner extends ChangeNotifier {
   }
 
   /// A cover picked in the review list.
-  Future<bool> chooseCover(AccountController account, CoverReview review, CoverCandidate c) async {
-    final ok = await _applyCover(account, review.id, c, review.expectedModifiedAt, cover);
+  Future<bool> chooseCover(AccountController account, CoverReview review, CoverCandidate c, {bool linkIds = true}) async {
+    final ok = await _applyCover(account, review.id, c, review.expectedModifiedAt, cover, manual: true, linkIds: linkIds);
     cover?.coverReviews.remove(review); // also when the title changed meanwhile
     notifyListeners();
     return ok;

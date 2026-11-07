@@ -9,10 +9,26 @@ import 'dart:convert';
 import 'dart:io';
 
 class MetadataResult {
-  MetadataResult({required this.title, required this.source, this.coverUrl = '', this.total, this.year, this.subtitle = '', this.externalId});
+  MetadataResult(
+      {required this.title,
+      required this.source,
+      this.coverUrl = '',
+      this.total,
+      this.year,
+      this.subtitle = '',
+      this.externalId,
+      this.externalIdKey = '',
+      this.linkedIds = const []});
   final String title, source, coverUrl, subtitle;
   final int? total, year;
   final String? externalId;
+
+  /// The ID key the source reports for [externalId] (TMDB: tmdb / tmdb_tv).
+  final String externalIdKey;
+
+  /// Other IDs the source itself reports for the record, in the website's
+  /// order (AniList's MAL ID, TVmaze's IMDb ID); used to link verified IDs.
+  final List<(String, String)> linkedIds;
 }
 
 Future<Object?> _getJson(Uri uri, {Map<String, dynamic>? post}) async {
@@ -36,7 +52,7 @@ Future<Object?> _getJson(Uri uri, {Map<String, dynamic>? post}) async {
 }
 
 Future<List<MetadataResult>> _anilist(String q, String type) async {
-  const query = r'query($s:String,$t:MediaType){Page(perPage:12){media(search:$s,type:$t){id title{romaji english} coverImage{extraLarge large} episodes chapters volumes seasonYear startDate{year} format}}}';
+  const query = r'query($s:String,$t:MediaType){Page(perPage:12){media(search:$s,type:$t){id idMal title{romaji english} coverImage{extraLarge large} episodes chapters volumes seasonYear startDate{year} format}}}';
   final data = await _getJson(Uri.parse('https://graphql.anilist.co'), post: {'query': query, 'variables': {'s': q, 't': type}});
   final media = (((data as Map?)?['data'] as Map?)?['Page'] as Map?)?['media'] as List? ?? const [];
   return [
@@ -49,6 +65,7 @@ Future<List<MetadataResult>> _anilist(String q, String type) async {
         year: (m['seasonYear'] ?? (m['startDate'] as Map?)?['year']) as int?,
         source: 'AniList',
         externalId: '${m['id']}',
+        linkedIds: [if (m['idMal'] != null && m['idMal'] != 0) ('mal', '${m['idMal']}')],
       ),
   ];
 }
@@ -67,6 +84,9 @@ Future<List<MetadataResult>> _tvmaze(String q) async {
           year: int.tryParse('${(r['show'] as Map)['premiered'] ?? ''}'.split('-').first),
           source: 'TVMaze',
           externalId: '${(r['show'] as Map)['id']}',
+          linkedIds: [
+            if (((r['show'] as Map)['externals'] as Map?)?['imdb'] case final imdb? when '$imdb'.isNotEmpty) ('imdb', '$imdb'),
+          ],
         ),
   ];
 }
@@ -167,6 +187,7 @@ Future<List<MetadataResult>> searchTmdb(String q, {String kind = '', Map<String,
       year: year,
       subtitle: [tv ? 'TV' : 'Movie', if (raw['exact'] != true) 'similar title'].join(' · '),
       externalId: '${raw['externalIdValue'] ?? ''}',
+      externalIdKey: '${raw['externalIdKey'] ?? ''}',
     ));
   }
   // Exact matches and ones with a poster first.

@@ -333,5 +333,290 @@
     "itemJson": "{\"id\":\"m2\",\"title\":\"Dune\",\"releaseDate\":\"2021-10-22\",\"modifiedAt\":1762600000000,\"universalMetadata\":{\"externalRatings\":{\"imdb\":{\"score\":8,\"scale\":10,\"votes\":1,\"url\":\"\",\"updatedAt\":1,\"source\":\"manual\"},\"tmdb\":{\"score\":7.8,\"scale\":10,\"votes\":12000,\"url\":\"\",\"updatedAt\":1762600000000,\"source\":\"tmdb\"}},\"provenance\":{\"rating.imdb\":{\"source\":\"manual\",\"verified\":false,\"updatedAt\":1},\"legacy.synopsis\":{\"source\":\"tmdb\",\"verified\":true,\"recordId\":\"438631\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000},\"legacy.mediaFormat\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt1160419\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000},\"rating.tmdb\":{\"source\":\"tmdb\",\"verified\":true,\"recordId\":\"438631\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000}},\"locks\":{\"rating.imdb\":true},\"schemaVersion\":1,\"mediaType\":\"unspecified\",\"fields\":{},\"updatedAt\":1762600000000},\"synopsis\":\"Paul Atreides…\",\"mediaFormat\":\"movie (feature)\",\"v439RecoveryHistory\":[{\"at\":1762600000000,\"legacy\":2,\"fields\":0,\"ratings\":1,\"providers\":[\"tmdb\",\"omdb\"]}]}"
    }
   }
+ ],
+ "coverLinks": [
+  {
+   "name": "AniList cover links AniList + the MAL ID AniList reports",
+   "manual": true,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "changes": 2,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"}}"
+   }
+  },
+  {
+   "name": "conflicting saved ID is kept; the rest link",
+   "manual": true,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {
+     "mal": "1"
+    }
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "1",
+      "conflict": true
+     }
+    ],
+    "changes": 1,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"mal\":\"1\",\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\"}}"
+   }
+  },
+  {
+   "name": "TVmaze cover links TVmaze + IMDb",
+   "manual": true,
+   "item": {
+    "title": "Severance",
+    "externalIds": {
+     "tvmaze": "44933"
+    }
+   },
+   "candidate": {
+    "provider": "tvmaze",
+    "recordId": "44933",
+    "externalIdKey": "tvmaze",
+    "externalIdValue": "44933",
+    "recordUrl": ""
+   },
+   "entry": {
+    "externals": {
+     "imdb": "tt11280740"
+    }
+   },
+   "expected": {
+    "ids": [
+     [
+      "tvmaze",
+      "44933"
+     ],
+     [
+      "imdb",
+      "tt11280740"
+     ]
+    ],
+    "links": [
+     {
+      "key": "tvmaze",
+      "value": "44933",
+      "existing": "44933",
+      "conflict": false
+     },
+     {
+      "key": "imdb",
+      "value": "tt11280740",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "changes": 1,
+    "itemJson": "{\"title\":\"Severance\",\"externalIds\":{\"tvmaze\":\"44933\",\"imdb\":\"tt11280740\"},\"v377ManualExternalIds\":{\"imdb\":\"tt11280740\"}}"
+   }
+  },
+  {
+   "name": "Open Library work ID",
+   "manual": true,
+   "item": {
+    "title": "Dune",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "openlibrary",
+    "recordId": "OL893415W",
+    "externalIdKey": "openlibrary",
+    "externalIdValue": "OL893415W",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [
+     [
+      "openlibrary",
+      "OL893415W"
+     ]
+    ],
+    "links": [
+     {
+      "key": "openlibrary",
+      "value": "OL893415W",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "changes": 1,
+    "itemJson": "{\"title\":\"Dune\",\"externalIds\":{\"openlibrary\":\"OL893415W\"},\"v377ManualExternalIds\":{\"openlibrary\":\"OL893415W\"}}"
+   }
+  },
+  {
+   "name": "TMDB TV from the gateway",
+   "manual": true,
+   "item": {
+    "title": "Arcane",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "tmdb",
+    "recordId": "94605",
+    "externalIdKey": "tmdb_tv",
+    "externalIdValue": "94605",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [
+     [
+      "tmdb_tv",
+      "94605"
+     ]
+    ],
+    "links": [
+     {
+      "key": "tmdb_tv",
+      "value": "94605",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "changes": 1,
+    "itemJson": "{\"title\":\"Arcane\",\"externalIds\":{\"tmdb_tv\":\"94605\"},\"v377ManualExternalIds\":{\"tmdb_tv\":\"94605\"}}"
+   }
+  },
+  {
+   "name": "automatic link skips IDs the person cleared or wrote",
+   "manual": false,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {},
+    "v377ManualExternalIds": {
+     "mal": ""
+    }
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "changes": 1,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"mal\":\"\"}}"
+   }
+  },
+  {
+   "name": "iTunes has no linkable ID",
+   "manual": true,
+   "item": {
+    "title": "Ants From Up There",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "itunes",
+    "recordId": "1590446045",
+    "externalIdKey": "",
+    "externalIdValue": "",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [],
+    "links": [],
+    "changes": 0,
+    "itemJson": "{\"title\":\"Ants From Up There\",\"externalIds\":{}}"
+   }
+  }
  ]
 }

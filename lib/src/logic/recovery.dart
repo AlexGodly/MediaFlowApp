@@ -110,10 +110,126 @@ List<String> metadataSourcesFor(Map<String, dynamic> item, Map<String, dynamic>?
 
 /// A cover a search found for a title.
 class CoverCandidate {
-  CoverCandidate({required this.url, required this.provider, required this.title, this.year, required this.confidence, required this.reason});
+  CoverCandidate(
+      {required this.url,
+      required this.provider,
+      required this.title,
+      this.year,
+      required this.confidence,
+      required this.reason,
+      this.recordId = '',
+      this.externalIdKey = '',
+      this.recordUrl = '',
+      this.reportedIds = const [],
+      this.idMatch = false});
   final String url, provider, title, reason;
   final int? year;
   final double confidence;
+
+  /// The provider's own record (website `candidate.recordId`,
+  /// `externalIdKey`, `recordUrl`) and the IDs the provider reports with it.
+  final String recordId, externalIdKey, recordUrl;
+  final List<(String, String)> reportedIds;
+  final bool idMatch;
+
+  /// `mf433EnrichCoverCandidate`: the verified IDs this cover can link.
+  late final List<(String, String)> ids = coverCandidateIds(this);
+}
+
+/// The app's search sources as website provider ids.
+String coverProviderId(String source) => switch (source.toLowerCase()) {
+      'anilist' => 'anilist',
+      'tvmaze' => 'tvmaze',
+      'open library' => 'openlibrary',
+      'itunes' => 'itunes',
+      'tmdb' => 'tmdb',
+      final s => s.replaceAll(' ', ''),
+    };
+
+/// `mf424AsCandidate`'s externalIdKey for the app's sources.
+String coverExternalIdKey(String provider) =>
+    const {'anilist': 'anilist', 'tvmaze': 'tvmaze', 'openlibrary': 'openlibrary', 'jikan': 'mal', 'tenrai': 'mal', 'kitsu': 'kitsu'}[provider] ?? '';
+
+const _nativeIdKeys = {
+  'tenrai': 'mal', 'jikan': 'mal', 'anilist': 'anilist', 'kitsu': 'kitsu', 'tvmaze': 'tvmaze',
+  'mangadex': 'mangadex', 'tmdb': 'tmdb', 'omdb': 'imdb', 'thetvdb': 'tvdb_series',
+  'simkl': 'simkl', 'malofficial': 'mal', 'anidb': 'anidb',
+  'animeschedule': 'animeschedule', 'watchmode': 'watchmode',
+  'episodate': 'episodate', 'mangaupdates': 'mangaupdates',
+  'livechart': 'livechart', 'trakt': 'trakt', 'hardcover': 'hardcover_book',
+  'gutendex': 'gutendex', 'royalroad': 'royalroad',
+  'wikidata': 'wikidata', 'comicvine': 'comicvine_volume', 'metron': 'metron_series',
+};
+
+/// `mf433NativeKey`.
+String coverNativeKey(String provider, String recordId, String externalIdKey) {
+  if (finderIdKey(externalIdKey)) return externalIdKey;
+  if (provider == 'openlibrary') {
+    if (RegExp(r'^OL\d+W$', caseSensitive: false).hasMatch(recordId)) return 'openlibrary_work';
+    if (RegExp(r'^OL\d+M$', caseSensitive: false).hasMatch(recordId)) return 'openlibrary_edition';
+    return 'openlibrary';
+  }
+  return _nativeIdKeys[provider] ?? '';
+}
+
+List<(String, String)> coverCandidateIds(CoverCandidate c) {
+  final ids = <(String, String)>[];
+  void add(String key, String value) {
+    final str = value.trim();
+    if (finderIdValid(key, str) && !ids.any((r) => r.$1 == key && r.$2 == str)) ids.add((key, str));
+  }
+
+  final native = coverNativeKey(c.provider, c.recordId, c.externalIdKey);
+  if (native.isNotEmpty && c.recordId.isNotEmpty) add(native, c.recordId);
+  if (c.provider == 'openlibrary') {
+    final isbn = RegExp(r'/isbn/([\dXx-]{10,20})').firstMatch(c.recordUrl)?[1];
+    if (isbn != null) add('isbn', isbn);
+  }
+  for (final (k, v) in c.reportedIds) {
+    if ((c.provider == 'anilist' && k == 'mal') || (c.provider == 'tvmaze' && k == 'imdb')) add(k, v);
+  }
+  return ids;
+}
+
+/// `mf433CandidateLinks`: what linking this cover would write.
+List<({String key, String value, String existing, bool conflict})> coverIdLinks(Map<String, dynamic> item, CoverCandidate c) {
+  final links = <({String key, String value, String existing, bool conflict})>[];
+  final seen = <String>{};
+  final ids = asMap(item['externalIds']) ?? const {};
+  void push(String key, String value) {
+    final k = key.trim().toLowerCase(), v = value.trim();
+    if (!finderIdValid(k, v) || seen.contains(k)) return;
+    seen.add(k);
+    final existing = ids[k] == null ? '' : jsStr(ids[k]).trim();
+    links.add((key: k, value: v, existing: existing, conflict: existing.isNotEmpty && existing != v));
+  }
+
+  for (final (k, v) in c.ids.take(32)) {
+    push(k, v);
+  }
+  final native = coverNativeKey(c.provider, c.recordId, c.externalIdKey);
+  if (native.isNotEmpty && c.recordId.isNotEmpty && !links.any((l) => l.key == native)) push(native, c.recordId);
+  if (c.externalIdKey.isNotEmpty && c.recordId.isNotEmpty) push(c.externalIdKey, c.recordId);
+  return links;
+}
+
+/// `mf433LinkCandidateIds`: saves the verified IDs that don't conflict.
+/// Returns how many were written.
+int linkCoverIds(Map<String, dynamic> item, CoverCandidate c, {bool manual = false}) {
+  final overrides = Map<String, dynamic>.of(asMap(item['v377ManualExternalIds']) ?? const {});
+  // Cleared IDs and the person's own overrides stay unless they picked this.
+  final links = coverIdLinks(item, c)
+      .where((l) => !l.conflict && l.existing != l.value && (manual || !overrides.containsKey(l.key)))
+      .toList();
+  if (links.isEmpty) return 0;
+  final ids = Map<String, dynamic>.of(asMap(item['externalIds']) ?? const {});
+  for (final l in links) {
+    ids[l.key] = l.value;
+    if (manual) overrides[l.key] = l.value;
+  }
+  item['externalIds'] = ids;
+  if (manual) item['v377ManualExternalIds'] = overrides;
+  return links.length;
 }
 
 /// How sure a search result is about the title (the v439 evidence rules
@@ -135,12 +251,16 @@ bool coverMissing(Map<String, dynamic>? item) => item != null && jsStr(item['cov
 /// `mf424Apply`: saves a recovered cover (only while the title still has none
 /// and was not changed since it was checked). Returns the XP earned, or null
 /// when nothing was saved.
-double? applyRecoveredCover(Map<String, dynamic> state, String id, CoverCandidate c, int expectedModifiedAt, int now, String Function() uid) {
+double? applyRecoveredCover(Map<String, dynamic> state, String id, CoverCandidate c, int expectedModifiedAt, int now, String Function() uid,
+    {bool manual = false, bool linkIds = true}) {
   final item = findTitle(state, id);
   if (item == null || !coverMissing(item)) return null;
   if (jsNum(item['modifiedAt']).toInt() != expectedModifiedAt) return null;
   item['coverUrl'] = c.url;
-  item['coverSource'] = 'auto:${c.provider}:verified';
+  item['coverSource'] = 'auto:${c.provider}:${c.idMatch ? 'external-id' : 'verified'}';
+  // Automatic jobs link only exact-ID matches; a cover picked by the person
+  // links the verified IDs it carries (website v424/v433).
+  if (linkIds && (manual || (c.idMatch && c.confidence >= 0.95))) linkCoverIds(item, c, manual: manual);
   item['modifiedAt'] = now;
   return coverCredit(state, item, '', c.url, 'auto:${c.provider}', now, uid);
 }

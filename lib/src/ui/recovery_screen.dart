@@ -58,6 +58,9 @@ class RecoveryScreen extends StatefulWidget {
 class _RecoveryScreenState extends State<RecoveryScreen> {
   String _scope = 'given'; // given | all | <categoryId>
 
+  /// Reviews where "Link verified External IDs" was turned off.
+  final Set<CoverReview> _noLink = {};
+
   @override
   void initState() {
     super.initState();
@@ -148,8 +151,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: Text('${fmtNumber(ids.length)} title${ids.length == 1 ? '' : 's'} without a cover', style: const TextStyle(fontWeight: FontWeight.w700))),
-        if (job?.running == true)
-          OutlinedButton.icon(onPressed: r.stopCover, icon: const Icon(Icons.stop_rounded), label: const Text('Stop'))
+        if (job?.running == true) ...[
+          IconButton(
+            tooltip: job!.paused ? 'Resume' : 'Pause',
+            onPressed: () => job.paused ? r.resumeAll() : r.pauseAll(),
+            icon: Icon(job.paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+          ),
+          OutlinedButton.icon(onPressed: r.stopCover, icon: const Icon(Icons.stop_rounded), label: const Text('Stop')),
+        ]
         else
           FilledButton.icon(
             onPressed: ids.isEmpty ? null : () => unawaited(r.startCover(widget.account, ids, _scope == 'given' ? widget.label : 'Covers')),
@@ -208,8 +217,17 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             Expanded(child: Text(review.title, style: const TextStyle(fontWeight: FontWeight.w800))),
             TextButton(onPressed: () => RecoveryRunner.instance.skipCover(review), child: const Text('Skip')),
           ]),
+          if (review.candidates.any((c) => c.ids.isNotEmpty))
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: !_noLink.contains(review),
+              onChanged: (v) => setState(() => v == true ? _noLink.remove(review) : _noLink.add(review)),
+              title: const Text('Also link the verified External IDs of the cover I pick', style: TextStyle(fontSize: 12)),
+            ),
           SizedBox(
-            height: 150,
+            height: 162,
             child: ListView(scrollDirection: Axis.horizontal, children: [
               for (final c in review.candidates)
                 Padding(
@@ -217,7 +235,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: () async {
-                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c);
+                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
                       if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
                     },
                     child: SizedBox(
@@ -231,6 +249,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                         Text('${c.provider}${c.year != null ? ' · ${c.year}' : ''}',
                             maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.confidence >= 0.94 ? MF.good : MF.textDim)),
                         Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)),
+                        if (c.ids.isNotEmpty)
+                          Text(c.ids.map((x) => '${x.$1.toUpperCase()} ${x.$2}').join(' · '),
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: MF.textDim)),
                       ]),
                     ),
                   ),
@@ -263,8 +284,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-        if (job?.running == true)
-          OutlinedButton.icon(onPressed: r.stopMetadata, icon: const Icon(Icons.stop_rounded), label: const Text('Stop'))
+        if (job?.running == true) ...[
+          IconButton(
+            tooltip: job!.paused ? 'Resume' : 'Pause',
+            onPressed: () => job.paused ? r.resumeAll() : r.pauseAll(),
+            icon: Icon(job.paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+          ),
+          OutlinedButton.icon(onPressed: r.stopMetadata, icon: const Icon(Icons.stop_rounded), label: const Text('Stop')),
+        ]
         else
           FilledButton.icon(
             onPressed: ids.isEmpty ? null : () => unawaited(r.startMetadata(widget.account, ids, 'Details')),

@@ -12,6 +12,14 @@ import '../logic/ratings_engine.dart';
 import '../util/js.dart';
 import 'metadata_search.dart' show providerGateway;
 
+/// `x||null` for counts.
+int? _countOrNull(Object? v) => v is num && v != 0 ? v.toInt() : null;
+
+String _slice10(Object? v) {
+  final s = jsStr(v);
+  return s.length > 10 ? s.substring(0, 10) : s;
+}
+
 class _Cached {
   _Cached(this.data, this.until);
   final Object? data;
@@ -197,13 +205,27 @@ class RatingSources {
               'year': y,
               'aliases': stringList([v['title_english'], v['title_japanese'], ...asList(v['title_synonyms'])]),
               'externalIds': {'mal': jsStr(v['mal_id'])},
-              'legacy': {'synopsis': plainText(v['synopsis']), 'year': y, 'mediaFormat': jsStr(v['type'])},
+              'legacy': {
+                'synopsis': plainText(v['synopsis']),
+                'genres': stringList(asList(v['genres']).map((z) => asMap(z)?['name']).toList()),
+                'studios': stringList(asList(v['studios']).map((z) => asMap(z)?['name']).toList()),
+                'year': y,
+                'mediaFormat': jsStr(v['type']),
+              },
+              'fields': {
+                'originalTitle': jsStr(v['title_japanese']),
+                'animeSeason': jsTruthy(v['season']) ? jsStr(v['season']) : '',
+                'episodeCount': _countOrNull(v['episodes']),
+                'chapterCount': _countOrNull(v['chapters']),
+                'volumeCount': _countOrNull(v['volumes']),
+                'mangaAuthors': stringList(asList(v['authors']).map((z) => asMap(z)?['name']).toList()),
+              },
               'ratings': {'mal': scoreOf(v['score'], 10, v['scored_by'])},
             }));
           }
         }
       case 'anilist':
-        const gql = r'query($s:String,$id:Int,$idMal:Int){Page(perPage:7){media(search:$s,id:$id,idMal:$idMal){id idMal title{romaji english native} synonyms averageScore episodes chapters startDate{year} format}}}';
+        const gql = r'query($s:String,$id:Int,$idMal:Int){Page(perPage:7){media(search:$s,id:$id,idMal:$idMal){id idMal title{romaji english native} synonyms description(asHtml:false) genres averageScore meanScore popularity episodes chapters volumes startDate{year month day} season seasonYear studios(isMain:true){nodes{name}} staff(perPage:12){nodes{name{full}}} format}}}';
         final anilistId = int.tryParse(jsStr(ids['anilist']));
         final malId = anilistId == null ? int.tryParse(jsStr(ids['mal'])) : null;
         final d = await _fetch(provider, Uri.parse('https://graphql.anilist.co'), stop: stop, body: {
@@ -218,7 +240,22 @@ class RatingSources {
             'year': y,
             'aliases': stringList([t['english'], t['native'], ...asList(v['synonyms'])]),
             'externalIds': {'anilist': jsStr(v['id']), if (jsTruthy(v['idMal'])) 'mal': jsStr(v['idMal'])},
-            'legacy': {'year': y, 'mediaFormat': jsStr(v['format'])},
+            'legacy': {
+              'synopsis': plainText(v['description']),
+              'genres': stringList(v['genres']),
+              'studios': stringList(asList(asMap(v['studios'])?['nodes']).map((z) => asMap(z)?['name']).toList()),
+              'year': y,
+              'mediaFormat': jsStr(v['format']),
+            },
+            'fields': {
+              'originalTitle': jsStr(t['native']),
+              'alternateTitles': stringList(v['synonyms']),
+              'animeSeason': jsTruthy(v['season']) ? '${jsStr(v['season'])} ${jsTruthy(v['seasonYear']) ? jsStr(v['seasonYear']) : ''}' : '',
+              'episodeCount': _countOrNull(v['episodes']),
+              'chapterCount': _countOrNull(v['chapters']),
+              'volumeCount': _countOrNull(v['volumes']),
+              'creators': stringList(asList(asMap(v['staff'])?['nodes']).map((z) => asMap(asMap(z)?['name'])?['full']).toList()),
+            },
             'ratings': {'anilist': scoreOf(v['averageScore'], 100)},
           }));
         }
@@ -238,7 +275,13 @@ class RatingSources {
             'year': y,
             'aliases': stringList(titles.values.toList()),
             'externalIds': {'kitsu': jsStr(v['id'])},
-            'legacy': {'year': y, 'mediaFormat': jsStr(a['subtype'])},
+            'legacy': {'synopsis': plainText(a['synopsis']), 'year': y, 'mediaFormat': jsStr(a['subtype'])},
+            'fields': {
+              'originalTitle': jsStr(titles['ja_jp']),
+              'episodeCount': _countOrNull(a['episodeCount']),
+              'chapterCount': _countOrNull(a['chapterCount']),
+              'volumeCount': _countOrNull(a['volumeCount']),
+            },
             'ratings': {'kitsu': scoreOf(a['averageRating'], 100, a['userCount'])},
           }));
         }
@@ -254,7 +297,19 @@ class RatingSources {
           pull(sourceEntry(provider, v['id'], v['name'], {
             'year': y,
             'externalIds': {'tvmaze': jsStr(v['id']), if (jsTruthy(imdb)) 'imdb': jsStr(imdb)},
-            'legacy': {'year': y, 'releaseDate': jsStr(v['premiered']), 'mediaFormat': jsStr(v['type'])},
+            'legacy': {
+              'synopsis': plainText(v['summary']),
+              'genres': stringList(v['genres']),
+              'year': y,
+              'releaseDate': jsStr(v['premiered']),
+              'mediaFormat': jsStr(v['type']),
+              'ageRating': '',
+            },
+            'fields': {
+              'networks': stringList([asMap(v['network'])?['name'], asMap(v['webChannel'])?['name']]),
+              'releaseStatus': jsStr(v['status']),
+              'originalLanguage': jsStr(v['language']),
+            },
             'ratings': {'tvmaze': scoreOf(asMap(v['rating'])?['average'], 10)},
           }));
         }
@@ -270,17 +325,38 @@ class RatingSources {
           final work = RegExp(r'OL\d+W', caseSensitive: false).firstMatch(jsStr(v?['key'] ?? match))?[0];
           if (v == null || work == null) continue;
           final y = jsNum(v['first_publish_year']).toInt();
+          Object? desc = v['description'] is Map ? (v['description'] as Map)['value'] : v['description'];
+          // Search results have no synopsis: fetch it for the first two
+          // exact-title works only (as the website does).
+          if (!jsTruthy(desc) && rows.length < 2 && normTitle(v['title']) == normTitle(title)) {
+            try {
+              final detail = asMap(await _fetch(provider, Uri.parse('https://openlibrary.org/works/$work.json'), stop: stop));
+              desc = detail?['description'] is Map ? (detail!['description'] as Map)['value'] : detail?['description'];
+            } catch (_) {}
+          }
           pull(sourceEntry(provider, work, v['title'], {
             'year': y,
             'externalIds': {'openlibrary_work': work},
-            'legacy': {'year': y},
+            'legacy': {'synopsis': plainText(desc), 'year': y, 'genres': stringList(v['subject'])},
+            'fields': {
+              'authors': stringList(v['author_name']),
+              'originalLanguage': asList(v['language']).isEmpty ? '' : jsStr(asList(v['language']).first),
+              'keywords': stringList(v['subject']),
+            },
           }));
         }
       case 'gutendex':
         final d = await _fetch(provider, _url('https://gutendex.com/books', {'search': title}), stop: stop);
         for (final v in asList(asMap(d)?['results']).take(6).map(asMap)) {
           if (v == null || !jsTruthy(v['id'])) continue;
-          pull(sourceEntry(provider, v['id'], v['title'], {'externalIds': {'gutendex': jsStr(v['id'])}}));
+          pull(sourceEntry(provider, v['id'], v['title'], {
+            'externalIds': {'gutendex': jsStr(v['id'])},
+            'legacy': {'genres': stringList(v['subjects'])},
+            'fields': {
+              'authors': stringList(asList(v['authors']).map((a) => asMap(a)?['name']).toList()),
+              'originalLanguage': asList(v['languages']).isEmpty ? '' : jsStr(asList(v['languages']).first),
+            },
+          }));
         }
       case 'itunes':
         final d = await _fetch(provider, _url('https://itunes.apple.com/search', {'term': title, 'entity': 'album', 'limit': 9}), stop: stop);
@@ -290,7 +366,13 @@ class RatingSources {
           pull(sourceEntry(provider, v['collectionId'], v['collectionName'], {
             'year': y,
             'externalIds': {'apple_music_album': jsStr(v['collectionId'])},
-            'legacy': {'year': y},
+            'fields': {
+              'albumArtists': stringList([v['artistName']]),
+              'trackCount': _countOrNull(v['trackCount']),
+              'recordLabels': stringList([v['copyright']]),
+              'releaseType': 'Album',
+            },
+            'legacy': {'year': y, 'releaseDate': _slice10(v['releaseDate']), 'genres': stringList([v['primaryGenreName']])},
           }));
         }
       case 'steam':
@@ -303,7 +385,7 @@ class RatingSources {
         final valid = RegExp(r'^v\d+$', caseSensitive: false).firstMatch(jsStr(ids['vndb']))?[0];
         final d = await _fetch(provider, Uri.parse('https://api.vndb.org/kana/vn'), stop: stop, body: {
           'filters': valid != null ? ['id', '=', valid] : ['search', '=', title],
-          'fields': 'title,alttitle,released,rating,votecount',
+          'fields': 'title,alttitle,description,released,rating,votecount,platforms,length_minutes',
           'results': 7,
         });
         for (final v in asList(asMap(d)?['results']).take(7).map(asMap)) {
@@ -313,7 +395,16 @@ class RatingSources {
             'year': y,
             'aliases': stringList([v['alttitle']]),
             'externalIds': {'vndb': jsStr(v['id'])},
-            'legacy': {'year': y, 'releaseDate': jsStr(v['released'])},
+            'legacy': {'synopsis': plainText(v['description']), 'year': y, 'releaseDate': jsStr(v['released'])},
+            'fields': {
+              'originalTitle': jsStr(v['alttitle']),
+              'ifPlatforms': stringList(v['platforms']),
+              'platforms': stringList(v['platforms']),
+              // Number(null) is 0 on the website; a missing key gives null.
+              'mainStoryHours': v['length_minutes'] is num
+                  ? ((v['length_minutes'] as num) / 60 * 100).round() / 100
+                  : (v.containsKey('length_minutes') && v['length_minutes'] == null ? 0 : null),
+            },
             'ratings': {'vndb': scoreOf(v['rating'], 100, v['votecount'])},
           }));
         }
@@ -329,7 +420,11 @@ class RatingSources {
           pull(sourceEntry(provider, v['id'], v['title'], {
             'year': y,
             'externalIds': {'musicbrainz_release_group': jsStr(v['id'])},
-            'legacy': {'year': y},
+            'fields': {
+              'albumArtists': stringList(asList(v['artist-credit']).map((a) => asMap(asMap(a)?['artist'])?['name'] ?? asMap(a)?['name']).toList()),
+              'releaseType': jsStr(v['primary-type']),
+            },
+            'legacy': {'releaseDate': jsStr(v['first-release-date']), 'year': y},
           }));
         }
     }

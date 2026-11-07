@@ -49,6 +49,34 @@ void main() {
     });
   }
 
+  for (final raw in fx['coverLinks'] as List) {
+    final lc = (raw as Map).cast<String, dynamic>();
+    test('cover ID linking: ${lc['name']}', () {
+      final item = (jsonDecode(jsonEncode(lc['item'])) as Map).cast<String, dynamic>();
+      final cand = (lc['candidate'] as Map).cast<String, dynamic>();
+      final entry = (lc['entry'] as Map).cast<String, dynamic>();
+      final c = CoverCandidate(
+        url: 'https://example.com/c.jpg',
+        provider: cand['provider'] as String,
+        title: item['title'] as String,
+        confidence: 0.97,
+        reason: '',
+        recordId: cand['recordId'] as String,
+        externalIdKey: cand['externalIdKey'] as String,
+        recordUrl: cand['recordUrl'] as String,
+        reportedIds: [
+          if (entry['idMal'] != null) ('mal', '${entry['idMal']}'),
+          if ((entry['externals'] as Map?)?['imdb'] != null) ('imdb', '${(entry['externals'] as Map)['imdb']}'),
+        ],
+      );
+      final exp = (lc['expected'] as Map).cast<String, dynamic>();
+      expect([for (final r in c.ids) [r.$1, r.$2]], exp['ids']);
+      expect([for (final l in coverIdLinks(item, c)) {'key': l.key, 'value': l.value, 'existing': l.existing, 'conflict': l.conflict}], exp['links']);
+      expect(linkCoverIds(item, c, manual: lc['manual'] as bool), exp['changes']);
+      expect(jsStringify(item), exp['itemJson']);
+    });
+  }
+
   test('cover evidence follows the website rules', () {
     final item = <String, dynamic>{'title': 'Frieren', 'year': 2023};
     expect(coverEvidence(item, 'Frieren', 2023).confidence, 0.97);
