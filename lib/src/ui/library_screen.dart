@@ -299,13 +299,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
               SyncIndicator(account: account),
             ],
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            heroTag: null,
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => TitleEditor(account: account, initialCategory: _cats.length == 1 ? _cats.first : null))),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Add title'),
-          ),
           body: RefreshIndicator(
             onRefresh: account.sync,
             child: CustomScrollView(slivers: [

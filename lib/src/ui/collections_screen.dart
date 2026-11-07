@@ -107,12 +107,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               });
         return Scaffold(
           appBar: AppBar(title: const Text('Collections'), actions: [SyncIndicator(account: account)]),
-          floatingActionButton: FloatingActionButton.extended(
-            heroTag: null,
-            onPressed: () => editCollection(context, account, null),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('New collection'),
-          ),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
             TextField(
               controller: _search,

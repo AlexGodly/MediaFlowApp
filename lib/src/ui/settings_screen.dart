@@ -70,6 +70,22 @@ final _sections = <(String, IconData, List<_S>)>[
     ]
   ),
   (
+    'Recovery Shortcuts & Background Processes',
+    Icons.auto_fix_high_rounded,
+    [
+      _S(['v447RecoveryShortcuts', 'floating'], 'Recovery items in the + menu', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'library'], 'Recovery in the Library menu', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'editor'], 'Recovery in the title editor', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'details'], 'Recovery in Title Details', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'collections'], 'Recovery in Collections', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'order'], 'Recovery in Personal Order', kind: 'bool', def: true),
+      _S(['v447RecoveryShortcuts', 'widget'], 'Recovery shortcuts in Background Processes', kind: 'bool', def: true),
+      _S(['v441RecoveryUI', 'visibility'], 'Background Processes widget', kind: 'choice', def: 'auto',
+          choices: [('auto', 'While something runs'), ('always', 'Always'), ('hidden', 'Hidden')]),
+      _S(['v441RecoveryUI', 'showFinished'], 'Keep finished jobs in the widget', kind: 'bool', def: false),
+    ]
+  ),
+  (
     'Leveling & XP',
     Icons.military_tech_rounded,
     [

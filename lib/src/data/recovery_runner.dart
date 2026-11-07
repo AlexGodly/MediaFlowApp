@@ -152,6 +152,31 @@ class RecoveryRunner extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------- Combined Recovery (website v447 "both") ----------
+
+  bool combinedRunning = false;
+
+  /// Covers for the titles missing one, then details for those missing them.
+  Future<void> startCombined(AccountController account, List<String> ids, String label) async {
+    if (combinedRunning) return;
+    combinedRunning = true;
+    notifyListeners();
+    try {
+      final covers = [for (final id in ids) if (coverMissing(_item(account, id))) id];
+      if (covers.isNotEmpty) await startCover(account, covers, label);
+      if (cover?.stopped == true) return;
+      final details = [
+        for (final id in ids)
+          if (_item(account, id) case final m? when !hasValue(m['synopsis']) || !hasValue(m['genres']) || !hasValue(m['year']) || !hasValue(m['mediaFormat'])) id,
+      ];
+      final max = jsNum(metadataPreferences(asMap(account.view?.state['settings']))['maxBatch']).toInt();
+      if (details.isNotEmpty) await startMetadata(account, details.length > max ? details.sublist(0, max) : details, label);
+    } finally {
+      combinedRunning = false;
+      notifyListeners();
+    }
+  }
+
   // ---------- Metadata Recovery ----------
 
   Future<void> startMetadata(AccountController account, List<String> ids, String label) async {

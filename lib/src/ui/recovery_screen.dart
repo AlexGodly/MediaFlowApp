@@ -34,12 +34,17 @@ List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEve
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
 
-Future<void> openRecovery(BuildContext context, AccountController account, {List<String>? ids, String label = '', int tab = 0}) =>
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab)));
+Future<void> openRecovery(BuildContext context, AccountController account,
+        {List<String>? ids, String label = '', int tab = 0, bool combined = false}) =>
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
 
 class RecoveryScreen extends StatefulWidget {
-  const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0});
+  const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0, this.combined = false});
   final AccountController account;
+
+  /// Opened as "New Combined Recovery": covers and details in one go.
+  final bool combined;
 
   /// Titles to work on (e.g. today's On This Day titles); null = choose a scope.
   final List<String>? ids;
@@ -77,6 +82,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
       }
     }
     return out;
+  }
+
+  /// Every title in the scope (Combined Recovery checks covers and details).
+  List<String> _idsAll() {
+    final v = view;
+    if (v == null) return const [];
+    if (_scope == 'given' && widget.ids != null) return widget.ids!;
+    return [for (final t in v.library) if (_scope == 'all' || t.categoryId == _scope) t.id];
   }
 
   Widget _scopePicker() {
@@ -144,6 +157,25 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             label: const Text('Start Cover Recovery'),
           ),
       ]),
+      if (widget.combined || r.combinedRunning)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Expanded(
+                child: Text('Combined Recovery: covers first, then missing details, for the titles above.',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
+              if (!r.combinedRunning && job?.running != true && r.metadata?.running != true)
+                FilledButton(
+                  onPressed: () => unawaited(r.startCombined(widget.account, _idsAll(), _scope == 'given' ? widget.label : 'Combined')),
+                  child: const Text('Start both'),
+                ),
+            ]),
+          ),
+        ),
       if (job != null) _progress(job),
       for (final review in List.of(job?.coverReviews ?? const <CoverReview>[])) _coverReview(context, review),
     ]);
