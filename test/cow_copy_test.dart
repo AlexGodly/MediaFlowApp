@@ -43,6 +43,7 @@ void main() {
     ((fl[500] as Map)['tags'] as List).add('b');
     ((fl[500] as Map)['externalIds'] as Map)['imdb'] = 'tt0000001';
     op.apply(original);
+    original.remove('savedAt'); // applying stamps the save time
     expect(jsonEncode(original), jsonEncode(full));
   });
 
