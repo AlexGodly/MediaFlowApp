@@ -7,15 +7,19 @@ import 'package:path_provider/path_provider.dart';
 import '../state/state_codec.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
+import 'records.dart';
 
 /// What the app keeps on the device for one account: the last cloud copy it
 /// saw (as stored: the website's compressed form) and the changes not yet
 /// uploaded.
 class CachedAccount {
-  CachedAccount({this.raw, this.baseUpdatedAt, List<AccountOp>? pending, this.savedAt, this.upgraded = false})
+  CachedAccount({this.raw, this.baseUpdatedAt, List<AccountOp>? pending, this.savedAt, this.upgraded = false, this.records})
       : pending = pending ?? [];
   Object? raw;
   String? baseUpdatedAt;
+
+  /// Per-record storage: what the device knows of the cloud's records.
+  RecordIndex? records;
   final List<AccountOp> pending;
   int? savedAt;
 
@@ -92,6 +96,8 @@ CachedAccount readCachedAccount(String path, String pendingPath, String userId) 
       pending: pending.map((p) => AccountOp.fromJson(asMap(p) ?? const {})).toList(),
       savedAt: jsNum(m['savedAt']).toInt(),
       upgraded: upgraded,
+      // Only valid together with the copy it describes.
+      records: raw == null ? null : RecordIndex.fromJson(m['records']),
     );
   } catch (_) {
     return CachedAccount();
@@ -129,7 +135,9 @@ class FileAccountCache implements AccountCache {
       final file = await _file(userId);
       final pendingFile = await _file(userId, '-pending');
       final cached = await _readInBackground(file.path, pendingFile.path, userId);
-      _lastBase = cached.upgraded || cached.raw == null ? null : '${identityHashCode(cached.raw)}|${cached.baseUpdatedAt}';
+      _lastBase = cached.upgraded || cached.raw == null
+          ? null
+          : '${identityHashCode(cached.raw)}|${cached.baseUpdatedAt}|${cached.records?.cursor}|${cached.records?.entries.length}';
       return cached;
     } catch (_) {
       return CachedAccount();
@@ -145,7 +153,8 @@ class FileAccountCache implements AccountCache {
 
   Future<void> _save(String userId, CachedAccount account) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final key = '${identityHashCode(account.raw)}|${account.baseUpdatedAt}';
+    final records = account.records;
+    final key = '${identityHashCode(account.raw)}|${account.baseUpdatedAt}|${records?.cursor}|${records?.entries.length}';
     if (account.raw != null && key != _lastBase) {
       await _writeInBackground((await _file(userId)).path, {
         'version': 4,
@@ -154,6 +163,7 @@ class FileAccountCache implements AccountCache {
         'baseUpdatedAt': account.baseUpdatedAt,
         'baseRaw': account.raw,
         'pending': const [],
+        if (records != null) 'records': records.toJson(),
       });
       _lastBase = key;
     }

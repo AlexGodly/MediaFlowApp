@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -122,6 +123,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     old.dispose();
   }
 
+  /// This install's id on per-record cloud rows (kept across launches).
+  static String _deviceId() {
+    final saved = AppPrefs.instance.get<String>('recordDeviceId', '');
+    if (saved.isNotEmpty) return saved;
+    final r = Random.secure();
+    final id = 'app-${List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join()}';
+    unawaited(AppPrefs.instance.set('recordDeviceId', id));
+    return id;
+  }
+
   void _attach(String userId, String email) {
     // TMDB covers go through MediaFlow's provider gateway as this account
     // (the TMDB key stays on the server, as on the website).
@@ -134,7 +145,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       email: email,
       cloud: SupabaseCloud(() => Supabase.instance.client),
       cache: FileAccountCache(),
-    );
+      deviceId: _deviceId(),
+    )..startAutoPull();
     if (mounted) {
       setState(() => _account = account);
     } else {
@@ -147,9 +159,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+    if (state == AppLifecycleState.resumed) {
+      if (AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+      _account?.startAutoPull();
+    }
     // Leaving the app: upload an unsaved logging draft so the website sees it.
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _account?.flushDraft();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _account?.stopAutoPull();
+      _account?.flushDraft();
+    }
   }
 
   @override

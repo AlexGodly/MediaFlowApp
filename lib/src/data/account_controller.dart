@@ -15,6 +15,7 @@ import '../util/js.dart';
 import 'account_ops.dart';
 import 'edit_op.dart';
 import 'local_cache.dart';
+import 'records.dart';
 import 'sync_engine.dart';
 
 enum SyncState { loading, syncing, synced, offline, error }
@@ -29,7 +30,15 @@ class AccountController extends ChangeNotifier {
     required this.cache,
     BackgroundRunner background = runInIsolate,
     this.draftSyncDelay = const Duration(seconds: 10),
+    this.deviceId = 'mediaflow-app',
+    this.fallbackInterval = const Duration(minutes: 3),
   }) : _bg = background;
+
+  /// This install's id on per-record rows (`device_id`, like the website's).
+  final String deviceId;
+
+  /// How often the single-row fallback copy is rewritten (website: 3 minutes).
+  final Duration fallbackInterval;
 
   final String userId;
   final String email;
@@ -43,6 +52,17 @@ class AccountController extends ChangeNotifier {
   // decoded account lives only in [_display].
   Object? _baseRaw;
   String? _baseUpdatedAt;
+
+  // Per-record storage (website v556): what this device knows of the cloud's
+  // records. Null while the account uses the single row.
+  RecordIndex? _index;
+  bool _fallbackDirty = false;
+  DateTime _lastFallback = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _fallbackTimer;
+  Timer? _pullTimer;
+
+  /// True once the account syncs record by record (instant both ways with the website).
+  bool get usesRecords => _index != null;
   final List<AccountOp> _pending = [];
   Map<String, dynamic>? _display;
   AccountView? _view;
@@ -78,6 +98,7 @@ class AccountController extends ChangeNotifier {
         final merged = await mergeInBackground(_bg, cached.raw, cached.pending, encode: false);
         _baseRaw = cached.raw;
         _baseUpdatedAt = cached.baseUpdatedAt;
+        _index = cached.records;
         _pending
           ..clear()
           ..addAll(cached.pending);
@@ -116,10 +137,14 @@ class AccountController extends ChangeNotifier {
         batch,
         knownRaw: _display == null ? null : _baseRaw,
         knownUpdatedAt: _baseUpdatedAt,
+        knownIndex: _display == null ? null : _index,
+        deviceId: deviceId,
         background: _bg,
       );
       _baseRaw = result.raw;
       _baseUpdatedAt = result.updatedAt;
+      _index = result.index;
+      if (result.index != null && result.uploaded > 0) _scheduleFallback();
       if (result.rejected.isNotEmpty) {
         lastRejection = 'A log made on this device could not be added to your account: ${result.rejected.first}';
       }
@@ -332,9 +357,51 @@ class AccountController extends ChangeNotifier {
     return _replay(op, [for (final c in op.changes) if (!_isActivity(c)) c], 'Redo');
   }
 
-  /// Uploads a pending draft now (e.g. when the app goes to the background).
+  /// Uploads a pending draft now (e.g. when the app goes to the background),
+  /// and the fallback copy if it is due.
   Future<void> flushDraft() async {
     if (_pending.any((p) => p is DraftOp)) await sync();
+    await flushFallback();
+  }
+
+  /// Per-record accounts: the single `mediaflow_states` row is kept as a
+  /// complete fallback copy for older app versions and recovery tools — at most
+  /// every [fallbackInterval], and when the app goes to the background (the
+  /// website does the same).
+  void _scheduleFallback() {
+    _fallbackDirty = true;
+    if (_fallbackTimer?.isActive == true) return;
+    final wait = _lastFallback.add(fallbackInterval).difference(DateTime.now());
+    _fallbackTimer = Timer(wait.isNegative ? Duration.zero : wait, () => unawaited(flushFallback()));
+  }
+
+  Future<void> flushFallback() async {
+    final cloud = this.cloud;
+    if (!_fallbackDirty || _index == null || cloud is! RecordBackend) return;
+    final raw = _baseRaw;
+    if (raw == null) return;
+    _fallbackDirty = false;
+    _fallbackTimer?.cancel();
+    try {
+      await cloud.writeFallback(userId, raw, deviceId);
+      _lastFallback = DateTime.now();
+    } catch (_) {
+      _fallbackDirty = true; // tried again with the next save or pause
+    }
+  }
+
+  /// While the app is open: pull other devices' changes every minute (the
+  /// website pulls every minute too). Cheap when nothing changed.
+  void startAutoPull([Duration every = const Duration(minutes: 1)]) {
+    _pullTimer?.cancel();
+    _pullTimer = Timer.periodic(every, (_) {
+      if (!_syncing && !_disposed) unawaited(sync());
+    });
+  }
+
+  void stopAutoPull() {
+    _pullTimer?.cancel();
+    _pullTimer = null;
   }
 
   /// Logs the recommended task from the open form.
@@ -350,7 +417,7 @@ class AccountController extends ChangeNotifier {
 
   Future<void> _save() => cache.save(
         userId,
-        CachedAccount(raw: _baseRaw, baseUpdatedAt: _baseUpdatedAt, pending: List.of(_pending)),
+        CachedAccount(raw: _baseRaw, baseUpdatedAt: _baseUpdatedAt, pending: List.of(_pending), records: _index),
       );
 
   /// Removes this account's data from the device (used on sign-out).
@@ -372,6 +439,8 @@ class AccountController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _syncTimer?.cancel();
+    _fallbackTimer?.cancel();
+    _pullTimer?.cancel();
     super.dispose();
   }
 }

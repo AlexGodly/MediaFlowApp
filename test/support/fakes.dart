@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:mediaflow/src/data/local_cache.dart';
+import 'package:mediaflow/src/data/records.dart';
 import 'package:mediaflow/src/data/sync_engine.dart';
 import 'package:mediaflow/src/state/state_codec.dart';
 
@@ -74,4 +75,81 @@ class MemoryCache implements AccountCache {
 
   @override
   Future<void> delete(String userId) async => files.remove(userId);
+}
+
+/// In-memory stand-in for the website's per-record storage (v556): rows keyed
+/// by (kind, record_id) with a database-set `updated_at`, plus the single-row
+/// fallback copy. [websiteSaves] writes the way the website does (only the
+/// records that changed).
+class FakeRecordCloud extends FakeCloud implements RecordBackend {
+  FakeRecordCloud(Map<String, dynamic> state, {this.migrated = true}) : super(state, compressed: true) {
+    if (migrated) _writeAll(state);
+  }
+  bool migrated;
+  final Map<String, RecordRow> rows = {};
+  int _tick = 0;
+  int uploadCalls = 0, uploadedRows = 0, fetchRecordCalls = 0, fallbackWrites = 0;
+  Object? fallback;
+
+  String _now() => DateTime.utc(2026, 11, 7).add(Duration(seconds: 10 * ++_tick)).toIso8601String();
+
+  void _put(String k, String i, double? pos, String? data, {bool deleted = false}) {
+    rows[recordKey(k, i)] = RecordRow(kind: k, recordId: i, pos: pos, data: data, deleted: deleted, updatedAt: _now());
+  }
+
+  void _writeAll(Map<String, dynamic> state) {
+    for (final r in decomposeState(state, (_) => null).values) {
+      _put(r.k, r.i, r.pos, r.j);
+    }
+    _put('meta', 'store', null, '{"version":556}');
+  }
+
+  /// The account as the website would rebuild it from the rows.
+  Map<String, dynamic> get recordState => composeState([
+        for (final r in rows.values)
+          if (r.kind != 'meta' && !r.deleted && r.data != null) Rec(r.kind, r.recordId, r.pos, r.data!),
+      ]);
+
+  /// The website edits the account and saves only the changed records.
+  void websiteSavesRecords(void Function(Map<String, dynamic> s) edit) {
+    final s = recordState;
+    final before = {for (final r in rows.values) if (!r.deleted && r.kind != 'meta') recordKey(r.kind, r.recordId): r};
+    edit(s);
+    final recs = decomposeState(s, (key) => before[key]?.pos);
+    for (final r in recs.values) {
+      final cur = before[r.key];
+      if (cur != null && cur.data == r.j && cur.pos == r.pos) continue;
+      _put(r.k, r.i, r.pos, r.j);
+    }
+    for (final key in before.keys.where((k) => !recs.containsKey(k))) {
+      final cur = before[key]!;
+      _put(cur.kind, cur.recordId, null, null, deleted: true);
+    }
+  }
+
+  @override
+  Future<bool> usesRecords(String userId) async => migrated;
+
+  @override
+  Future<List<RecordRow>> fetchRecords(String userId, String since) async {
+    fetchRecordCalls++;
+    final out = rows.values.where((r) => since.isEmpty || r.updatedAt.compareTo(since) > 0).toList()
+      ..sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+    return out;
+  }
+
+  @override
+  Future<void> uploadRecords(String userId, List<RecordUpload> upload, String deviceId) async {
+    uploadCalls++;
+    uploadedRows += upload.length;
+    for (final r in upload) {
+      _put(r.k, r.i, r.pos, r.deleted ? null : r.j, deleted: r.deleted);
+    }
+  }
+
+  @override
+  Future<void> writeFallback(String userId, Object payload, String deviceId) async {
+    fallbackWrites++;
+    fallback = payload;
+  }
 }
