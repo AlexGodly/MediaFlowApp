@@ -278,9 +278,16 @@ class BackgroundProcesses extends StatelessWidget {
                 Row(children: [
                   Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12))),
                   Text(
-                    job == null ? 'Idle' : job.running ? '${(pct * 100).round()}%' : (job.stopped ? 'Stopped' : 'Done'),
+                    job == null ? 'Idle' : job.running ? (job.paused ? 'Paused' : '${(pct * 100).round()}%') : (job.stopped ? 'Stopped' : 'Done'),
                     style: TextStyle(color: MF.textDim, fontSize: 11),
                   ),
+                  if (job?.running == true)
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      tooltip: job!.paused ? 'Resume' : 'Pause',
+                      icon: Icon(job.paused ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 18),
+                      onPressed: () => job.paused ? RecoveryRunner.instance.resumeAll() : RecoveryRunner.instance.pauseAll(),
+                    ),
                   if (job?.running == true)
                     IconButton(
                       visualDensity: VisualDensity.compact,

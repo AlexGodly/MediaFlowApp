@@ -14,7 +14,7 @@ import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
 import '../platform/desktop_tray.dart';
-import '../platform/reminders.dart';
+import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'discord_settings.dart';
@@ -607,42 +607,7 @@ class _AppSettingsState extends State<_AppSettings> {
               ),
             ]),
           ),
-          SectionCard(
-            prefKey: 'app.reminder',
-            icon: Icons.notifications_active_rounded,
-            title: 'Streak reminder',
-            subtitle: "A daily nudge when you haven't logged yet",
-            child: Column(children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Remind me if I haven\'t logged today'),
-                subtitle: Text(Platform.isWindows
-                    ? 'Shown while MediaFlow is running (it can keep running in the tray).'
-                    : 'So your Day Streak doesn\'t break.'),
-                value: Reminders.instance.enabled,
-                onChanged: (v) async {
-                  await Reminders.instance.setEnabled(v);
-                  if (mounted) setState(() {});
-                },
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                enabled: Reminders.instance.enabled,
-                title: const Text('Time'),
-                trailing: Text(
-                  '${Reminders.instance.time.h.toString().padLeft(2, '0')}:${Reminders.instance.time.m.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                onTap: () async {
-                  final t = Reminders.instance.time;
-                  final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: t.h, minute: t.m));
-                  if (picked == null) return;
-                  await Reminders.instance.setTime(picked.hour, picked.minute);
-                  if (mounted) setState(() {});
-                },
-              ),
-            ]),
-          ),
+          notificationsSection(context, () => setState(() {})),
           discordSection(widget.account),
           if (DesktopTray.supported)
             SectionCard(
@@ -791,4 +756,102 @@ class _AppSettingsState extends State<_AppSettings> {
       },
     );
   }
+}
+
+
+/// Settings → Notifications (this device): every kind on/off, times, quiet
+/// hours and a test.
+Widget notificationsSection(BuildContext context, VoidCallback changed) {
+  final n = AppNotifications.instance;
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  Future<({int h, int m})?> pick(({int h, int m}) t) async {
+    final picked = await showTimePicker(context: context, initialTime: TimeOfDay(hour: t.h, minute: t.m));
+    return picked == null ? null : (h: picked.hour, m: picked.minute);
+  }
+
+  Widget timeTile(String label, ({int h, int m}) t, bool enabled, Future<void> Function(({int h, int m})) set) => ListTile(
+        contentPadding: const EdgeInsets.only(left: 16),
+        dense: true,
+        enabled: enabled,
+        title: Text(label),
+        trailing: Text(AppNotifications.fmt(t), style: const TextStyle(fontWeight: FontWeight.w800)),
+        onTap: () async {
+          final v = await pick(t);
+          if (v == null) return;
+          await set(v);
+          changed();
+        },
+      );
+
+  return SectionCard(
+    prefKey: 'app.notifications',
+    icon: Icons.notifications_active_rounded,
+    title: 'Notifications',
+    subtitle: 'What MediaFlow tells you on this device',
+    child: Column(children: [
+      if (!n.supported)
+        const ListTile(contentPadding: EdgeInsets.zero, title: Text('Notifications are not available on this device.')),
+      if (Platform.isWindows)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text('Timed notifications show while MediaFlow is running (it can keep running in the tray).',
+              style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ),
+      for (final t in kNotifTypes) ...[
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(t.title),
+          subtitle: Text(t.subtitle),
+          value: n.isOn(t.key),
+          onChanged: (v) async {
+            await n.setOn(t.key, v);
+            changed();
+          },
+        ),
+        if (t.time != null)
+          timeTile(t.weekly ? 'Time' : 'At', n.timeOf(t.key), n.isOn(t.key), (v) => n.setTime(t.key, v.h, v.m)),
+        if (t.weekly)
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 16),
+            dense: true,
+            enabled: n.isOn(t.key),
+            title: const Text('Day'),
+            trailing: DropdownButton<int>(
+              value: n.weeklyDay,
+              underline: const SizedBox.shrink(),
+              items: [for (var d = 1; d <= 7; d++) DropdownMenuItem(value: d, child: Text(days[d - 1]))],
+              onChanged: !n.isOn(t.key)
+                  ? null
+                  : (v) async {
+                      if (v == null) return;
+                      await n.setWeeklyDay(v);
+                      changed();
+                    },
+            ),
+          ),
+      ],
+      const Divider(height: 24),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Quiet hours'),
+        subtitle: const Text('Nothing is shown in this window; timed ones wait until it ends'),
+        value: n.quietOn,
+        onChanged: (v) async {
+          await n.setQuiet(on: v);
+          changed();
+        },
+      ),
+      timeTile('From', n.quietFrom, n.quietOn, (v) => n.setQuiet(from: v)),
+      timeTile('Until', n.quietTo, n.quietOn, (v) => n.setQuiet(to: v)),
+      const SizedBox(height: 6),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: n.supported ? n.test : null,
+          icon: const Icon(Icons.notifications_rounded),
+          label: const Text('Send a test notification'),
+        ),
+      ),
+    ]),
+  );
 }

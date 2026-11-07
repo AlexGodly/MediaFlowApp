@@ -70,6 +70,9 @@ class DiscordPresence extends ChangeNotifier {
   NativeCallable<StatusCb>? _statusCb;
   final _secure = const FlutterSecureStorage();
 
+  /// The saved link stopped working (Discord removed or expired it).
+  void Function()? onLinkExpired;
+
   /// Connection state for Settings.
   String statusText = 'Off';
   bool linked = false, linking = false, connected = false;
@@ -282,6 +285,7 @@ class DiscordPresence extends ChangeNotifier {
           // The link was removed on Discord's side (or expired): link again.
           unawaited(_deleteTokens());
           linked = false;
+          onLinkExpired?.call();
         }
         _linkFailed(error.isEmpty ? 'Discord did not accept the link.' : error);
         return;
