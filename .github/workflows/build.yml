@@ -36,13 +36,10 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then echo "::warning title=Discord SDK::DISCORD_SDK_TOKEN is not set"; exit 0; fi
           gh release list -R AlexGodly/discord-social-sdk || true
           gh release download 1.10.19337 -R AlexGodly/discord-social-sdk -p 'DiscordSocialSdk-1.10.19337.zip' -D sdk
-          ls -la sdk
-          unzip -l sdk/*.zip | awk '{print $1, $4}' | grep -v '/$' | grep -iv 'krisp' | sed -n '1,400p'
-          echo "---- sizes by folder"
-          unzip -l sdk/*.zip | awk '{split($4,a,"/"); k=a[1]"/"a[2]"/"a[3]; s[k]+=$1} END {for (k in s) print s[k], k}' | sort -rn | head -40
-          mkdir x && cd x && unzip -q ../sdk/*.zip '*/include/*' '*.h' 2>/dev/null || true
-          find . -name '*.h' | head -20
-          f=$(find . -name 'discordpp.h' | head -1); [ -n "$f" ] && grep -n "class Activity\b\|UpdateRichPresence\|SetApplicationId\|class Client\b\|void Authorize\|GetToken\|SetLargeImage\|SetDetails\|SetState\|RunCallbacks\|UpdateToken\|CreateAuthorizationCodeVerifier\|GetDefaultPresenceScopes\|SetRedirect\|SetCustomSchemeParam" "$f" | head -80 || true
+          cd sdk && unzip -q *.zip 'discord_social_sdk/include/cdiscord.h' 'discord_social_sdk/lib/release/discord_partner_sdk.aar' 'discord_social_sdk/License-Notices.txt'
+          echo "==== AAR"; unzip -l discord_social_sdk/lib/release/discord_partner_sdk.aar
+          mkdir aar && cd aar && unzip -q ../discord_social_sdk/lib/release/discord_partner_sdk.aar && cat AndroidManifest.xml; ls jni/* 2>/dev/null; unzip -l classes.jar | awk '{print $4}' | grep -v '/$' | head -60; cd ..
+          echo "==== HEADER"; grep -v '^\s*$' discord_social_sdk/include/cdiscord.h | grep -v '^\s*//' | sed -n '1,4000p'
 
   test:
     name: Analyze and test
