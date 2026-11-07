@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       app_version:
-        description: Version label used in file names, e.g. 1.0.0-beta.12
+        description: Version label used in file names, e.g. 1.0.0
         required: true
         type: string
     secrets:

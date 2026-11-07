@@ -122,11 +122,11 @@ void main() {
     await tester.tap(find.text('Add recommended title'));
     await _settle(tester);
     expect(find.text('Added · show it'), findsOneWidget);
-    expect(find.text('Add Episode 4'), findsOneWidget);
+    expect(find.text('Add Unit 4'), findsOneWidget);
     // Press it directly: depending on layout the "+" button can sit on top of it.
-    tester.widget<ButtonStyleButton>(find.ancestor(of: find.text('Add Episode 4'), matching: find.byWidgetPredicate((w) => w is ButtonStyleButton))).onPressed!();
+    tester.widget<ButtonStyleButton>(find.ancestor(of: find.text('Add Unit 4'), matching: find.byWidgetPredicate((w) => w is ButtonStyleButton))).onPressed!();
     await _settle(tester);
-    expect(find.text('Add Episode 5'), findsOneWidget);
+    expect(find.text('Add Unit 5'), findsOneWidget);
 
     final save = find.text('Save & get next task');
     await tester.scrollUntilVisible(save, 300,

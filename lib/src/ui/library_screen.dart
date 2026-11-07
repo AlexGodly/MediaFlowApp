@@ -3,14 +3,16 @@
 // select + batch actions (status, priority, Move to…, Fix completed progress,
 // delete), Add title, Title Details, Rate Your Library and Missing Covers.
 
+import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../logic/library_logic.dart';
-import '../logic/log_arrange.dart' show lastTouchedIndex, remainingUnits, compareTitlesNatural, seedHash;
+import '../logic/library_index.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
@@ -66,75 +68,64 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _search.dispose();
     super.dispose();
   }
 
-  /// `v189CompareLibraryItems`, then the filters. The sorted Library is kept
-  /// per account version, so typing in search only filters.
-  List<LibraryTitle> _filtered(AccountView view) {
-    final q = _search.text.trim().toLowerCase();
-    final sorted = memoFor(view, 'library|$_sort|$_dir|$_seed', () => _sorted(view));
-    return sorted.where((t) {
-      if (_status != 'all' && t.status != _status) return false;
-      if (_priority != 'all' && (jsStr(t.raw['priority']).isEmpty ? 'medium' : jsStr(t.raw['priority'])) != _priority) return false;
-      if (_cats.isNotEmpty && !_cats.contains(t.categoryId)) return false;
-      if (q.isNotEmpty) {
-        final tags = asList(t.raw['tags']).map(jsStr).join(' ');
-        if (!'${t.title} $tags'.toLowerCase().contains(q)) return false;
-      }
-      return true;
-    }).toList();
-  }
+  // ---- sorting and filtering (fast for 100,000+ titles; see LibraryIndex) ----
 
-  List<LibraryTitle> _sorted(AccountView view) {
-    final rows = List<LibraryTitle>.of(view.library);
-    final sort = _sort, asc = _dir == 'asc';
-    final touched = sort == 'logging' ? lastTouchedIndex(view.state) : const <String, double>{};
-    double n(Object? v) => jsNumOrNull(v) ?? 0;
-    int titleCmp(LibraryTitle a, LibraryTitle b) => compareTitlesNatural(a.title, b.title);
-    const rank = {'low': 0, 'medium': 1, 'high': 2};
-    int r(LibraryTitle t) => rank[jsStr(t.raw['priority']).isEmpty ? 'medium' : jsStr(t.raw['priority'])] ?? 1;
-    double touch(LibraryTitle t) => touched[t.id] ?? 0;
-    rows.sort((a, b) {
-      if (sort == 'remaining') {
-        final av = remainingUnits(a.raw), bv = remainingUnits(b.raw);
-        if (av == null && bv != null) return 1;
-        if (av != null && bv == null) return -1;
-        if (av == null && bv == null) return titleCmp(a, b);
-        final d = (av! - bv!) * (asc ? 1 : -1);
-        return d != 0 ? d.sign.toInt() : titleCmp(a, b);
-      }
-      if (sort == 'title') return asc ? titleCmp(a, b) : -titleCmp(a, b);
-      double d;
-      switch (sort) {
-        case 'priority':
-          d = (r(a) - r(b)).toDouble();
-        case 'rating':
-          d = n(a.raw['rating']) - n(b.raw['rating']);
-        case 'progress':
-          d = n(a.raw['progress']) - n(b.raw['progress']);
-        case 'total':
-          d = n(a.raw['total']) - n(b.raw['total']);
-        case 'logging':
-          d = touch(a) - touch(b);
-        case 'seen':
-          d = n(a.raw['lastSeenAt']) - n(b.raw['lastSeenAt']);
-        case 'added':
-          d = n(a.raw['createdAt']) - n(b.raw['createdAt']);
-        case 'random':
-          d = (seedHash(a.id, _seed) - seedHash(b.id, _seed)).toDouble();
-        default:
-          d = n(jsTruthy(a.raw['modifiedAt']) ? a.raw['modifiedAt'] : a.raw['createdAt']) -
-              n(jsTruthy(b.raw['modifiedAt']) ? b.raw['modifiedAt'] : b.raw['createdAt']);
-      }
-      if (sort != 'random' && !asc) d = -d;
-      return d != 0 ? d.sign.toInt() : titleCmp(a, b);
+  String _query = '';
+  Timer? _searchTimer;
+
+  // The order on screen, and the one being worked out in the background.
+  LibraryIndex? _shownIndex;
+  Int32List? _shownOrder;
+  String _shownKey = '';
+  String _wantKey = '';
+
+  bool get _sorting => _wantKey != _shownKey;
+
+  void _onSearch(String _) {
+    _searchTimer?.cancel();
+    // Wait for a pause in typing before filtering a big Library.
+    final delay = (_shownIndex?.length ?? 0) >= kLibraryBackgroundThreshold ? 250 : 0;
+    _searchTimer = Timer(Duration(milliseconds: delay), () {
+      if (!mounted) return;
+      setState(() {
+        _query = _search.text;
+        _page = 0;
+      });
     });
-    return rows;
+    setState(() {}); // the clear button
   }
 
-  Future<void> _pickCategories(AccountView view) async {
+  /// `v189CompareLibraryItems`, then the filters. Sorting a big Library runs in
+  /// the background; until it's done the previous order stays on screen.
+  List<LibraryTitle>? _filtered(LibraryIndex index) {
+    final sort = _sort, dir = _dir, seed = _seed;
+    final key = '${identityHashCode(index)}|$sort|$dir|${sort == 'random' ? seed : 0}';
+    if (key != _wantKey) {
+      _wantKey = key;
+      var building = true;
+      index.libraryOrder(sort, dir, seed).then((order) {
+        if (!mounted || _wantKey != key) return;
+        void take() {
+          _shownIndex = index;
+          _shownOrder = order;
+          _shownKey = key;
+        }
+
+        building ? take() : setState(take);
+      });
+      building = false;
+    }
+    final shown = _shownIndex, order = _shownOrder;
+    if (shown == null || order == null) return null;
+    return shown.libraryRows(order, _shownKey, status: _status, priority: _priority, categories: _cats, query: _query);
+  }
+
+  Future<void> _pickCategories(AccountView view, LibraryIndex index) async {
     final chosen = {..._cats};
     final res = await showModalBottomSheet<Set<String>>(
       context: context,
@@ -157,7 +148,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       onChanged: (v) => set(() => v == true ? chosen.add(cat.id) : chosen.remove(cat.id)),
                       secondary: CategoryBadge(cat, size: 26),
                       title: Text(cat.name),
-                      subtitle: Text('${view.library.where((t) => t.categoryId == cat.id).length} titles'),
+                      subtitle: Text('${fmtNumber(index.categoryCounts[cat.id] ?? 0)} titles'),
                     ),
                 ]),
               ),
@@ -259,13 +250,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
       builder: (context, _) {
         final view = account.view;
         if (view == null) return const SizedBox.shrink();
-        final titles = _filtered(view);
+        final index = LibraryIndex.of(view.state);
+        final ready = _filtered(index);
+        final loading = ready == null;
+        final titles = ready ?? const <LibraryTitle>[];
         final size = _pageSize;
         final pages = math.max(1, (titles.length / size).ceil());
         if (_page > pages - 1) _page = pages - 1;
         final pageItems = titles.skip(_page * size).take(size).toList();
-        final unrated = view.library.where((t) => !(t.rating != null && t.rating! > 0)).length;
-        final noCover = view.library.where((t) => t.coverUrl.isEmpty).length;
+        final unrated = index.unrated;
+        final noCover = index.missingCovers;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Library'),
@@ -316,13 +310,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 sliver: SliverList.list(children: [
                   TextField(
                     controller: _search,
-                    onChanged: (_) => setState(() => _page = 0),
+                    onChanged: _onSearch,
                     decoration: InputDecoration(
-                      hintText: 'Search ${fmtNumber(view.library.length)} titles',
+                      hintText: 'Search ${fmtNumber(index.length)} titles',
                       prefixIcon: const Icon(Icons.search_rounded),
                       suffixIcon: _search.text.isEmpty
                           ? null
-                          : IconButton(tooltip: 'Clear search', icon: const Icon(Icons.close_rounded), onPressed: () => setState(_search.clear)),
+                          : IconButton(tooltip: 'Clear search', icon: const Icon(Icons.close_rounded), onPressed: () {
+                                _search.clear();
+                                _onSearch('');
+                              }),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -330,7 +327,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ActionChip(
                       avatar: const Icon(Icons.category_outlined, size: 16),
                       label: Text(_cats.isEmpty ? 'All categories' : '${_cats.length} categories'),
-                      onPressed: () => _pickCategories(view),
+                      onPressed: () => _pickCategories(view, index),
                     ),
                     CompactDropdown<String>(
                       value: _status,
@@ -371,7 +368,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   const SizedBox(height: 4),
                   Row(children: [
                     Expanded(
-                      child: Text('${fmtNumber(titles.length)} title${titles.length == 1 ? '' : 's'}',
+                      child: Text(loading ? 'Sorting ${fmtNumber(index.length)} titles…' : '${fmtNumber(titles.length)} title${titles.length == 1 ? '' : 's'}',
                           style: const TextStyle(color: MF.textDim, fontSize: 12)),
                     ),
                     for (final v in _views)
@@ -417,14 +414,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       TextButton(onPressed: () => _batch('delete', ''), child: const Text('Delete selected', style: TextStyle(color: MF.bad))),
                     ],
                   ]),
+                  if (_sorting) const Padding(padding: EdgeInsets.only(top: 4), child: LinearProgressIndicator(minHeight: 2)),
                 ]),
               ),
-              if (titles.isEmpty)
+              if (loading)
+                const SliverToBoxAdapter(
+                  child: Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
+                )
+              else if (titles.isEmpty)
                 SliverToBoxAdapter(
                   child: EmptyState(
                     icon: Icons.video_library_outlined,
-                    title: view.library.isEmpty ? 'Your Library is empty' : 'No matching titles',
-                    body: view.library.isEmpty ? 'Tap Add title to start your Library.' : 'Try a different search or filter.',
+                    title: index.length == 0 ? 'Your Library is empty' : 'No matching titles',
+                    body: index.length == 0 ? 'Tap Add title to start your Library.' : 'Try a different search or filter.',
                   ),
                 )
               else if (_view == 'covers')
@@ -594,14 +596,22 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
         final view = account.view;
         if (view == null) return const SizedBox.shrink();
         final skipped = _skipped.toSet();
-        final queue = view.library.where((t) => !(t.rating != null && t.rating! > 0)).toList()
-          ..sort((a, b) {
-            final s = (skipped.contains(a.id) ? 1 : 0) - (skipped.contains(b.id) ? 1 : 0);
-            if (s != 0) return s;
-            final c = (b.status == 'completed' ? 1 : 0) - (a.status == 'completed' ? 1 : 0);
-            return c != 0 ? c : b.modifiedAt.compareTo(a.modifiedAt);
-          });
-        final t = queue.firstOrNull;
+        // Only the next title is shown, so pick it in one pass (no full sort).
+        int cmp(LibraryTitle a, LibraryTitle b) {
+          final s = (skipped.contains(a.id) ? 1 : 0) - (skipped.contains(b.id) ? 1 : 0);
+          if (s != 0) return s;
+          final c = (b.status == 'completed' ? 1 : 0) - (a.status == 'completed' ? 1 : 0);
+          return c != 0 ? c : b.modifiedAt.compareTo(a.modifiedAt);
+        }
+
+        final index = LibraryIndex.of(view.state);
+        final queue = (length: index.unrated);
+        LibraryTitle? best;
+        for (final x in index.titles) {
+          if (x.rating != null && x.rating! > 0) continue;
+          if (best == null || cmp(x, best) < 0) best = x;
+        }
+        final t = best;
         return Scaffold(
           appBar: AppBar(title: const Text('Rate Your Library')),
           body: t == null
@@ -686,8 +696,33 @@ class MissingCoversScreen extends StatelessWidget {
       builder: (context, _) {
         final view = account.view;
         if (view == null) return const SizedBox.shrink();
-        final missing = view.library.where((t) => t.coverUrl.isEmpty).toList()..sort((a, b) => compareTitlesNatural(a.title, b.title));
-        return Scaffold(
+        final index = LibraryIndex.of(view.state);
+        return FutureBuilder<Int32List>(
+          future: index.rank(),
+          builder: (context, snap) {
+            final rank = snap.data;
+            if (rank == null) {
+              return Scaffold(
+                appBar: AppBar(title: Text('Missing Covers (${fmtNumber(index.missingCovers)})')),
+                body: const Center(child: CircularProgressIndicator()),
+              );
+            }
+            return _missingList(view, index, rank);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _missingList(AccountView view, LibraryIndex index, Int32List rank) {
+    final missing = memoFor(index, 'missingCovers', () {
+      final rows = <int>[
+        for (var i = 0; i < index.length; i++)
+          if (index.titles[i].coverUrl.isEmpty) i,
+      ]..sort((a, b) => rank[a] - rank[b]);
+      return [for (final i in rows) index.titles[i]];
+    });
+    return Scaffold(
           appBar: AppBar(title: Text('Missing Covers (${missing.length})')),
           body: missing.isEmpty
               ? const EmptyState(icon: Icons.image_rounded, title: 'Every title has a cover', body: 'Nice and tidy.')
@@ -716,7 +751,5 @@ class MissingCoversScreen extends StatelessWidget {
                   },
                 ),
         );
-      },
-    );
   }
 }

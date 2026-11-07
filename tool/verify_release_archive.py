@@ -7,6 +7,7 @@ and permits exactly one extra generated ARCHIVE_METADATA.md file inside the arch
 import argparse
 import hashlib
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -23,7 +24,8 @@ def sha256(path):
     return hasher.hexdigest()
 
 def verify(tag):
-    if not tag.startswith(("android-webview-v1.0.0-beta.", "mediaflowapp-v1.0.0-beta.")):
+    if not (tag.startswith(("android-webview-v1.0.0-beta.", "mediaflowapp-v1.0.0-beta."))
+            or re.fullmatch(r"mediaflowapp-v\d+\.\d+\.\d+", tag)):
         raise ValueError("Unsupported archive tag")
     root = pathlib.Path("legacy") / "v" / tag
     if not (root / "ARCHIVE_METADATA.md").is_file():

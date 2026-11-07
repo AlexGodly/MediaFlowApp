@@ -61,6 +61,7 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v181Logging', 'defaultMode'], 'Quick logging mode', kind: 'choice', def: 'progress', choices: [('progress', 'Progress reached'), ('amount', 'Amount consumed')]),
       _S(['v419LoggingCollapsed'], 'Start with the Logging Workspace collapsed', kind: 'bool', def: false),
       _S(['v405ShowFloatingAdd'], 'Show the floating + button', kind: 'bool', def: true),
+      _S(['v405ShowFloatingTaskProgress'], 'Show Floating Task Progress', kind: 'bool', def: true),
     ]
   ),
   (

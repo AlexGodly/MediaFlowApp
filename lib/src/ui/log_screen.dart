@@ -16,17 +16,25 @@ import '../logic/log_draft.dart';
 import '../logic/rec_submit.dart';
 import '../logic/recommend.dart';
 import '../logic/resume.dart';
+import '../logic/task_progress.dart';
 import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'log_sheet.dart';
 import 'logging_library.dart';
+import 'progress_cards.dart';
+import 'reroll_history.dart';
+import 'task_progress_card.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
 String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
 String _num(Object? v) => fmtNumber(jsNum(v));
+
+/// The Log page names every category's unit "unit" / "units" (the category's own
+/// unit is still saved with the account; only the words shown here change).
+String _units(Object? unit, num count) => count == 1 ? 'unit' : 'units';
 
 String _hms(num seconds) {
   final s = seconds.round();
@@ -349,6 +357,7 @@ class _LogScreenState extends State<LogScreen> {
     final task = asMap(state['currentTask']);
     final active = state['sessionActive'] == true;
     final formOpen = _task != null && _logDraft != null;
+    final progress = formOpen ? _taskProgress(view) : null;
     return Scaffold(
       floatingActionButton: _fab(view, task, active),
       appBar: AppBar(
@@ -363,11 +372,13 @@ class _LogScreenState extends State<LogScreen> {
         ],
       ),
       body: SafeArea(
-        child: Center(
+        child: Stack(children: [
+        Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 104), // room for the + button
+              // Room for the + button (and the Task Progress card over the form).
+              padding: EdgeInsets.fromLTRB(16, 4, 16, progress == null ? 104 : 250),
               children: [
                 if (account.lastRejection != null)
                   Padding(
@@ -382,6 +393,7 @@ class _LogScreenState extends State<LogScreen> {
                       ),
                     ),
                   ),
+                ProgressCards(state: state),
                 if (formOpen)
                   ..._form(view)
                 else if (!active || task == null)
@@ -392,7 +404,39 @@ class _LogScreenState extends State<LogScreen> {
             ),
           ),
         ),
+        if (progress != null)
+          Positioned(
+            left: 16,
+            right: 88, // clear of the + button
+            bottom: 16,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: TaskProgressCard(progress: progress, taskKey: jsStr(_task!['id'])),
+              ),
+            ),
+          ),
+        ]),
       ),
+    );
+  }
+
+  /// The website's floating Task Progress (hidden by its "Show Floating Task
+  /// Progress" setting, or until a title from the task's category is added).
+  TaskProgress? _taskProgress(AccountView view) {
+    if (asMap(view.state['settings'])?['v405ShowFloatingTaskProgress'] == false) return null;
+    final task = _task, draft = _logDraft;
+    if (task == null || draft == null || view.state['sessionActive'] != true) return null;
+    final cat = view.category(jsStr(task['categoryId']));
+    final byId = memoFor(view, 'libraryById', () => {for (final t in view.library) t.id: t.raw});
+    return taskProgress(
+      task: task,
+      logDraft: draft,
+      libraryItem: (id) => byId[jsStr(id)],
+      categoryName: cat.name,
+      categoryType: jsStr(cat.raw['type']),
+      unit: jsStr(task['unit']).isEmpty ? cat.unit : jsStr(task['unit']),
     );
   }
 
@@ -478,13 +522,13 @@ class _LogScreenState extends State<LogScreen> {
     final cat = view.category(jsStr(task['categoryId']));
     final low = jsNum(task['low']), high = jsNum(task['high']);
     final unit = jsStr(task['unit']).isEmpty ? cat.unit : jsStr(task['unit']);
-    final amount = low == high ? '${_num(low)} ${unitLabel(unit, low)}' : '${_num(low)}–${_num(high)} ${unitLabel(unit, high)}';
+    final amount = low == high ? '${_num(low)} ${_units(unit, low)}' : '${_num(low)}–${_num(high)} ${_units(unit, high)}';
     final respect = normalizeRespectState(view.state['respectState']);
     final title = _recommendedTitle(view, task);
     final inLibrary = title != null && view.library.any((t) => identical(t.raw, title.raw));
     final exact = Recommender(view.state, now: DateTime.now().millisecondsSinceEpoch).exactTitles;
     final reasons = asList(task['reasons']).map(jsStr).where((x) => x.isNotEmpty).toList();
-    final rerolls = asList(task['v180RecommendationHistory']).length - 1;
+    final rerolls = titleRerollCount(task);
     final bonus = _respectPreview(view.state, task);
     return _panel(children: [
       const Row(children: [
@@ -523,13 +567,12 @@ class _LogScreenState extends State<LogScreen> {
                 if (inLibrary) Text(progressText(title, cat), style: const TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
-            if (exact)
-              TextButton(
-                onPressed: _busy ? null : () => _action(TaskAction.rerollTitle),
-                child: Text(rerolls > 0 ? 'Reroll title ($rerolls)' : 'Reroll title'),
-              ),
           ]),
         ),
+        if (exact) ...[
+          const SizedBox(height: 8),
+          _rerollRow(rerolls),
+        ],
       ],
       if (reasons.isNotEmpty) ...[
         const SizedBox(height: 14),
@@ -594,6 +637,25 @@ class _LogScreenState extends State<LogScreen> {
     return LibraryTitle({'id': id, 'title': name, 'categoryId': task['categoryId']});
   }
 
+  bool _exactTitles(AccountView view) => jsTruthy(asMap(view.state['settings'])?['exactTitleRecommendations']);
+
+  /// "Reroll title" (as many times as you like, like the website — it never
+  /// touches the streaks) and the "Current rerolls" history.
+  Widget _rerollRow(int rerolls) {
+    return Wrap(spacing: 8, runSpacing: 4, children: [
+      OutlinedButton.icon(
+        onPressed: _busy ? null : () => _action(TaskAction.rerollTitle),
+        icon: const Icon(Icons.casino_outlined, size: 18),
+        label: const Text('Reroll title'),
+      ),
+      TextButton.icon(
+        onPressed: () => showRerollHistory(context, account),
+        icon: const Icon(Icons.history_rounded, size: 18),
+        label: Text(rerolls > 0 ? 'Rerolls ($rerolls)' : 'Rerolls'),
+      ),
+    ]);
+  }
+
   Future<void> _confirm(String title, String body, String yes, VoidCallback action) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -652,7 +714,7 @@ class _LogScreenState extends State<LogScreen> {
   /// The recommendation (its own cover), the Quick / Advanced switch and the Quick mode.
   Widget _formHeader(AccountView view, LogDraftEditor ed, Map<String, dynamic> task, Category cat, String unit) {
     final low = jsNum(task['low']), high = jsNum(task['high']);
-    final amount = low == high ? '${_num(low)} ${unitLabel(unit, low)}' : '${_num(low)}–${_num(high)} ${unitLabel(unit, high)}';
+    final amount = low == high ? '${_num(low)} ${_units(unit, low)}' : '${_num(low)}–${_num(high)} ${_units(unit, high)}';
     final title = _recommendedTitle(view, task);
     final added = title != null && ed.addedIds.contains(title.id);
     return _panel(padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), children: [
@@ -675,6 +737,10 @@ class _LogScreenState extends State<LogScreen> {
           ]),
         ),
       ]),
+      if (title != null && _exactTitles(view)) ...[
+        const SizedBox(height: 8),
+        _rerollRow(titleRerollCount(task)),
+      ],
       if (title != null) ...[
         const SizedBox(height: 10),
         Align(
@@ -949,7 +1015,7 @@ class _LogScreenState extends State<LogScreen> {
         const Text('Or log just an amount for this category:', style: TextStyle(color: MF.textDim, fontSize: 12)),
         const SizedBox(height: 6),
         _numberField(
-          label: 'How many ${unitLabel(unit, 2)}',
+          label: 'How many ${_units(unit, 2)}',
           value: _plain(_logDraft!['amount']),
           onChanged: (v) {
             _logDraft!['amount'] = jsOut(v);
@@ -1025,7 +1091,7 @@ class _LogScreenState extends State<LogScreen> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('This log', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
-            Text('${fmtNumber(amount)} ${unitLabel(unit, amount)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            Text('${fmtNumber(amount)} ${_units(unit, amount)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           ]),
         ),
         if (derived)
@@ -1127,7 +1193,7 @@ class _LogScreenState extends State<LogScreen> {
                         Text('${jsStr(c['name'])}${jsStr(c['status']).isEmpty ? '' : ' · ${_cap(jsStr(c['status']))}'}',
                             style: const TextStyle(fontWeight: FontWeight.w700)),
                         Text(
-                          '${fmtNumber(jsNum(c['amount']))} ${unitLabel(jsStr(c['unit']), jsNum(c['amount']))}'
+                          '${fmtNumber(jsNum(c['amount']))} ${_units(jsStr(c['unit']), jsNum(c['amount']))}'
                           ' · ${fmtMinutes(jsNum(c['minutes']))}'
                           ' · ${fmtNumber(jsRound(jsNum(c['base'])))} × ${fmtNumber(jsNum(c['rotation']))}',
                           style: const TextStyle(color: MF.textDim, fontSize: 12),
@@ -1311,7 +1377,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                collapsed ? '+${fmtNumber(qty)} ${unitLabel(cat.unit, qty)}' : parts.join(' · '),
+                collapsed ? '+${fmtNumber(qty)} ${_units(cat.unit, qty)}' : parts.join(' · '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: MF.textDim, fontSize: 12),
@@ -1331,7 +1397,7 @@ class _LogScreenState extends State<LogScreen> {
                     ? CommitField(
                         key: ValueKey('end-${entryKey(e)}'),
                         value: _plain(e['v179EndProgress']),
-                        label: item == null ? '${_cap(unitLabel(cat.unit, 1))} reached' : _progressLabel(item, cat),
+                        label: item == null ? '${_cap(_units(cat.unit, 1))} reached' : _progressLabel(item, cat),
                         helper: item == null ? null : 'Saved at ${_num(start)}${jsTruthy(item['total']) ? ' of ${_num(item['total'])}' : ''}',
                         onCommit: (t) => _edit((x) {
                           final v = double.tryParse(t.replaceAll(',', '.')) ?? 0;
@@ -1356,7 +1422,7 @@ class _LogScreenState extends State<LogScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                '+${fmtNumber(qty)} ${unitLabel(cat.unit, qty)}',
+                '+${fmtNumber(qty)} ${_units(cat.unit, qty)}',
                 style: TextStyle(fontWeight: FontWeight.w800, color: qty > 0 ? MF.accent : MF.textDim),
               ),
             ]),
@@ -1367,7 +1433,7 @@ class _LogScreenState extends State<LogScreen> {
   }
 
   String _progressLabel(Map<String, dynamic> item, Category cat) {
-    final noun = _cap(unitLabel(cat.unit, 1));
+    final noun = _cap(_units(cat.unit, 1));
     return '$noun reached';
   }
 
@@ -1382,7 +1448,7 @@ class _LogScreenState extends State<LogScreen> {
     final method = LogDraftEditor.method(e);
     final seasons = LogDraftEditor.seasonsOf(item);
     final selected = item == null ? null : ed.selectedSeason(e, item);
-    final noun = _cap(unitLabel(cat.unit, 1));
+    final noun = _cap(_units(cat.unit, 1));
     final collapsed = e['v369Collapsed'] == true;
     final showAll = e['v369ShowAll'] == true;
     final title = cleanTitle(e['title']);
@@ -1399,7 +1465,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                '${units.length} ${unitLabel(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
+                '${units.length} ${_units(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
                 '${item != null ? ' · saved ${_num(item['progress'])}${jsTruthy(item['total']) ? '/${_num(item['total'])}' : ''}' : ''}'
                 '${e['isRepeat'] == true ? ' · rewatch' : ''}',
                 style: const TextStyle(color: MF.textDim, fontSize: 12),
@@ -1609,7 +1675,7 @@ class _LogScreenState extends State<LogScreen> {
     final base = LogDraftEditor.bulkBase(e, item, season);
     final highest = rel.units.isEmpty ? base : rel.units.map((u) => jsNum(u['number']).toInt()).reduce((a, b) => a > b ? a : b);
     final value = method == 'last' ? highest : rel.units.length;
-    final label = method == 'last' ? '${_cap(unitLabel(cat.unit, 1))} reached' : '${_cap(unitLabel(cat.unit, 2))} consumed';
+    final label = method == 'last' ? '${_cap(_units(cat.unit, 1))} reached' : '${_cap(_units(cat.unit, 2))} consumed';
     final stamp = ed.bulkStamp(e, method);
     final manual = e['v394RuntimeManual'] == true;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

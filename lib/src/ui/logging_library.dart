@@ -4,10 +4,14 @@
 // marks, Add recommended title, and new typed titles in Quick).
 // Used inline on the Log tab ("Browse Library") and from the "+" button.
 
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/app_prefs.dart';
+import '../logic/library_index.dart';
 import '../logic/log_arrange.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -73,10 +77,109 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
 
   PickerState get st => widget.picker;
 
+  String _query = '';
+  Timer? _searchTimer;
+
+  // The base order on screen, and the one being worked out in the background.
+  LibraryIndex? _shownIndex;
+  Int32List? _shownOrder;
+  String _shownKey = '';
+  String _wantKey = '';
+
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  void _onSearch(String _) {
+    _searchTimer?.cancel();
+    final delay = (_shownIndex?.length ?? 0) >= kLibraryBackgroundThreshold ? 250 : 0;
+    _searchTimer = Timer(Duration(milliseconds: delay), () {
+      if (!mounted) return;
+      setState(() {
+        _query = _search.text;
+        st.page = 0;
+      });
+    });
+    setState(() {}); // the clear button and "Add as a new title"
+  }
+
+  void _clearSearch() {
+    _searchTimer?.cancel();
+    _search.clear();
+    _query = '';
+    st.page = 0;
+  }
+
+  /// `pickerCandidates`, fast for 100,000+ titles (see LibraryIndex). The
+  /// sort runs in the background for a big Library; the previous order stays
+  /// on screen until it's done. Null until the first order is ready.
+  List<Map<String, dynamic>>? _rows(LibraryIndex index) {
+    // "Log added" puts the titles in this log first; the rest follow by title.
+    final logAdded = st.sortBase == 'logAdded';
+    final sort = logAdded ? 'title' : st.sortBase;
+    final dir = logAdded ? 'asc' : st.sortDir;
+    final key = '${identityHashCode(index)}|$sort|$dir|${sort == 'random' ? st.seed : 0}';
+    if (key != _wantKey) {
+      _wantKey = key;
+      var building = true;
+      index.pickerOrder(sort, dir, st.seed).then((order) {
+        if (!mounted || _wantKey != key) return;
+        void take() {
+          _shownIndex = index;
+          _shownOrder = order;
+          _shownKey = key;
+        }
+
+        building ? take() : setState(take);
+      });
+      building = false;
+    }
+    final shown = _shownIndex, order = _shownOrder;
+    if (shown == null || order == null) return null;
+    final entries = asList(widget.draft['entries']);
+    final addedKey = logAdded
+        ? [for (final e in entries) '${jsStr(asMap(e)?['libraryId'])}@${jsStr(asMap(e)?['loggedAt'])}'].join(',')
+        : '';
+    final filterKey = '$_shownKey|${st.status}|${st.priority}|${st.categories.join(',')}|$_query|${logAdded ? '${st.sortDir}|$addedKey' : ''}';
+    final cacheKey = '${identityHashCode(shown)}|$filterKey';
+    if (cacheKey == _rowsKey && _rowsCache != null) return _rowsCache;
+    Iterable<int> rows = order;
+    if (logAdded) rows = _logAddedOrder(shown, order, entries);
+    _rowsKey = cacheKey;
+    return _rowsCache = shown.pickerRows(rows, status: st.status, priority: st.priority, categories: st.categories, query: _query);
+  }
+
+  // The last filtered rows (selecting titles or paging redraws without refiltering).
+  String _rowsKey = '';
+  List<Map<String, dynamic>>? _rowsCache;
+
+  /// `pickerCandidates` for "Log added": titles in this log first (by when they
+  /// were added, in the chosen direction), then every other title by title.
+  Iterable<int> _logAddedOrder(LibraryIndex index, Int32List byTitle, List<dynamic> entries) {
+    final sign = st.sortDir == 'desc' ? -1 : 1;
+    final selected = <int, double>{};
+    for (var i = 0; i < entries.length; i++) {
+      final e = asMap(entries[i]);
+      final pos = index.positionOf(jsStr(e?['libraryId']));
+      if (pos < 0) continue;
+      final raw = e?['loggedAt'];
+      var ts = jsNumOrNull(raw) ?? 0;
+      if (ts <= 0 && raw is String) ts = (DateTime.tryParse(raw)?.millisecondsSinceEpoch ?? 0).toDouble();
+      selected[pos] = ts != 0 ? ts : (i + 1).toDouble();
+    }
+    if (selected.isEmpty) return byTitle;
+    final rank = <int, int>{for (var i = 0; i < byTitle.length; i++) if (selected.containsKey(byTitle[i])) byTitle[i]: i};
+    final first = selected.keys.toList()
+      ..sort((a, b) {
+        final d = sign * (selected[a]! - selected[b]!);
+        if (d != 0) return d < 0 ? -1 : 1;
+        final t = (rank[a] ?? 0) - (rank[b] ?? 0);
+        return t != 0 ? t : a - b;
+      });
+    return [...first, ...byTitle.where((i) => !selected.containsKey(i))];
   }
 
   void _change(void Function(PickerState s) f) {
@@ -160,19 +263,21 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
   @override
   Widget build(BuildContext context) {
     final view = widget.view;
-    final addedKey = asList(widget.draft['entries']).map((e) => jsStr(asMap(e)?['libraryId'])).join(',');
-    final rows = memoFor(view, 'picker|${st.toUi()}|${st.seed}|${_search.text}|$addedKey',
-        () => pickerCandidates(view.state, widget.draft, st, _search.text));
+    final index = LibraryIndex.of(view.state);
+    final ready = _rows(index);
+    final loading = ready == null;
+    final sorting = _wantKey != _shownKey;
+    final rows = ready ?? const <Map<String, dynamic>>[];
     final size = loggingPageSize(view.state);
     final pages = (rows.length / size).ceil().clamp(1, 1 << 30);
     if (st.page > pages - 1) st.page = pages - 1;
     final pageRows = rows.skip(st.page * size).take(size).toList();
     final added = _added;
     final typed = _search.text.trim();
-    final exact = view.library.any((t) => t.title.toLowerCase() == typed.toLowerCase());
-    final recommended = widget.recommendedId == null
-        ? null
-        : view.library.where((t) => t.id == widget.recommendedId).firstOrNull;
+    final exact = typed.isNotEmpty &&
+        memoFor(index, 'titleSet', () => {for (final t in index.titles) t.title.toLowerCase()}).contains(typed.toLowerCase());
+    final recommendedAt = widget.recommendedId == null ? -1 : index.positionOf(widget.recommendedId!);
+    final recommended = recommendedAt < 0 ? null : index.titles[recommendedAt];
     final catLabel = st.categories.isEmpty ? 'All categories' : '${st.categories.length} categories selected';
 
     final children = <Widget>[
@@ -188,13 +293,13 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
         ),
       TextField(
         controller: _search,
-        onChanged: (_) => setState(() => st.page = 0),
+        onChanged: _onSearch,
         decoration: InputDecoration(
           hintText: 'Search your Library',
           prefixIcon: const Icon(Icons.search_rounded),
           suffixIcon: typed.isEmpty
               ? null
-              : IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => setState(_search.clear)),
+              : IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => setState(_clearSearch)),
         ),
       ),
       const SizedBox(height: 8),
@@ -241,7 +346,10 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
       const SizedBox(height: 8),
       Row(children: [
         Expanded(
-          child: Text('${fmtNumber(rows.length)} match${rows.length == 1 ? '' : 'es'} · Page ${st.page + 1}/$pages',
+          child: Text(
+              loading
+                  ? 'Sorting ${fmtNumber(index.length)} titles…'
+                  : '${fmtNumber(rows.length)} match${rows.length == 1 ? '' : 'es'} · Page ${st.page + 1}/$pages',
               style: const TextStyle(color: MF.textDim, fontSize: 12)),
         ),
         for (final l in _layouts)
@@ -279,10 +387,14 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
           subtitle: const Text('Created when you save the log', style: TextStyle(color: MF.textDim, fontSize: 12)),
           onTap: () {
             widget.onAddNew!(typed);
-            setState(_search.clear);
+            setState(_clearSearch);
           },
         ),
-      _results(pageRows, added),
+      if (sorting) const Padding(padding: EdgeInsets.only(bottom: 6), child: LinearProgressIndicator(minHeight: 2)),
+      if (loading)
+        const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+      else
+        _results(pageRows, added),
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           if (pages > 1) ...[
             IconButton(
