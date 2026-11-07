@@ -16,6 +16,7 @@ import '../util/js.dart';
 import 'presence.dart';
 import 'ratings_ui.dart' show sourceLabel;
 import 'theme.dart';
+import 'widgets.dart' show fmtNumber;
 
 /// `mf555OnThisDayIds`: today's On This Day titles that are in the Library.
 List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEvent> rows})> groups) {
