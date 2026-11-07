@@ -52,6 +52,10 @@ abstract class RecordBackend implements CloudBackend {
   /// Rewrites the single-row fallback copy (`mediaflow_states`) with the
   /// website's v556 marker, so the website does not merge it as an old save.
   Future<void> writeFallback(String userId, Object payload, String deviceId);
+
+  /// The `doc` rows [recordIds] if changed after [since] (all of them when
+  /// empty): the live logging draft is read this way every few seconds.
+  Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since);
 }
 
 class MissingCloudRow implements Exception {

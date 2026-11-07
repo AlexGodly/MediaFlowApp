@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -30,6 +31,8 @@ class AccountController extends ChangeNotifier {
     required this.cache,
     BackgroundRunner background = runInIsolate,
     this.draftSyncDelay = const Duration(seconds: 10),
+    this.liveDraftDelay = const Duration(milliseconds: 600),
+    this.liveFoldDelay = const Duration(seconds: 45),
     this.deviceId = 'mediaflow-app',
     this.fallbackInterval = const Duration(minutes: 3),
   }) : _bg = background;
@@ -45,6 +48,10 @@ class AccountController extends ChangeNotifier {
   final CloudBackend cloud;
   final AccountCache cache;
   final Duration draftSyncDelay;
+
+  /// Per-record accounts: how soon a draft change is uploaded, and how soon
+  /// it is folded into the device's cloud copy by a normal sync.
+  final Duration liveDraftDelay, liveFoldDelay;
   final BackgroundRunner _bg;
 
   // The last cloud copy as stored (the website's compressed form: one small
@@ -256,12 +263,137 @@ class AccountController extends ChangeNotifier {
   }
 
   /// Saves the open logging form (shared with the website). Uploads shortly
-  /// after the last change.
+  /// after the last change: on per-record accounts within about a second (only
+  /// the draft's own records), so the website's open log page follows along.
   Future<void> saveDraft(Map<String, dynamic> logging) async {
     final display = await _working();
     applyLoggingSection(display, logging);
     _pending.removeWhere((p) => p is DraftOp);
-    await _queue(DraftOp(mediaFlowUid(), normalizeLogging(logging)), display, delay: draftSyncDelay);
+    final live = _index != null && cloud is RecordBackend;
+    await _queue(DraftOp(mediaFlowUid(), normalizeLogging(logging)), display, delay: live ? liveFoldDelay : draftSyncDelay);
+    if (live) {
+      _draftPushTimer?.cancel();
+      _draftPushTimer = Timer(liveDraftDelay, () => unawaited(_pushDraftNow()));
+    }
+  }
+
+  // ---- live logging draft (per-record accounts) ----------------------------
+
+  static const _resumeKey = 'resumeStateV285';
+  static const _sep = '\u001f';
+  static const _loggingRecord = '$_resumeKey${_sep}logging';
+  Timer? _draftPushTimer, _livePoll;
+  String _liveSince = '';
+  bool _livePulling = false, _backgrounded = false;
+  int _liveViewers = 0;
+
+  /// The draft's records as the website stores them (`doc` rows of
+  /// `resumeStateV285`), from the account as it is on this device.
+  Map<String, String>? _draftRecords(Map<String, dynamic> display) {
+    final resume = asMap(display[_resumeKey]);
+    if (resume == null) return null;
+    return {
+      '$_resumeKey$_sep': jsStringify([for (final k in resume.keys) '$k']),
+      for (final k in resume.keys) '$_resumeKey$_sep$k': jsStringify(resume[k]),
+    };
+  }
+
+  /// Uploads only the draft's changed records. The draft stays pending and is
+  /// folded into the device's cloud copy by the next normal sync (which then
+  /// finds nothing left to upload). Returns false when a normal sync is needed.
+  Future<bool> _pushDraftNow() async {
+    final cloud = this.cloud, index = _index, display = _display;
+    if (cloud is! RecordBackend || index == null || display == null || _disposed) return false;
+    if (_syncing || _pending.isEmpty || !_pending.every((p) => p is DraftOp)) {
+      if (!_syncing) unawaited(sync());
+      return false;
+    }
+    final recs = _draftRecords(display);
+    if (recs == null) return false;
+    final uploads = <RecordUpload>[];
+    for (final e in recs.entries) {
+      final cur = index.entries[recordKey('doc', e.key)];
+      if (cur == null) {
+        // A section the cloud doesn't have yet: the normal sync adds it.
+        unawaited(sync());
+        return false;
+      }
+      if (cur.$2 != recHash(e.value, null)) uploads.add(RecordUpload('doc', e.key, null, e.value));
+    }
+    if (uploads.isEmpty) return true;
+    try {
+      await cloud.uploadRecords(userId, uploads, deviceId);
+    } catch (_) {
+      _scheduleSync(const Duration(seconds: 5));
+      return false;
+    }
+    if (!identical(index, _index)) return true; // a sync replaced the index meanwhile
+    for (final u in uploads) {
+      index.entries[recordKey('doc', u.i)] = (null, recHash(u.j!, null));
+    }
+    await _save();
+    return true;
+  }
+
+  /// While the log page is open: checks the draft every few seconds, so a log
+  /// continued on the website shows up here right away.
+  void startLiveDraft([Duration every = const Duration(seconds: 3)]) {
+    _liveViewers++;
+    _livePoll ??= Timer.periodic(every, (_) => unawaited(pullDraftNow()));
+    unawaited(pullDraftNow());
+  }
+
+  void stopLiveDraft() {
+    if (_liveViewers > 0) _liveViewers--;
+    if (_liveViewers == 0) {
+      _livePoll?.cancel();
+      _livePoll = null;
+    }
+  }
+
+  /// Reads the website's latest draft (one small row) and takes it when it is
+  /// newer, like a draft saved here. Returns true when the form changed.
+  Future<bool> pullDraftNow() async {
+    final cloud = this.cloud, index = _index;
+    if (cloud is! RecordBackend || index == null || _display == null || _livePulling || _syncing || _disposed || _backgrounded) {
+      return false;
+    }
+    _livePulling = true;
+    try {
+      final since = _liveSince.isNotEmpty ? _liveSince : recordsSince(index.cursor);
+      final rows = await cloud.fetchDocRecords(userId, [_loggingRecord, '$_resumeKey${_sep}modifiedAt', '$_resumeKey$_sep'], since);
+      if (rows.isEmpty) return false;
+      for (final r in rows) {
+        if (r.updatedAt.compareTo(_liveSince) > 0) _liveSince = r.updatedAt;
+      }
+      final row = rows.lastWhere((r) => r.recordId == _loggingRecord, orElse: () => rows.first);
+      if (row.recordId != _loggingRecord || row.deleted || row.data == null) return false;
+      if (index.entries[recordKey('doc', _loggingRecord)]?.$2 == recHash(row.data!, row.pos)) return false;
+      final logging = asMap(jsonDecode(row.data!));
+      final display = _display;
+      if (logging == null || display == null || !identical(index, _index)) return false;
+      if (!applyLoggingSection(display, logging)) {
+        index.entries[recordKey('doc', _loggingRecord)] = (null, recHash(row.data!, null));
+        return false;
+      }
+      // Kept like a draft saved here, so the next normal sync folds it in.
+      _pending.removeWhere((p) => p is DraftOp);
+      _pending.add(DraftOp(mediaFlowUid(), readLogging(display) ?? normalizeLogging(logging)));
+      // The rows that now match this device's draft are not uploaded again.
+      final recs = _draftRecords(display) ?? const {};
+      for (final r in rows) {
+        if (r.data != null && recs[r.recordId] == r.data) index.entries[recordKey('doc', r.recordId)] = (null, recHash(r.data!, null));
+      }
+      _view = AccountView(display);
+      _notify();
+      await _save();
+      _scheduleSync(liveFoldDelay);
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      _livePulling = false;
+    }
   }
 
   void dismissRejection() {
@@ -393,6 +525,7 @@ class AccountController extends ChangeNotifier {
   /// While the app is open: pull other devices' changes every minute (the
   /// website pulls every minute too). Cheap when nothing changed.
   void startAutoPull([Duration every = const Duration(minutes: 1)]) {
+    _backgrounded = false;
     _pullTimer?.cancel();
     _pullTimer = Timer.periodic(every, (_) {
       if (!_syncing && !_disposed) unawaited(sync());
@@ -400,6 +533,7 @@ class AccountController extends ChangeNotifier {
   }
 
   void stopAutoPull() {
+    _backgrounded = true;
     _pullTimer?.cancel();
     _pullTimer = null;
   }
@@ -441,6 +575,8 @@ class AccountController extends ChangeNotifier {
     _syncTimer?.cancel();
     _fallbackTimer?.cancel();
     _pullTimer?.cancel();
+    _draftPushTimer?.cancel();
+    _livePoll?.cancel();
     super.dispose();
   }
 }

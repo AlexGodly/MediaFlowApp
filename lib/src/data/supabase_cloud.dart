@@ -228,6 +228,14 @@ class SupabaseCloud implements RecordBackend {
   }
 
   @override
+  Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since) async {
+    var q = client.from(kRecordTable).select(_columns).eq('user_id', userId).eq('kind', 'doc').inFilter('record_id', recordIds);
+    if (since.isNotEmpty) q = q.gt('updated_at', since);
+    final data = await q.order('updated_at', ascending: true);
+    return [for (final m in data) RecordRow.fromJson(m)];
+  }
+
+  @override
   Future<void> writeFallback(String userId, Object payload, String deviceId) async {
     if (payload is! Map) return;
     await client.from(kStateTable).upsert({

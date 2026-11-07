@@ -98,11 +98,13 @@ class _LogScreenState extends State<LogScreen> {
     super.initState();
     _adopt();
     account.addListener(_onAccount);
+    account.startLiveDraft(); // follow a log continued on the website
   }
 
   @override
   void dispose() {
     account.removeListener(_onAccount);
+    account.stopLiveDraft();
     _noteTimer?.cancel();
     _xpTimer?.cancel();
     _note.dispose();
