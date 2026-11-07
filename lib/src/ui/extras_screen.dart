@@ -12,6 +12,7 @@ import '../logic/extras.dart';
 import '../logic/resume.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'otd_recovery.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -35,7 +36,7 @@ class ExtrasScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   _BalanceCard(view: view),
-                  _OnThisDayCard(view: view),
+                  _OnThisDayCard(account: account, view: view),
                   StopwatchCard(account: account),
                   RuntimeCalculatorCard(account: account),
                 ],
@@ -162,7 +163,8 @@ class _BalanceCard extends StatelessWidget {
 // ---- On This Day ----------------------------------------------------------------
 
 class _OnThisDayCard extends StatelessWidget {
-  const _OnThisDayCard({required this.view});
+  const _OnThisDayCard({required this.account, required this.view});
+  final AccountController account;
   final AccountView view;
 
   static String _verb(String k) => switch (k) { 'started' => '▶ Started', 'finished' => '✓ Finished', _ => '● Logged' };
@@ -173,11 +175,19 @@ class _OnThisDayCard extends StatelessWidget {
     final groups = memoFor(view, 'onThisDay', () => onThisDay(view.state, now));
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     final today = '${months[now.month - 1]} ${now.day}';
+    final ids = onThisDayLibraryIds(view, groups);
     return SectionCard(
       prefKey: 'extras.otd',
       icon: Icons.event_available_rounded,
       title: 'On This Day',
       subtitle: 'Memories and milestones from previous years',
+      trailing: ids.isEmpty
+          ? null
+          : IconButton(
+              tooltip: 'Recover covers / details for these ${ids.length} title${ids.length == 1 ? '' : 's'}',
+              icon: const Icon(Icons.settings_backup_restore_rounded),
+              onPressed: () => showOnThisDayRecovery(context, account, ids),
+            ),
       child: groups.isEmpty
           ? Text(
               'No anniversaries for $today yet. Past History activity and Library start or finish milestones will appear here '

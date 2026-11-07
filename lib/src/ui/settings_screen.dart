@@ -18,6 +18,7 @@ import '../platform/reminders.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
+import 'ratings_ui.dart';
 import 'theme.dart';
 import 'theme_settings.dart';
 import 'widgets.dart';
@@ -223,6 +224,7 @@ class _AccountSettings extends StatelessWidget {
             subtitle: 'Themes, Light / Dark and Dynamic Cover Theme',
             child: ThemeSettings(account: account, view: view),
           ),
+          bulkRatingsSection(account),
           for (final sec in _sections)
             SectionCard(
               prefKey: 'settings.${sec.$1}',

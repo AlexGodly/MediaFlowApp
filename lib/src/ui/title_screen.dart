@@ -13,6 +13,7 @@ import '../logic/library_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'log_sheet.dart';
+import 'ratings_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -207,6 +208,8 @@ class TitleScreen extends StatelessWidget {
                       ]),
                     ),
                 ],
+                const SizedBox(height: 16),
+                ExternalRatingsSection(account: account, item: raw),
                 if (description.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   const Text('About', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
