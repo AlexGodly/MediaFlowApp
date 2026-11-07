@@ -170,7 +170,7 @@ class PresenceHub {
   PresenceInfo get current {
     if (_overlays.isNotEmpty) return _overlays.last.$2;
     final s = _section;
-    if (s == null) return const PresenceInfo(details: 'Using MediaFlow');
+    if (s == null) return const PresenceInfo(situation: 'other');
     return _sections[s] ?? sectionPresence(s, _view);
   }
 
