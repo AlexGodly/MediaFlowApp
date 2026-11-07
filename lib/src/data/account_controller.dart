@@ -282,6 +282,7 @@ class AccountController extends ChangeNotifier {
   static const _resumeKey = 'resumeStateV285';
   static const _sep = '\u001f';
   static const _loggingRecord = '$_resumeKey${_sep}logging';
+  static const _taskRecords = ['sessionActive', 'currentTask$_sep', 'currentTask${_sep}id', 'currentTask${_sep}libraryId'];
   Timer? _draftPushTimer, _livePoll;
   String _liveSince = '';
   bool _livePulling = false, _backgrounded = false;
@@ -361,10 +362,22 @@ class AccountController extends ChangeNotifier {
     _livePulling = true;
     try {
       final since = _liveSince.isNotEmpty ? _liveSince : recordsSince(index.cursor);
-      final rows = await cloud.fetchDocRecords(userId, [_loggingRecord, '$_resumeKey${_sep}modifiedAt', '$_resumeKey$_sep'], since);
+      final rows = await cloud.fetchDocRecords(userId, [_loggingRecord, ..._taskRecords], since);
       if (rows.isEmpty) return false;
       for (final r in rows) {
         if (r.updatedAt.compareTo(_liveSince) > 0) _liveSince = r.updatedAt;
+      }
+      // A recommendation started, rerolled or ended on the website: a full sync now.
+      final taskChanged = rows.any((r) {
+        if (r.recordId == _loggingRecord) return false;
+        final cur = index.entries[recordKey(r.kind, r.recordId)];
+        final data = r.deleted ? null : r.data;
+        return data == null ? cur != null : cur?.$2 != recHash(data, r.pos);
+      });
+      if (taskChanged) {
+        _livePulling = false;
+        unawaited(sync());
+        return false;
       }
       final row = rows.lastWhere((r) => r.recordId == _loggingRecord, orElse: () => rows.first);
       if (row.recordId != _loggingRecord || row.deleted || row.data == null) return false;
