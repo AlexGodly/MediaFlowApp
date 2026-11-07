@@ -339,9 +339,17 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _activeTime(StatsModel m) {
-    final minutes = (m.activeMs / 60000).round();
+    String mins(double ms) => fmtMinutes((ms / 60000).round());
+    const names = {'android': 'Android', 'ios': 'iOS', 'windows': 'Windows', 'macos': 'macOS', 'linux': 'Linux'};
+    final platforms = [
+      for (final e in m.xp.m.entries)
+        if (e.key.startsWith('appMs.') && e.value > 0) (names[e.key.substring(6)] ?? e.key.substring(6), e.value),
+    ]..sort((a, b) => b.$2.compareTo(a.$2));
     return _card('ACTIVE TIME SPENT IN MEDIAFLOW', _records([
-      ('Time spent', fmtMinutes(minutes)),
+      ('Time spent', mins(m.activeMs)),
+      ('On the website', mins(m.xp['websiteActiveMs'])),
+      ('In the MediaFlow app', mins(m.xp['appActiveMs'])),
+      for (final p in platforms) ('   ${p.$1}', mins(p.$2)),
       ('XP from active time', '+${fmtNumber(m.xp['activeTimeXP'])} XP'),
     ]));
   }

@@ -41,6 +41,8 @@ abstract class AccountOp {
         return EditOp.fromJson(j);
       case 'tool':
         return ToolOp(jsStr(j['id']), jsStr(j['tool']), asMap(j['value']) ?? const {});
+      case 'appTime':
+        return AppTimeOp.fromJson(j);
       default:
         // Beta 12 stored bare Batch Log requests.
         return BatchLogOp(LogRequest.fromJson(j));
@@ -318,4 +320,66 @@ class ToolOp extends AccountOp {
 
   @override
   Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'tool': tool, 'value': value};
+}
+
+/// Time spent in the app (website v561 `xpLedger.v561AppTimeDays`): counted like
+/// the website's active time (v334 `v334EarnTime`: XP per minute × today's
+/// streak multiplier), kept apart from the website's own time so neither side
+/// overwrites the other, with a per-platform split for Statistics. Replayed
+/// once on the newest cloud copy, so two devices' minutes add up.
+class AppTimeOp extends AccountOp {
+  AppTimeOp({required this.id, required this.day, required this.ms, required this.platform, required this.at});
+
+  @override
+  final String id;
+  final String day, platform;
+  final int ms, at;
+
+  @override
+  String get kind => 'appTime';
+
+  static const ledgerKey = 'v561AppTimeDays';
+
+  @override
+  bool apply(Map<String, dynamic> state) {
+    if (ms <= 0 || !isIsoDay(day)) return false;
+    var ledger = asMap(state['xpLedger']);
+    if (ledger == null) {
+      ledger = <String, dynamic>{};
+      state['xpLedger'] = ledger;
+    }
+    var days = asMap(ledger[ledgerKey]);
+    if (days == null || ledger[ledgerKey] is List) {
+      days = <String, dynamic>{};
+      ledger[ledgerKey] = days;
+    }
+    final old = asMap(days[day]);
+    final row = <String, dynamic>{...?old};
+    final l = Leveling(state);
+    final streak = prospectiveTodayStreak(asList(state['sessions']), at);
+    final multiplier = l.streakMultiplier(streak);
+    final exact = jsNum(row['exactXP']) + (l.enabled ? (ms / 60000) * l.reward('activeTimeXPPerMinute') * multiplier : 0);
+    row['ms'] = jsOut(jsNum(row['ms']) + ms);
+    row['exactXP'] = jsOut(exact);
+    row['xp'] = (exact + 1e-8).floor();
+    row['streak'] = streak;
+    row['multiplier'] = jsOut(multiplier);
+    row['updatedAt'] = at > jsNum(row['updatedAt']) ? at : jsOut(jsNum(row['updatedAt']));
+    final platforms = <String, dynamic>{...?asMap(row['platforms'])};
+    platforms[platform] = jsOut(jsNum(platforms[platform]) + ms);
+    row['platforms'] = platforms;
+    days[day] = row;
+    return true;
+  }
+
+  @override
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'day': day, 'ms': ms, 'platform': platform, 'at': at};
+
+  static AppTimeOp fromJson(Map<String, dynamic> j) => AppTimeOp(
+        id: jsStr(j['id']),
+        day: jsStr(j['day']),
+        ms: jsNum(j['ms']).toInt(),
+        platform: jsStr(j['platform']),
+        at: jsNum(j['at']).toInt(),
+      );
 }

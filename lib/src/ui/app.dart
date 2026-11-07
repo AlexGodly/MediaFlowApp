@@ -9,6 +9,7 @@ import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/metadata_search.dart' show providerGateway;
 import '../data/supabase_cloud.dart';
+import '../platform/app_time.dart';
 import '../platform/desktop_tray.dart';
 import '../platform/reminders.dart';
 import 'home_shell.dart';
@@ -131,6 +132,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void _detach() {
     final old = _account;
     if (old == null || !mounted) return;
+    AppTime.instance.detach(old);
     setState(() => _account = null);
     old.dispose();
   }
@@ -161,6 +163,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     )..startAutoPull();
     ThemeController.instance.attach(account);
     Reminders.instance.attach(account);
+    AppTime.instance.attach(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
     if (mounted) {
       setState(() => _account = account);

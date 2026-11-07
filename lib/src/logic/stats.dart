@@ -123,8 +123,16 @@ XpMetrics xpMetrics(Map<String, dynamic> state) {
   final libraryTitleXP = enabled ? library.length * math.max(0.0, jsRound(l.reward('libraryAdditionXP'))) : 0.0;
   final completedTitleXP = enabled ? completedTitles * l.completionXP : 0.0;
   final days = asMap(ledger['v334ActiveTimeDays']) ?? const {};
-  final activeMs = days.values.fold<double>(0, (a, x) => a + math.max(0, jsNum(asMap(x)?['ms'])));
-  final timeXP = days.values.fold<double>(0, (a, x) => a + math.max(0, jsNum(asMap(x)?['xp'])));
+  final appDays = asMap(ledger['v561AppTimeDays']) ?? const {};
+  double sum(Map<String, dynamic> d, String k) => d.values.fold<double>(0, (a, x) => a + math.max(0, jsNum(asMap(x)?[k])));
+  // v561: time in the MediaFlow app counts like time on the website.
+  final webMs = sum(days, 'ms'), appMs = sum(appDays, 'ms');
+  final activeMs = webMs + appMs;
+  final timeXP = sum(days, 'xp') + sum(appDays, 'xp');
+  final platformMs = <String, double>{};
+  for (final x in appDays.values) {
+    (asMap(asMap(x)?['platforms']) ?? const {}).forEach((k, v) => platformMs['$k'] = (platformMs['$k'] ?? 0) + math.max(0, jsNum(v)));
+  }
   final starts = _sumMap(ledger['v334StartedTitles']);
   final creates = _sumMap(ledger['v334CollectionCreates']);
   final edits = _sumMap(ledger['v334CollectionEdits']);
@@ -155,7 +163,10 @@ XpMetrics xpMetrics(Map<String, dynamic> state) {
     'sessionStreakBonus': math.max(0.0, jsRound(history - raw)),
     'completionStreakBonus': jsRound(completionStreakBonus),
     'activeMs': activeMs,
+    'websiteActiveMs': webMs,
+    'appActiveMs': appMs,
     'activeTimeXP': timeXP,
+    for (final e in platformMs.entries) 'appMs.${e.key}': e.value,
     'completedTitles': completedTitles.toDouble(),
   });
 }

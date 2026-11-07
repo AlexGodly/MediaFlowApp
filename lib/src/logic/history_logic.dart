@@ -254,16 +254,20 @@ List<XpEntry> xpHistory(Map<String, dynamic> state) {
       streak: jsNum(s['streakAtLog']),
     ));
   }
-  for (final e in (asMap(l['v334ActiveTimeDays']) ?? const <String, dynamic>{}).entries) {
+  for (final (ledgerKey, idPrefix, label) in const [
+    ('v334ActiveTimeDays', 'time', 'Active app time'),
+    ('v561AppTimeDays', 'apptime', 'MediaFlow app time'),
+  ])
+  for (final e in (asMap(l[ledgerKey]) ?? const <String, dynamic>{}).entries) {
     final row = asMap(e.value);
     final xp = math.max(0.0, jsNum(row?['xp']));
     if (xp == 0) continue;
     final mult = jsNum(row?['multiplier']) == 0 ? 1.0 : jsNum(row?['multiplier']);
     final minutes = (jsNum(row?['ms']) / 60000).round();
     out.add(XpEntry(
-      id: 'time:${e.key}',
+      id: '$idPrefix:${e.key}',
       kind: 'activeTime',
-      source: 'Active app time',
+      source: label,
       timestamp: isIsoDay(e.key) ? DateTime.parse('${e.key}T12:00:00').millisecondsSinceEpoch.toDouble() : 0,
       details: '${minutes ~/ 60 > 0 ? '${minutes ~/ 60}h ' : ''}${minutes % 60}m active',
       xp: xp,
