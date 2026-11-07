@@ -626,6 +626,11 @@
       "conflict": false
      }
     ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
     "changes": 2,
     "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"}}"
    }
@@ -674,6 +679,11 @@
       "conflict": true
      }
     ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
     "changes": 1,
     "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"mal\":\"1\",\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\"}}"
    }
@@ -724,6 +734,11 @@
       "conflict": false
      }
     ],
+    "quick": {
+     "key": "imdb",
+     "id": "tt11280740",
+     "canLink": true
+    },
     "changes": 1,
     "itemJson": "{\"title\":\"Severance\",\"externalIds\":{\"tvmaze\":\"44933\",\"imdb\":\"tt11280740\"},\"v377ManualExternalIds\":{\"imdb\":\"tt11280740\"}}"
    }
@@ -758,6 +773,11 @@
       "conflict": false
      }
     ],
+    "quick": {
+     "key": "openlibrary",
+     "id": "OL893415W",
+     "canLink": true
+    },
     "changes": 1,
     "itemJson": "{\"title\":\"Dune\",\"externalIds\":{\"openlibrary\":\"OL893415W\"},\"v377ManualExternalIds\":{\"openlibrary\":\"OL893415W\"}}"
    }
@@ -792,6 +812,11 @@
       "conflict": false
      }
     ],
+    "quick": {
+     "key": "tmdb_tv",
+     "id": "94605",
+     "canLink": true
+    },
     "changes": 1,
     "itemJson": "{\"title\":\"Arcane\",\"externalIds\":{\"tmdb_tv\":\"94605\"},\"v377ManualExternalIds\":{\"tmdb_tv\":\"94605\"}}"
    }
@@ -841,6 +866,11 @@
       "conflict": false
      }
     ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
     "changes": 1,
     "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"mal\":\"\"}}"
    }
@@ -863,6 +893,11 @@
    "expected": {
     "ids": [],
     "links": [],
+    "quick": {
+     "key": "",
+     "id": "1590446045",
+     "canLink": false
+    },
     "changes": 0,
     "itemJson": "{\"title\":\"Ants From Up There\",\"externalIds\":{}}"
    }

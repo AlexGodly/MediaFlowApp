@@ -12,8 +12,10 @@ import '../data/metadata_search.dart';
 import '../logic/library_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'floating_dock.dart' show recoveryShortcuts;
 import 'log_sheet.dart';
 import 'presence.dart';
+import 'quick_recovery.dart';
 import 'ratings_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -127,10 +129,16 @@ class TitleScreen extends StatelessWidget {
                 onSelected: (v) {
                   if (v == 'delete') _delete(context, t);
                   if (v == 'rate') _rate(context, t);
+                  if (v.startsWith('quick:')) openQuickRecovery(context, account, id, kind: v.substring(6));
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'rate', child: Text('Rate')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete title', style: TextStyle(color: MF.bad))),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'rate', child: Text('Rate')),
+                  if (recoveryShortcuts(asMap(view.state['settings']))['details'] == true) ...[
+                    const PopupMenuItem(value: 'quick:cover', child: Text('Recover cover')),
+                    const PopupMenuItem(value: 'quick:metadata', child: Text('Recover metadata')),
+                    const PopupMenuItem(value: 'quick:both', child: Text('Recover cover + metadata')),
+                  ],
+                  const PopupMenuItem(value: 'delete', child: Text('Delete title', style: TextStyle(color: MF.bad))),
                 ],
               ),
             ],
@@ -570,6 +578,20 @@ class _TitleEditorState extends State<TitleEditor> {
       appBar: AppBar(
         title: Text(widget.id == null ? 'Add title' : 'Edit title'),
         actions: [
+          if (widget.id != null && recoveryShortcuts(asMap(view.state['settings']))['editor'] == true)
+            PopupMenuButton<String>(
+              tooltip: 'Recover',
+              icon: const Icon(Icons.auto_fix_high_rounded),
+              onSelected: (kind) async {
+                final url = await openQuickRecovery(context, account, widget.id!, kind: kind);
+                if (url != null && mounted) setState(() => _cover.text = url);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'cover', child: Text('Recover cover')),
+                PopupMenuItem(value: 'metadata', child: Text('Recover metadata')),
+                PopupMenuItem(value: 'both', child: Text('Recover cover + metadata')),
+              ],
+            ),
           TextButton(onPressed: _busy ? null : _save, child: const Text('Save')),
         ],
       ),

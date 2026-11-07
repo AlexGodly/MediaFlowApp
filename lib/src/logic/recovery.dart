@@ -301,6 +301,45 @@ List<({String key, String value, String existing, bool conflict})> coverIdLinks(
   return links;
 }
 
+/// `mf456CandidateLink`: the one provider ID Quick Title Recovery links.
+({String key, String id, bool canLink}) quickCoverLink(Map<String, dynamic> item, CoverCandidate c) {
+  final links = coverIdLinks(item, c);
+  ({String key, String value, String existing, bool conflict})? link;
+  if (links.isNotEmpty) {
+    link = links.where((l) => !l.conflict && l.existing != l.value).firstOrNull ?? links.first;
+  } else {
+    final key = c.externalIdKey.trim(), value = c.recordId.trim();
+    final okKey = RegExp(r'^[a-z][a-z0-9_]{0,32}$').hasMatch(key);
+    final okValue = value.isNotEmpty &&
+        value.length <= 120 &&
+        (RegExp(r'^[\w.:-]+$').hasMatch(value) || (key == 'openlibrary' && RegExp(r'^/works/OL\d+W$').hasMatch(value)));
+    if (okKey && okValue) {
+      final ids = asMap(item['externalIds']) ?? const {};
+      final existing = ids[key] == null ? '' : jsStr(ids[key]).trim();
+      link = (key: key, value: value, existing: existing, conflict: existing.isNotEmpty && existing != value);
+    }
+  }
+  final key = (link?.key ?? c.externalIdKey).trim();
+  final id = (link?.value ?? c.recordId).trim();
+  return (key: key, id: id, canLink: link != null && !link.conflict && link.existing.isEmpty && id.isNotEmpty);
+}
+
+/// Quick Title Recovery's cover save (website v453 `mf453ApplyQuick`): the
+/// chosen cover replaces the current one (after the person confirms) and
+/// links the provider's record ID when no ID is saved for it yet.
+bool applyQuickCover(Map<String, dynamic> item, CoverCandidate c, int now) {
+  if (jsStr(item['coverUrl']) == c.url) return false;
+  item['coverUrl'] = c.url;
+  item['coverSource'] = 'manual:quick:${c.provider.isEmpty ? 'verified' : c.provider}';
+  final link = quickCoverLink(item, c);
+  if (link.canLink) {
+    item['externalIds'] = {...?asMap(item['externalIds']), link.key: link.id};
+    item['v377ManualExternalIds'] = {...?asMap(item['v377ManualExternalIds']), link.key: link.id};
+  }
+  item['modifiedAt'] = now;
+  return true;
+}
+
 /// `mf433LinkCandidateIds`: saves the verified IDs that don't conflict.
 /// Returns how many were written.
 int linkCoverIds(Map<String, dynamic> item, CoverCandidate c, {bool manual = false}) {
@@ -643,6 +682,17 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
     item['v439RecoveryHistory'] = kept;
   }
   return (changed: count, legacy: legacy, fields: fields, ratings: ratings);
+}
+
+/// `mf439DescribeValue`: a field value as text.
+String describeFieldValue(String token, Object? v) {
+  if (v == null || v == '') return '—';
+  if (token.startsWith('rating.') && v is Map) {
+    final votes = v['votes'];
+    return '${jsStr(v['score'])} / ${jsStr(v['scale'])}${votes != null ? ' · ${jsStr(votes)} votes' : ''}';
+  }
+  if (v is List) return v.map(jsStr).join(', ');
+  return jsStr(v);
 }
 
 /// `String.prototype.localeCompare` for field tokens (ASCII): letters

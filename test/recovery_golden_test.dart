@@ -72,6 +72,8 @@ void main() {
       final exp = (lc['expected'] as Map).cast<String, dynamic>();
       expect([for (final r in c.ids) [r.$1, r.$2]], exp['ids']);
       expect([for (final l in coverIdLinks(item, c)) {'key': l.key, 'value': l.value, 'existing': l.existing, 'conflict': l.conflict}], exp['links']);
+      final q = quickCoverLink(item, c);
+      expect({'key': q.key, 'id': q.id, 'canLink': q.canLink}, exp['quick'], reason: 'Quick Title Recovery link');
       expect(linkCoverIds(item, c, manual: lc['manual'] as bool), exp['changes']);
       expect(jsStringify(item), exp['itemJson']);
     });

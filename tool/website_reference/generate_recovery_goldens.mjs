@@ -63,7 +63,7 @@ const code = [
   cnst('V377_ID_PROVIDERS'),
   // v433 (file 313) builds its allowed-ID set before v437 adds more keys.
   cnst('MF433_ALLOWED_ID_KEYS'), cnst('MF433_NATIVE_ID_KEYS'), cnst('v377IdValid'),
-  fn('mf433ValidId'), fn('mf433NativeKey'), fn('mf433EnrichCoverCandidate'), fn('mf433CandidateLinks'), fn('mf433LinkCandidateIds'),
+  fn('mf433ValidId'), fn('mf433NativeKey'), fn('mf433EnrichCoverCandidate'), fn('mf433CandidateLinks'), fn('mf433LinkCandidateIds'), fn('mf424LinkableCoverId'), fn('mf456CandidateLink'),
   cnst('MF437_RATING_SOURCES'), cnst('MF437_ADDITIONAL_IDS'),
   "for(const [key,label] of MF437_ADDITIONAL_IDS){if(!V377_ID_PROVIDERS.some(row=>row[0]===key))V377_ID_PROVIDERS.push([key,label,'Optional verified provider ID']);}",
   cnst('MF437_SCHEMA_VERSION'), cnst('MF437_MEDIA_TYPES'), cnst('MF437_RATING_MAP'),
@@ -75,7 +75,7 @@ const code = [
   fn('mf439FieldDefinition'), fn('mf439FieldValue'), fn('mf439IsProtected'), fn('mf439Value'), fn('mf439ValueKey'),
   fn('mf439Evidence'), fn('mf439Proposals'), fn('mf439Apply'),
   "const MF439={account:''};const mf439Account=()=>'';const mf439Preferences=()=>({minimumConfidence:0.94});",
-  'Object.assign(globalThis,{mf433EnrichCoverCandidate,mf433CandidateLinks,mf433LinkCandidateIds});',
+  'Object.assign(globalThis,{mf433EnrichCoverCandidate,mf433CandidateLinks,mf433LinkCandidateIds,mf456CandidateLink});',
   'globalThis.api={run:(sc)=>{const item=JSON.parse(JSON.stringify(sc.item));',
   '  const realNow=Date.now;Date.now=()=>sc.now;let preview,res;try{preview=mf439Proposals(item,JSON.parse(JSON.stringify(sc.rows)));',
   '  for(const p of preview.proposals){if(sc.select&&sc.select[p.token]!==undefined){p.selected=true;p.choice=sc.select[p.token];}}',
@@ -84,7 +84,7 @@ const code = [
   '   errors:preview.errors.map(e=>e.provider),result:res,itemJson:JSON.stringify(item)};}};',
 ].join('\n');
 vm.runInThisContext(code);
-const { api, mf433EnrichCoverCandidate, mf433CandidateLinks, mf433LinkCandidateIds } = globalThis;
+const { api, mf433EnrichCoverCandidate, mf433CandidateLinks, mf433LinkCandidateIds, mf456CandidateLink } = globalThis;
 const NOW = 1762600000000;
 const row = (provider, recordId, title, other = {}) => ({ provider, recordId: String(recordId), title, year: 0, externalIds: {}, fields: {}, ratings: {}, legacy: {}, ...other });
 const scenarios = [
@@ -169,8 +169,10 @@ for (const lc of linkCases) {
   const item = JSON.parse(JSON.stringify(lc.item));
   const c = mf433EnrichCoverCandidate(lc.entry, { ...lc.candidate });
   const links = mf433CandidateLinks(item, c);
+  const q = mf456CandidateLink(JSON.parse(JSON.stringify(lc.item)), c);
+  const quick = { key: q.key, id: q.id, canLink: q.canLink };
   const changes = mf433LinkCandidateIds(item, c, { manual: lc.manual });
-  out.coverLinks.push({ ...lc, expected: { ids: c.externalIdCandidates.map(r => [r.key, r.value]), links, changes, itemJson: JSON.stringify(item) } });
+  out.coverLinks.push({ ...lc, expected: { ids: c.externalIdCandidates.map(r => [r.key, r.value]), links, quick, changes, itemJson: JSON.stringify(item) } });
 }
 const here = path.dirname(new URL(import.meta.url).pathname);
 fs.writeFileSync(path.join(here, '../../test/fixtures/recovery-golden.json'), JSON.stringify(out, null, 1) + '\n');

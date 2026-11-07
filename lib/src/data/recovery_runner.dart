@@ -104,7 +104,7 @@ class RecoveryRunner extends ChangeNotifier {
         }
         job.current = cleanTitle(item['title']);
         notifyListeners();
-        final candidates = await _coverCandidates(account, item);
+        final candidates = await coverCandidates(account, item);
         if (stop.stopped) break;
         final confident = candidates.where((c) => c.confidence >= 0.94).toList();
         if (confident.length == 1 || (confident.isNotEmpty && confident.every((c) => c.url == confident.first.url))) {
@@ -175,7 +175,7 @@ class RecoveryRunner extends ChangeNotifier {
 
   bool _combinedStopped = false;
 
-  Future<List<CoverCandidate>> _coverCandidates(AccountController account, Map<String, dynamic> item) async {
+  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item) async {
     final cat = account.view!.category(jsStr(item['categoryId']));
     final found = <String, CoverCandidate>{};
     final names = titleVariants(item).take(3).toList();
