@@ -12,19 +12,29 @@ import '../data/supabase_cloud.dart';
 import 'home_shell.dart';
 import 'sign_in_screen.dart';
 import 'theme.dart';
+import 'theme_controller.dart';
 
 class MediaFlowApp extends StatelessWidget {
   const MediaFlowApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MediaFlow',
-      debugShowCheckedModeBanner: false,
-      theme: MF.theme(),
-      darkTheme: MF.theme(),
-      themeMode: ThemeMode.dark,
-      home: const AuthGate(),
+    // The account's theme (the website's theme system): the whole app is
+    // redrawn when it changes.
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = MF.theme();
+        return MaterialApp(
+          title: 'MediaFlow',
+          debugShowCheckedModeBanner: false,
+          theme: theme,
+          darkTheme: theme,
+          themeMode: MF.light ? ThemeMode.light : ThemeMode.dark,
+          builder: (context, child) => ThemeRebuilder(child: child ?? const SizedBox.shrink()),
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }
@@ -147,6 +157,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       cache: FileAccountCache(),
       deviceId: _deviceId(),
     )..startAutoPull();
+    ThemeController.instance.attach(account);
     if (mounted) {
       setState(() => _account = account);
     } else {

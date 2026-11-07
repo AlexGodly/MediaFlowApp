@@ -17,6 +17,7 @@ import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
 import 'theme.dart';
+import 'theme_settings.dart';
 import 'widgets.dart';
 
 void _toast(BuildContext context, String text) =>
@@ -209,9 +210,17 @@ class _AccountSettings extends StatelessWidget {
         if (view == null) return const SizedBox.shrink();
         final state = view.state;
         return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 40), children: [
-          const Text('These settings belong to your account: the website uses them too.', style: TextStyle(color: MF.textDim)),
+          Text('These settings belong to your account: the website uses them too.', style: TextStyle(color: MF.textDim)),
           const SizedBox(height: 10),
           _intensity(context, state),
+          SectionCard(
+            prefKey: 'settings.theme',
+            initiallyOpen: false,
+            icon: Icons.palette_rounded,
+            title: 'Theme',
+            subtitle: 'Themes, Light / Dark and Dynamic Cover Theme',
+            child: ThemeSettings(account: account, view: view),
+          ),
           for (final sec in _sections)
             SectionCard(
               prefKey: 'settings.${sec.$1}',
@@ -464,7 +473,7 @@ class _CategoriesEditor extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
                 Text('${fmtNumber(c.target ?? 1)} ${unitLabel(c.unit, c.target ?? 1)} per task · ${fmtNumber(c.minutesPerUnit)} min each',
-                    style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                    style: TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
           ),
@@ -553,7 +562,7 @@ class _AppSettingsState extends State<_AppSettings> {
         final updateUrl = prefs.get<String>('updateUrl', '');
         final start = prefs.get<String>('startTab', 'log');
         return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 40), children: [
-          const Text('These settings are for this device only.', style: TextStyle(color: MF.textDim)),
+          Text('These settings are for this device only.', style: TextStyle(color: MF.textDim)),
           const SizedBox(height: 10),
           SectionCard(
             prefKey: 'app.general',
@@ -595,7 +604,7 @@ class _AppSettingsState extends State<_AppSettings> {
                 subtitle: Text(account.lastSynced == null ? 'Not synced yet this session' : 'Last synced ${TimeOfDay.fromDateTime(account.lastSynced!).format(context)}'),
                 trailing: FilledButton.tonal(onPressed: account.sync, child: const Text('Sync now')),
               ),
-              const Text('Offline, everything still works: changes are kept on this device and uploaded when you are back online. '
+              Text('Offline, everything still works: changes are kept on this device and uploaded when you are back online. '
                   'If the same thing was changed elsewhere, the newest change wins.', style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),

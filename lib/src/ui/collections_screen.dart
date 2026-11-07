@@ -49,7 +49,7 @@ class CollectionCover extends StatelessWidget {
         width: size,
         height: h,
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(10)),
-        child: const Center(child: Text('◇', style: TextStyle(fontSize: 28, color: MF.textDim))),
+        child: Center(child: Text('◇', style: TextStyle(fontSize: 28, color: MF.textDim))),
       );
     }
     if (shown.length == 1) return Cover(title: shown.first, category: view.category(shown.first.categoryId), width: size);
@@ -147,7 +147,7 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                         CollectionCover(view: view, collection: c, size: 150),
                         const SizedBox(height: 6),
                         Text(jsStr(c['title']), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                        Text(_summary(view, c), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                        Text(_summary(view, c), style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ]),
                     ),
                   ),
@@ -615,14 +615,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
               SliverToBoxAdapter(child: _tools(view, c, rows.length, ids.length, mode)),
               if (_selected.isNotEmpty) SliverToBoxAdapter(child: _selectionBar(rows)),
               if (ids.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Text('No titles yet. Tap Add titles.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
                   ),
                 )
               else if (shown.isEmpty)
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.all(24),
                     child: Text('No titles match the current Collection Tools filters.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
@@ -688,13 +688,13 @@ class _CollectionScreenState extends State<CollectionScreen> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('COLLECTION', style: TextStyle(color: MF.textDim, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+              Text('COLLECTION', style: TextStyle(color: MF.textDim, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
               Text(jsStr(c['title']), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-              Text(jsStr(c['description']).isEmpty ? 'No description yet.' : jsStr(c['description']), style: const TextStyle(color: MF.textDim)),
+              Text(jsStr(c['description']).isEmpty ? 'No description yet.' : jsStr(c['description']), style: TextStyle(color: MF.textDim)),
               const SizedBox(height: 8),
               LinearProgressIndicator(value: p.pct / 100, minHeight: 6, borderRadius: BorderRadius.circular(4)),
               const SizedBox(height: 4),
-              Text('${p.pct}% complete · ${p.done}/${p.total} titles completed', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+              Text('${p.pct}% complete · ${p.done}/${p.total} titles completed', style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
         ]),
@@ -703,7 +703,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
   Widget _tools(AccountView view, Map<String, dynamic> c, int visible, int total, String mode) {
     final count = Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-      child: Text('${fmtNumber(visible)} visible of ${fmtNumber(total)} titles', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+      child: Text('${fmtNumber(visible)} visible of ${fmtNumber(total)} titles', style: TextStyle(color: MF.textDim, fontSize: 12)),
     );
     if (!_toolsVisible(view)) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -809,7 +809,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                const Text('Limit items', style: TextStyle(color: MF.textDim)),
+                Text('Limit items', style: TextStyle(color: MF.textDim)),
                 for (final n in const [0, 5, 10, 100, 500, 1000, 10000])
                   ChoiceChip(
                     label: Text(n == 0 ? 'All' : fmtNumber(n)),
@@ -835,7 +835,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           ],
         ),
         Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-          const Text('Display', style: TextStyle(color: MF.textDim)),
+          Text('Display', style: TextStyle(color: MF.textDim)),
           for (final v in _detailViews)
             ChoiceChip(
               avatar: Icon(v.$3, size: 16),
@@ -941,7 +941,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
           margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: MF.border)),
-          child: const Text.rich(TextSpan(children: [
+          child: Text.rich(TextSpan(children: [
             TextSpan(text: 'Order view  ', style: TextStyle(fontWeight: FontWeight.w900)),
             TextSpan(
                 text: 'Drag titles or use the menu. Turning Order view off keeps this manual order as the collection’s default order.',
@@ -974,15 +974,15 @@ class _CollectionScreenState extends State<CollectionScreen> {
                   child: Row(children: [
                     ReorderableDragStartListener(
                       index: i,
-                      child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+                      child: Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
                     ),
-                    SizedBox(width: 30, child: Text('${i + 1}', style: const TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
+                    SizedBox(width: 30, child: Text('${i + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
                     Cover(title: t, category: cat, width: 34),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                        Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1, style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ]),
                     ),
                     PopupMenuButton<String>(
@@ -1180,7 +1180,7 @@ class _TitlePickerState extends State<_TitlePicker> {
               child: const Text('Select visible'),
             ),
             if (_picked.isNotEmpty) TextButton(onPressed: () => setState(_picked.clear), child: const Text('Deselect all')),
-            Text(loading ? 'Sorting…' : '${fmtNumber(rows.length)} titles', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text(loading ? 'Sorting…' : '${fmtNumber(rows.length)} titles', style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),
         Expanded(

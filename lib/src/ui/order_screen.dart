@@ -128,7 +128,7 @@ class _OrderScreenState extends State<OrderScreen> {
                 ]),
                 const SizedBox(height: 8),
                 if (titleIds.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(24),
                     child: Text('Your Order is empty. Add the titles you plan to watch or read next, in order.',
                         textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
@@ -168,7 +168,7 @@ class _OrderScreenState extends State<OrderScreen> {
         child: Row(children: [
           CategoryBadge(cat, size: 24),
           const SizedBox(width: 8),
-          Expanded(child: Text('${cat.name} · ${ids.length}', style: const TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
+          Expanded(child: Text('${cat.name} · ${ids.length}', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
           if (p['categoryMode'] == 'custom') ...[
             IconButton(icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, -1))),
             IconButton(icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, 1))),
@@ -196,7 +196,7 @@ class _OrderScreenState extends State<OrderScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
-        SizedBox(width: 32, child: Text('${i + 1}', style: const TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
+        SizedBox(width: 32, child: Text('${i + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
         Cover(title: t, category: cat, width: 36),
         const SizedBox(width: 10),
         Expanded(
@@ -205,7 +205,7 @@ class _OrderScreenState extends State<OrderScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
               Text('${cat.name} · ${progressText(t, cat)} · ${statusLabel(t.status)}', maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                  style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
         ),
@@ -297,7 +297,7 @@ class _QueuesTab extends StatelessWidget {
     final r = Recommender(copy, now: 0);
     final cats = view.categories.where((c) => assignments.values.any((a) => jsStr(a['categoryId']) == c.id) || asList(p['titleIds']).any((id) => byId[jsStr(id)]?.categoryId == c.id)).toList();
     return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [
-      const Text('Each task category can mix ordered titles with Collections. MediaFlow Recommends walks the queue from the top.',
+      Text('Each task category can mix ordered titles with Collections. MediaFlow Recommends walks the queue from the top.',
           style: TextStyle(color: MF.textDim)),
       const SizedBox(height: 8),
       Align(
@@ -305,14 +305,14 @@ class _QueuesTab extends StatelessWidget {
         child: OutlinedButton.icon(onPressed: () => _assign(context), icon: const Icon(Icons.add_rounded), label: const Text('Add Collection to a queue')),
       ),
       if (cats.isEmpty)
-        const Padding(padding: EdgeInsets.all(24), child: Text('No queues yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
+        Padding(padding: EdgeInsets.all(24), child: Text('No queues yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
       for (final cat in cats) ...[
         Padding(
           padding: const EdgeInsets.only(top: 16, bottom: 6),
           child: Row(children: [
             CategoryBadge(cat, size: 24),
             const SizedBox(width: 8),
-            Text(cat.name, style: const TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
+            Text(cat.name, style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
           ]),
         ),
         for (final (i, token) in r.reconcileQueue(cat.id).indexed) _token(context, cat, token, i, r.reconcileQueue(cat.id).length, assignments, cols, byId),
@@ -331,7 +331,7 @@ class _QueuesTab extends StatelessWidget {
       final t = byId[token.substring(2)];
       if (t == null) return const SizedBox.shrink();
       return Row(children: [
-        SizedBox(width: 28, child: Text('${i + 1}', style: const TextStyle(color: MF.textDim))),
+        SizedBox(width: 28, child: Text('${i + 1}', style: TextStyle(color: MF.textDim))),
         Cover(title: t, category: cat, width: 30),
         const SizedBox(width: 8),
         Expanded(child: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -348,13 +348,13 @@ class _QueuesTab extends StatelessWidget {
       decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          SizedBox(width: 28, child: Text('${i + 1}', style: const TextStyle(color: MF.textDim))),
+          SizedBox(width: 28, child: Text('${i + 1}', style: TextStyle(color: MF.textDim))),
           CollectionCover(view: view, collection: c, size: 30),
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Collection · ${jsStr(c['title'])}', style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text('${collectionTitleIds(c).length} titles · ${asList(a['traversedTitleIds']).length} passed', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+              Text('${collectionTitleIds(c).length} titles · ${asList(a['traversedTitleIds']).length} passed', style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
           ...arrows,

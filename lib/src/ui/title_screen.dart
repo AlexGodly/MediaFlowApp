@@ -147,7 +147,7 @@ class TitleScreen extends StatelessWidget {
                       Row(children: [
                         CategoryBadge(cat, size: 22),
                         const SizedBox(width: 6),
-                        Flexible(child: Text(cat.name, style: const TextStyle(color: MF.textDim))),
+                        Flexible(child: Text(cat.name, style: TextStyle(color: MF.textDim))),
                       ]),
                       const SizedBox(height: 8),
                       Text(progressText(t, cat), style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -156,7 +156,7 @@ class TitleScreen extends StatelessWidget {
                         LinearProgressIndicator(value: pct, minHeight: 6, borderRadius: BorderRadius.circular(4)),
                         const SizedBox(height: 4),
                         Text('${(pct * 100).round()}% · ${fmtNumber(math.max(0, total! - t.progress))} ${unitLabel(cat.unit, 2)} left',
-                            style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                            style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ],
                       const SizedBox(height: 6),
                       InkWell(
@@ -203,7 +203,7 @@ class TitleScreen extends StatelessWidget {
                       child: Row(children: [
                         Expanded(child: Text(jsStr(s['name']).isEmpty ? 'Season' : jsStr(s['name']))),
                         Text('${fmtNumber(jsNum(s['progress']))}${jsNum(s['total']) > 0 ? ' / ${fmtNumber(jsNum(s['total']))}' : ''}',
-                            style: const TextStyle(color: MF.textDim)),
+                            style: TextStyle(color: MF.textDim)),
                       ]),
                     ),
                 ],
@@ -211,7 +211,7 @@ class TitleScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Text('About', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                   const SizedBox(height: 4),
-                  Text(description, style: const TextStyle(color: MF.textDim)),
+                  Text(description, style: TextStyle(color: MF.textDim)),
                 ],
                 const SizedBox(height: 20),
                 Text(logs.isEmpty ? 'No logs yet' : 'Logs', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
@@ -221,7 +221,7 @@ class TitleScreen extends StatelessWidget {
                     child: Text(
                       '${fmtDay(l.date)} · ${fmtNumber(l.amount)} ${unitLabel(l.unit.isEmpty ? cat.unit : l.unit, l.amount)}'
                       ' · ${fmtMinutes(l.minutes)} · +${fmtNumber(l.xp)} XP',
-                      style: const TextStyle(color: MF.textDim),
+                      style: TextStyle(color: MF.textDim),
                     ),
                   ),
               ]),
@@ -235,7 +235,7 @@ class TitleScreen extends StatelessWidget {
   Widget _info(String k, String v) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(children: [
-          SizedBox(width: 120, child: Text(k, style: const TextStyle(color: MF.textDim))),
+          SizedBox(width: 120, child: Text(k, style: TextStyle(color: MF.textDim))),
           Expanded(child: Text(v, style: const TextStyle(fontWeight: FontWeight.w700))),
         ]),
       );
@@ -368,7 +368,7 @@ class _MetadataSheetState extends State<_MetadataSheet> {
           child: results == null
               ? const SizedBox.shrink()
               : results.isEmpty
-                  ? const Center(child: Text('No results. You may be offline, or try another spelling.', style: TextStyle(color: MF.textDim)))
+                  ? Center(child: Text('No results. You may be offline, or try another spelling.', style: TextStyle(color: MF.textDim)))
                   : ListView(children: [
                       for (final r in results)
                         ListTile(
@@ -378,8 +378,8 @@ class _MetadataSheetState extends State<_MetadataSheet> {
                               width: 44,
                               height: 64,
                               child: r.coverUrl.isEmpty
-                                  ? const ColoredBox(color: MF.raised)
-                                  : Image.network(r.coverUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const ColoredBox(color: MF.raised)),
+                                  ? ColoredBox(color: MF.raised)
+                                  : Image.network(r.coverUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: MF.raised)),
                             ),
                           ),
                           title: Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -672,7 +672,7 @@ class _TitleEditorState extends State<TitleEditor> {
               ]),
             const SizedBox(height: 14),
             const Text('Past repeats (not logged)', style: TextStyle(fontWeight: FontWeight.w800)),
-            const Text('Rewatches or rereads from before MediaFlow. They count in Statistics but add no History, XP or streak.',
+            Text('Rewatches or rereads from before MediaFlow. They count in Statistics but add no History, XP or streak.',
                 style: TextStyle(color: MF.textDim, fontSize: 12)),
             const SizedBox(height: 6),
             Row(children: [

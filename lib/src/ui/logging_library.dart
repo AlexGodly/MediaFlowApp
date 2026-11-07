@@ -350,7 +350,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
               loading
                   ? 'Sorting ${fmtNumber(index.length)} titles…'
                   : '${fmtNumber(rows.length)} match${rows.length == 1 ? '' : 'es'} · Page ${st.page + 1}/$pages',
-              style: const TextStyle(color: MF.textDim, fontSize: 12)),
+              style: TextStyle(color: MF.textDim, fontSize: 12)),
         ),
         for (final l in _layouts)
           IconButton(
@@ -382,9 +382,9 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
         ListTile(
           dense: true,
           contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-          leading: const Icon(Icons.fiber_new_rounded, color: MF.accent),
+          leading: Icon(Icons.fiber_new_rounded, color: MF.accent),
           title: Text('Add “$typed” as a new title'),
-          subtitle: const Text('Created when you save the log', style: TextStyle(color: MF.textDim, fontSize: 12)),
+          subtitle: Text('Created when you save the log', style: TextStyle(color: MF.textDim, fontSize: 12)),
           onTap: () {
             widget.onAddNew!(typed);
             setState(_clearSearch);
@@ -433,7 +433,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
   Widget _results(List<Map<String, dynamic>> rows, Set<String> added) {
     final view = widget.view;
     if (rows.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(16),
         child: Text('No matching titles.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
       );
@@ -496,7 +496,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
               contentPadding: EdgeInsets.zero,
               leading: check(t.id, isAdded),
               title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-              trailing: Text(progressText(t, cat), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+              trailing: Text(progressText(t, cat), style: TextStyle(color: MF.textDim, fontSize: 12)),
               onTap: isAdded ? null : () => _add([t.id]),
             );
           }
@@ -516,7 +516,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
                         const SizedBox(height: 2),
-                        Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                        Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 12)),
                         if (total != null && total > 0) ...[
                           const SizedBox(height: 6),
                           LinearProgressIndicator(value: (t.progress / total).clamp(0, 1).toDouble(), minHeight: 4, borderRadius: BorderRadius.circular(4)),
@@ -533,7 +533,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
             contentPadding: EdgeInsets.zero,
             leading: Cover(title: t, category: cat, width: 34),
             title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 12)),
             trailing: check(t.id, isAdded),
             onTap: isAdded ? null : () => _add([t.id]),
           );

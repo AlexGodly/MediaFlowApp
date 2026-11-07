@@ -369,7 +369,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   Row(children: [
                     Expanded(
                       child: Text(loading ? 'Sorting ${fmtNumber(index.length)} titles…' : '${fmtNumber(titles.length)} title${titles.length == 1 ? '' : 's'}',
-                          style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                          style: TextStyle(color: MF.textDim, fontSize: 12)),
                     ),
                     for (final v in _views)
                       IconButton(
@@ -518,7 +518,7 @@ class LibraryTitleRow extends StatelessWidget {
           child: Row(children: [
             check,
             Expanded(child: Text(title.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-            Text(progressText(title, category), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text(progressText(title, category), style: TextStyle(color: MF.textDim, fontSize: 12)),
             const SizedBox(width: 8),
             if (trailing != null) trailing!,
           ]),
@@ -531,7 +531,7 @@ class LibraryTitleRow extends StatelessWidget {
         Text(title.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 2),
         Text('${category.name} · ${progressText(title, category)}$rating', maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: MF.textDim, fontSize: 12.5)),
+            style: TextStyle(color: MF.textDim, fontSize: 12.5)),
         Text(statusLabel(title.status), style: TextStyle(color: statusColor(title.status), fontSize: 12, fontWeight: FontWeight.w700)),
         if (layout == 'cards' && pct != null) ...[
           const SizedBox(height: 6),
@@ -575,7 +575,7 @@ class LibraryCoverTile extends StatelessWidget {
         builder: (context, c) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Stack(children: [
             Cover(title: title, category: category, width: c.maxWidth),
-            if (selected) const Positioned(right: 4, top: 4, child: Icon(Icons.check_circle_rounded, color: MF.accent)),
+            if (selected) Positioned(right: 4, top: 4, child: Icon(Icons.check_circle_rounded, color: MF.accent)),
             if (trailing != null) Positioned(left: 0, top: 0, child: trailing!),
           ]),
           if (showTitle) ...[
@@ -636,12 +636,12 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: ListView(padding: const EdgeInsets.all(24), children: [
-                      Text('${queue.length} unrated title${queue.length == 1 ? '' : 's'}', textAlign: TextAlign.center, style: const TextStyle(color: MF.textDim)),
+                      Text('${queue.length} unrated title${queue.length == 1 ? '' : 's'}', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
                       const SizedBox(height: 16),
                       Center(child: Cover(title: t, category: view.category(t.categoryId), width: 150)),
                       const SizedBox(height: 12),
                       Text(t.title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                      Text('${view.category(t.categoryId).name} · ${statusLabel(t.status)}', textAlign: TextAlign.center, style: const TextStyle(color: MF.textDim)),
+                      Text('${view.category(t.categoryId).name} · ${statusLabel(t.status)}', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
                       const SizedBox(height: 16),
                       Text('${_value.toStringAsFixed(1)} / 10', textAlign: TextAlign.center, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900)),
                       Slider(value: _value, min: 0.1, max: 10, divisions: 99, onChanged: (v) => setState(() => _value = (v * 10).round() / 10)),

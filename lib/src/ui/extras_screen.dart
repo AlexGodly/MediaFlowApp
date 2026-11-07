@@ -80,7 +80,7 @@ class _BalanceCard extends StatelessWidget {
       subtitle: 'Category health, progress and what needs attention next',
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         if (b.rows.isEmpty)
-          const Text('No categories are enabled for Today’s Balance.', style: TextStyle(color: MF.textDim))
+          Text('No categories are enabled for Today’s Balance.', style: TextStyle(color: MF.textDim))
         else
           for (final r in b.rows) _row(r),
         const SizedBox(height: 6),
@@ -93,7 +93,7 @@ class _BalanceCard extends StatelessWidget {
         const SizedBox(height: 12),
         const Text('Balance health overview', style: TextStyle(fontWeight: FontWeight.w800)),
         Text('${b.scopeVisible ? 'Only displayed categories' : 'All categories, including hidden'} · ${b.subjects} total',
-            style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            style: TextStyle(color: MF.textDim, fontSize: 12)),
         const SizedBox(height: 6),
         _counts('Today (72 hours)', b.todayCounts),
         _counts('Overall (lifetime)', b.overallCounts),
@@ -115,9 +115,9 @@ class _BalanceCard extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(color: MF.textDim, fontSize: 11)),
+          Text(label, style: TextStyle(color: MF.textDim, fontSize: 11)),
           Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          Text(unit, style: const TextStyle(color: MF.textDim, fontSize: 11)),
+          Text(unit, style: TextStyle(color: MF.textDim, fontSize: 11)),
         ]),
       );
 
@@ -132,12 +132,12 @@ class _BalanceCard extends StatelessWidget {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(r.cat.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                Text('${fmtNumber(r.amount)} ${unitLabel(r.cat.unit, r.amount)} today', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                Text('${fmtNumber(r.amount)} ${unitLabel(r.cat.unit, r.amount)} today', style: TextStyle(color: MF.textDim, fontSize: 12)),
               ]),
             ),
             Text('${fmtNumber(r.amount)} / ${fmtNumber(r.target)}', style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(width: 6),
-            Text('${r.pct}%', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text('${r.pct}%', style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
           const SizedBox(height: 8),
           LinearProgressIndicator(value: r.pct / 100, minHeight: 5, borderRadius: BorderRadius.circular(4)),
@@ -148,7 +148,7 @@ class _BalanceCard extends StatelessWidget {
           ]),
           const SizedBox(height: 6),
           Text(r.label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-          Text(r.text, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+          Text(r.text, style: TextStyle(color: MF.textDim, fontSize: 12)),
         ]),
       );
 
@@ -182,7 +182,7 @@ class _OnThisDayCard extends StatelessWidget {
           ? Text(
               'No anniversaries for $today yet. Past History activity and Library start or finish milestones will appear here '
               'when they match today’s date in a previous year.',
-              style: const TextStyle(color: MF.textDim),
+              style: TextStyle(color: MF.textDim),
             )
           : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               for (final g in groups) ...[
@@ -191,9 +191,9 @@ class _OnThisDayCard extends StatelessWidget {
                   child: Row(children: [
                     Expanded(
                       child: Text('${g.years} year${g.years == 1 ? '' : 's'} ago',
-                          style: const TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
+                          style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
                     ),
-                    Text('${g.rows.length} event${g.rows.length == 1 ? '' : 's'}', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                    Text('${g.rows.length} event${g.rows.length == 1 ? '' : 's'}', style: TextStyle(color: MF.textDim, fontSize: 12)),
                   ]),
                 ),
                 for (final x in g.rows) _event(x),
@@ -218,7 +218,7 @@ class _OnThisDayCard extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(x.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-            Text([_verb(x.kind), ...bits].join(' · '), style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text([_verb(x.kind), ...bits].join(' · '), style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),
       ]),
@@ -365,7 +365,7 @@ class _StopwatchCardState extends State<StopwatchCard> {
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text('Custom starting time: ${fmtStopwatch(sw.resetValue)} · Reset returns here.',
-                textAlign: TextAlign.center, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                textAlign: TextAlign.center, style: TextStyle(color: MF.textDim, fontSize: 12)),
           ),
         const SizedBox(height: 12),
         Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
@@ -407,7 +407,7 @@ class _StopwatchCardState extends State<StopwatchCard> {
             ),
         ]),
         const SizedBox(height: 8),
-        const Text('Set any starting time, press Start, and the stopwatch continues upward from there. '
+        Text('Set any starting time, press Start, and the stopwatch continues upward from there. '
             'It keeps running while the app is closed, and on the website too.',
             textAlign: TextAlign.center, style: TextStyle(color: MF.textDim, fontSize: 12)),
       ]),
@@ -537,7 +537,7 @@ class _RuntimeCalculatorCardState extends State<RuntimeCalculatorCard> {
         ),
         const SizedBox(height: 12),
         for (var i = 0; i < rows.length && i < _fields.length; i++) ...[
-          if (i > 0) const Center(child: Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: MF.textDim))),
+          if (i > 0) Center(child: Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: MF.textDim))),
           Row(children: [
             SizedBox(width: 84, child: Text('Runtime ${i + 1}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13))),
             Expanded(
@@ -569,7 +569,7 @@ class _RuntimeCalculatorCardState extends State<RuntimeCalculatorCard> {
               label: const Text('Add runtime row'),
             ),
           ),
-        const Center(child: Text('=', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: MF.textDim))),
+        Center(child: Text('=', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: MF.textDim))),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.all(12),
@@ -579,10 +579,10 @@ class _RuntimeCalculatorCardState extends State<RuntimeCalculatorCard> {
                 style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()])),
             Text(
               rc.hasResult ? '${rc.resultCount} runtime${rc.resultCount == 1 ? '' : 's'} calculated' : 'Waiting for calculation',
-              style: const TextStyle(color: MF.textDim, fontSize: 12),
+              style: TextStyle(color: MF.textDim, fontSize: 12),
             ),
             const SizedBox(height: 4),
-            Text('${result['h']} h · ${result['m']} min · ${result['s']} s', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+            Text('${result['h']} h · ${result['m']} min · ${result['s']} s', style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),
         const SizedBox(height: 10),
@@ -619,7 +619,7 @@ class _RuntimeCalculatorCardState extends State<RuntimeCalculatorCard> {
               ? 'After calculating, Continue with result moves the result into Runtime 1 and clears Runtime 2. '
                   'Previous total restores the accumulator from before the latest addition.'
               : 'Add or remove runtime rows, then calculate their combined duration. Only non-zero rows count toward the “runtimes calculated” total.',
-          style: const TextStyle(color: MF.textDim, fontSize: 12),
+          style: TextStyle(color: MF.textDim, fontSize: 12),
         ),
       ]),
     );

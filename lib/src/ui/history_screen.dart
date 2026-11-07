@@ -369,7 +369,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
           if (i < header.length) return Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: header[i]);
           final k = i - header.length;
           if (rows.isEmpty && k == 0) {
-            return const Padding(
+            return Padding(
               padding: EdgeInsets.all(32),
               child: Text('No logs match these filters.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
             );
@@ -387,7 +387,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
           if (row is String) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-              child: Text(fmtDay(row), style: const TextStyle(color: MF.accent, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+              child: Text(fmtDay(row), style: TextStyle(color: MF.accent, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
             );
           }
           final log = row as LogRecord;
@@ -417,7 +417,7 @@ class _Stat extends StatelessWidget {
         decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: MF.border)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-          Text(label, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+          Text(label, style: TextStyle(color: MF.textDim, fontSize: 12)),
         ]),
       ),
     );
@@ -461,19 +461,19 @@ class _LogRow extends StatelessWidget {
                 Text(log.titleSummary.isEmpty ? category.name : log.titleSummary,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
-                Text(detail, style: const TextStyle(color: MF.textDim, fontSize: 12.5)),
+                Text(detail, style: TextStyle(color: MF.textDim, fontSize: 12.5)),
                 Text('${category.name} · ${TimeOfDay.fromDateTime(time).format(context)}${log.source == 'batch' ? ' · Batch Log' : ''}',
-                    style: const TextStyle(color: MF.textDim, fontSize: 11.5)),
+                    style: TextStyle(color: MF.textDim, fontSize: 11.5)),
                 if (log.note.isNotEmpty && log.note != log.titleSummary)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(log.note, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: MF.textDim, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                        style: TextStyle(color: MF.textDim, fontSize: 12.5, fontStyle: FontStyle.italic)),
                   ),
               ]),
             ),
             if (repeat)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(left: 6),
                 child: Tooltip(message: 'Rewatch / reread', child: Icon(Icons.replay_rounded, size: 18, color: MF.accent)),
               ),
@@ -544,7 +544,7 @@ class _SessionEditorState extends State<_SessionEditor> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           const Text('Edit History entry', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           if (widget.log.titleSummary.isNotEmpty)
-            Text(widget.log.titleSummary, style: const TextStyle(color: MF.textDim)),
+            Text(widget.log.titleSummary, style: TextStyle(color: MF.textDim)),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
             initialValue: cats.any((c) => c.id == _cat) ? _cat : (cats.isEmpty ? null : cats.first.id),
@@ -582,7 +582,7 @@ class _SessionEditorState extends State<_SessionEditor> {
           const SizedBox(height: 10),
           TextField(controller: _note, maxLines: 3, minLines: 1, decoration: const InputDecoration(labelText: 'Note')),
           const SizedBox(height: 8),
-          const Text('XP is recalculated from the amount, minutes and the category’s current balance, like on the website.',
+          Text('XP is recalculated from the amount, minutes and the category’s current balance, like on the website.',
               style: TextStyle(color: MF.textDim, fontSize: 12)),
           const SizedBox(height: 14),
           FilledButton(
@@ -680,9 +680,9 @@ class _XpTabState extends State<_XpTab> with AutomaticKeepAliveClientMixin {
     final dated = rows.where((r) => r.timestamp > 0).length;
     final sources = all.map((r) => r.kind).toSet().toList()..sort();
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
-      const Text('PROGRESSION JOURNAL', style: TextStyle(color: MF.accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+      Text('PROGRESSION JOURNAL', style: TextStyle(color: MF.accent, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8)),
       const Text('XP History', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-      const Text('Every available award, source and streak multiplier—built from your saved XP records.', style: TextStyle(color: MF.textDim)),
+      Text('Every available award, source and streak multiplier—built from your saved XP records.', style: TextStyle(color: MF.textDim)),
       const SizedBox(height: 10),
       Wrap(spacing: 8, runSpacing: 8, children: [
         _chipStat('Recorded award entries', fmtNumber(rows.length)),
@@ -720,29 +720,29 @@ class _XpTabState extends State<_XpTab> with AutomaticKeepAliveClientMixin {
       ]),
       const SizedBox(height: 8),
       if (slice.isEmpty)
-        const Padding(padding: EdgeInsets.all(24), child: Text('No XP entries match these filters.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
+        Padding(padding: EdgeInsets.all(24), child: Text('No XP entries match these filters.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
       for (final row in slice)
         Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: MF.border)),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('✦', style: TextStyle(color: MF.accent, fontSize: 16)),
+            Text('✦', style: TextStyle(color: MF.accent, fontSize: 16)),
             const SizedBox(width: 10),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(row.source, style: const TextStyle(fontWeight: FontWeight.w800)),
-                Text(row.timestamp > 0 ? _when(row.timestamp) : 'Earlier award · timestamp unavailable', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                Text(row.timestamp > 0 ? _when(row.timestamp) : 'Earlier award · timestamp unavailable', style: TextStyle(color: MF.textDim, fontSize: 12)),
                 if (row.title.isNotEmpty) Text(cleanTitle(row.title), maxLines: 2, overflow: TextOverflow.ellipsis),
-                if (row.details.isNotEmpty) Text(row.details, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: MF.textDim, fontSize: 12)),
+                if (row.details.isNotEmpty) Text(row.details, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 12)),
                 Text(
                   '${row.baseXP != null ? '${fmtNumber(row.baseXP!.round())} base XP' : 'Base XP unavailable'} · '
                   '${row.multiplier != null ? '×${row.multiplier!.toStringAsFixed(2)}' : 'Not recorded'}',
-                  style: const TextStyle(color: MF.textDim, fontSize: 12),
+                  style: TextStyle(color: MF.textDim, fontSize: 12),
                 ),
               ]),
             ),
-            Text('+${fmtNumber(row.xp.round())} XP', style: const TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
+            Text('+${fmtNumber(row.xp.round())} XP', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
           ]),
         ),
       if (pages > 1)
@@ -752,7 +752,7 @@ class _XpTabState extends State<_XpTab> with AutomaticKeepAliveClientMixin {
           IconButton(icon: const Icon(Icons.chevron_right_rounded), onPressed: _page >= pages - 1 ? null : () => setState(() => _page++)),
         ]),
       const SizedBox(height: 8),
-      const Text('Older XP ledgers did not record every award’s timestamp or multiplier, and Library-count XP is calculated from the current Library '
+      Text('Older XP ledgers did not record every award’s timestamp or multiplier, and Library-count XP is calculated from the current Library '
           'rather than individual dated awards. Missing history details are not fabricated.',
           style: TextStyle(color: MF.textDim, fontSize: 12)),
     ]);
@@ -763,7 +763,7 @@ class _XpTabState extends State<_XpTab> with AutomaticKeepAliveClientMixin {
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
-          Text(label, style: const TextStyle(color: MF.textDim, fontSize: 11)),
+          Text(label, style: TextStyle(color: MF.textDim, fontSize: 11)),
         ]),
       );
 }
@@ -825,7 +825,7 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
     final slice = entries.skip(_page * size).take(size).toList();
     final libraryIds = view.library.map((t) => t.id).toSet();
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
-      const Text('LIBRARY CHANGE LOG', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+      Text('LIBRARY CHANGE LOG', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
       const SizedBox(height: 8),
       TextField(
         controller: _search,
@@ -834,7 +834,7 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
       ),
       const SizedBox(height: 8),
       if (slice.isEmpty)
-        const Padding(padding: EdgeInsets.all(24), child: Text('No library activity recorded yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
+        Padding(padding: EdgeInsets.all(24), child: Text('No library activity recorded yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
       for (final e in slice) _entry(e, libraryIds),
       if (pages > 1)
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -857,10 +857,10 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Expanded(child: Text(jsStr(e['action']).isEmpty ? 'Change' : jsStr(e['action']), style: const TextStyle(fontWeight: FontWeight.w800))),
-          if (xp > 0) Text('+${fmtNumber(xp)} XP', style: const TextStyle(color: MF.accent, fontWeight: FontWeight.w800)),
+          if (xp > 0) Text('+${fmtNumber(xp)} XP', style: TextStyle(color: MF.accent, fontWeight: FontWeight.w800)),
         ]),
-        Text(jsNum(e['timestamp']) > 0 ? _when(jsNum(e['timestamp'])) : '', style: const TextStyle(color: MF.textDim, fontSize: 12)),
-        if (jsStr(e['detail']).isNotEmpty) Text(jsStr(e['detail']), style: const TextStyle(color: MF.textDim, fontSize: 13)),
+        Text(jsNum(e['timestamp']) > 0 ? _when(jsNum(e['timestamp'])) : '', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        if (jsStr(e['detail']).isNotEmpty) Text(jsStr(e['detail']), style: TextStyle(color: MF.textDim, fontSize: 13)),
         for (final c in changes.take(8))
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -870,7 +870,7 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
               style: const TextStyle(fontSize: 12.5),
             ),
           ),
-        if (changes.length > 8) Text('+${changes.length - 8} more', style: const TextStyle(color: MF.textDim, fontSize: 12)),
+        if (changes.length > 8) Text('+${changes.length - 8} more', style: TextStyle(color: MF.textDim, fontSize: 12)),
         if (restorable.isNotEmpty) ...[
           const SizedBox(height: 6),
           Wrap(spacing: 6, runSpacing: 4, children: [
