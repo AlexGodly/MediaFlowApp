@@ -28,7 +28,7 @@ Future<void> _openSheet(BuildContext context, Widget child) {
     backgroundColor: MF.surface,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
     builder: (_) => PresenceScope(
-      info: const PresenceInfo(details: 'Logging titles', state: 'Batch Log'),
+      info: const PresenceInfo(situation: 'batch'),
       child: Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
         child: child,

@@ -3,7 +3,7 @@ description: MediaFlow by Alex Godly — native app for Android, Windows and iOS
 publish_to: none
 
 # Build number = beta number. The user-visible label lives in lib/src/config.dart.
-version: 3.0.0+21
+version: 4.0.0+22
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -25,6 +25,8 @@ dependencies:
   # account's tokens kept in the system's secure storage (phones).
   ffi: ^2.1.3
   flutter_secure_storage: ^9.2.2
+  # Long-press shortcuts on the app icon (Android, iOS).
+  quick_actions: ^1.0.7
 
 dev_dependencies:
   flutter_test:

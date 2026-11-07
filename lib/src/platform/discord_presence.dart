@@ -8,6 +8,7 @@
 // filtered by the privacy choice in Settings.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -15,41 +16,39 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../logic/presence_templates.dart';
+
 import '../data/app_prefs.dart';
 import 'discord_ffi.dart';
 
-/// What MediaFlow shows on Discord at a moment.
+/// What MediaFlow is doing at a moment: a situation (see
+/// `kPresenceSituations`) and the values its templates can use.
 @immutable
 class PresenceInfo {
   const PresenceInfo({
-    required this.details,
-    this.state,
-    this.title,
+    required this.situation,
+    this.values = const {},
     this.cover,
     this.categoryName,
     this.categoryId,
     this.kind = PresenceKind.other,
-    this.genericDetails,
   });
 
-  /// e.g. "Logging Frieren" / "Browsing the Library".
-  final String details;
+  final String situation;
 
-  /// e.g. "Episode 12 / 28".
-  final String? state;
+  /// title, progress, total, unit, units, percent, season, category, more,
+  /// count, collection, rerolls, action, verb…
+  final Map<String, String> values;
 
-  /// The title this is about (hidden by the privacy settings).
-  final String? title;
-
-  /// Its cover link (https), if any.
+  /// The title's cover link (https), if any.
   final String? cover;
   final String? categoryName, categoryId;
   final PresenceKind kind;
 
-  /// The line used instead of [details] when titles are hidden ("Logging anime").
-  final String? genericDetails;
+  /// What restarts the "title" timer.
+  String get subject => values['title'] ?? values['collection'] ?? '';
 
-  String get key => '$details|$state|$title|$cover|$categoryId|${kind.index}';
+  String get key => '$situation|${values.entries.map((e) => '${e.key}=${e.value}').join(';')}|$cover|$categoryId|${kind.index}';
 }
 
 /// Decides Discord's verb (Watching / Listening / Playing).
@@ -71,6 +70,9 @@ class DiscordPresence extends ChangeNotifier {
   NativeCallable<StatusCb>? _statusCb;
   final _secure = const FlutterSecureStorage();
 
+  /// The saved link stopped working (Discord removed or expired it).
+  void Function()? onLinkExpired;
+
   /// Connection state for Settings.
   String statusText = 'Off';
   bool linked = false, linking = false, connected = false;
@@ -87,13 +89,20 @@ class DiscordPresence extends ChangeNotifier {
 
   bool get enabled => AppPrefs.instance.get<bool>('discordEnabled', true);
 
-  /// full | activity (no titles or covers) | minimal ("Using MediaFlow").
-  String get privacy => AppPrefs.instance.get<String>('discordPrivacy', 'full');
+  /// The look shared by every device (account settings, see
+  /// presence_templates.dart), set by the app when the account changes.
+  PresenceConfig config = PresenceConfig(const {});
 
-  /// show ("Idle in MediaFlow") | clear.
-  String get idleMode => AppPrefs.instance.get<String>('discordIdle', 'show');
+  /// Values every template can use (level, streak, xp, library).
+  Map<String, String> Function()? globals;
 
-  List<String> get hiddenCategories => AppPrefs.instance.get<String>('discordHiddenCategories', '').split(',').where((s) => s.isNotEmpty).toList();
+  void setConfig(PresenceConfig c) {
+    if (c.raw == config.raw || jsonEncode(c.raw) == jsonEncode(config.raw)) return;
+    config = c;
+    _sentKey = '';
+    _schedule();
+    notifyListeners();
+  }
 
   bool get available => supported && DiscordFfi.load() != null;
 
@@ -105,27 +114,6 @@ class DiscordPresence extends ChangeNotifier {
       _clear();
       _stopClient();
     }
-    notifyListeners();
-  }
-
-  Future<void> setPrivacy(String v) async {
-    await AppPrefs.instance.set('discordPrivacy', v);
-    _sentKey = '';
-    _schedule();
-    notifyListeners();
-  }
-
-  Future<void> setIdleMode(String v) async {
-    await AppPrefs.instance.set('discordIdle', v);
-    _sentKey = '';
-    _schedule();
-    notifyListeners();
-  }
-
-  Future<void> setHiddenCategories(List<String> ids) async {
-    await AppPrefs.instance.set('discordHiddenCategories', ids.join(','));
-    _sentKey = '';
-    _schedule();
     notifyListeners();
   }
 
@@ -297,6 +285,7 @@ class DiscordPresence extends ChangeNotifier {
           // The link was removed on Discord's side (or expired): link again.
           unawaited(_deleteTokens());
           linked = false;
+          onLinkExpired?.call();
         }
         _linkFailed(error.isEmpty ? 'Discord did not accept the link.' : error);
         return;
@@ -358,10 +347,15 @@ class DiscordPresence extends ChangeNotifier {
   // ---- what is shown ----
 
   /// The app's current activity (from the screen in use).
-  void show(PresenceInfo? info, {bool restartTimer = false}) {
-    if (restartTimer || info?.key != _wanted?.key) {
-      if (info?.details != _wanted?.details) _startedAt = DateTime.now().millisecondsSinceEpoch;
-    }
+  void show(PresenceInfo? info) {
+    final before = _wanted;
+    final timer = config.timer;
+    final changed = timer == 'title'
+        ? (info?.subject != before?.subject || (info?.subject ?? '').isEmpty && info?.situation != before?.situation)
+        : timer == 'screen'
+            ? info?.situation != before?.situation
+            : false;
+    if (changed) _startedAt = DateTime.now().millisecondsSinceEpoch;
     _wanted = info;
     _schedule();
   }
@@ -382,35 +376,85 @@ class DiscordPresence extends ChangeNotifier {
     _sendTimer = Timer(wait.isNegative ? const Duration(milliseconds: 300) : wait, _send);
   }
 
-  /// What is actually shown after the privacy settings.
-  ({String details, String? state, String large, String largeText, String? small, String? smallText, int type})? effective() {
+  /// What is actually shown: the situation's templates filled in, after the
+  /// privacy settings.
+  ({String details, String? state, String large, String largeText, String? small, String? smallText, int type, int statusLine, bool timer})?
+      effective() {
+    final c = config;
+    final statusLine = switch (c.statusLine) { 'details' => 2, 'state' => 1, _ => 0 };
+    final g = globals?.call() ?? const <String, String>{};
     if (_idle) {
-      if (idleMode == 'clear') return null;
-      return (details: 'Idle in MediaFlow', state: null, large: logoUrl, largeText: 'MediaFlow', small: null, smallText: null, type: ActivityType.playing);
+      if (c.idle == 'clear') return null;
+      final t = c.template('idle');
+      final d = renderPresence(t.$1, g);
+      return (
+        details: _clip(d.isEmpty ? 'Idle in MediaFlow' : d),
+        state: _opt(renderPresence(t.$2, g)),
+        large: logoUrl,
+        largeText: 'MediaFlow',
+        small: null,
+        smallText: null,
+        type: ActivityType.playing,
+        statusLine: statusLine,
+        timer: false,
+      );
     }
-    final w = _wanted ?? const PresenceInfo(details: 'Using MediaFlow');
-    final mode = privacy;
-    final hidden = w.categoryId != null && hiddenCategories.contains(w.categoryId);
-    if (mode == 'minimal' || hidden) {
-      return (details: 'Using MediaFlow', state: null, large: logoUrl, largeText: 'MediaFlow', small: null, smallText: null, type: ActivityType.playing);
+    final w = _wanted ?? const PresenceInfo(situation: 'other');
+    final hidden = w.categoryId != null && c.hiddenCategories.contains(w.categoryId);
+    if (c.privacy == 'minimal' || hidden) {
+      return (
+        details: 'Using MediaFlow',
+        state: null,
+        large: logoUrl,
+        largeText: 'MediaFlow',
+        small: null,
+        smallText: null,
+        type: ActivityType.playing,
+        statusLine: 0,
+        timer: c.timer != 'off',
+      );
     }
-    final full = mode == 'full';
-    final cover = full && (w.cover ?? '').startsWith('https://') ? w.cover! : null;
-    final type = switch (w.kind) {
+    final full = c.privacy == 'full';
+    final values = <String, String>{...g, ...w.values};
+    if (!full) {
+      // Titles and collection names hidden: the category stands in.
+      final cat = (w.categoryName ?? '').toLowerCase();
+      for (final k in const ['title', 'collection']) {
+        if ((values[k] ?? '').isNotEmpty) values[k] = cat.isEmpty ? 'a title' : cat;
+      }
+    }
+    if (!c.showAction) values['action'] = '';
+    final t = c.template(w.situation);
+    final details = renderPresence(t.$1, values);
+    final state = renderPresence(t.$2, values);
+    final cover = full && c.picture == 'cover' && (w.cover ?? '').startsWith('https://') ? w.cover! : null;
+    final kind = switch (c.types[w.categoryId ?? '']) {
+      'watching' => PresenceKind.watching,
+      'listening' => PresenceKind.listening,
+      'playing' || 'reading' => PresenceKind.playing,
+      _ => w.kind,
+    };
+    final type = switch (kind) {
       PresenceKind.watching => ActivityType.watching,
       PresenceKind.listening => ActivityType.listening,
       _ => ActivityType.playing,
     };
+    final largeText = renderPresence(c.largeText, values);
+    final smallText = renderPresence(c.smallText, values);
     return (
-      details: _clip(full ? w.details : (w.genericDetails ?? w.details)),
-      state: w.state == null || (!full && w.title != null && w.state!.contains(w.title!)) ? null : _clip(w.state!),
+      details: _clip(details.isEmpty ? 'Using MediaFlow' : details),
+      state: _opt(state),
       large: cover ?? logoUrl,
-      largeText: _clip(cover != null ? (w.title ?? 'MediaFlow') : 'MediaFlow'),
-      small: cover != null ? logoUrl : null,
-      smallText: cover != null ? (w.categoryName == null ? 'MediaFlow' : 'MediaFlow · ${w.categoryName}') : null,
+      largeText: _clip(largeText.isEmpty ? 'MediaFlow' : largeText),
+      small: cover != null && c.smallPicture == 'logo' ? logoUrl : null,
+      smallText: cover != null && c.smallPicture == 'logo' ? _clip(smallText.isEmpty ? 'MediaFlow' : smallText) : null,
       type: type,
+      statusLine: statusLine,
+      timer: c.timer != 'off',
     );
   }
+
+  static String? _opt(String s) => s.trim().isEmpty ? null : _clip(s);
 
   static String _clip(String s) {
     final t = s.trim();
@@ -422,7 +466,7 @@ class DiscordPresence extends ChangeNotifier {
     final ffi = _ffi, client = _client;
     if (ffi == null || client == null || !enabled) return;
     final e = effective();
-    final key = e == null ? 'clear' : '${e.details}|${e.state}|${e.large}|${e.small}|${e.type}|$_startedAt';
+    final key = e == null ? 'clear' : '${e.details}|${e.state}|${e.large}|${e.largeText}|${e.small}|${e.smallText}|${e.type}|${e.statusLine}|${e.timer ? _startedAt : 0}';
     if (key == _sentKey) return;
     _lastSend = DateTime.now();
     _sentKey = key;
@@ -436,6 +480,9 @@ class DiscordPresence extends ChangeNotifier {
         ffi.activityInit(activity);
         ffi.activitySetName(activity, DiscordFfi.str('MediaFlow', a).ref);
         ffi.activitySetType(activity, e.type);
+        // What the short status line shows ("Watching MediaFlow" / "Watching Frieren").
+        final display = a<Int32>()..value = e.statusLine;
+        ffi.activitySetStatusDisplayType(activity, display);
         ffi.activitySetDetails(activity, DiscordFfi.str(e.details, a));
         if (e.state != null) ffi.activitySetState(activity, DiscordFfi.str(e.state!, a));
         ffi.assetsInit(assets);
@@ -447,8 +494,10 @@ class DiscordPresence extends ChangeNotifier {
         }
         ffi.activitySetAssets(activity, assets);
         ffi.timestampsInit(times);
-        ffi.timestampsSetStart(times, _startedAt);
-        ffi.activitySetTimestamps(activity, times);
+        if (e.timer) {
+          ffi.timestampsSetStart(times, _startedAt);
+          ffi.activitySetTimestamps(activity, times);
+        }
         late final NativeCallable<ResultCb> cb;
         cb = NativeCallable<ResultCb>.isolateLocal((Pointer<DOpaque> result, Pointer<Void> _) {
           cb.close();

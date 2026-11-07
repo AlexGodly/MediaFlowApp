@@ -21,9 +21,11 @@ import '../logic/task_progress.dart';
 import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'floating_dock.dart' show DockAction, FloatingDock;
 import 'log_sheet.dart';
 import 'home_shell.dart' show Section;
 import 'logging_library.dart';
+import '../platform/discord_presence.dart' show DiscordPresence;
 import 'presence.dart';
 import 'progress_cards.dart';
 import 'reroll_history.dart';
@@ -86,7 +88,6 @@ class _LogScreenState extends State<LogScreen> {
   bool _xpBusy = false;
   int _xpGen = 0;
   Timer? _xpTimer;
-  bool _fabOpen = false;
 
   bool _busy = false;
   String? _error;
@@ -101,12 +102,16 @@ class _LogScreenState extends State<LogScreen> {
     _adopt();
     account.addListener(_onAccount);
     account.startLiveDraft(); // follow a log continued on the website
+    FloatingDock.openLoggingLibrary.addListener(_onDockOpen);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onDockOpen());
   }
 
   @override
   void dispose() {
     account.removeListener(_onAccount);
     account.stopLiveDraft();
+    FloatingDock.openLoggingLibrary.removeListener(_onDockOpen);
+    FloatingDock.extras.value = const [];
     _noteTimer?.cancel();
     _xpTimer?.cancel();
     _note.dispose();
@@ -153,7 +158,6 @@ class _LogScreenState extends State<LogScreen> {
     _xp = null;
     _xpKey = '';
     _xpGen++;
-    _fabOpen = false;
   }
 
   LogDraftEditor? _editor(AccountView view) {
@@ -370,8 +374,8 @@ class _LogScreenState extends State<LogScreen> {
     final formOpen = _task != null && _logDraft != null;
     final progress = formOpen ? _taskProgress(view) : null;
     _reportPresence(view, task, formOpen);
+    _publishDockExtras(formOpen);
     return Scaffold(
-      floatingActionButton: _fab(view, task, active),
       appBar: AppBar(
         title: const Text('Log'),
         actions: [
@@ -1269,56 +1273,31 @@ class _LogScreenState extends State<LogScreen> {
     ]);
   }
 
-  // ---- the "+" button -------------------------------------------------------------------
+  // ---- the app-wide "+" (website floating dock) -----------------------------------------
 
-  Widget? _fab(AccountView view, Map<String, dynamic>? task, bool active) {
-    // The website's "Show the floating + button" setting (v405).
-    if (asMap(view.state['settings'])?['v405ShowFloatingAdd'] == false) return null;
-    if (!active || task == null) {
-      return FloatingActionButton(
-        heroTag: null,
-        tooltip: 'Log any title (Batch Log)',
-        onPressed: () => showLogSheet(context, account),
-        child: const Icon(Icons.add_rounded),
-      );
+  static int _dockHandled = 0;
+
+  void _onDockOpen() {
+    if (!mounted || FloatingDock.openLoggingLibrary.value <= _dockHandled) return;
+    _dockHandled = FloatingDock.openLoggingLibrary.value;
+    final state = account.view?.state ?? const {};
+    final task = asMap(state['currentTask']);
+    if (state['sessionActive'] != true || task == null) {
+      showLogSheet(context, account); // no session: log any title (Batch Log)
+      return;
     }
-    final formOpen = _task != null && _logDraft != null;
-    Widget item(String label, IconData icon, VoidCallback onTap) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: FloatingActionButton.extended(
-            heroTag: null,
-            onPressed: _busy ? null : onTap,
-            icon: Icon(icon),
-            label: Text(label),
-          ),
-        );
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-      if (_fabOpen) ...[
-        item('Add titles', Icons.library_add_rounded, () {
-          setState(() => _fabOpen = false);
-          if (_task == null) _openForm(task);
-          _openLibrarySheet();
-        }),
-        if (formOpen)
-          item('Save & get next task', Icons.task_alt_rounded, () {
-            setState(() => _fabOpen = false);
-            _quickSave();
-          }),
-      ],
-      FloatingActionButton(
-        heroTag: null,
-        tooltip: _fabOpen ? 'Close' : 'Add titles or save',
-        onPressed: () => setState(() => _fabOpen = !_fabOpen),
-        child: AnimatedRotation(
-          turns: _fabOpen ? 0.125 : 0,
-          duration: const Duration(milliseconds: 150),
-          child: const Icon(Icons.add_rounded),
-        ),
-      ),
-    ]);
+    if (_task == null) _openForm(task);
+    _openLibrarySheet();
   }
 
-  /// "Save & get next task" from the "+" button: one confirm showing the XP.
+  void _publishDockExtras(bool formOpen) {
+    final want = formOpen && !_busy;
+    if (want == FloatingDock.extras.value.isNotEmpty) return;
+    FloatingDock.extras.value = want
+        ? [DockAction('Save & get next task', 'Save this log and open the next task', Icons.task_alt_rounded, _quickSave)]
+        : const [];
+  }
+
   Future<void> _quickSave() async {
     FocusManager.instance.primaryFocus?.unfocus();
     await Future<void>.delayed(Duration.zero);
@@ -1359,25 +1338,63 @@ class _LogScreenState extends State<LogScreen> {
     if (ok == true && mounted) await _submit();
   }
 
-  /// Discord: "Logging Frieren · Episode 12 / 28" while the form is open,
-  /// "Up next: Frieren" while a recommendation waits.
+  /// Discord: while the form is open the title and progress come from the log
+  /// draft (the entry edited last, the first, or all of them — Settings), so
+  /// typing "13" shows 13 right away; "Up next" while a recommendation waits.
   void _reportPresence(AccountView view, Map<String, dynamic>? task, bool formOpen) {
     PresenceInfo? info;
     final t = formOpen ? _task : task;
     if (t != null && (formOpen || view.state['sessionActive'] == true)) {
-      final id = jsStr(t['libraryId']);
-      final item = id.isEmpty ? null : view.library.where((x) => x.id == id).firstOrNull?.raw;
-      final cat = view.category(jsStr(item?['categoryId'] ?? t['categoryId']));
-      final data = item ?? <String, dynamic>{'title': t['title'], 'categoryId': cat.id};
-      String? state;
-      if (item != null) {
-        final unit = unitLabel(cat.unit, 1);
-        final word = unit.isEmpty ? 'Progress' : '${unit[0].toUpperCase()}${unit.substring(1)}';
-        state = jsTruthy(item['total']) ? '$word ${_num(item['progress'])} / ${_num(item['total'])}' : '$word ${_num(item['progress'])}';
+      Map<String, dynamic>? itemOf(Object? id) =>
+          jsStr(id).isEmpty ? null : view.library.where((x) => x.id == jsStr(id)).firstOrNull?.raw;
+      final ed = formOpen ? _editor(view) : null;
+      final entries = ed?.entries.where((e) => jsStr(e['title']).isNotEmpty || jsTruthy(e['libraryId'])).toList() ?? const [];
+      Map<String, dynamic>? entry;
+      if (entries.isNotEmpty) {
+        final mode = DiscordPresence.instance.config.draftEntry;
+        if (mode == 'first') {
+          entry = entries.first;
+        } else {
+          entry = entries.last;
+          var latest = -1.0;
+          for (final e in entries) {
+            final at = jsNum(e['v369UpdatedAt']);
+            if (at > latest) {
+              latest = at;
+              entry = e;
+            }
+          }
+          if (latest <= 0) entry = entries.last;
+        }
       }
-      info = formOpen
-          ? titlePresence('Logging', data, cat, state: state)
-          : titlePresence('Up next:', data, cat, state: state, genericVerb: 'Deciding on');
+      final item = itemOf(entry?['libraryId'] ?? t['libraryId']);
+      final cat = view.category(jsStr(item?['categoryId'] ?? entry?['categoryId'] ?? t['categoryId']));
+      final data = item ?? <String, dynamic>{'title': entry?['title'] ?? t['title'], 'categoryId': cat.id};
+      double? progress;
+      String? season;
+      if (ed != null && entry != null && item != null) {
+        if (ed.itemized) {
+          progress = ed.projectedProgress(item, entry);
+        } else if (entry['v179EndProgress'] != null) {
+          progress = jsNum(entry['v179EndProgress']);
+        } else {
+          final start = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
+          progress = start + jsNum(entry['qty']);
+        }
+        season = jsStr(ed.selectedSeason(entry, item)?['name']);
+      }
+      final others = entries.length > 1 ? entries.length - 1 : 0;
+      final allMode = DiscordPresence.instance.config.draftEntry == 'all' && others > 0;
+      info = titlePresence(
+        formOpen ? 'logging' : 'upNext',
+        allMode ? {...data, 'title': '${cleanTitle(data['title'])} + $others more'} : data,
+        cat,
+        progress: progress,
+        season: season,
+        more: others > 0 && !allMode ? '+$others more' : '',
+        count: entries.length,
+        action: formOpen ? 'Logging' : '',
+      );
     }
     PresenceHub.instance.section(Section.log, info);
   }

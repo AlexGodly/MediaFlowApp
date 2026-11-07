@@ -29,8 +29,8 @@ Future<void> showRerollHistory(BuildContext context, AccountController account) 
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
       info: PresenceInfo(
-        details: 'Rerolling recommendations',
-        state: 'Reroll #${titleRerollCount(asMap(account.view?.state['currentTask']))}',
+        situation: 'upNext',
+        values: {'rerolls': '${titleRerollCount(asMap(account.view?.state['currentTask']))}'},
       ),
       child: SizedBox(
       height: MediaQuery.sizeOf(c).height * 0.85,

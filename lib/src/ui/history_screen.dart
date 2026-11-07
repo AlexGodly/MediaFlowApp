@@ -184,7 +184,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: MF.surface,
-      builder: (c) => PresenceScope(info: const PresenceInfo(details: 'Editing History'), child: _SessionEditor(view: view, log: log)),
+      builder: (c) => PresenceScope(info: const PresenceInfo(situation: 'history'), child: _SessionEditor(view: view, log: log)),
     );
     if (result == null || !mounted) return;
     if (result.delete) {

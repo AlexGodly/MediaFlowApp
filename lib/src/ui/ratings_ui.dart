@@ -117,7 +117,7 @@ Future<void> showExternalIds(BuildContext context, AccountController account, St
     useSafeArea: true,
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
-      info: const PresenceInfo(details: 'Finding title IDs'),
+      info: const PresenceInfo(situation: 'recovery'),
       child: SizedBox(height: MediaQuery.sizeOf(c).height * 0.92, child: _IdsEditor(account: account, id: id)),
     ),
   );

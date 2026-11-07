@@ -1,15 +1,16 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import '../state/state_codec.dart';
 import 'account_ops.dart';
+import 'background_worker.dart';
 import 'records.dart';
 
 /// Runs heavy work away from the screen. The app uses [Isolate.run]; tests may
 /// run it inline. Whatever the work returns comes back without being copied.
 typedef BackgroundRunner = Future<R> Function<R>(FutureOr<R> Function() work);
 
-Future<R> runInIsolate<R>(FutureOr<R> Function() work) => Isolate.run(work);
+/// Runs on MediaFlow's long-lived worker isolate (falls back to [Isolate.run]).
+Future<R> runInIsolate<R>(FutureOr<R> Function() work) => runOnWorker(work);
 
 /// Runs [work] right here (tests).
 Future<R> runInline<R>(FutureOr<R> Function() work) async => await work();

@@ -31,9 +31,43 @@ class RecoveryJob {
   int done = 0, applied = 0, noMatch = 0, fieldsFilled = 0, xp = 0;
   String current = '';
   bool running = true, stopped = false;
+
+  /// Paused by the person (notification, tray, workspace) or by the system
+  /// (iOS while MediaFlow is in the background).
+  bool paused = false, pausedBySystem = false;
   final List<String> errors = [];
   final List<CoverReview> coverReviews = [];
   final List<MetadataPreview> metadataReviews = [];
+
+  int get total => ids.length;
+  bool get finished => !running && !stopped && done >= ids.length;
+
+  /// What is saved so an interrupted job continues next time.
+  Map<String, dynamic> toJson() => {
+        'kind': kind,
+        'ids': ids,
+        'label': label,
+        'done': done,
+        'applied': applied,
+        'noMatch': noMatch,
+        'fieldsFilled': fieldsFilled,
+        'xp': xp,
+        'paused': paused && !pausedBySystem,
+      };
+
+  static RecoveryJob? fromJson(Object? raw) {
+    final m = asMap(raw);
+    if (m == null || (m['kind'] != 'cover' && m['kind'] != 'metadata')) return null;
+    final ids = [for (final x in (m['ids'] as List? ?? const [])) if (x is String) x];
+    final job = RecoveryJob(m['kind'] as String, ids, jsStr(m['label']))
+      ..done = jsNum(m['done']).toInt().clamp(0, ids.length).toInt()
+      ..applied = jsNum(m['applied']).toInt()
+      ..noMatch = jsNum(m['noMatch']).toInt()
+      ..fieldsFilled = jsNum(m['fieldsFilled']).toInt()
+      ..xp = jsNum(m['xp']).toInt()
+      ..paused = m['paused'] == true;
+    return job.done < ids.length ? job : null;
+  }
 }
 
 class RecoveryRunner extends ChangeNotifier {
@@ -50,16 +84,19 @@ class RecoveryRunner extends ChangeNotifier {
 
   // ---------- Cover Recovery ----------
 
-  Future<void> startCover(AccountController account, List<String> ids, String label) async {
+  Future<void> startCover(AccountController account, List<String> ids, String label, {RecoveryJob? resume}) async {
     if (cover?.running == true) return;
-    final job = RecoveryJob('cover', ids, label);
+    final job = resume ?? RecoveryJob('cover', ids, label);
+    job.running = true;
     cover = job;
     final stop = StopToken();
     _coverStop = stop;
     notifyListeners();
     try {
-      for (final id in ids) {
+      while (job.done < job.ids.length) {
+        await _waitWhilePaused(job, stop);
         if (stop.stopped) break;
+        final id = job.ids[job.done];
         final item = _item(account, id);
         if (item == null || !coverMissing(item)) {
           job.done++;
@@ -67,7 +104,7 @@ class RecoveryRunner extends ChangeNotifier {
         }
         job.current = cleanTitle(item['title']);
         notifyListeners();
-        final candidates = await _coverCandidates(account, item);
+        final candidates = await coverCandidates(account, item);
         if (stop.stopped) break;
         final confident = candidates.where((c) => c.confidence >= 0.94).toList();
         if (confident.length == 1 || (confident.isNotEmpty && confident.every((c) => c.url == confident.first.url))) {
@@ -92,9 +129,53 @@ class RecoveryRunner extends ChangeNotifier {
     }
   }
 
-  void stopCover() => _coverStop?.stop();
+  void stopCover() {
+    cover?.paused = false;
+    _coverStop?.stop();
+  }
 
-  Future<List<CoverCandidate>> _coverCandidates(AccountController account, Map<String, dynamic> item) async {
+  // ---------- Pause / resume (notification, tray, iOS background) ----------
+
+  Future<void> _waitWhilePaused(RecoveryJob job, StopToken stop) async {
+    if (!job.paused) return;
+    notifyListeners();
+    while (job.paused && !stop.stopped) {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
+  Iterable<RecoveryJob> get _active => [cover, metadata].whereType<RecoveryJob>().where((j) => j.running);
+
+  bool get anyRunning => _active.isNotEmpty || combinedRunning;
+  bool get allPaused => _active.isNotEmpty && _active.every((j) => j.paused);
+
+  void pauseAll({bool bySystem = false}) {
+    for (final j in _active) {
+      if (j.paused) continue;
+      j.paused = true;
+      j.pausedBySystem = bySystem;
+    }
+    notifyListeners();
+  }
+
+  void resumeAll({bool onlySystem = false}) {
+    for (final j in _active) {
+      if (onlySystem && !j.pausedBySystem) continue;
+      j.paused = false;
+      j.pausedBySystem = false;
+    }
+    notifyListeners();
+  }
+
+  void stopAll() {
+    _combinedStopped = true;
+    stopCover();
+    stopMetadata();
+  }
+
+  bool _combinedStopped = false;
+
+  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item) async {
     final cat = account.view!.category(jsStr(item['categoryId']));
     final found = <String, CoverCandidate>{};
     final names = titleVariants(item).take(3).toList();
@@ -116,7 +197,20 @@ class RecoveryRunner extends ChangeNotifier {
         if (!url.startsWith('https://') || found.containsKey(url)) continue;
         final ev = coverEvidence(item, r.title, r.year);
         if (ev.confidence < 0.65) continue;
-        found[url] = CoverCandidate(url: url, provider: r.source.toLowerCase(), title: r.title, year: r.year, confidence: ev.confidence, reason: ev.reason);
+        final provider = coverProviderId(r.source);
+        var recordId = (r.externalId ?? '').trim();
+        if (provider == 'openlibrary') recordId = recordId.replaceFirst(RegExp(r'^/works/'), '');
+        found[url] = CoverCandidate(
+          url: url,
+          provider: provider,
+          title: r.title,
+          year: r.year,
+          confidence: ev.confidence,
+          reason: ev.reason,
+          recordId: recordId,
+          externalIdKey: r.externalIdKey.isNotEmpty ? r.externalIdKey : coverExternalIdKey(provider),
+          reportedIds: r.linkedIds,
+        );
       }
       if (found.values.any((c) => c.confidence >= 0.94)) break;
     }
@@ -125,11 +219,12 @@ class RecoveryRunner extends ChangeNotifier {
     return list;
   }
 
-  Future<bool> _applyCover(AccountController account, String id, CoverCandidate c, int expected, RecoveryJob? job) async {
+  Future<bool> _applyCover(AccountController account, String id, CoverCandidate c, int expected, RecoveryJob? job,
+      {bool manual = false, bool linkIds = true}) async {
     double? xp;
     await account.edit((s, now) {
       var k = 0;
-      xp = applyRecoveredCover(s, id, c, expected, now, () => mediaFlowUid(now + k++));
+      xp = applyRecoveredCover(s, id, c, expected, now, () => mediaFlowUid(now + k++), manual: manual, linkIds: linkIds);
     }, label: 'Cover Recovery');
     if (xp == null) return false;
     if (job != null) {
@@ -140,8 +235,8 @@ class RecoveryRunner extends ChangeNotifier {
   }
 
   /// A cover picked in the review list.
-  Future<bool> chooseCover(AccountController account, CoverReview review, CoverCandidate c) async {
-    final ok = await _applyCover(account, review.id, c, review.expectedModifiedAt, cover);
+  Future<bool> chooseCover(AccountController account, CoverReview review, CoverCandidate c, {bool linkIds = true}) async {
+    final ok = await _applyCover(account, review.id, c, review.expectedModifiedAt, cover, manual: true, linkIds: linkIds);
     cover?.coverReviews.remove(review); // also when the title changed meanwhile
     notifyListeners();
     return ok;
@@ -152,11 +247,38 @@ class RecoveryRunner extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------- Combined Recovery (website v447 "both") ----------
+
+  bool combinedRunning = false;
+
+  /// Covers for the titles missing one, then details for those missing them.
+  Future<void> startCombined(AccountController account, List<String> ids, String label) async {
+    if (combinedRunning) return;
+    combinedRunning = true;
+    _combinedStopped = false;
+    notifyListeners();
+    try {
+      final covers = [for (final id in ids) if (coverMissing(_item(account, id))) id];
+      if (covers.isNotEmpty) await startCover(account, covers, label);
+      if (cover?.stopped == true || _combinedStopped) return;
+      final details = [
+        for (final id in ids)
+          if (_item(account, id) case final m? when !hasValue(m['synopsis']) || !hasValue(m['genres']) || !hasValue(m['year']) || !hasValue(m['mediaFormat'])) id,
+      ];
+      final max = jsNum(metadataPreferences(asMap(account.view?.state['settings']))['maxBatch']).toInt();
+      if (details.isNotEmpty) await startMetadata(account, details.length > max ? details.sublist(0, max) : details, label);
+    } finally {
+      combinedRunning = false;
+      notifyListeners();
+    }
+  }
+
   // ---------- Metadata Recovery ----------
 
-  Future<void> startMetadata(AccountController account, List<String> ids, String label) async {
+  Future<void> startMetadata(AccountController account, List<String> ids, String label, {RecoveryJob? resume}) async {
     if (metadata?.running == true) return;
-    final job = RecoveryJob('metadata', ids, label);
+    final job = resume ?? RecoveryJob('metadata', ids, label);
+    job.running = true;
     metadata = job;
     final stop = StopToken();
     _metaStop = stop;
@@ -165,8 +287,10 @@ class RecoveryRunner extends ChangeNotifier {
       final ready = await RatingSources.instance.gatewayReady();
       final settings = asMap(account.view?.state['settings']);
       final minConf = jsNum(metadataPreferences(settings)['minimumConfidence']);
-      for (final id in ids) {
+      while (job.done < job.ids.length) {
+        await _waitWhilePaused(job, stop);
         if (stop.stopped) break;
+        final id = job.ids[job.done];
         final item = _item(account, id);
         if (item == null) {
           job.done++;
@@ -219,7 +343,10 @@ class RecoveryRunner extends ChangeNotifier {
     }
   }
 
-  void stopMetadata() => _metaStop?.stop();
+  void stopMetadata() {
+    metadata?.paused = false;
+    _metaStop?.stop();
+  }
 
   /// Saves the fields chosen in a review (never replacing existing values).
   Future<int> applyReview(AccountController account, MetadataPreview preview) async {

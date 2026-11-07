@@ -118,6 +118,9 @@ class DiscordFfi {
         activityDrop = l.lookupFunction<_VoidObj, _VoidObjD>('Discord_Activity_Drop'),
         activitySetName = l.lookupFunction<_SetStr, _SetStrD>('Discord_Activity_SetName'),
         activitySetType = l.lookupFunction<_SetI32, _SetI32D>('Discord_Activity_SetType'),
+        activitySetStatusDisplayType = l.lookupFunction<Void Function(Pointer<DOpaque>, Pointer<Int32>), void Function(Pointer<DOpaque>, Pointer<Int32>)>(
+          'Discord_Activity_SetStatusDisplayType',
+        ),
         activitySetState = l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetState'),
         activitySetDetails = l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetDetails'),
         activitySetAssets = l.lookupFunction<_SetObj, _SetObjD>('Discord_Activity_SetAssets'),
@@ -181,6 +184,7 @@ class DiscordFfi {
   final _VoidObjD activityInit, activityDrop, assetsInit, assetsDrop, timestampsInit, timestampsDrop;
   final _SetStrD activitySetName;
   final _SetI32D activitySetType;
+  final void Function(Pointer<DOpaque>, Pointer<Int32>) activitySetStatusDisplayType;
   final _SetStrPtrD activitySetState, activitySetDetails, assetsSetLargeImage, assetsSetLargeText, assetsSetSmallImage, assetsSetSmallText;
   final _SetObjD activitySetAssets, activitySetTimestamps;
   final _SetU64D timestampsSetStart;

@@ -43,13 +43,32 @@ NOTIFICATION_RECEIVERS = """
 """
 
 
+BACKGROUND_SERVICE = """
+        <!-- Recoveries keep running in the background (progress notification, Pause / Stop). -->
+        <service android:name=".BackgroundWorkService"
+                 android:exported="false"
+                 android:foregroundServiceType="dataSync" />
+        <!-- Home-screen widget. -->
+        <receiver android:name=".MediaFlowWidget" android:exported="false" android:label="MediaFlow">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mediaflow_widget_info" />
+        </receiver>
+"""
+
+
 def android_manifest(text):
-    for perm in ("INTERNET", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED"):
+    for perm in ("INTERNET", "POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_DATA_SYNC"):
         if f"android.permission.{perm}" not in text:
             text = re.sub(r"(<manifest[^>]*>)", rf'\1\n    <uses-permission android:name="android.permission.{perm}"/>', text, count=1)
     # The daily streak reminder (flutter_local_notifications) needs its receivers.
     if "ScheduledNotificationReceiver" not in text:
         text, n = re.subn(r"(<application[^>]*>)", lambda m: m.group(1) + NOTIFICATION_RECEIVERS, text, count=1)
+        if n != 1:
+            sys.exit("AndroidManifest.xml has no <application> element")
+    if "BackgroundWorkService" not in text:
+        text, n = re.subn(r"(<application[^>]*>)", lambda m: m.group(1) + BACKGROUND_SERVICE, text, count=1)
         if n != 1:
             sys.exit("AndroidManifest.xml has no <application> element")
     text, n = re.subn(r'android:label="[^"]*"', f'android:label="{NAME}"', text, count=1)
@@ -147,9 +166,10 @@ DISCORD_AUTH_ACTIVITY = f"""
         <service android:name="com.discord.socialsdk.ForegroundService" tools:node="remove" />
 """
 # The SDK also does voice chat; MediaFlow only sets a status, so its
-# microphone / foreground-service / Bluetooth permissions are removed.
+# microphone / call-service / Bluetooth permissions are removed. (MediaFlow's
+# own FOREGROUND_SERVICE stays: background recoveries use it.)
 DISCORD_UNUSED_PERMISSIONS = [
-    "RECORD_AUDIO", "FOREGROUND_SERVICE", "FOREGROUND_SERVICE_MICROPHONE", "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+    "RECORD_AUDIO", "FOREGROUND_SERVICE_MICROPHONE", "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
     "MODIFY_AUDIO_SETTINGS", "BLUETOOTH", "BLUETOOTH_CONNECT",
 ]
 
@@ -186,25 +206,75 @@ def android_discord_gradle(text):
     return text
 
 
-def android_discord_activity():
-    """`DiscordSocialSdkInit.setEngineActivity(this)` in MainActivity.onCreate (Discord's Android setup)."""
+MAIN_ACTIVITY = """class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        BackgroundWorkService.activityAlive = true
+        BackgroundWorkService.takeIntent(intent)
+%(discord)s    }
+
+    override fun onDestroy() {
+        BackgroundWorkService.activityAlive = false
+        super.onDestroy()
+    }
+
+    // Home-screen widget buttons and shortcuts open the app with an action.
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        BackgroundWorkService.takeIntent(intent)
+    }
+
+    // A recovery keeps running after the app is swiped away: the engine (and
+    // the Dart code doing the work) outlives the activity while the
+    // foreground service runs, and the next launch picks it up again.
+    override fun provideFlutterEngine(context: android.content.Context): io.flutter.embedding.engine.FlutterEngine? =
+        io.flutter.embedding.engine.FlutterEngineCache.getInstance().get(BackgroundWorkService.ENGINE_ID)
+
+    override fun shouldDestroyEngineWithHost(): Boolean {
+        if (BackgroundWorkService.keepAlive) return false
+        io.flutter.embedding.engine.FlutterEngineCache.getInstance().remove(BackgroundWorkService.ENGINE_ID)
+        return true
+    }
+
+    override fun configureFlutterEngine(flutterEngine: io.flutter.embedding.engine.FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        io.flutter.embedding.engine.FlutterEngineCache.getInstance().put(BackgroundWorkService.ENGINE_ID, flutterEngine)
+        BackgroundWorkService.attach(applicationContext, flutterEngine)
+    }
+}
+"""
+
+DISCORD_ACTIVITY_LINE = """        // Discord Rich Presence: the Social SDK needs the activity for account linking.
+        com.discord.socialsdk.DiscordSocialSdkInit.setEngineActivity(this)
+"""
+
+
+def android_activity(discord):
+    """MainActivity (background recoveries, and Discord's
+    `DiscordSocialSdkInit.setEngineActivity(this)` when the SDK is there) plus
+    BackgroundWorkService.kt next to it."""
     acts = list((ROOT / "android/app/src/main/kotlin").rglob("MainActivity.kt"))
     if len(acts) != 1:
         sys.exit("Expected exactly one MainActivity.kt")
     text = acts[0].read_text(encoding="utf-8")
-    if "DiscordSocialSdkInit" in text:
+    pkg = re.search(r"^package\s+([\w.]+)", text, flags=re.M)
+    if not pkg:
+        sys.exit("MainActivity.kt has no package")
+    for name in ("BackgroundWorkService.kt", "MediaFlowWidget.kt"):
+        src = (ROOT / "tool/android" / name).read_text(encoding="utf-8").replace("{{PACKAGE}}", pkg.group(1))
+        (acts[0].parent / name).write_text(src, encoding="utf-8")
+    # The widget's layout, look and description.
+    res = ROOT / "android/app/src/main/res"
+    for f in (ROOT / "tool/android/res").rglob("*.xml"):
+        dest = res / f.relative_to(ROOT / "tool/android/res")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+    if "BackgroundWorkService" in text:
         return
     m = re.search(r"class MainActivity\s*:\s*FlutterActivity\(\)\s*(\{\s*\})?", text)
     if not m:
         sys.exit("MainActivity.kt has an unexpected shape")
-    body = """class MainActivity : FlutterActivity() {
-    override fun onCreate(savedInstanceState: android.os.Bundle?) {
-        super.onCreate(savedInstanceState)
-        // Discord Rich Presence: the Social SDK needs the activity for account linking.
-        com.discord.socialsdk.DiscordSocialSdkInit.setEngineActivity(this)
-    }
-}
-"""
+    body = MAIN_ACTIVITY % {"discord": DISCORD_ACTIVITY_LINE if discord else ""}
     text = text[:m.start()] + body + text[m.end():]
     acts[0].write_text(text, encoding="utf-8")
 
@@ -218,7 +288,6 @@ def android_discord():
     shutil.copy2(sdk / "discord_partner_sdk.aar", libs / "discord_partner_sdk.aar")
     edit("android/app/src/main/AndroidManifest.xml", android_discord_manifest)
     edit("android/app/build.gradle.kts", android_discord_gradle)
-    android_discord_activity()
     print("Discord Social SDK added (Android)")
 
 
@@ -381,6 +450,7 @@ def main():
         edit("android/app/src/main/AndroidManifest.xml", android_manifest)
         edit("android/app/build.gradle.kts", android_gradle)
         android_discord()
+        android_activity(discord=discord_sdk("android") is not None)
     if "ios" in platforms:
         edit("ios/Runner/Info.plist", ios_plist)
         ios_discord()

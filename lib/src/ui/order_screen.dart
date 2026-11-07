@@ -78,19 +78,20 @@ class _OrderScreenState extends State<OrderScreen> {
           child: Scaffold(
             appBar: AppBar(
               title: const Text('Personal Order'),
-              actions: [SyncIndicator(account: account)],
+              actions: [
+                IconButton(
+                  tooltip: 'Add titles',
+                  icon: const Icon(Icons.playlist_add_rounded),
+                  onPressed: () async {
+                    final ids = await pickLibraryTitles(context, view, exclude: titleIds.toSet(), title: 'Add titles to Order');
+                    if (ids == null || ids.isEmpty) return;
+                    await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
+                    if (context.mounted) _toast(context, 'Titles added to Order ✓');
+                  },
+                ),
+                SyncIndicator(account: account),
+              ],
               bottom: const TabBar(tabs: [Tab(text: 'Titles'), Tab(text: 'Collection queues')]),
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              heroTag: null,
-              onPressed: () async {
-                final ids = await pickLibraryTitles(context, view, exclude: titleIds.toSet(), title: 'Add titles to Order');
-                if (ids == null || ids.isEmpty) return;
-                await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
-                if (context.mounted) _toast(context, 'Titles added to Order ✓');
-              },
-              icon: const Icon(Icons.playlist_add_rounded),
-              label: const Text('Add titles'),
             ),
             body: TabBarView(children: [
               ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [

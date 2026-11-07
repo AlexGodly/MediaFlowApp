@@ -6,7 +6,7 @@ Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). La
 
 | Platform | Release file |
 | :-- | :-- |
-| Android | `MediaFlow-<version>-Android.apk` |
+| Android | `MediaFlow-<version>-Android.apk` (universal, any phone) · per phone type: `-Android-arm64-v8a.apk` (most phones), `-Android-armeabi-v7a.apk` (older 32-bit phones), `-Android-x86_64.apk` (emulators / Chromebooks) |
 | Windows 10/11 x64 | `…-Windows-x64-Setup.exe` or `…-Windows-x64-portable.zip` |
 | iPhone / iPad | `…-iOS-unsigned.ipa` (re-sign to install) |
 

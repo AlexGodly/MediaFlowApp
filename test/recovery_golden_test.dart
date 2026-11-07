@@ -44,8 +44,38 @@ void main() {
       );
       expect([for (final e in preview.errors) e.$1], want['errors']);
       final r = (want['result'] as Map).cast<String, dynamic>();
-      expect([res.changed, res.legacy, res.ratings], [r['changed'], r['legacy'], r['ratings']]);
+      expect([res.changed, res.legacy, res.fields, res.ratings], [r['changed'], r['legacy'], r['fields'], r['ratings']]);
       expect(jsStringify(item), want['itemJson'], reason: 'saved title must be byte-identical');
+    });
+  }
+
+  for (final raw in fx['coverLinks'] as List) {
+    final lc = (raw as Map).cast<String, dynamic>();
+    test('cover ID linking: ${lc['name']}', () {
+      final item = (jsonDecode(jsonEncode(lc['item'])) as Map).cast<String, dynamic>();
+      final cand = (lc['candidate'] as Map).cast<String, dynamic>();
+      final entry = (lc['entry'] as Map).cast<String, dynamic>();
+      final c = CoverCandidate(
+        url: 'https://example.com/c.jpg',
+        provider: cand['provider'] as String,
+        title: item['title'] as String,
+        confidence: 0.97,
+        reason: '',
+        recordId: cand['recordId'] as String,
+        externalIdKey: cand['externalIdKey'] as String,
+        recordUrl: cand['recordUrl'] as String,
+        reportedIds: [
+          if (entry['idMal'] != null) ('mal', '${entry['idMal']}'),
+          if ((entry['externals'] as Map?)?['imdb'] != null) ('imdb', '${(entry['externals'] as Map)['imdb']}'),
+        ],
+      );
+      final exp = (lc['expected'] as Map).cast<String, dynamic>();
+      expect([for (final r in c.ids) [r.$1, r.$2]], exp['ids']);
+      expect([for (final l in coverIdLinks(item, c)) {'key': l.key, 'value': l.value, 'existing': l.existing, 'conflict': l.conflict}], exp['links']);
+      final q = quickCoverLink(item, c);
+      expect({'key': q.key, 'id': q.id, 'canLink': q.canLink}, exp['quick'], reason: 'Quick Title Recovery link');
+      expect(linkCoverIds(item, c, manual: lc['manual'] as bool), exp['changes']);
+      expect(jsStringify(item), exp['itemJson']);
     });
   }
 

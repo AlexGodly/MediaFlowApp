@@ -34,12 +34,17 @@ List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEve
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
 
-Future<void> openRecovery(BuildContext context, AccountController account, {List<String>? ids, String label = '', int tab = 0}) =>
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab)));
+Future<void> openRecovery(BuildContext context, AccountController account,
+        {List<String>? ids, String label = '', int tab = 0, bool combined = false}) =>
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
 
 class RecoveryScreen extends StatefulWidget {
-  const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0});
+  const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0, this.combined = false});
   final AccountController account;
+
+  /// Opened as "New Combined Recovery": covers and details in one go.
+  final bool combined;
 
   /// Titles to work on (e.g. today's On This Day titles); null = choose a scope.
   final List<String>? ids;
@@ -52,6 +57,9 @@ class RecoveryScreen extends StatefulWidget {
 
 class _RecoveryScreenState extends State<RecoveryScreen> {
   String _scope = 'given'; // given | all | <categoryId>
+
+  /// Reviews where "Link verified External IDs" was turned off.
+  final Set<CoverReview> _noLink = {};
 
   @override
   void initState() {
@@ -79,6 +87,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
     return out;
   }
 
+  /// Every title in the scope (Combined Recovery checks covers and details).
+  List<String> _idsAll() {
+    final v = view;
+    if (v == null) return const [];
+    if (_scope == 'given' && widget.ids != null) return widget.ids!;
+    return [for (final t in v.library) if (_scope == 'all' || t.categoryId == _scope) t.id];
+  }
+
   Widget _scopePicker() {
     final v = view;
     return DropdownButtonFormField<String>(
@@ -98,7 +114,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   @override
   Widget build(BuildContext context) {
     return PresenceScope(
-      info: const PresenceInfo(details: 'Recovering covers and details', state: 'Recovery Workspace'),
+      info: const PresenceInfo(situation: 'recovery'),
       child: DefaultTabController(
         length: 3,
         initialIndex: widget.initialTab,
@@ -135,8 +151,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: Text('${fmtNumber(ids.length)} title${ids.length == 1 ? '' : 's'} without a cover', style: const TextStyle(fontWeight: FontWeight.w700))),
-        if (job?.running == true)
-          OutlinedButton.icon(onPressed: r.stopCover, icon: const Icon(Icons.stop_rounded), label: const Text('Stop'))
+        if (job?.running == true) ...[
+          IconButton(
+            tooltip: job!.paused ? 'Resume' : 'Pause',
+            onPressed: () => job.paused ? r.resumeAll() : r.pauseAll(),
+            icon: Icon(job.paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+          ),
+          OutlinedButton.icon(onPressed: r.stopCover, icon: const Icon(Icons.stop_rounded), label: const Text('Stop')),
+        ]
         else
           FilledButton.icon(
             onPressed: ids.isEmpty ? null : () => unawaited(r.startCover(widget.account, ids, _scope == 'given' ? widget.label : 'Covers')),
@@ -144,6 +166,25 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             label: const Text('Start Cover Recovery'),
           ),
       ]),
+      if (widget.combined || r.combinedRunning)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(12)),
+            child: Row(children: [
+              const Expanded(
+                child: Text('Combined Recovery: covers first, then missing details, for the titles above.',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+              ),
+              if (!r.combinedRunning && job?.running != true && r.metadata?.running != true)
+                FilledButton(
+                  onPressed: () => unawaited(r.startCombined(widget.account, _idsAll(), _scope == 'given' ? widget.label : 'Combined')),
+                  child: const Text('Start both'),
+                ),
+            ]),
+          ),
+        ),
       if (job != null) _progress(job),
       for (final review in List.of(job?.coverReviews ?? const <CoverReview>[])) _coverReview(context, review),
     ]);
@@ -176,8 +217,17 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             Expanded(child: Text(review.title, style: const TextStyle(fontWeight: FontWeight.w800))),
             TextButton(onPressed: () => RecoveryRunner.instance.skipCover(review), child: const Text('Skip')),
           ]),
+          if (review.candidates.any((c) => c.ids.isNotEmpty))
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: !_noLink.contains(review),
+              onChanged: (v) => setState(() => v == true ? _noLink.remove(review) : _noLink.add(review)),
+              title: const Text('Also link the verified External IDs of the cover I pick', style: TextStyle(fontSize: 12)),
+            ),
           SizedBox(
-            height: 150,
+            height: 162,
             child: ListView(scrollDirection: Axis.horizontal, children: [
               for (final c in review.candidates)
                 Padding(
@@ -185,7 +235,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: () async {
-                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c);
+                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
                       if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
                     },
                     child: SizedBox(
@@ -199,6 +249,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                         Text('${c.provider}${c.year != null ? ' · ${c.year}' : ''}',
                             maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.confidence >= 0.94 ? MF.good : MF.textDim)),
                         Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)),
+                        if (c.ids.isNotEmpty)
+                          Text(c.ids.map((x) => '${x.$1.toUpperCase()} ${x.$2}').join(' · '),
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: MF.textDim)),
                       ]),
                     ),
                   ),
@@ -231,8 +284,14 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
-        if (job?.running == true)
-          OutlinedButton.icon(onPressed: r.stopMetadata, icon: const Icon(Icons.stop_rounded), label: const Text('Stop'))
+        if (job?.running == true) ...[
+          IconButton(
+            tooltip: job!.paused ? 'Resume' : 'Pause',
+            onPressed: () => job.paused ? r.resumeAll() : r.pauseAll(),
+            icon: Icon(job.paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+          ),
+          OutlinedButton.icon(onPressed: r.stopMetadata, icon: const Icon(Icons.stop_rounded), label: const Text('Stop')),
+        ]
         else
           FilledButton.icon(
             onPressed: ids.isEmpty ? null : () => unawaited(r.startMetadata(widget.account, ids, 'Details')),

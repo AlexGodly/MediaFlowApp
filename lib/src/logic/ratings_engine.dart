@@ -854,6 +854,9 @@ bool idValid(String key, String value) {
 
 final Set<String> _finderKeys = {for (final k in kIdKeys) k.$1, 'openlibrary', 'googlebooks', 'tvmaze', 'mal', 'imdb'};
 
+/// `MF433_ALLOWED_ID_KEYS.has(key)`.
+bool finderIdKey(String key) => _finderKeys.contains(key);
+
 /// `mf433ValidId`: an ID the finder may offer.
 bool finderIdValid(String key, String value) {
   if (!_finderKeys.contains(key) || value.trim().isEmpty) return false;

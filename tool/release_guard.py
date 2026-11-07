@@ -40,10 +40,11 @@ checks = {
     "release notes": (ROOT / f"docs/releases/{tag}.md").is_file(),
     "source archive": (ROOT / "legacy/v" / tag / "ARCHIVE_METADATA.md").is_file(),
     "Android build": "flutter build apk --release" in build,
+    "Android per-ABI build": "flutter build apk --release --split-per-abi" in build,
     "Windows build": "flutter build windows --release" in build,
     "iOS build": "flutter build ios --release --no-codesign" in build,
 }
-for name in ("-Android.apk", "-Windows-x64-Setup.exe", "-Windows-x64-portable.zip", "-iOS-unsigned.ipa", "gh release create"):
+for name in ("-Android.apk", "-Android-arm64-v8a.apk", "-Android-armeabi-v7a.apk", "-Android-x86_64.apk", "-Windows-x64-Setup.exe", "-Windows-x64-portable.zip", "-iOS-unsigned.ipa", "gh release create"):
     checks[f"release asset {name}"] = name in workflow
 failed = [k for k, ok in checks.items() if not ok]
 if failed:

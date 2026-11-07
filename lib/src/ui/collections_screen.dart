@@ -107,12 +107,6 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
               });
         return Scaffold(
           appBar: AppBar(title: const Text('Collections'), actions: [SyncIndicator(account: account)]),
-          floatingActionButton: FloatingActionButton.extended(
-            heroTag: null,
-            onPressed: () => editCollection(context, account, null),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('New collection'),
-          ),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
             TextField(
               controller: _search,
@@ -576,7 +570,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         final pages = rows.isEmpty ? 1 : (rows.length / size).ceil();
         if (_page > pages - 1) _page = pages - 1;
         final shown = rows.skip(_page * size).take(size).toList();
-        return PresenceScope(info: PresenceInfo(details: 'Browsing a collection', state: '${cleanTitle(c['title'])} · ${ids.length} title${ids.length == 1 ? '' : 's'}'), child: Scaffold(
+        return PresenceScope(info: PresenceInfo(situation: 'collection', values: {'collection': cleanTitle(c['title']), 'count': '${ids.length}'}), child: Scaffold(
           appBar: AppBar(
             title: Text(jsStr(c['title'])),
             actions: [
@@ -1053,7 +1047,7 @@ Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, 
     useSafeArea: true,
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
-      info: const PresenceInfo(details: 'Adding titles to a collection'),
+      info: const PresenceInfo(situation: 'collections'),
       child: _TitlePicker(view: view, exclude: exclude, title: title),
     ),
   );

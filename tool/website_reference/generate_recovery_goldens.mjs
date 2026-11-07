@@ -60,17 +60,22 @@ function cnst(name) {
 }
 
 const code = [
-  cnst('V377_ID_PROVIDERS'), cnst('MF437_RATING_SOURCES'), cnst('MF437_ADDITIONAL_IDS'),
+  cnst('V377_ID_PROVIDERS'),
+  // v433 (file 313) builds its allowed-ID set before v437 adds more keys.
+  cnst('MF433_ALLOWED_ID_KEYS'), cnst('MF433_NATIVE_ID_KEYS'), cnst('v377IdValid'),
+  fn('mf433ValidId'), fn('mf433NativeKey'), fn('mf433EnrichCoverCandidate'), fn('mf433CandidateLinks'), fn('mf433LinkCandidateIds'), fn('mf424LinkableCoverId'), fn('mf456CandidateLink'),
+  cnst('MF437_RATING_SOURCES'), cnst('MF437_ADDITIONAL_IDS'),
   "for(const [key,label] of MF437_ADDITIONAL_IDS){if(!V377_ID_PROVIDERS.some(row=>row[0]===key))V377_ID_PROVIDERS.push([key,label,'Optional verified provider ID']);}",
   cnst('MF437_SCHEMA_VERSION'), cnst('MF437_MEDIA_TYPES'), cnst('MF437_RATING_MAP'),
-  'const MF437_FIELD_MAP=new Map();',
+  cnst('MF437_FIELDS'), cnst('MF437_FIELD_MAP'),
   cnst('mf437Object'), cnst('mf437Copy'),
-  fn('mf437Normalized'), fn('mf437Clean'), fn('mf437FieldCompare'), fn('mf437SetRating'),
+  fn('mf437Normalized'), fn('mf437Clean'), fn('mf437FieldCompare'), fn('mf437SetField'), fn('mf437SetRating'),
   cnst('mf439Plain'), fn('mf439TitleVariants'), fn('mf439Norm'), fn('mf439Year'), cnst('mf439StringList'),
   cnst('MF439_LEGACY_FIELDS'), cnst('mf439Has'),
   fn('mf439FieldDefinition'), fn('mf439FieldValue'), fn('mf439IsProtected'), fn('mf439Value'), fn('mf439ValueKey'),
   fn('mf439Evidence'), fn('mf439Proposals'), fn('mf439Apply'),
   "const MF439={account:''};const mf439Account=()=>'';const mf439Preferences=()=>({minimumConfidence:0.94});",
+  'Object.assign(globalThis,{mf433EnrichCoverCandidate,mf433CandidateLinks,mf433LinkCandidateIds,mf456CandidateLink});',
   'globalThis.api={run:(sc)=>{const item=JSON.parse(JSON.stringify(sc.item));',
   '  const realNow=Date.now;Date.now=()=>sc.now;let preview,res;try{preview=mf439Proposals(item,JSON.parse(JSON.stringify(sc.rows)));',
   '  for(const p of preview.proposals){if(sc.select&&sc.select[p.token]!==undefined){p.selected=true;p.choice=sc.select[p.token];}}',
@@ -79,7 +84,7 @@ const code = [
   '   errors:preview.errors.map(e=>e.provider),result:res,itemJson:JSON.stringify(item)};}};',
 ].join('\n');
 vm.runInThisContext(code);
-const { api } = globalThis;
+const { api, mf433EnrichCoverCandidate, mf433CandidateLinks, mf433LinkCandidateIds, mf456CandidateLink } = globalThis;
 const NOW = 1762600000000;
 const row = (provider, recordId, title, other = {}) => ({ provider, recordId: String(recordId), title, year: 0, externalIds: {}, fields: {}, ratings: {}, legacy: {}, ...other });
 const scenarios = [
@@ -109,9 +114,66 @@ const scenarios = [
       row('omdb', 'tt1160419', 'Dune', { year: 2021, externalIds: { imdb: 'tt1160419' }, legacy: { mediaFormat: 'movie (feature)' }, ratings: { imdb: { score: 8.0, scale: 10, votes: 900000 } } }),
     ],
   },
+  {
+    name: 'universal fields: missing ones filled, locked and existing kept, counts parsed',
+    mode: 'automatic',
+    item: { id: 'm3', title: 'Frieren', year: 2023, modifiedAt: 9, externalIds: { mal: '52991' },
+      universalMetadata: { schemaVersion: 1, mediaType: 'anime', fields: { creators: ['Kanehito Yamada'] }, locks: { 'field.animeSeason': true }, updatedAt: 3 } },
+    rows: [
+      row('jikan', 52991, 'Sousou no Frieren', { year: 2023, aliases: ['Frieren'], externalIds: { mal: '52991' },
+        fields: { originalTitle: '葬送のフリーレン', animeSeason: 'fall', episodeCount: 28, chapterCount: null, mangaAuthors: [], creators: ['Someone'] } }),
+      row('anilist', 154587, 'Frieren', { year: 2023, externalIds: { anilist: '154587', mal: '52991' },
+        fields: { originalTitle: '葬送のフリーレン', alternateTitles: ['Frieren: Beyond Journey\'s End', 'Frieren at the Funeral'], episodeCount: '28', officialWebsite: 'https://frieren-anime.jp' } }),
+    ],
+  },
+  {
+    name: 'universal fields in review: decimal hours and list values',
+    mode: 'review',
+    select: { 'field.platforms': 0, 'field.mainStoryHours': 0 },
+    item: { id: 'm4', title: 'Steins;Gate', modifiedAt: 2 },
+    rows: [
+      row('vndb', 'v2002', 'Steins;Gate', { externalIds: { vndb: 'v2002' },
+        fields: { originalTitle: 'シュタインズ・ゲート', platforms: ['win', 'ps3', 'win'], mainStoryHours: 31.666, ifPlatforms: ['win'] } }),
+    ],
+  },
 ];
-const out = { generatedFrom: '319-v439-metadata-recovery.js', now: NOW, scenarios: [] };
+const out = { generatedFrom: '319-v439-metadata-recovery.js', now: NOW, scenarios: [], coverLinks: [] };
 for (const sc of scenarios) out.scenarios.push({ ...sc, now: NOW, expected: api.run({ ...sc, now: NOW }) });
+
+// Cover Recovery ID linking (v433 mf433EnrichCoverCandidate / CandidateLinks /
+// LinkCandidateIds), as the cover chooser and automatic jobs use it.
+const linkCases = [
+  { name: 'AniList cover links AniList + the MAL ID AniList reports', manual: true,
+    item: { title: 'Frieren', externalIds: {} },
+    candidate: { provider: 'anilist', recordId: '154587', externalIdKey: 'anilist', externalIdValue: '154587', recordUrl: '' }, entry: { idMal: 52991 } },
+  { name: 'conflicting saved ID is kept; the rest link', manual: true,
+    item: { title: 'Frieren', externalIds: { mal: '1' } },
+    candidate: { provider: 'anilist', recordId: '154587', externalIdKey: 'anilist', externalIdValue: '154587', recordUrl: '' }, entry: { idMal: 52991 } },
+  { name: 'TVmaze cover links TVmaze + IMDb', manual: true,
+    item: { title: 'Severance', externalIds: { tvmaze: '44933' } },
+    candidate: { provider: 'tvmaze', recordId: '44933', externalIdKey: 'tvmaze', externalIdValue: '44933', recordUrl: '' }, entry: { externals: { imdb: 'tt11280740' } } },
+  { name: 'Open Library work ID', manual: true,
+    item: { title: 'Dune', externalIds: {} },
+    candidate: { provider: 'openlibrary', recordId: 'OL893415W', externalIdKey: 'openlibrary', externalIdValue: 'OL893415W', recordUrl: '' }, entry: {} },
+  { name: 'TMDB TV from the gateway', manual: true,
+    item: { title: 'Arcane', externalIds: {} },
+    candidate: { provider: 'tmdb', recordId: '94605', externalIdKey: 'tmdb_tv', externalIdValue: '94605', recordUrl: '' }, entry: {} },
+  { name: 'automatic link skips IDs the person cleared or wrote', manual: false,
+    item: { title: 'Frieren', externalIds: {}, v377ManualExternalIds: { mal: '' } },
+    candidate: { provider: 'anilist', recordId: '154587', externalIdKey: 'anilist', externalIdValue: '154587', recordUrl: '' }, entry: { idMal: 52991 } },
+  { name: 'iTunes has no linkable ID', manual: true,
+    item: { title: 'Ants From Up There', externalIds: {} },
+    candidate: { provider: 'itunes', recordId: '1590446045', externalIdKey: '', externalIdValue: '', recordUrl: '' }, entry: {} },
+];
+for (const lc of linkCases) {
+  const item = JSON.parse(JSON.stringify(lc.item));
+  const c = mf433EnrichCoverCandidate(lc.entry, { ...lc.candidate });
+  const links = mf433CandidateLinks(item, c);
+  const q = mf456CandidateLink(JSON.parse(JSON.stringify(lc.item)), c);
+  const quick = { key: q.key, id: q.id, canLink: q.canLink };
+  const changes = mf433LinkCandidateIds(item, c, { manual: lc.manual });
+  out.coverLinks.push({ ...lc, expected: { ids: c.externalIdCandidates.map(r => [r.key, r.value]), links, quick, changes, itemJson: JSON.stringify(item) } });
+}
 const here = path.dirname(new URL(import.meta.url).pathname);
 fs.writeFileSync(path.join(here, '../../test/fixtures/recovery-golden.json'), JSON.stringify(out, null, 1) + '\n');
 for (const s of out.scenarios) console.log(s.name, JSON.stringify(s.expected.result), s.expected.proposals.map(p => p.token + ':' + p.status + (p.selected ? '*' : '')).join(' '));

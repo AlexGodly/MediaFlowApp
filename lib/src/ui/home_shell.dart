@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../platform/app_shortcuts.dart';
 import 'account_screen.dart';
 import 'collections_screen.dart';
 import 'extras_screen.dart';
+import 'floating_dock.dart';
 import 'history_screen.dart';
 import 'library_screen.dart';
 import 'log_screen.dart';
-import 'log_sheet.dart';
 import 'order_screen.dart';
 import 'presence.dart';
+import 'recovery_screen.dart' show openRecovery;
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
 import 'theme_controller.dart' show CoverBackdrop;
+import 'title_screen.dart' show TitleEditor;
 import 'widgets.dart';
 
 /// The app's sections. Phones show Log · Library · History · Extras · More;
@@ -71,6 +74,12 @@ class _HomeShellState extends State<HomeShell> {
   Widget _page(Section s) => _pages[s] ??= sectionPage(s, widget.account);
 
   @override
+  void dispose() {
+    AppShortcuts.instance.request.removeListener(_onShortcut);
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(HomeShell old) {
     super.didUpdateWidget(old);
     if (!identical(old.account, widget.account)) _pages.clear();
@@ -80,6 +89,32 @@ class _HomeShellState extends State<HomeShell> {
         _section = s;
         _moreOpen = false;
       });
+
+  // App-icon shortcuts and the home-screen widget.
+  @override
+  void initState() {
+    super.initState();
+    AppShortcuts.instance.request.addListener(_onShortcut);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onShortcut());
+  }
+
+  int _shortcutSeen = 0;
+  void _onShortcut() {
+    final r = AppShortcuts.instance.request.value;
+    if (r == null || r.$2 <= _shortcutSeen || !mounted) return;
+    _shortcutSeen = r.$2;
+    final account = widget.account;
+    switch (r.$1) {
+      case 'log':
+        _go(Section.log);
+      case 'library':
+        _go(Section.library);
+      case 'add':
+        if (account.hasData) Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: account)));
+      case 'recovery':
+        if (account.hasData) openRecovery(context, account);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,14 +138,37 @@ class _HomeShellState extends State<HomeShell> {
                   MoreScreen(onOpen: _go),
                 ],
               );
-        // History keeps the quick Batch Log button; Log and Library have their own.
-        final fab = account.hasData && !showMore && _section == Section.history
-            ? FloatingActionButton.extended(
-                onPressed: () => showLogSheet(context, account),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Log', style: TextStyle(fontWeight: FontWeight.w800)),
+        // The website's floating + (v397 dock) on every main screen.
+        final fab = account.hasData && !showMore
+            ? DockButton(
+                account: account,
+                extras: _section == Section.log,
+                commands: DockCommands(
+                  openLogging: () {
+                    _go(Section.log);
+                    FloatingDock.openLoggingLibrary.value++;
+                  },
+                  openCollections: () => _go(Section.collections),
+                ),
+                onAddTitle: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: account))),
+                onAddCollection: () async {
+                  final before = (account.view?.state['collections'] as List?)?.length ?? 0;
+                  await editCollection(context, account, null);
+                  final after = (account.view?.state['collections'] as List?)?.length ?? 0;
+                  if (after > before) _go(Section.collections);
+                },
+                onRecovery: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0, combined: mode == 'both'),
               )
             : null;
+        final withWidget = account.hasData
+            ? Stack(fit: StackFit.expand, children: [
+                body,
+                BackgroundProcesses(
+                  account: account,
+                  onOpen: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0),
+                ),
+              ])
+            : body;
         if (wide) {
           return Scaffold(
             floatingActionButton: fab,
@@ -140,7 +198,7 @@ class _HomeShellState extends State<HomeShell> {
                 ),
               ),
               const VerticalDivider(width: 1),
-              Expanded(child: body),
+              Expanded(child: withWidget),
               ]),
             ),
           );
@@ -154,7 +212,7 @@ class _HomeShellState extends State<HomeShell> {
           },
           child: Scaffold(
             floatingActionButton: fab,
-            body: CoverBackdrop(child: body),
+            body: CoverBackdrop(child: withWidget),
             bottomNavigationBar: NavigationBar(
               selectedIndex: tabIndex,
               onDestinationSelected: (i) {

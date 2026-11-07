@@ -9,6 +9,8 @@
 //    automatic mode applies only nonconflicting fields at ≥ 94 % confidence
 //    (`mf439Apply`).
 
+import 'dart:convert';
+
 import '../util/js.dart';
 import 'library_logic.dart' show coverCredit, findTitle;
 import 'ratings_engine.dart';
@@ -16,6 +18,92 @@ import 'ratings_engine.dart';
 // ---------- shared ----------
 
 /// `MF439_LEGACY_FIELDS`: the Library fields Metadata Recovery may fill.
+/// `MF437_FIELDS` (website v437): the universal `field.*` values, label and kind.
+const kUniversalFields = <String, (String, String)>{
+  'originalTitle': ('Original title', 'text'),
+  'alternateTitles': ('Alternate titles', 'list'),
+  'originalLanguage': ('Original language', 'text'),
+  'countries': ('Countries of origin', 'list'),
+  'creators': ('Creators', 'list'),
+  'keywords': ('Keywords', 'list'),
+  'releaseStatus': ('Release status', 'text'),
+  'franchise': ('Franchise / universe', 'text'),
+  'officialWebsite': ('Official website', 'url'),
+  'awards': ('Awards / nominations', 'list'),
+  'animeSeason': ('Broadcast season', 'text'),
+  'animeLicensors': ('Licensors', 'list'),
+  'animeVoiceCast': ('Voice cast', 'list'),
+  'animeBroadcast': ('Broadcast schedule', 'text'),
+  'mangaAuthors': ('Authors', 'list'),
+  'mangaArtists': ('Artists / illustrators', 'list'),
+  'serialization': ('Serialization / magazine', 'text'),
+  'mangaPublisher': ('Publisher', 'text'),
+  'chapterCount': ('Chapters', 'number'),
+  'volumeCount': ('Volumes', 'number'),
+  'directors': ('Directors', 'list'),
+  'screenwriters': ('Screenwriters', 'list'),
+  'cast': ('Cast', 'list'),
+  'distributors': ('Distributors', 'list'),
+  'productionCountries': ('Production countries', 'list'),
+  'boxOffice': ('Box office', 'text'),
+  'budget': ('Production budget', 'text'),
+  'tvCreators': ('Series creators', 'list'),
+  'tvCast': ('Cast', 'list'),
+  'networks': ('Networks', 'list'),
+  'showrunners': ('Showrunners', 'list'),
+  'seasonCount': ('Seasons', 'number'),
+  'episodeCount': ('Episodes', 'number'),
+  'broadcastStatus': ('Broadcast status', 'text'),
+  'authors': ('Authors', 'list'),
+  'editors': ('Editors', 'list'),
+  'translators': ('Translators', 'list'),
+  'narrators': ('Narrators', 'list'),
+  'bookPublishers': ('Publishers', 'list'),
+  'pageCount': ('Pages', 'number'),
+  'bookSeries': ('Book series', 'text'),
+  'bookEdition': ('Edition', 'text'),
+  'comicWriters': ('Writers', 'list'),
+  'comicArtists': ('Artists', 'list'),
+  'comicInkers': ('Inkers', 'list'),
+  'comicColorists': ('Colorists', 'list'),
+  'comicLetterers': ('Letterers', 'list'),
+  'comicPublisher': ('Publisher', 'text'),
+  'issueCount': ('Issues', 'number'),
+  'comicImprint': ('Imprint', 'text'),
+  'gameDevelopers': ('Developers', 'list'),
+  'gamePublishers': ('Publishers', 'list'),
+  'platforms': ('Platforms', 'list'),
+  'gameEngine': ('Game engine', 'text'),
+  'gameModes': ('Game modes', 'list'),
+  'gameSeries': ('Series', 'text'),
+  'esrbRating': ('ESRB rating', 'text'),
+  'pegiRating': ('PEGI rating', 'text'),
+  'mainStoryHours': ('Main story hours', 'decimal'),
+  'vnDevelopers': ('Developers', 'list'),
+  'vnPublishers': ('Publishers', 'list'),
+  'vnEngine': ('Engine', 'text'),
+  'vnRoutes': ('Routes', 'list'),
+  'vnEndings': ('Endings', 'number'),
+  'vnCharacters': ('Characters', 'list'),
+  'vnVoices': ('Voice actors', 'list'),
+  'albumArtists': ('Album artists', 'list'),
+  'featuredArtists': ('Featured artists', 'list'),
+  'composers': ('Composers', 'list'),
+  'recordLabels': ('Labels', 'list'),
+  'releaseType': ('Release type', 'text'),
+  'trackCount': ('Tracks', 'number'),
+  'discCount': ('Discs', 'number'),
+  'catalogNumber': ('Catalog number', 'text'),
+  'tracklist': ('Tracklist (one track per line)', 'multiline'),
+  'ifAuthors': ('Authors', 'list'),
+  'ifEngine': ('Engine / system', 'text'),
+  'ifFormat': ('Format', 'text'),
+  'ifParser': ('Parser / choice-based', 'text'),
+  'ifPlatforms': ('Platforms', 'list'),
+  'ifCharacters': ('Characters', 'list'),
+  'ifPlaytimeMinutes': ('Playtime (minutes)', 'number'),
+};
+
 const kRecoveryFields = <String, (String, String)>{
   'synopsis': ('Synopsis / Description', 'text'),
   'genres': ('Genres', 'list'),
@@ -110,10 +198,165 @@ List<String> metadataSourcesFor(Map<String, dynamic> item, Map<String, dynamic>?
 
 /// A cover a search found for a title.
 class CoverCandidate {
-  CoverCandidate({required this.url, required this.provider, required this.title, this.year, required this.confidence, required this.reason});
+  CoverCandidate(
+      {required this.url,
+      required this.provider,
+      required this.title,
+      this.year,
+      required this.confidence,
+      required this.reason,
+      this.recordId = '',
+      this.externalIdKey = '',
+      this.recordUrl = '',
+      this.reportedIds = const [],
+      this.idMatch = false});
   final String url, provider, title, reason;
   final int? year;
   final double confidence;
+
+  /// The provider's own record (website `candidate.recordId`,
+  /// `externalIdKey`, `recordUrl`) and the IDs the provider reports with it.
+  final String recordId, externalIdKey, recordUrl;
+  final List<(String, String)> reportedIds;
+  final bool idMatch;
+
+  /// `mf433EnrichCoverCandidate`: the verified IDs this cover can link.
+  late final List<(String, String)> ids = coverCandidateIds(this);
+}
+
+/// The app's search sources as website provider ids.
+String coverProviderId(String source) => switch (source.toLowerCase()) {
+      'anilist' => 'anilist',
+      'tvmaze' => 'tvmaze',
+      'open library' => 'openlibrary',
+      'itunes' => 'itunes',
+      'tmdb' => 'tmdb',
+      final s => s.replaceAll(' ', ''),
+    };
+
+/// `mf424AsCandidate`'s externalIdKey for the app's sources.
+String coverExternalIdKey(String provider) =>
+    const {'anilist': 'anilist', 'tvmaze': 'tvmaze', 'openlibrary': 'openlibrary', 'jikan': 'mal', 'tenrai': 'mal', 'kitsu': 'kitsu'}[provider] ?? '';
+
+const _nativeIdKeys = {
+  'tenrai': 'mal', 'jikan': 'mal', 'anilist': 'anilist', 'kitsu': 'kitsu', 'tvmaze': 'tvmaze',
+  'mangadex': 'mangadex', 'tmdb': 'tmdb', 'omdb': 'imdb', 'thetvdb': 'tvdb_series',
+  'simkl': 'simkl', 'malofficial': 'mal', 'anidb': 'anidb',
+  'animeschedule': 'animeschedule', 'watchmode': 'watchmode',
+  'episodate': 'episodate', 'mangaupdates': 'mangaupdates',
+  'livechart': 'livechart', 'trakt': 'trakt', 'hardcover': 'hardcover_book',
+  'gutendex': 'gutendex', 'royalroad': 'royalroad',
+  'wikidata': 'wikidata', 'comicvine': 'comicvine_volume', 'metron': 'metron_series',
+};
+
+/// `mf433NativeKey`.
+String coverNativeKey(String provider, String recordId, String externalIdKey) {
+  if (finderIdKey(externalIdKey)) return externalIdKey;
+  if (provider == 'openlibrary') {
+    if (RegExp(r'^OL\d+W$', caseSensitive: false).hasMatch(recordId)) return 'openlibrary_work';
+    if (RegExp(r'^OL\d+M$', caseSensitive: false).hasMatch(recordId)) return 'openlibrary_edition';
+    return 'openlibrary';
+  }
+  return _nativeIdKeys[provider] ?? '';
+}
+
+List<(String, String)> coverCandidateIds(CoverCandidate c) {
+  final ids = <(String, String)>[];
+  void add(String key, String value) {
+    final str = value.trim();
+    if (finderIdValid(key, str) && !ids.any((r) => r.$1 == key && r.$2 == str)) ids.add((key, str));
+  }
+
+  final native = coverNativeKey(c.provider, c.recordId, c.externalIdKey);
+  if (native.isNotEmpty && c.recordId.isNotEmpty) add(native, c.recordId);
+  if (c.provider == 'openlibrary') {
+    final isbn = RegExp(r'/isbn/([\dXx-]{10,20})').firstMatch(c.recordUrl)?[1];
+    if (isbn != null) add('isbn', isbn);
+  }
+  for (final (k, v) in c.reportedIds) {
+    if ((c.provider == 'anilist' && k == 'mal') || (c.provider == 'tvmaze' && k == 'imdb')) add(k, v);
+  }
+  return ids;
+}
+
+/// `mf433CandidateLinks`: what linking this cover would write.
+List<({String key, String value, String existing, bool conflict})> coverIdLinks(Map<String, dynamic> item, CoverCandidate c) {
+  final links = <({String key, String value, String existing, bool conflict})>[];
+  final seen = <String>{};
+  final ids = asMap(item['externalIds']) ?? const {};
+  void push(String key, String value) {
+    final k = key.trim().toLowerCase(), v = value.trim();
+    if (!finderIdValid(k, v) || seen.contains(k)) return;
+    seen.add(k);
+    final existing = ids[k] == null ? '' : jsStr(ids[k]).trim();
+    links.add((key: k, value: v, existing: existing, conflict: existing.isNotEmpty && existing != v));
+  }
+
+  for (final (k, v) in c.ids.take(32)) {
+    push(k, v);
+  }
+  final native = coverNativeKey(c.provider, c.recordId, c.externalIdKey);
+  if (native.isNotEmpty && c.recordId.isNotEmpty && !links.any((l) => l.key == native)) push(native, c.recordId);
+  if (c.externalIdKey.isNotEmpty && c.recordId.isNotEmpty) push(c.externalIdKey, c.recordId);
+  return links;
+}
+
+/// `mf456CandidateLink`: the one provider ID Quick Title Recovery links.
+({String key, String id, bool canLink}) quickCoverLink(Map<String, dynamic> item, CoverCandidate c) {
+  final links = coverIdLinks(item, c);
+  ({String key, String value, String existing, bool conflict})? link;
+  if (links.isNotEmpty) {
+    link = links.where((l) => !l.conflict && l.existing != l.value).firstOrNull ?? links.first;
+  } else {
+    final key = c.externalIdKey.trim(), value = c.recordId.trim();
+    final okKey = RegExp(r'^[a-z][a-z0-9_]{0,32}$').hasMatch(key);
+    final okValue = value.isNotEmpty &&
+        value.length <= 120 &&
+        (RegExp(r'^[\w.:-]+$').hasMatch(value) || (key == 'openlibrary' && RegExp(r'^/works/OL\d+W$').hasMatch(value)));
+    if (okKey && okValue) {
+      final ids = asMap(item['externalIds']) ?? const {};
+      final existing = ids[key] == null ? '' : jsStr(ids[key]).trim();
+      link = (key: key, value: value, existing: existing, conflict: existing.isNotEmpty && existing != value);
+    }
+  }
+  final key = (link?.key ?? c.externalIdKey).trim();
+  final id = (link?.value ?? c.recordId).trim();
+  return (key: key, id: id, canLink: link != null && !link.conflict && link.existing.isEmpty && id.isNotEmpty);
+}
+
+/// Quick Title Recovery's cover save (website v453 `mf453ApplyQuick`): the
+/// chosen cover replaces the current one (after the person confirms) and
+/// links the provider's record ID when no ID is saved for it yet.
+bool applyQuickCover(Map<String, dynamic> item, CoverCandidate c, int now) {
+  if (jsStr(item['coverUrl']) == c.url) return false;
+  item['coverUrl'] = c.url;
+  item['coverSource'] = 'manual:quick:${c.provider.isEmpty ? 'verified' : c.provider}';
+  final link = quickCoverLink(item, c);
+  if (link.canLink) {
+    item['externalIds'] = {...?asMap(item['externalIds']), link.key: link.id};
+    item['v377ManualExternalIds'] = {...?asMap(item['v377ManualExternalIds']), link.key: link.id};
+  }
+  item['modifiedAt'] = now;
+  return true;
+}
+
+/// `mf433LinkCandidateIds`: saves the verified IDs that don't conflict.
+/// Returns how many were written.
+int linkCoverIds(Map<String, dynamic> item, CoverCandidate c, {bool manual = false}) {
+  final overrides = Map<String, dynamic>.of(asMap(item['v377ManualExternalIds']) ?? const {});
+  // Cleared IDs and the person's own overrides stay unless they picked this.
+  final links = coverIdLinks(item, c)
+      .where((l) => !l.conflict && l.existing != l.value && (manual || !overrides.containsKey(l.key)))
+      .toList();
+  if (links.isEmpty) return 0;
+  final ids = Map<String, dynamic>.of(asMap(item['externalIds']) ?? const {});
+  for (final l in links) {
+    ids[l.key] = l.value;
+    if (manual) overrides[l.key] = l.value;
+  }
+  item['externalIds'] = ids;
+  if (manual) item['v377ManualExternalIds'] = overrides;
+  return links.length;
 }
 
 /// How sure a search result is about the title (the v439 evidence rules
@@ -135,12 +378,16 @@ bool coverMissing(Map<String, dynamic>? item) => item != null && jsStr(item['cov
 /// `mf424Apply`: saves a recovered cover (only while the title still has none
 /// and was not changed since it was checked). Returns the XP earned, or null
 /// when nothing was saved.
-double? applyRecoveredCover(Map<String, dynamic> state, String id, CoverCandidate c, int expectedModifiedAt, int now, String Function() uid) {
+double? applyRecoveredCover(Map<String, dynamic> state, String id, CoverCandidate c, int expectedModifiedAt, int now, String Function() uid,
+    {bool manual = false, bool linkIds = true}) {
   final item = findTitle(state, id);
   if (item == null || !coverMissing(item)) return null;
   if (jsNum(item['modifiedAt']).toInt() != expectedModifiedAt) return null;
   item['coverUrl'] = c.url;
-  item['coverSource'] = 'auto:${c.provider}:verified';
+  item['coverSource'] = 'auto:${c.provider}:${c.idMatch ? 'external-id' : 'verified'}';
+  // Automatic jobs link only exact-ID matches; a cover picked by the person
+  // links the verified IDs it carries (website v424/v433).
+  if (linkIds && (manual || (c.idMatch && c.confidence >= 0.95))) linkCoverIds(item, c, manual: manual);
   item['modifiedAt'] = now;
   return coverCredit(state, item, '', c.url, 'auto:${c.provider}', now, uid);
 }
@@ -179,8 +426,11 @@ double? applyRecoveredCover(Map<String, dynamic> state, String id, CoverCandidat
 /// `mf439Value` for a field token.
 Object? fieldValue(String token, Object? input) {
   if (token.startsWith('rating.')) return ratingValue(token.substring(7), input);
-  if (!token.startsWith('legacy.')) return null;
-  final def = kRecoveryFields[token.substring(7)];
+  final def = token.startsWith('legacy.')
+      ? kRecoveryFields[token.substring(7)]
+      : token.startsWith('field.')
+          ? kUniversalFields[token.substring(6)]
+          : null;
   if (def == null) return null;
   switch (def.$2) {
     case 'number':
@@ -208,6 +458,7 @@ String valueKey(Object? v) {
 Object? currentFieldValue(Map<String, dynamic> item, String token) {
   if (token.startsWith('legacy.')) return item[token.substring(7)];
   final env = asMap(item['universalMetadata']);
+  if (token.startsWith('field.')) return asMap(env?['fields'])?[token.substring(6)];
   if (token.startsWith('rating.')) return asMap(env?['externalRatings'])?[token.substring(7)];
   return null;
 }
@@ -264,6 +515,7 @@ class MetadataPreview {
 
 String _label(String token) {
   if (token.startsWith('legacy.')) return kRecoveryFields[token.substring(7)]?.$1 ?? token;
+  if (token.startsWith('field.')) return kUniversalFields[token.substring(6)]?.$1 ?? token;
   if (token.startsWith('rating.')) return '${kRatingMap[token.substring(7)]?.$2 ?? token} rating';
   return token;
 }
@@ -279,7 +531,7 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
       continue;
     }
     final source = FieldSource(jsStr(row['provider']), jsStr(row['recordId']), jsStr(row['title']), ev.reason, ev.confidence);
-    for (final (scope, values) in [('legacy', row['legacy']), ('rating', row['ratings'])]) {
+    for (final (scope, values) in [('legacy', row['legacy']), ('field', row['fields']), ('rating', row['ratings'])]) {
       (asMap(values) ?? const {}).forEach((key, original) {
         final token = '$scope.$key';
         final value = fieldValue(token, original);
@@ -319,7 +571,7 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
       status: prot ? 'protected' : same ? 'unchanged' : present ? 'existing' : disagree ? 'conflict' : auto ? 'ready' : 'review',
     ));
   });
-  proposals.sort((a, b) => a.token == 'legacy.synopsis' ? -1 : b.token == 'legacy.synopsis' ? 1 : a.token.compareTo(b.token));
+  proposals.sort((a, b) => a.token == 'legacy.synopsis' ? -1 : b.token == 'legacy.synopsis' ? 1 : localeCompare(a.token, b.token));
   return MetadataPreview(jsStr(item['id']), cleanTitle(item['title']), proposals, errors, [...{...results.map((r) => jsStr(r['provider']))}]);
 }
 
@@ -368,10 +620,10 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
 
 /// `mf439Apply`: writes the selected proposals into [item] (in place). Never
 /// replaces a value that is already there. Returns how many fields changed.
-({int changed, int legacy, int ratings}) applyMetadata(Map<String, dynamic> item, MetadataPreview preview, int now,
+({int changed, int legacy, int fields, int ratings}) applyMetadata(Map<String, dynamic> item, MetadataPreview preview, int now,
     {bool automatic = false, double minimumConfidence = 0.94}) {
-  if (jsStr(item['id']) != preview.titleId) return (changed: 0, legacy: 0, ratings: 0);
-  var count = 0, legacy = 0, ratings = 0;
+  if (jsStr(item['id']) != preview.titleId) return (changed: 0, legacy: 0, fields: 0, ratings: 0);
+  var count = 0, legacy = 0, fields = 0, ratings = 0;
   final env = normalizedEnvelope(item['universalMetadata']);
   for (final prop in preview.proposals) {
     if (!prop.selected || prop.same || prop.isProtected || fieldProtected(item, prop.token)) continue;
@@ -390,6 +642,12 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
       legacy++;
       count++;
       applied = true;
+    } else if (prop.token.startsWith('field.')) {
+      if (setFieldInEnvelope(env, prop.token.substring(6), choice.value, source: src.provider, updatedAt: now)) {
+        fields++;
+        count++;
+        applied = true;
+      }
     } else if (prop.token.startsWith('rating.')) {
       if (setRatingInEnvelope(env, prop.token.substring(7), asMap(choice.value)!, source: src.provider, force: false, updatedAt: now)) {
         ratings++;
@@ -420,8 +678,83 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
         if (!providers.contains(s.provider)) providers.add(s.provider);
       }
     }
-    kept.add({'at': now, 'legacy': legacy, 'fields': 0, 'ratings': ratings, 'providers': providers.take(20).toList()});
+    kept.add({'at': now, 'legacy': legacy, 'fields': fields, 'ratings': ratings, 'providers': providers.take(20).toList()});
     item['v439RecoveryHistory'] = kept;
   }
-  return (changed: count, legacy: legacy, ratings: ratings);
+  return (changed: count, legacy: legacy, fields: fields, ratings: ratings);
+}
+
+/// `mf439DescribeValue`: a field value as text.
+String describeFieldValue(String token, Object? v) {
+  if (v == null || v == '') return '—';
+  if (token.startsWith('rating.') && v is Map) {
+    final votes = v['votes'];
+    return '${jsStr(v['score'])} / ${jsStr(v['scale'])}${votes != null ? ' · ${jsStr(votes)} votes' : ''}';
+  }
+  if (v is List) return v.map(jsStr).join(', ');
+  return jsStr(v);
+}
+
+/// `String.prototype.localeCompare` for field tokens (ASCII): letters
+/// compare case-insensitively, lowercase first on a tie.
+int localeCompare(String a, String b) {
+  final c = a.toLowerCase().compareTo(b.toLowerCase());
+  if (c != 0) return c;
+  return b.compareTo(a); // 'a' (97) sorts before 'A' (65)
+}
+
+num? _whole(num n) => n == n.truncateToDouble() ? n.toInt() : n;
+
+/// `mf437Clean`.
+Object? cleanUniversalField(Object? value, String type) {
+  switch (type) {
+    case 'list':
+      final raw = value is List ? value : jsStr(value ?? '').split(',');
+      final out = <String>[];
+      for (final v in raw) {
+        var s = jsStr(v ?? '').trim();
+        if (s.length > 180) s = s.substring(0, 180);
+        if (s.isNotEmpty && !out.contains(s)) out.add(s);
+      }
+      return out.length > 100 ? out.sublist(0, 100) : out;
+    case 'number':
+    case 'decimal':
+      if (value == null || jsStr(value).trim().isEmpty) return null;
+      final n = value is num ? value : num.tryParse(jsStr(value).trim());
+      if (n == null || !n.isFinite || n < 0 || n > 1e9) return null;
+      return type == 'number' ? n.floor() : _whole((n * 100).round() / 100);
+    case 'url':
+      final str = jsStr(value ?? '').trim();
+      if (str.isEmpty) return '';
+      final u = Uri.tryParse(str);
+      if (u == null || !(u.scheme == 'https' || u.scheme == 'http') || u.host.isEmpty) return '';
+      var href = u.toString();
+      if (u.path.isEmpty) href = u.replace(path: '/').toString();
+      return href.length > 1200 ? href.substring(0, 1200) : href;
+    default:
+      final s = jsStr(value ?? '').trim();
+      final max = type == 'multiline' ? 12000 : 800;
+      return s.length > max ? s.substring(0, max) : s;
+  }
+}
+
+/// `mf437SetField` for a verified provider value (never replaces a value
+/// that is there, never touches a locked field).
+bool setFieldInEnvelope(Map<String, dynamic> env, String key, Object? value, {required String source, required int updatedAt}) {
+  final def = kUniversalFields[key];
+  if (def == null) return false;
+  final clean = cleanUniversalField(value, def.$2);
+  final token = 'field.$key';
+  final locks = env['locks'] as Map;
+  final fields = env['fields'] as Map;
+  if (locks[token] == true) return false;
+  final cur = fields[key];
+  final present = cur != null && cur != '' && (cur is! List || cur.isNotEmpty);
+  if (present) return false;
+  if (jsonEncode(clean) == jsonEncode(cur)) return false;
+  fields[key] = clean;
+  (env['provenance'] as Map)[token] = {'source': source, 'verified': true, 'updatedAt': updatedAt};
+  final u = jsNum(env['updatedAt']);
+  env['updatedAt'] = u > updatedAt ? env['updatedAt'] : updatedAt;
+  return true;
 }

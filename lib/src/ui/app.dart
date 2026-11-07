@@ -11,9 +11,11 @@ import '../data/metadata_search.dart' show providerGateway;
 import '../data/ratings_refresh.dart';
 import '../data/supabase_cloud.dart';
 import '../platform/app_time.dart';
+import '../platform/app_shortcuts.dart';
+import '../platform/background_work.dart';
 import '../platform/desktop_tray.dart';
 import '../platform/discord_presence.dart';
-import '../platform/reminders.dart';
+import '../platform/notifications.dart';
 import 'home_shell.dart';
 import 'presence.dart';
 import 'sign_in_screen.dart';
@@ -166,8 +168,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       deviceId: _deviceId(),
     )..startAutoPull();
     ThemeController.instance.attach(account);
-    Reminders.instance.attach(account);
+    AppNotifications.instance.attach(account);
     AppTime.instance.attach(account);
+    BackgroundWork.instance.attach(account);
+    AppShortcuts.instance.attach(account);
+    unawaited(AppShortcuts.instance.init());
     RatingsRefresh.instance.startAuto(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
     if (mounted) {
