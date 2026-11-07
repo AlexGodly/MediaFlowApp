@@ -16,11 +16,34 @@ on:
       ANDROID_KEYSTORE_PASSWORD:
         description: Password of that key store and key. Optional.
         required: false
+      DISCORD_SDK_TOKEN:
+        description: Read-only token for the private Discord Social SDK release (phones). Optional.
+        required: false
 
 permissions:
   contents: read
 
 jobs:
+  discord-sdk-probe:
+    name: Discord SDK contents (temporary)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download and list the Social SDK
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning title=Discord SDK::DISCORD_SDK_TOKEN is not set"; exit 0; fi
+          gh release list -R AlexGodly/discord-social-sdk || true
+          gh release download 1.10.19337 -R AlexGodly/discord-social-sdk -p 'DiscordSocialSdk-1.10.19337.zip' -D sdk
+          ls -la sdk
+          unzip -l sdk/*.zip | awk '{print $1, $4}' | grep -v '/$' | grep -iv 'krisp' | sed -n '1,400p'
+          echo "---- sizes by folder"
+          unzip -l sdk/*.zip | awk '{split($4,a,"/"); k=a[1]"/"a[2]"/"a[3]; s[k]+=$1} END {for (k in s) print s[k], k}' | sort -rn | head -40
+          mkdir x && cd x && unzip -q ../sdk/*.zip '*/include/*' '*.h' 2>/dev/null || true
+          find . -name '*.h' | head -20
+          f=$(find . -name 'discordpp.h' | head -1); [ -n "$f" ] && grep -n "class Activity\b\|UpdateRichPresence\|SetApplicationId\|class Client\b\|void Authorize\|GetToken\|SetLargeImage\|SetDetails\|SetState\|RunCallbacks\|UpdateToken\|CreateAuthorizationCodeVerifier\|GetDefaultPresenceScopes\|SetRedirect\|SetCustomSchemeParam" "$f" | head -80 || true
+
   test:
     name: Analyze and test
     runs-on: ubuntu-latest
