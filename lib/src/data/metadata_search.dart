@@ -1,7 +1,8 @@
-// Online title search for covers and totals, using the same public sources as
-// the website: AniList (anime, manga), TVMaze (TV), Open Library (books) and
-// iTunes (movies, music). Results only fill the editor; nothing is saved until
-// you save the title.
+// Online title search for covers and totals, using the same sources as the
+// website: TMDB (movies, TV, anime — through MediaFlow's provider gateway, so
+// the TMDB key stays on the server), AniList (anime, manga), TVMaze (TV),
+// Open Library (books) and iTunes (movies, music). Results only fill the
+// editor; nothing is saved until you save the title.
 
 import 'dart:async';
 import 'dart:convert';
@@ -102,10 +103,87 @@ Future<List<MetadataResult>> _itunes(String q, String entity) async {
   ];
 }
 
-/// Searches the sources that fit a category ([unit] and media [type]).
-Future<List<MetadataResult>> searchMetadata(String query, {required String unit, String type = ''}) async {
+/// Calls MediaFlow's provider gateway (the Supabase edge function
+/// `mediaflow-api-gateway`) as the signed-in user and returns its JSON. Set by
+/// the app at start-up; null (tests, signed out) skips the gateway sources.
+typedef GatewayCall = Future<Object?> Function(Map<String, dynamic> body);
+GatewayCall? providerGateway;
+
+/// `mf559MediaKind`: which TMDB catalogue to search first.
+String tmdbKind({required String categoryId, required String categoryName, Map<String, dynamic>? externalIds}) {
+  final name = '$categoryId $categoryName'.toLowerCase();
+  if (RegExp(r'^[1-9]\d*$').hasMatch('${externalIds?['tmdb_tv'] ?? ''}')) return 'tv';
+  if (RegExp(r'movie|film').hasMatch(name)) return 'movie';
+  if (RegExp(r'\btv\b|television|series|show').hasMatch(name)) return 'tv';
+  return '';
+}
+
+/// TMDB posters through the gateway (website v434 `mf434Find` + v559). A
+/// manual search asks for close matches too (`loose`), like the website's ID
+/// finder; saved TMDB IDs are looked up first.
+Future<List<MetadataResult>> searchTmdb(String q, {String kind = '', Map<String, dynamic>? externalIds}) async {
+  final call = providerGateway;
+  final title = q.length > 110 ? q.substring(0, 110).trim() : q;
+  if (call == null || title.length < 2) return const [];
+  final ids = <String, String>{};
+  externalIds?.forEach((k, v) {
+    final value = '${v ?? ''}'.trim();
+    if (RegExp(r'^[a-z][a-z0-9_]{0,32}$').hasMatch(k) && RegExp(r'^[\w.:-]{1,120}$').hasMatch(value)) ids[k] = value;
+  });
+  final body = <String, dynamic>{
+    'action': 'search',
+    'provider': 'tmdb',
+    'title': title,
+    'externalIds': ids,
+    'loose': true,
+    if (kind.isNotEmpty) 'kind': kind,
+  };
+  Object? data;
+  try {
+    data = await call(body);
+  } catch (e) {
+    // The gateway allows one TMDB request a second per account: wait and retry once.
+    if (!RegExp(r'Please wait \d+ seconds?', caseSensitive: false).hasMatch('$e')) return const [];
+    final seconds = int.tryParse(RegExp(r'\d+').firstMatch('$e')?[0] ?? '') ?? 1;
+    await Future<void>.delayed(Duration(milliseconds: (seconds * 1000 + 250).clamp(0, 5000)));
+    try {
+      data = await call(body);
+    } catch (_) {
+      return const [];
+    }
+  }
+  final rows = (data is Map ? data['results'] : null);
+  if (rows is! List) return const [];
+  final out = <MetadataResult>[];
+  for (final raw in rows) {
+    if (raw is! Map || raw['provider'] != 'tmdb') continue;
+    final url = '${raw['url'] ?? ''}';
+    final year = raw['year'] is num && (raw['year'] as num) > 0 ? (raw['year'] as num).toInt() : null;
+    final tv = raw['externalIdKey'] == 'tmdb_tv';
+    out.add(MetadataResult(
+      title: '${raw['title'] ?? ''}',
+      source: 'TMDB',
+      coverUrl: url.startsWith('https://') ? url : '',
+      year: year,
+      subtitle: [tv ? 'TV' : 'Movie', if (raw['exact'] != true) 'similar title'].join(' · '),
+      externalId: '${raw['externalIdValue'] ?? ''}',
+    ));
+  }
+  // Exact matches and ones with a poster first.
+  out.sort((a, b) {
+    int score(MetadataResult r) => (r.subtitle.contains('similar') ? 0 : 2) + (r.coverUrl.isEmpty ? 0 : 1);
+    return score(b) - score(a);
+  });
+  return out;
+}
+
+/// Searches the sources that fit a category ([unit] and media [type]). TMDB is
+/// used for movies, TV and anime ([tmdbKind] picks movie or TV first).
+Future<List<MetadataResult>> searchMetadata(String query,
+    {required String unit, String type = '', String kind = '', Map<String, dynamic>? externalIds}) async {
   final q = query.trim();
   if (q.isEmpty) return const [];
+  final tmdb = searchTmdb(q, kind: kind, externalIds: externalIds);
   final List<Future<List<MetadataResult>>> jobs;
   switch (unit) {
     case 'chapters':
@@ -116,12 +194,12 @@ Future<List<MetadataResult>> searchMetadata(String query, {required String unit,
     case 'issues':
       jobs = [_openLibrary(q)];
     case 'movies':
-      jobs = [_itunes(q, 'movie'), _anilist(q, 'ANIME')];
+      jobs = [tmdb, _itunes(q, 'movie'), _anilist(q, 'ANIME')];
     case 'tracks':
     case 'albums':
       jobs = [_itunes(q, 'album')];
     default:
-      jobs = type == 'reading' ? [_openLibrary(q)] : [_anilist(q, 'ANIME'), _tvmaze(q)];
+      jobs = type == 'reading' ? [_openLibrary(q)] : [tmdb, _anilist(q, 'ANIME'), _tvmaze(q)];
   }
   final results = await Future.wait(jobs.map((j) => j.catchError((_) => <MetadataResult>[])));
   return [for (final r in results) ...r.where((x) => x.title.isNotEmpty)];

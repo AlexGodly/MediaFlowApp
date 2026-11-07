@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
+import '../data/metadata_search.dart' show providerGateway;
 import '../data/supabase_cloud.dart';
 import 'home_shell.dart';
 import 'sign_in_screen.dart';
@@ -122,6 +123,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   void _attach(String userId, String email) {
+    // TMDB covers go through MediaFlow's provider gateway as this account
+    // (the TMDB key stays on the server, as on the website).
+    providerGateway = (body) async =>
+        (await Supabase.instance.client.functions.invoke('mediaflow-api-gateway', body: body)).data;
     if (_account?.userId == userId) return;
     final old = _account;
     final account = AccountController(

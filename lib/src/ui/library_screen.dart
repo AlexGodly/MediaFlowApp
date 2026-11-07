@@ -741,7 +741,7 @@ class MissingCoversScreen extends StatelessWidget {
                           tooltip: 'Search online',
                           icon: const Icon(Icons.travel_explore_rounded),
                           onPressed: () async {
-                            final r = await searchOnline(context, t.title, cat);
+                            final r = await searchOnline(context, t.title, cat, externalIds: asMap(t.raw['externalIds']));
                             if (r != null && r.coverUrl.isNotEmpty && context.mounted) await _set(context, t, r.coverUrl, auto: true);
                           },
                         ),

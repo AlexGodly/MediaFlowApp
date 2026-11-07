@@ -285,20 +285,23 @@ Future<double?> askRating(BuildContext context, double current) async {
 }
 
 /// Online search for a title's cover and total. Returns the chosen result.
-Future<MetadataResult?> searchOnline(BuildContext context, String query, Category cat) {
+///
+/// [externalIds] (the title's saved IDs) let TMDB look up a saved TMDB ID first.
+Future<MetadataResult?> searchOnline(BuildContext context, String query, Category cat, {Map<String, dynamic>? externalIds}) {
   return showModalBottomSheet<MetadataResult>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: MF.surface,
-    builder: (c) => _MetadataSheet(query: query, category: cat),
+    builder: (c) => _MetadataSheet(query: query, category: cat, externalIds: externalIds),
   );
 }
 
 class _MetadataSheet extends StatefulWidget {
-  const _MetadataSheet({required this.query, required this.category});
+  const _MetadataSheet({required this.query, required this.category, this.externalIds});
   final String query;
   final Category category;
+  final Map<String, dynamic>? externalIds;
 
   @override
   State<_MetadataSheet> createState() => _MetadataSheetState();
@@ -323,7 +326,15 @@ class _MetadataSheetState extends State<_MetadataSheet> {
 
   Future<void> _run() async {
     setState(() => _busy = true);
-    final r = await searchMetadata(_q.text, unit: widget.category.unit, type: jsStr(widget.category.raw['type']));
+    final cat = widget.category;
+    final r = await searchMetadata(
+      _q.text,
+      unit: cat.unit,
+      type: jsStr(cat.raw['type']),
+      kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: widget.externalIds),
+      // A saved TMDB ID only fits the title it belongs to, not another search.
+      externalIds: _q.text.trim() == widget.query.trim() ? widget.externalIds : null,
+    );
     if (mounted) {
       setState(() {
         _results = r;
@@ -481,7 +492,8 @@ class _TitleEditorState extends State<TitleEditor> {
 
   Future<void> _search() async {
     final cat = account.view!.category(_category);
-    final r = await searchOnline(context, _title.text, cat);
+    final saved = widget.id == null ? null : account.view!.library.where((t) => t.id == widget.id).firstOrNull;
+    final r = await searchOnline(context, _title.text, cat, externalIds: asMap(saved?.raw['externalIds']));
     if (r == null || !mounted) return;
     setState(() {
       if (_title.text.trim().isEmpty) _title.text = r.title;
