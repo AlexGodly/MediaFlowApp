@@ -19,6 +19,15 @@ class DesktopTray with TrayListener, WindowListener {
   /// Called by the tray menu's "Sync now".
   void Function()? onSyncNow;
 
+  /// Called by the tray menu's recovery items ('pause' | 'resume' | 'stop').
+  void Function(String action)? onBackgroundAction;
+
+  /// A recovery is running: closing the window keeps MediaFlow in the tray
+  /// until it finishes, even when "keep running in the tray" is off.
+  bool _busy = false;
+  String _status = '';
+  bool _paused = false;
+
   static bool get supported => Platform.isWindows;
 
   bool get closeToTray => AppPrefs.instance.get<bool>('trayCloseToTray', false);
@@ -35,12 +44,7 @@ class DesktopTray with TrayListener, WindowListener {
       trayManager.addListener(this);
       await trayManager.setIcon('assets/branding/mediaflow-tray.ico');
       await trayManager.setToolTip('MediaFlow');
-      await trayManager.setContextMenu(Menu(items: [
-        MenuItem(key: 'show', label: 'Open MediaFlow'),
-        MenuItem(key: 'sync', label: 'Sync now'),
-        MenuItem.separator(),
-        MenuItem(key: 'quit', label: 'Quit MediaFlow'),
-      ]));
+      await _menu();
       await windowManager.setPreventClose(closeToTray);
       _ready = true;
       if (args.contains('--minimized') && startMinimized && closeToTray) {
@@ -53,7 +57,37 @@ class DesktopTray with TrayListener, WindowListener {
 
   Future<void> setCloseToTray(bool on) async {
     await AppPrefs.instance.set('trayCloseToTray', on);
-    if (_ready) await windowManager.setPreventClose(on);
+    if (_ready) await windowManager.setPreventClose(on || _busy);
+  }
+
+  Future<void> _menu() => trayManager.setContextMenu(Menu(items: [
+        MenuItem(key: 'show', label: 'Open MediaFlow'),
+        MenuItem(key: 'sync', label: 'Sync now'),
+        if (_busy) ...[
+          MenuItem.separator(),
+          MenuItem(key: 'status', label: _status, disabled: true),
+          MenuItem(key: _paused ? 'resume' : 'pause', label: _paused ? 'Resume recovery' : 'Pause recovery'),
+          MenuItem(key: 'stop', label: 'Stop recovery'),
+        ],
+        MenuItem.separator(),
+        MenuItem(key: 'quit', label: 'Quit MediaFlow'),
+      ]));
+
+  /// Shows a running recovery in the tray ([status] null: nothing runs).
+  Future<void> setBackground(String? status, {bool paused = false}) async {
+    if (!_ready) return;
+    final busy = status != null;
+    final changed = busy != _busy || paused != _paused || (status ?? '') != _status;
+    if (!changed) return;
+    final menuChanged = busy != _busy || paused != _paused;
+    _busy = busy;
+    _paused = paused;
+    _status = status ?? '';
+    try {
+      await trayManager.setToolTip(busy ? 'MediaFlow · $_status' : 'MediaFlow');
+      if (menuChanged || busy) await _menu();
+      await windowManager.setPreventClose(closeToTray || _busy);
+    } catch (_) {}
   }
 
   Future<void> setStartWithWindows(bool on) async {
@@ -78,7 +112,7 @@ class DesktopTray with TrayListener, WindowListener {
 
   @override
   void onWindowClose() {
-    if (closeToTray) {
+    if (closeToTray || _busy) {
       unawaited(windowManager.hide());
     } else {
       unawaited(_quit());
@@ -98,6 +132,8 @@ class DesktopTray with TrayListener, WindowListener {
         unawaited(_show());
       case 'sync':
         onSyncNow?.call();
+      case 'pause' || 'resume' || 'stop':
+        onBackgroundAction?.call(menuItem.key!);
       case 'quit':
         unawaited(_quit());
     }

@@ -11,6 +11,7 @@ import '../data/metadata_search.dart' show providerGateway;
 import '../data/ratings_refresh.dart';
 import '../data/supabase_cloud.dart';
 import '../platform/app_time.dart';
+import '../platform/background_work.dart';
 import '../platform/desktop_tray.dart';
 import '../platform/discord_presence.dart';
 import '../platform/reminders.dart';
@@ -168,6 +169,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     ThemeController.instance.attach(account);
     Reminders.instance.attach(account);
     AppTime.instance.attach(account);
+    BackgroundWork.instance.attach(account);
     RatingsRefresh.instance.startAuto(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
     if (mounted) {

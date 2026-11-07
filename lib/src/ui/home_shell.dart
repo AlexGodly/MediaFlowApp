@@ -128,8 +128,8 @@ class _HomeShellState extends State<HomeShell> {
               )
             : null;
         final withWidget = account.hasData
-            ? Stack(children: [
-                Positioned.fill(child: body),
+            ? Stack(fit: StackFit.expand, children: [
+                body,
                 BackgroundProcesses(
                   account: account,
                   onOpen: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0),
