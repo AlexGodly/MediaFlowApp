@@ -70,6 +70,12 @@ def main():
                 mode = (info.external_attr >> 16) & 0o777
                 if mode:
                     os.chmod(dest, mode)
+        # The C header, only to check the app's bindings (tool/discord_abi.py);
+        # it stays in the CI workspace and is never committed or cached.
+        header = next((n for n in names if n.endswith("/cdiscord.h")), None)
+        if header:
+            with z.open(header) as src, open(BASE / "cdiscord.h", "wb") as dst:
+                shutil.copyfileobj(src, dst)
     # Framework symlinks inside the xcframework are stored as small files; the
     # iOS slices used here have none, so nothing else to restore.
     zpath.unlink()

@@ -1040,7 +1040,10 @@ class _CategoryPickerState extends State<_CategoryPicker> {
 
 /// A Library title picker (search, category and status filters, multi-select).
 /// Uses the Library's prepared index: no re-sorting on each keystroke or tap.
-Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, {Set<String> exclude = const {}, String title = 'Add titles'}) {
+/// Library titles picked with search and filters; [single] returns the first
+/// tapped title at once.
+Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view,
+    {Set<String> exclude = const {}, String title = 'Add titles', bool single = false}) {
   return showModalBottomSheet<List<String>>(
     context: context,
     isScrollControlled: true,
@@ -1048,16 +1051,17 @@ Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, 
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
       info: const PresenceInfo(situation: 'collections'),
-      child: _TitlePicker(view: view, exclude: exclude, title: title),
+      child: _TitlePicker(view: view, exclude: exclude, title: title, single: single),
     ),
   );
 }
 
 class _TitlePicker extends StatefulWidget {
-  const _TitlePicker({required this.view, required this.exclude, required this.title});
+  const _TitlePicker({required this.view, required this.exclude, required this.title, this.single = false});
   final AccountView view;
   final Set<String> exclude;
   final String title;
+  final bool single;
 
   @override
   State<_TitlePicker> createState() => _TitlePickerState();
@@ -1192,6 +1196,15 @@ class _TitlePickerState extends State<_TitlePicker> {
                     }
                     final t = rows[i];
                     final cat = view.category(t.categoryId);
+                    if (widget.single) {
+                      return ListTile(
+                        key: ValueKey(t.id),
+                        leading: Cover(title: t, category: cat, width: 32),
+                        title: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        subtitle: Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1),
+                        onTap: () => Navigator.pop(context, [t.id]),
+                      );
+                    }
                     return CheckboxListTile(
                       key: ValueKey(t.id),
                       value: _picked.contains(t.id),

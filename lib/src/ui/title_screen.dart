@@ -9,9 +9,12 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
+import '../logic/custom_status.dart' show activePin;
 import '../logic/library_logic.dart';
+import '../platform/discord_presence.dart' show DiscordPresence;
 import '../state/models.dart';
 import '../util/js.dart';
+import 'discord_settings.dart' show showOnDiscord, stopShowingOnDiscord;
 import 'floating_dock.dart' show recoveryShortcuts;
 import 'log_sheet.dart';
 import 'presence.dart';
@@ -130,9 +133,15 @@ class TitleScreen extends StatelessWidget {
                   if (v == 'delete') _delete(context, t);
                   if (v == 'rate') _rate(context, t);
                   if (v.startsWith('quick:')) openQuickRecovery(context, account, id, kind: v.substring(6));
+                  if (v == 'discord') showOnDiscord(context, account, id);
+                  if (v == 'discordStop') stopShowingOnDiscord(account);
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'rate', child: Text('Rate')),
+                  if (DiscordPresence.supported)
+                    activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch)?.titleId == id
+                        ? const PopupMenuItem(value: 'discordStop', child: Text('Stop showing on Discord'))
+                        : const PopupMenuItem(value: 'discord', child: Text('Show on Discord')),
                   if (recoveryShortcuts(asMap(view.state['settings']))['details'] == true) ...[
                     const PopupMenuItem(value: 'quick:cover', child: Text('Recover cover')),
                     const PopupMenuItem(value: 'quick:metadata', child: Text('Recover metadata')),

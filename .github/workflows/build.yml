@@ -170,6 +170,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
         run: python tool/discord_sdk.py windows
+      - name: Check Discord bindings against the SDK header
+        run: python tool/discord_abi.py
       - name: Generate and brand the Windows project
         shell: bash
         run: |

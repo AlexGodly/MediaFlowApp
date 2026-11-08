@@ -7,9 +7,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../logic/custom_status.dart';
 import '../logic/presence_templates.dart';
 import '../platform/discord_ffi.dart';
 import '../platform/discord_presence.dart';
+import '../util/js.dart';
+import 'collections_screen.dart' show pickLibraryTitles;
+import 'custom_status_screen.dart' show openCustomStatus;
+import 'discord_card.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -83,7 +88,18 @@ class DiscordSettings extends StatelessWidget {
               Padding(padding: const EdgeInsets.only(top: 4), child: Text(d.lastError, style: TextStyle(color: MF.bad, fontSize: 12))),
           ],
           const SizedBox(height: 14),
-          _Preview(),
+          _Previews(),
+          _PinnedTile(account: account),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: account == null ? null : () => openCustomStatus(context, account!),
+              icon: const Icon(Icons.tune_rounded),
+              label: Text(currentCustomStatus(asMap(account?.view?.state['settings']), DateTime.now()) == null
+                  ? 'Custom Status…'
+                  : 'Custom Status… (active)'),
+            ),
+          ),
           const SizedBox(height: 6),
           Text('The look below is saved in your account and used on every device.', style: TextStyle(color: MF.textMute, fontSize: 11)),
           const SizedBox(height: 6),
@@ -99,8 +115,34 @@ class DiscordSettings extends StatelessWidget {
             ('name', 'Watching MediaFlow'),
             ('details', 'Watching + line 1 (e.g. Watching Frieren)'),
             ('state', 'Watching + line 2'),
-          ], (v) => _save({'statusLine': v}),
-              help: 'The short status under your name. The profile card still shows MediaFlow at the top — Discord doesn\'t let apps change that.'),
+          ], (v) => _save({'statusLine': v}), help: 'The short status under your name in member lists and DMs.'),
+          _choice<String>('Profile card header says', c.activityName, const [
+            ('mediaflow', 'Watching MediaFlow'),
+            ('status', 'The same as the status line (e.g. Watching Frieren)'),
+            ('custom', 'My own text…'),
+          ], (v) => _save({'activityName': v}), help: 'The activity name at the top of your profile card.'),
+          if (c.activityName == 'custom')
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Header text'),
+              subtitle: Text(c.nameTemplate.isEmpty ? '(empty: MediaFlow)' : c.nameTemplate),
+              trailing: const Icon(Icons.edit_rounded, size: 18),
+              onTap: () async {
+                final ctl = TextEditingController(text: c.nameTemplate);
+                final v = await showDialog<String>(
+                  context: context,
+                  builder: (dc) => AlertDialog(
+                    title: const Text('Profile card header'),
+                    content: TextField(controller: ctl, decoration: const InputDecoration(helperText: 'Placeholders work here too, e.g. {title} or {category}')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dc), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(dc, ctl.text.trim()), child: const Text('Save')),
+                    ],
+                  ),
+                );
+                if (v != null) await _save({'nameTemplate': v});
+              },
+            ),
           _choice<String>('What to show', c.privacy, const [
             ('full', 'Everything (titles, covers, progress)'),
             ('activity', 'What I\'m doing, without titles or covers'),
@@ -121,6 +163,10 @@ class DiscordSettings extends StatelessWidget {
             ('first', 'The first title'),
             ('all', 'The first title + how many more'),
           ], (v) => _save({'draftEntry': v}), help: 'Title and progress come from your log draft, so they change as you type.'),
+          _choice<String>('While logging, progress shows', c.progressMode, const [
+            ('after', 'After this log (what I\'ve filled in)'),
+            ('before', 'Before this log (where the title is now)'),
+          ], (v) => _save({'progressMode': v}), help: 'For {progress}. {before} and {after} are always available too.'),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Say what I\'m doing ("Logging Frieren")'),
@@ -293,41 +339,88 @@ class _TemplateDialogState extends State<_TemplateDialog> {
   }
 }
 
-/// What Discord shows right now (on this screen: Settings).
-class _Preview extends StatelessWidget {
+/// What this device would show, next to what Discord last accepted.
+class _Previews extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final e = DiscordPresence.instance.effective();
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
-      child: e == null
-          ? Text('Nothing shown (idle)', style: TextStyle(color: MF.textDim))
-          : Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(e.large, width: 56, height: 56, fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(width: 56, height: 56, color: MF.surface)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(
-                    '${switch (e.type) { 3 => 'Watching', 2 => 'Listening to', _ => 'Playing' }} '
-                    '${switch (e.statusLine) { 2 => e.details, 1 => e.state ?? 'MediaFlow', _ => 'MediaFlow' }}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: MF.textDim, fontSize: 11, fontWeight: FontWeight.w800),
-                  ),
-                  const Text('MediaFlow', style: TextStyle(fontWeight: FontWeight.w900)),
-                  Text(e.details, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (e.state != null) Text(e.state!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim)),
-                  if (e.timer) Text('00:00 elapsed', style: TextStyle(color: MF.textMute, fontSize: 11)),
-                ]),
-              ),
-            ]),
+    final d = DiscordPresence.instance;
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    final mine = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('PREVIEW', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w900, color: MF.textMute)),
+      const SizedBox(height: 4),
+      DiscordActivityCard(activity: d.effective(), empty: 'Nothing shown (idle)'),
+    ]);
+    final has = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('DISCORD HAS', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w900, color: MF.textMute)),
+      const SizedBox(height: 4),
+      DiscordActivityCard(activity: d.accepted, empty: d.connected ? 'No status accepted yet' : 'Not connected'),
+    ]);
+    return wide
+        ? Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: mine), const SizedBox(width: 12), Expanded(child: has)])
+        : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [mine, const SizedBox(height: 10), has]);
+  }
+}
+
+/// "Show on Discord": the pinned title and how long it stays.
+class _PinnedTile extends StatelessWidget {
+  const _PinnedTile({required this.account});
+  final AccountController? account;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = account;
+    final view = a?.view;
+    if (a == null || view == null) return const SizedBox.shrink();
+    final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
+    final t = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.push_pin_rounded),
+      title: Text(t == null ? 'Show a title on Discord' : 'Showing on Discord: ${t.title}'),
+      subtitle: Text(t == null ? 'Pick any Library title to show as if you\'re on it' : 'Shown on all your devices until you stop it'),
+      trailing: t == null
+          ? const Icon(Icons.chevron_right_rounded)
+          : TextButton(onPressed: () => stopShowingOnDiscord(a), child: const Text('Stop')),
+      onTap: t != null
+          ? null
+          : () async {
+              final ids = await pickLibraryTitles(context, view, title: 'Show on Discord', single: true);
+              if (ids != null && ids.isNotEmpty && context.mounted) await showOnDiscord(context, a, ids.first);
+            },
     );
   }
+}
+
+/// Pins a title ("Show on Discord") after asking for how long.
+Future<void> showOnDiscord(BuildContext context, AccountController account, String titleId) async {
+  final choice = await showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    builder: (c) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const ListTile(title: Text('Show on Discord for…', style: TextStyle(fontWeight: FontWeight.w800))),
+        for (final o in const [('stop', 'Until I stop it'), ('1h', '1 hour'), ('3h', '3 hours'), ('close', 'Until I close the app (this device)')])
+          ListTile(title: Text(o.$2), onTap: () => Navigator.pop(c, o.$1)),
+      ]),
+    ),
+  );
+  if (choice == null) return;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final pinned = {
+    'titleId': titleId,
+    'until': switch (choice) { '1h' => now + 3600000, '3h' => now + 3 * 3600000, _ => 0 },
+    'session': choice == 'close' ? kAppSessionId : '',
+    'setAt': now,
+  };
+  final next = DiscordPresence.instance.config.withChanges({'pinned': pinned});
+  DiscordPresence.instance.setConfig(PresenceConfig(next));
+  await account.setSetting([PresenceConfig.key], next);
+}
+
+Future<void> stopShowingOnDiscord(AccountController account) async {
+  final next = DiscordPresence.instance.config.withChanges({'pinned': null});
+  DiscordPresence.instance.setConfig(PresenceConfig(next));
+  await account.setSetting([PresenceConfig.key], next);
 }
 
 /// The SectionCard for Settings.
