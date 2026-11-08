@@ -34,10 +34,19 @@ List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEve
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
 
+/// Opens Recovery: the Recovery Workspace page (More) on [tab], or — for a
+/// given set of titles (On This Day, a selection) — a screen for just those.
 Future<void> openRecovery(BuildContext context, AccountController account,
-        {List<String>? ids, String label = '', int tab = 0, bool combined = false}) =>
-    Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
+    {List<String>? ids, String label = '', int tab = 0, bool combined = false}) async {
+  final go = RecoveryScreen.goToPage;
+  if (ids == null && go != null) {
+    RecoveryScreen.request.value = (tab: tab, combined: combined, n: (RecoveryScreen.request.value?.n ?? 0) + 1);
+    go();
+    return;
+  }
+  await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
+}
 
 class RecoveryScreen extends StatefulWidget {
   const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0, this.combined = false});
@@ -51,12 +60,36 @@ class RecoveryScreen extends StatefulWidget {
   final String label;
   final int initialTab;
 
+  /// Set by the home shell: shows the Recovery Workspace page.
+  static void Function()? goToPage;
+
+  /// A tab (and Combined) to show on the page, from the + menu and elsewhere.
+  static final ValueNotifier<({int tab, bool combined, int n})?> request = ValueNotifier(null);
+
   @override
   State<RecoveryScreen> createState() => _RecoveryScreenState();
 }
 
-class _RecoveryScreenState extends State<RecoveryScreen> {
+class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProviderStateMixin {
   String _scope = 'given'; // given | all | <categoryId>
+  late final TabController _tabs = TabController(length: 3, vsync: this, initialIndex: widget.initialTab.clamp(0, 2).toInt());
+  bool _combined = false;
+  int _seen = 0;
+
+  void _onRequest() {
+    final r = RecoveryScreen.request.value;
+    if (widget.ids != null || r == null || r.n <= _seen || !mounted) return;
+    _seen = r.n;
+    setState(() => _combined = r.combined);
+    _tabs.animateTo(r.tab.clamp(0, 2).toInt());
+  }
+
+  @override
+  void dispose() {
+    RecoveryScreen.request.removeListener(_onRequest);
+    _tabs.dispose();
+    super.dispose();
+  }
 
   /// Reviews where "Link verified External IDs" was turned off.
   final Set<CoverReview> _noLink = {};
@@ -65,6 +98,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   void initState() {
     super.initState();
     if (widget.ids == null) _scope = 'all';
+    _combined = widget.combined;
+    RecoveryScreen.request.addListener(_onRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onRequest());
   }
 
   AccountView? get view => widget.account.view;
@@ -115,22 +151,18 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   Widget build(BuildContext context) {
     return PresenceScope(
       info: const PresenceInfo(situation: 'recovery'),
-      child: DefaultTabController(
-        length: 3,
-        initialIndex: widget.initialTab,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Recovery'),
-            bottom: const TabBar(tabs: [Tab(text: 'Covers'), Tab(text: 'Details'), Tab(text: 'Sources')]),
-          ),
-          body: ListenableBuilder(
-            listenable: Listenable.merge([RecoveryRunner.instance, widget.account]),
-            builder: (context, _) => TabBarView(children: [
-              _coverTab(context),
-              _metadataTab(context),
-              SourcesSettings(account: widget.account),
-            ]),
-          ),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.ids == null ? 'Recovery Workspace' : 'Recovery'),
+          bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Covers'), Tab(text: 'Details'), Tab(text: 'Sources')]),
+        ),
+        body: ListenableBuilder(
+          listenable: Listenable.merge([RecoveryRunner.instance, widget.account]),
+          builder: (context, _) => TabBarView(controller: _tabs, children: [
+            _coverTab(context),
+            _metadataTab(context),
+            SourcesSettings(account: widget.account),
+          ]),
         ),
       ),
     );
@@ -166,7 +198,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             label: const Text('Start Cover Recovery'),
           ),
       ]),
-      if (widget.combined || r.combinedRunning)
+      if (_combined || r.combinedRunning)
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Container(

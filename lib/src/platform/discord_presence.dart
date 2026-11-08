@@ -142,6 +142,7 @@ class DiscordPresence extends ChangeNotifier {
           ffi.runCallbacks();
         } catch (_) {}
       });
+      _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
       statusText = mobile ? 'Not linked' : 'Waiting for the Discord app';
       final refresh = await _readToken('refresh');
       linked = refresh != null && refresh.isNotEmpty;
@@ -162,6 +163,8 @@ class DiscordPresence extends ChangeNotifier {
     final ffi = _ffi, client = _client;
     _pump?.cancel();
     _pump = null;
+    _minute?.cancel();
+    _minute = null;
     if (ffi != null && client != null) {
       try {
         ffi.clientDisconnect(client);
@@ -392,8 +395,8 @@ class DiscordPresence extends ChangeNotifier {
       _schedule();
       notifyListeners();
     }
-    // Schedules and "until" times are checked every minute.
-    _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
+    // Schedules and "until" times are checked every minute while connected.
+    if (_client != null) _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
   }
 
   /// What Discord last accepted (for Settings' preview).

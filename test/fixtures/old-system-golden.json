@@ -1,0 +1,701 @@
+{
+ "generatedFrom": "pages/old-system (v153 + v173)",
+ "now": 1762600000000,
+ "scenarios": [
+  {
+   "name": "categories, rules, consumption, balance, undo, modes and dates",
+   "categories": [
+    {
+     "id": "anime",
+     "name": "Anime",
+     "unit": "episodes"
+    },
+    {
+     "id": "manga",
+     "name": "Manga",
+     "unit": "chapters"
+    },
+    {
+     "id": "books",
+     "name": "Books",
+     "unit": "pages"
+    },
+    {
+     "id": "games",
+     "name": "Games",
+     "unit": "hours"
+    }
+   ],
+   "sessions": [
+    {
+     "id": "s1",
+     "categoryId": "anime",
+     "actualAmount": 3,
+     "minutes": 72,
+     "timestamp": 1762168000000,
+     "date": "2026-11-03",
+     "status": "complete"
+    },
+    {
+     "id": "s2",
+     "categoryId": "manga",
+     "actualAmount": 12,
+     "minutes": 40,
+     "timestamp": 1762254400000,
+     "date": "2026-11-04",
+     "status": "complete"
+    },
+    {
+     "id": "s3",
+     "categoryId": "anime",
+     "actualAmount": 2,
+     "minutes": 48,
+     "timestamp": 1762340800000,
+     "date": "2026-11-05",
+     "status": "partial"
+    },
+    {
+     "id": "s4",
+     "categoryId": "books",
+     "actualAmount": 30,
+     "minutes": 50,
+     "timestamp": 1762427200000,
+     "date": "2026-11-06",
+     "status": "skipped"
+    },
+    {
+     "id": "s5",
+     "categoryId": "deleted",
+     "actualAmount": 9,
+     "minutes": 9,
+     "timestamp": 1762427200000,
+     "date": "2026-11-06",
+     "status": "complete"
+    },
+    {
+     "id": "s6",
+     "categoryId": "books",
+     "actualAmount": 25,
+     "minutes": 45,
+     "timestamp": 1762513600000,
+     "status": "complete"
+    }
+   ],
+   "actions": [
+    {
+     "op": "toggle",
+     "id": "anime"
+    },
+    {
+     "op": "toggle",
+     "id": "manga"
+    },
+    {
+     "op": "toggle",
+     "id": "books",
+     "at": 1762600001000
+    },
+    {
+     "op": "addRule",
+     "at": 1762600002000
+    },
+    {
+     "op": "updateRule",
+     "id": "u1",
+     "key": "fromAmount",
+     "value": "3"
+    },
+    {
+     "op": "updateRule",
+     "id": "u1",
+     "key": "toAmount",
+     "value": 2
+    },
+    {
+     "op": "updateRule",
+     "id": "u1",
+     "key": "toCategoryId",
+     "value": "anime"
+    },
+    {
+     "op": "updateRule",
+     "id": "u1",
+     "key": "fromAmount",
+     "value": "0"
+    },
+    {
+     "op": "addRule"
+    },
+    {
+     "op": "updateRule",
+     "id": "u2",
+     "key": "fromCategoryId",
+     "value": "books"
+    },
+    {
+     "op": "consume",
+     "id": "manga",
+     "amount": 4,
+     "at": 1762600003000
+    },
+    {
+     "op": "consume",
+     "id": "anime",
+     "amount": 2.5,
+     "at": 1762600004000
+    },
+    {
+     "op": "setBalance",
+     "id": "books",
+     "value": "1234.5678",
+     "at": 1762600005000
+    },
+    {
+     "op": "setBalance",
+     "id": "books",
+     "value": "abc"
+    },
+    {
+     "op": "undo",
+     "at": 1762600006000
+    },
+    {
+     "op": "mode",
+     "mode": "view"
+    },
+    {
+     "op": "mode",
+     "mode": "date"
+    },
+    {
+     "op": "mode",
+     "mode": "nope"
+    },
+    {
+     "op": "date",
+     "key": "dateFrom",
+     "value": "2026-11-04"
+    },
+    {
+     "op": "date",
+     "key": "dateTo",
+     "value": "garbage"
+    },
+    {
+     "op": "consume",
+     "id": "games",
+     "amount": 1
+    },
+    {
+     "op": "toggle",
+     "id": "manga",
+     "at": 1762600007000
+    }
+   ],
+   "expected": {
+    "steps": [
+     {
+      "action": {
+       "op": "toggle",
+       "id": "anime"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\"],\"rules\":[],\"balances\":{\"anime\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600000000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "toggle",
+       "id": "manga"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\"],\"rules\":[],\"balances\":{\"anime\":0,\"manga\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600000000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "toggle",
+       "id": "books",
+       "at": 1762600001000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600001000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "addRule",
+       "at": 1762600002000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "updateRule",
+       "id": "u1",
+       "key": "fromAmount",
+       "value": "3"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "updateRule",
+       "id": "u1",
+       "key": "toAmount",
+       "value": 2
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "updateRule",
+       "id": "u1",
+       "key": "toCategoryId",
+       "value": "anime"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "updateRule",
+       "id": "u1",
+       "key": "fromAmount",
+       "value": "0"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "addRule"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "updateRule",
+       "id": "u2",
+       "key": "fromCategoryId",
+       "value": "books"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "consume",
+       "id": "manga",
+       "amount": 4,
+       "at": 1762600003000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-6,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]}],\"mode\":\"system\",\"modifiedAt\":1762600003000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "consume",
+       "id": "anime",
+       "amount": 2.5,
+       "at": 1762600004000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"system\",\"modifiedAt\":1762600004000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "setBalance",
+       "id": "books",
+       "value": "1234.5678",
+       "at": 1762600005000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":1234.5678},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]},{\"id\":\"u5\",\"timestamp\":1762600005000,\"type\":\"adjustment\",\"categoryId\":\"books\",\"amount\":1234.5678,\"label\":\"Set Books balance to 1,234.568\",\"deltas\":[{\"categoryId\":\"books\",\"delta\":1238.5678}]}],\"mode\":\"system\",\"modifiedAt\":1762600005000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "setBalance",
+       "id": "books",
+       "value": "abc"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":1234.5678},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]},{\"id\":\"u5\",\"timestamp\":1762600005000,\"type\":\"adjustment\",\"categoryId\":\"books\",\"amount\":1234.5678,\"label\":\"Set Books balance to 1,234.568\",\"deltas\":[{\"categoryId\":\"books\",\"delta\":1238.5678}]}],\"mode\":\"system\",\"modifiedAt\":1762600005000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "undo",
+       "at": 1762600006000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"system\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "mode",
+       "mode": "view"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"view\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "mode",
+       "mode": "date"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "mode",
+       "mode": "nope"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "date",
+       "key": "dateFrom",
+       "value": "2026-11-04"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "date",
+       "key": "dateTo",
+       "value": "garbage"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-3.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]}],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "consume",
+       "id": "games",
+       "amount": 1
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-2.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]},{\"id\":\"u6\",\"timestamp\":1762600006000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":1,\"label\":\"Consumed 1 episode of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":1}]}],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "toggle",
+       "id": "manga",
+       "at": 1762600007000
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-2.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]},{\"id\":\"u6\",\"timestamp\":1762600006000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":1,\"label\":\"Consumed 1 episode of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":1}]}],\"mode\":\"date\",\"modifiedAt\":1762600007000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+     }
+    ],
+    "view": {
+     "rawTotals": {
+      "anime": 5,
+      "manga": 12,
+      "books": 25
+     },
+     "sessionCounts": {
+      "anime": 2,
+      "manga": 1,
+      "books": 1
+     },
+     "minuteTotals": {
+      "anime": 120,
+      "manga": 40,
+      "books": 45
+     },
+     "simulatedBalances": {
+      "anime": 5,
+      "books": 25
+     },
+     "simulatedSpent": {},
+     "activityRows": 4
+    },
+    "dateView": {
+     "rawTotals": {
+      "manga": 12,
+      "anime": 2
+     },
+     "sessionCounts": {
+      "manga": 1,
+      "anime": 1
+     },
+     "minuteTotals": {
+      "manga": 40,
+      "anime": 48
+     },
+     "simulatedBalances": {
+      "anime": 2,
+      "books": 0
+     },
+     "simulatedSpent": {},
+     "activityRows": 2
+    },
+    "normalized": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":-2.5,\"manga\":4,\"books\":-4},\"transactions\":[{\"id\":\"u3\",\"timestamp\":1762600003000,\"type\":\"consume\",\"categoryId\":\"manga\",\"amount\":4,\"label\":\"Consumed 4 chapters of Manga\",\"deltas\":[{\"categoryId\":\"manga\",\"delta\":4},{\"categoryId\":\"anime\",\"delta\":-6},{\"categoryId\":\"books\",\"delta\":-4}]},{\"id\":\"u4\",\"timestamp\":1762600004000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":2.5,\"label\":\"Consumed 2.5 episodes of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2.5}]},{\"id\":\"u6\",\"timestamp\":1762600006000,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":1,\"label\":\"Consumed 1 episode of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":1}]}],\"mode\":\"date\",\"modifiedAt\":1762600007000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+   },
+   "websiteAsIs": {
+    "differingSteps": [
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21
+    ],
+    "steps": [
+     "{\"enabledCategoryIds\":[\"anime\"],\"rules\":[],\"balances\":{\"anime\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600000000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\"],\"rules\":[],\"balances\":{\"anime\":0,\"manga\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600000000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600001000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":0,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600002000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":0,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600003000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600004000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":1234.5678},\"transactions\":[{\"id\":\"u5\",\"timestamp\":1762600005000,\"type\":\"adjustment\",\"categoryId\":\"books\",\"amount\":1234.5678,\"label\":\"Set Books balance to 1,234.568\",\"deltas\":[{\"categoryId\":\"books\",\"delta\":1234.5678}]}],\"mode\":\"system\",\"modifiedAt\":1762600005000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":1234.5678},\"transactions\":[{\"id\":\"u5\",\"timestamp\":1762600005000,\"type\":\"adjustment\",\"categoryId\":\"books\",\"amount\":1234.5678,\"label\":\"Set Books balance to 1,234.568\",\"deltas\":[{\"categoryId\":\"books\",\"delta\":1234.5678}]}],\"mode\":\"system\",\"modifiedAt\":1762600005000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"system\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"view\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":2.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"manga\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":3.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600006000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"u1\",\"fromCategoryId\":\"anime\",\"toCategoryId\":\"manga\",\"fromAmount\":3,\"toAmount\":2,\"createdAt\":1762600002000},{\"id\":\"u2\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"manga\",\"fromAmount\":1,\"toAmount\":1,\"createdAt\":1762600002000}],\"balances\":{\"anime\":3.5,\"manga\":4,\"books\":0},\"transactions\":[],\"mode\":\"date\",\"modifiedAt\":1762600007000,\"dateFrom\":\"2026-11-04\",\"dateTo\":\"\"}"
+    ]
+   }
+  },
+  {
+   "name": "saved data from older versions is normalized",
+   "categories": [
+    {
+     "id": "anime",
+     "name": "Anime",
+     "unit": "episodes"
+    },
+    {
+     "id": "manga",
+     "name": "Manga",
+     "unit": "chapters"
+    },
+    {
+     "id": "books",
+     "name": "Books",
+     "unit": "pages"
+    },
+    {
+     "id": "games",
+     "name": "Games",
+     "unit": "hours"
+    }
+   ],
+   "sessions": [
+    {
+     "id": "s1",
+     "categoryId": "anime",
+     "actualAmount": 3,
+     "minutes": 72,
+     "timestamp": 1762168000000,
+     "date": "2026-11-03",
+     "status": "complete"
+    },
+    {
+     "id": "s2",
+     "categoryId": "manga",
+     "actualAmount": 12,
+     "minutes": 40,
+     "timestamp": 1762254400000,
+     "date": "2026-11-04",
+     "status": "complete"
+    },
+    {
+     "id": "s3",
+     "categoryId": "anime",
+     "actualAmount": 2,
+     "minutes": 48,
+     "timestamp": 1762340800000,
+     "date": "2026-11-05",
+     "status": "partial"
+    },
+    {
+     "id": "s4",
+     "categoryId": "books",
+     "actualAmount": 30,
+     "minutes": 50,
+     "timestamp": 1762427200000,
+     "date": "2026-11-06",
+     "status": "skipped"
+    },
+    {
+     "id": "s5",
+     "categoryId": "deleted",
+     "actualAmount": 9,
+     "minutes": 9,
+     "timestamp": 1762427200000,
+     "date": "2026-11-06",
+     "status": "complete"
+    },
+    {
+     "id": "s6",
+     "categoryId": "books",
+     "actualAmount": 25,
+     "minutes": 45,
+     "timestamp": 1762513600000,
+     "status": "complete"
+    }
+   ],
+   "oldSystem": {
+    "enabledCategoryIds": [
+     "anime",
+     "anime",
+     "gone",
+     "books"
+    ],
+    "balances": {
+     "anime": "5",
+     "books": "NaN",
+     "manga": -2
+    },
+    "rules": [
+     {
+      "id": "r1",
+      "fromCategoryId": "books",
+      "toCategoryId": "anime",
+      "fromAmount": -4,
+      "toAmount": 0,
+      "createdAt": 5
+     },
+     {
+      "id": "r2",
+      "fromCategoryId": "anime",
+      "toCategoryId": "anime"
+     },
+     {
+      "fromCategoryId": "manga",
+      "toCategoryId": "anime",
+      "fromAmount": 2
+     }
+    ],
+    "transactions": [
+     {
+      "id": "t1",
+      "timestamp": 7,
+      "amount": "x",
+      "deltas": [
+       {
+        "categoryId": "anime",
+        "delta": 2
+       },
+       {
+        "categoryId": "",
+        "delta": 1
+       },
+       {
+        "categoryId": "books",
+        "delta": "bad"
+       }
+      ]
+     }
+    ],
+    "mode": "stats",
+    "modifiedAt": 99,
+    "dateFrom": "2026-01-01",
+    "dateTo": "2026-13",
+    "extra": "dropped"
+   },
+   "actions": [
+    {
+     "op": "consume",
+     "id": "anime",
+     "amount": 1,
+     "at": 1762600000010
+    },
+    {
+     "op": "undo"
+    },
+    {
+     "op": "clearDates"
+    }
+   ],
+   "expected": {
+    "steps": [
+     {
+      "action": {
+       "op": "consume",
+       "id": "anime",
+       "amount": 1,
+       "at": 1762600000010
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":6,\"manga\":-2,\"books\":-0.000001},\"transactions\":[{\"id\":\"t1\",\"timestamp\":7,\"type\":\"consume\",\"categoryId\":\"\",\"amount\":0,\"label\":\"\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2}]},{\"id\":\"u2\",\"timestamp\":1762600000010,\"type\":\"consume\",\"categoryId\":\"anime\",\"amount\":1,\"label\":\"Consumed 1 episode of Anime\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":1},{\"categoryId\":\"books\",\"delta\":-0.000001}]}],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"2026-01-01\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "undo"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":5,\"manga\":-2,\"books\":0},\"transactions\":[{\"id\":\"t1\",\"timestamp\":7,\"type\":\"consume\",\"categoryId\":\"\",\"amount\":0,\"label\":\"\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2}]}],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"2026-01-01\",\"dateTo\":\"\"}"
+     },
+     {
+      "action": {
+       "op": "clearDates"
+      },
+      "oldSystem": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":5,\"manga\":-2,\"books\":0},\"transactions\":[{\"id\":\"t1\",\"timestamp\":7,\"type\":\"consume\",\"categoryId\":\"\",\"amount\":0,\"label\":\"\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2}]}],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+     }
+    ],
+    "view": {
+     "rawTotals": {
+      "anime": 5,
+      "manga": 12,
+      "books": 25
+     },
+     "sessionCounts": {
+      "anime": 2,
+      "manga": 1,
+      "books": 1
+     },
+     "minuteTotals": {
+      "anime": 120,
+      "manga": 40,
+      "books": 45
+     },
+     "simulatedBalances": {
+      "anime": 5,
+      "books": 24.999995
+     },
+     "simulatedSpent": {
+      "books": 0.000005
+     },
+     "activityRows": 4
+    },
+    "dateView": {
+     "rawTotals": {
+      "anime": 5,
+      "manga": 12,
+      "books": 25
+     },
+     "sessionCounts": {
+      "anime": 2,
+      "manga": 1,
+      "books": 1
+     },
+     "minuteTotals": {
+      "anime": 120,
+      "manga": 40,
+      "books": 45
+     },
+     "simulatedBalances": {
+      "anime": 5,
+      "books": 24.999995
+     },
+     "simulatedSpent": {
+      "books": 0.000005
+     },
+     "activityRows": 4
+    },
+    "normalized": "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":5,\"manga\":-2,\"books\":0},\"transactions\":[{\"id\":\"t1\",\"timestamp\":7,\"type\":\"consume\",\"categoryId\":\"\",\"amount\":0,\"label\":\"\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2}]}],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+   },
+   "websiteAsIs": {
+    "differingSteps": [
+     0,
+     1,
+     2
+    ],
+    "steps": [
+     "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":6,\"manga\":-2},\"transactions\":[{\"id\":\"t1\",\"timestamp\":7,\"type\":\"consume\",\"categoryId\":\"\",\"amount\":0,\"label\":\"\",\"deltas\":[{\"categoryId\":\"anime\",\"delta\":2}]}],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"2026-01-01\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":4,\"manga\":-2},\"transactions\":[],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"2026-01-01\",\"dateTo\":\"\"}",
+     "{\"enabledCategoryIds\":[\"anime\",\"books\"],\"rules\":[{\"id\":\"r1\",\"fromCategoryId\":\"books\",\"toCategoryId\":\"anime\",\"fromAmount\":0.000001,\"toAmount\":1,\"createdAt\":5},{\"id\":\"u1\",\"fromCategoryId\":\"manga\",\"toCategoryId\":\"anime\",\"fromAmount\":2,\"toAmount\":1,\"createdAt\":1762600000010}],\"balances\":{\"anime\":4,\"manga\":-2},\"transactions\":[],\"mode\":\"stats\",\"modifiedAt\":1762600000010,\"dateFrom\":\"\",\"dateTo\":\"\"}"
+    ]
+   }
+  }
+ ]
+}

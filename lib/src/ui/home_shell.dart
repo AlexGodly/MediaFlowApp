@@ -11,7 +11,8 @@ import 'library_screen.dart';
 import 'log_screen.dart';
 import 'order_screen.dart';
 import 'presence.dart';
-import 'recovery_screen.dart' show openRecovery;
+import 'old_system_screen.dart';
+import 'recovery_screen.dart' show RecoveryScreen, openRecovery;
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
@@ -28,6 +29,10 @@ enum Section {
   extras(Icons.timer_outlined, Icons.timer_rounded, 'Extras'),
   collections(Icons.collections_bookmark_outlined, Icons.collections_bookmark_rounded, 'Collections'),
   order(Icons.format_list_numbered_rounded, Icons.format_list_numbered_rounded, 'Personal Order'),
+  oldSystem(Icons.swap_horiz_rounded, Icons.swap_horiz_rounded, 'Old System'),
+  recovery(Icons.healing_outlined, Icons.healing_rounded, 'Recovery Workspace'),
+  rate(Icons.star_outline_rounded, Icons.star_rounded, 'Rate Your Library'),
+  covers(Icons.image_not_supported_outlined, Icons.image_not_supported_rounded, 'Missing Covers'),
   stats(Icons.insights_outlined, Icons.insights_rounded, 'Statistics'),
   settings(Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
   account(Icons.person_outline_rounded, Icons.person_rounded, 'Account');
@@ -38,7 +43,17 @@ enum Section {
   final String label;
 
   static const phoneTabs = [Section.log, Section.library, Section.history, Section.extras];
-  static const more = [Section.collections, Section.order, Section.stats, Section.settings, Section.account];
+  static const more = [
+    Section.collections,
+    Section.order,
+    Section.oldSystem,
+    Section.recovery,
+    Section.rate,
+    Section.covers,
+    Section.stats,
+    Section.settings,
+    Section.account,
+  ];
 }
 
 Widget sectionPage(Section s, AccountController account) => switch (s) {
@@ -48,6 +63,10 @@ Widget sectionPage(Section s, AccountController account) => switch (s) {
       Section.extras => ExtrasScreen(account: account),
       Section.collections => CollectionsScreen(account: account),
       Section.order => OrderScreen(account: account),
+      Section.oldSystem => OldSystemScreen(account: account),
+      Section.recovery => RecoveryScreen(account: account),
+      Section.rate => RateLibraryScreen(account: account),
+      Section.covers => MissingCoversScreen(account: account),
       Section.stats => StatsScreen(account: account),
       Section.settings => SettingsScreen(account: account),
       Section.account => AccountScreen(account: account),
@@ -76,6 +95,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     AppShortcuts.instance.request.removeListener(_onShortcut);
+    if (RecoveryScreen.goToPage == _goRecovery) RecoveryScreen.goToPage = null;
     super.dispose();
   }
 
@@ -83,6 +103,10 @@ class _HomeShellState extends State<HomeShell> {
   void didUpdateWidget(HomeShell old) {
     super.didUpdateWidget(old);
     if (!identical(old.account, widget.account)) _pages.clear();
+  }
+
+  void _goRecovery() {
+    if (mounted) _go(Section.recovery);
   }
 
   void _go(Section s) => setState(() {
@@ -95,6 +119,7 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     AppShortcuts.instance.request.addListener(_onShortcut);
+    RecoveryScreen.goToPage = _goRecovery;
     WidgetsBinding.instance.addPostFrameCallback((_) => _onShortcut());
   }
 
@@ -166,6 +191,7 @@ class _HomeShellState extends State<HomeShell> {
                 BackgroundProcesses(
                   account: account,
                   onOpen: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0),
+                  onSettings: () => openRecovery(context, account, tab: 2),
                 ),
               ])
             : body;

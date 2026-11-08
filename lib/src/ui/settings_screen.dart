@@ -74,7 +74,6 @@ final _sections = <(String, IconData, List<_S>)>[
     Icons.auto_fix_high_rounded,
     [
       _S(['v447RecoveryShortcuts', 'floating'], 'Recovery items in the + menu', kind: 'bool', def: true),
-      _S(['v447RecoveryShortcuts', 'library'], 'Recovery in the Library menu', kind: 'bool', def: true),
       _S(['v447RecoveryShortcuts', 'editor'], 'Recovery in the title editor', kind: 'bool', def: true),
       _S(['v447RecoveryShortcuts', 'details'], 'Recovery in Title Details', kind: 'bool', def: true),
       _S(['v447RecoveryShortcuts', 'collections'], 'Recovery in Collections', kind: 'bool', def: true),

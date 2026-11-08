@@ -30,6 +30,10 @@ PresenceInfo sectionPresence(Section s, [AccountView? view]) => PresenceInfo(
         Section.extras => 'extras',
         Section.collections => 'collections',
         Section.order => 'order',
+        Section.oldSystem => 'oldSystem',
+        Section.recovery => 'recovery',
+        Section.rate => 'rating',
+        Section.covers => 'missingCovers',
         Section.stats => 'stats',
         Section.settings => 'settings',
         Section.account => 'account',
@@ -202,16 +206,30 @@ class PresenceScope extends StatefulWidget {
 }
 
 class _PresenceScopeState extends State<PresenceScope> {
+  // Pages kept alive in the background (a section you left) have tickers off;
+  // their status only counts while they are on screen.
+  bool _on = false;
+
+  void _sync() {
+    final on = TickerMode.of(context);
+    if (on) {
+      PresenceHub.instance.push(this, widget.info);
+    } else if (_on) {
+      PresenceHub.instance.remove(this);
+    }
+    _on = on;
+  }
+
   @override
-  void initState() {
-    super.initState();
-    PresenceHub.instance.push(this, widget.info);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
   void didUpdateWidget(PresenceScope old) {
     super.didUpdateWidget(old);
-    PresenceHub.instance.push(this, widget.info);
+    _sync();
   }
 
   @override
