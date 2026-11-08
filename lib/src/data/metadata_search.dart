@@ -18,7 +18,10 @@ class MetadataResult {
       this.subtitle = '',
       this.externalId,
       this.externalIdKey = '',
-      this.linkedIds = const []});
+      this.linkedIds = const [],
+      this.altTitles = const [],
+      this.recordYear,
+      this.idMatch = false});
   final String title, source, coverUrl, subtitle;
   final int? total, year;
   final String? externalId;
@@ -29,6 +32,20 @@ class MetadataResult {
   /// Other IDs the source itself reports for the record, in the website's
   /// order (AniList's MAL ID, TVmaze's IMDb ID); used to link verified IDs.
   final List<(String, String)> linkedIds;
+
+  /// The record's other names (AniList English/native/synonyms, Kitsu's
+  /// titles…). Cover Recovery compares every one (website `mf424Titles`).
+  final List<String> altTitles;
+
+  /// The year the website's adapter reads for matching (AniList startDate),
+  /// when it differs from [year].
+  final int? recordYear;
+
+  /// Found by a saved External ID (not by name).
+  final bool idMatch;
+
+  /// The record as the website's cover adapters hand it to `mf424Match`.
+  Map<String, dynamic> get matchRecord => {'title': title, 'titles': altTitles, 'year': recordYear ?? year ?? 0};
 }
 
 Future<Object?> _getJson(Uri uri, {Map<String, dynamic>? post}) async {
@@ -52,12 +69,24 @@ Future<Object?> _getJson(Uri uri, {Map<String, dynamic>? post}) async {
 }
 
 Future<List<MetadataResult>> _anilist(String q, String type) async {
-  const query = r'query($s:String,$t:MediaType){Page(perPage:12){media(search:$s,type:$t){id idMal title{romaji english} coverImage{extraLarge large} episodes chapters volumes seasonYear startDate{year} format}}}';
+  const query = 'query(\$s:String,\$t:MediaType){Page(perPage:12){media(search:\$s,type:\$t){$_anilistFields}}}';
   final data = await _getJson(Uri.parse('https://graphql.anilist.co'), post: {'query': query, 'variables': {'s': q, 't': type}});
+  return _anilistRows(data, type);
+}
+
+const _anilistFields = 'id idMal title{romaji english native} synonyms coverImage{extraLarge large} episodes chapters volumes seasonYear startDate{year} format';
+
+List<MetadataResult> _anilistRows(Object? data, String type, {int? id, int? idMal}) {
   final media = (((data as Map?)?['data'] as Map?)?['Page'] as Map?)?['media'] as List? ?? const [];
   return [
     for (final m in media.whereType<Map>())
       MetadataResult(
+        altTitles: [
+          for (final t in [(m['title'] as Map?)?['romaji'], (m['title'] as Map?)?['english'], (m['title'] as Map?)?['native'], ...(m['synonyms'] as List? ?? const [])])
+            if (t is String && t.isNotEmpty) t,
+        ],
+        recordYear: (m['startDate'] as Map?)?['year'] as int?,
+        idMatch: (id != null && m['id'] == id) || (id == null && idMal != null && m['idMal'] == idMal),
         title: ((m['title'] as Map?)?['english'] ?? (m['title'] as Map?)?['romaji'] ?? '').toString(),
         subtitle: [m['format'], (m['title'] as Map?)?['romaji']].whereType<Object>().map((e) => '$e').where((e) => e.isNotEmpty).join(' · '),
         coverUrl: ((m['coverImage'] as Map?)?['extraLarge'] ?? (m['coverImage'] as Map?)?['large'] ?? '').toString(),
@@ -72,24 +101,21 @@ Future<List<MetadataResult>> _anilist(String q, String type) async {
 
 Future<List<MetadataResult>> _tvmaze(String q) async {
   final data = await _getJson(Uri.https('api.tvmaze.com', '/search/shows', {'q': q}));
-  return [
-    for (final r in (data as List? ?? const []).whereType<Map>())
-      if (r['show'] is Map)
-        MetadataResult(
-          title: '${(r['show'] as Map)['name'] ?? ''}',
-          subtitle: [(r['show'] as Map)['network'] is Map ? ((r['show'] as Map)['network'] as Map)['name'] : null, (r['show'] as Map)['type']]
-              .whereType<Object>()
-              .join(' · '),
-          coverUrl: '${((r['show'] as Map)['image'] as Map?)?['original'] ?? ((r['show'] as Map)['image'] as Map?)?['medium'] ?? ''}',
-          year: int.tryParse('${(r['show'] as Map)['premiered'] ?? ''}'.split('-').first),
-          source: 'TVMaze',
-          externalId: '${(r['show'] as Map)['id']}',
-          linkedIds: [
-            if (((r['show'] as Map)['externals'] as Map?)?['imdb'] case final imdb? when '$imdb'.isNotEmpty) ('imdb', '$imdb'),
-          ],
-        ),
-  ];
+  return [for (final r in (data as List? ?? const []).whereType<Map>()) if (r['show'] is Map) _tvmazeRow(r['show'] as Map)];
 }
+
+MetadataResult _tvmazeRow(Map show, {bool idMatch = false}) => MetadataResult(
+      title: '${show['name'] ?? ''}',
+      subtitle: [show['network'] is Map ? (show['network'] as Map)['name'] : null, show['type']].whereType<Object>().join(' · '),
+      coverUrl: '${(show['image'] as Map?)?['original'] ?? (show['image'] as Map?)?['medium'] ?? ''}',
+      year: int.tryParse('${show['premiered'] ?? ''}'.split('-').first),
+      source: 'TVMaze',
+      externalId: '${show['id']}',
+      idMatch: idMatch,
+      linkedIds: [
+        if ((show['externals'] as Map?)?['imdb'] case final imdb? when '$imdb'.isNotEmpty) ('imdb', '$imdb'),
+      ],
+    );
 
 Future<List<MetadataResult>> _openLibrary(String q) async {
   final data = await _getJson(Uri.https('openlibrary.org', '/search.json', {'q': q, 'limit': '12'}));
@@ -224,4 +250,73 @@ Future<List<MetadataResult>> searchMetadata(String query,
   }
   final results = await Future.wait(jobs.map((j) => j.catchError((_) => <MetadataResult>[])));
   return [for (final r in results) ...r.where((x) => x.title.isNotEmpty)];
+}
+
+/// Records found by the title's saved External IDs (website v424: "existing
+/// IDs get first chance"): AniList / MyAnimeList, Kitsu, TVmaze / IMDb and an
+/// Open Library ISBN cover. Each result is marked [MetadataResult.idMatch].
+Future<List<MetadataResult>> lookupByIds(Map<String, dynamic>? externalIds, {required String unit}) async {
+  String id(String k) => '${externalIds?[k] ?? ''}'.trim();
+  final manga = const ['chapters', 'volumes'].contains(unit);
+  final jobs = <Future<List<MetadataResult>>>[];
+  final aid = int.tryParse(id('anilist')), mal = int.tryParse(id('mal'));
+  if (aid != null || mal != null) {
+    for (final type in manga ? const ['MANGA', 'ANIME'] : const ['ANIME', 'MANGA']) {
+      jobs.add(() async {
+        final q = 'query(\$id:Int,\$idMal:Int,\$type:MediaType){Page(perPage:8){media(id:\$id,idMal:\$idMal,type:\$type){$_anilistFields}}}';
+        final data = await _getJson(Uri.parse('https://graphql.anilist.co'),
+            post: {'query': q, 'variables': {'id': aid, 'idMal': aid != null ? null : mal, 'type': type}});
+        return _anilistRows(data, type, id: aid, idMal: mal);
+      }());
+    }
+  }
+  final kitsu = id('kitsu');
+  if (RegExp(r'^\d+$').hasMatch(kitsu)) {
+    jobs.add(() async {
+      final data = await _getJson(Uri.https('kitsu.io', '/api/edge/${manga ? 'manga' : 'anime'}/$kitsu'));
+      final x = (data as Map?)?['data'];
+      if (x is! Map || '${x['id']}' != kitsu) return <MetadataResult>[];
+      final a = (x['attributes'] as Map?) ?? const {};
+      final poster = (a['posterImage'] as Map?) ?? const {};
+      return [
+        MetadataResult(
+          title: '${a['canonicalTitle'] ?? ''}',
+          altTitles: [for (final t in ((a['titles'] as Map?) ?? const {}).values) if (t is String && t.isNotEmpty) t],
+          coverUrl: '${poster['original'] ?? poster['large'] ?? poster['medium'] ?? ''}',
+          year: int.tryParse('${a['startDate'] ?? ''}'.split('-').first),
+          source: 'Kitsu',
+          externalId: kitsu,
+          externalIdKey: 'kitsu',
+          idMatch: true,
+        ),
+      ];
+    }());
+  }
+  final tvmaze = id('tvmaze'), imdb = id('imdb');
+  if (RegExp(r'^\d+$').hasMatch(tvmaze) || RegExp(r'^tt\d+$', caseSensitive: false).hasMatch(imdb)) {
+    jobs.add(() async {
+      final uri = tvmaze.isNotEmpty && RegExp(r'^\d+$').hasMatch(tvmaze)
+          ? Uri.https('api.tvmaze.com', '/shows/$tvmaze')
+          : Uri.https('api.tvmaze.com', '/lookup/shows', {'imdb': imdb});
+      final show = await _getJson(uri);
+      if (show is! Map) return <MetadataResult>[];
+      final direct = tvmaze.isNotEmpty ? '${show['id']}' == tvmaze : (show['externals'] as Map?)?['imdb'] == imdb;
+      return [_tvmazeRow(show, idMatch: direct)];
+    }());
+  }
+  final isbn = id('isbn').replaceAll(RegExp(r'[^0-9Xx]'), '');
+  if (RegExp(r'^(?:\d{13}|\d{9}[\dXx])$').hasMatch(isbn)) {
+    jobs.add(Future.value([
+      MetadataResult(
+        title: '',
+        source: 'Open Library',
+        coverUrl: 'https://covers.openlibrary.org/b/isbn/$isbn-L.jpg?default=false',
+        externalId: isbn,
+        externalIdKey: 'isbn',
+        idMatch: true,
+      ),
+    ]));
+  }
+  final results = await Future.wait(jobs.map((j) => j.catchError((_) => <MetadataResult>[])));
+  return [for (final r in results) ...r];
 }

@@ -209,8 +209,14 @@ class CoverCandidate {
       this.externalIdKey = '',
       this.recordUrl = '',
       this.reportedIds = const [],
+      this.altTitles = const [],
+      this.format = '',
       this.idMatch = false});
   final String url, provider, title, reason;
+
+  /// The record's other names ("also known as") and its format line.
+  final List<String> altTitles;
+  final String format;
   final int? year;
   final double confidence;
 
@@ -357,6 +363,88 @@ int linkCoverIds(Map<String, dynamic> item, CoverCandidate c, {bool manual = fal
   item['externalIds'] = ids;
   if (manual) item['v377ManualExternalIds'] = overrides;
   return links.length;
+}
+
+/// The compatibility characters NFKC folds that turn up in titles: full-width
+/// forms, the ideographic space, Latin ligatures, Roman numerals, vulgar
+/// fractions, super/subscript digits, ellipsis. (Dart has no NFKC; this
+/// covers what matters for comparing titles — see cover-match-golden.json.)
+String nfkcLite(String s) {
+  const map = {
+    0x3000: ' ', 0x2026: '...', 0x2025: '..', 0x00A0: ' ', 0x2002: ' ', 0x2003: ' ', 0x2009: ' ', 0x200A: ' ',
+    0xFB00: 'ff', 0xFB01: 'fi', 0xFB02: 'fl', 0xFB03: 'ffi', 0xFB04: 'ffl', 0xFB05: 'st', 0xFB06: 'st',
+    0x00BC: '1⁄4', 0x00BD: '1⁄2', 0x00BE: '3⁄4', 0x2153: '1⁄3', 0x2154: '2⁄3', 0x215B: '1⁄8',
+    0x00B2: '2', 0x00B3: '3', 0x00B9: '1', 0x2070: '0', 0x2074: '4', 0x2075: '5', 0x2076: '6', 0x2077: '7', 0x2078: '8', 0x2079: '9',
+    0x2080: '0', 0x2081: '1', 0x2082: '2', 0x2083: '3', 0x2084: '4', 0x2085: '5', 0x2086: '6', 0x2087: '7', 0x2088: '8', 0x2089: '9',
+    0x2122: 'TM', 0x2116: 'No', 0x00AA: 'a', 0x00BA: 'o',
+  };
+  const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'L', 'C', 'D', 'M'];
+  final out = StringBuffer();
+  for (final r in s.runes) {
+    if (r >= 0xFF01 && r <= 0xFF5E) {
+      out.writeCharCode(r - 0xFEE0);
+    } else if (r >= 0x2160 && r <= 0x216F) {
+      out.write(roman[r - 0x2160]);
+    } else if (r >= 0x2170 && r <= 0x217F) {
+      out.write(roman[r - 0x2170].toLowerCase());
+    } else if (r >= 0x2460 && r <= 0x2473) {
+      out.write('${r - 0x2460 + 1}');
+    } else if (map[r] case final v?) {
+      out.write(v);
+    } else {
+      out.writeCharCode(r);
+    }
+  }
+  return out.toString();
+}
+
+final _notLetterOrNumber = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+/// `mf424Normalize`.
+String coverNorm(Object? value) => nfkcLite(value == null ? '' : '$value').toLowerCase().replaceAll(_notLetterOrNumber, ' ').trim();
+
+/// `mf424Titles`: every name a provider record carries.
+List<String> coverRecordTitles(Map<String, dynamic>? x) {
+  final attrs = asMap(x?['attributes']);
+  final arr = <Object?>[
+    x?['title'], x?['title_english'], x?['title_japanese'], x?['name'], attrs?['canonicalTitle'],
+    for (final t in asList(x?['titles'])) t is String ? t : asMap(t)?['title'],
+    ...asList(x?['title_synonyms']),
+    ...?asMap(attrs?['titles'])?.values,
+  ];
+  return [for (final v in arr) if (jsTruthy(v)) '$v'];
+}
+
+/// `mf424Match`: how sure a provider record is the title (names compared
+/// against the Library title; release years when both have one).
+({double confidence, String reason}) coverMatch(Map<String, dynamic> item, Map<String, dynamic> entry, bool idMatch) {
+  final names = coverRecordTitles(entry).map(coverNorm).toList();
+  final wanted = coverNorm(cleanTitle(item['title']));
+  if (idMatch) {
+    return names.contains(wanted)
+        ? (confidence: 1.0, reason: 'Exact saved external ID and compatible title')
+        : (confidence: 0.84, reason: 'Saved ID matches, but returned title is different; manual confirmation required');
+  }
+  if (wanted.isEmpty || !names.contains(wanted)) return (confidence: 0.0, reason: 'Title mismatch');
+  double year(Object? v) {
+    final n = jsNumOrNull(v);
+    return n == null || !n.isFinite ? 0 : n;
+  }
+
+  final stated = year(jsTruthy(item['year'])
+      ? item['year']
+      : jsTruthy(item['releaseYear'])
+          ? item['releaseYear']
+          : item['publicationYear']);
+  final premiered = jsStr(jsTruthy(entry['premiered']) ? entry['premiered'] : asMap(entry['published'])?['from']);
+  final source = year(jsTruthy(entry['year'])
+      ? entry['year']
+      : jsTruthy(entry['first_publish_year'])
+          ? entry['first_publish_year']
+          : (premiered.length > 4 ? premiered.substring(0, 4) : premiered));
+  if (stated != 0 && source != 0 && stated != source) return (confidence: 0.35, reason: 'Conflicting publication years');
+  if (stated != 0 && source != 0 && stated == source) return (confidence: 0.96, reason: 'Exact title and release year');
+  return (confidence: 0.7, reason: 'Exact title; no independent year or creator confirmation');
 }
 
 /// How sure a search result is about the title (the v439 evidence rules

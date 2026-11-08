@@ -107,13 +107,16 @@ class OldSystemOps {
   List<Map<String, dynamic>> get _cats => asList(state['categories']).map(asMap).whereType<Map<String, dynamic>>().where((c) => jsTruthy(c['id'])).toList();
   List<String> get _catIds => [for (final c in _cats) jsStr(c['id'])];
 
-  Map<String, dynamic> get os {
-    final o = normalizeOldSystem(state['oldSystem'], _catIds, now, uid);
-    state['oldSystem'] = o;
-    return o;
-  }
+  // Normalized once and then kept: the website's v153EnsureOldSystem swaps in
+  // a fresh copy on every call, which made Consume lose its rule costs and
+  // transaction (see generate_old_system_goldens.mjs).
+  Map<String, dynamic>? _os;
+  Map<String, dynamic> get os => _os ??= (state['oldSystem'] = normalizeOldSystem(state['oldSystem'], _catIds, now, uid));
 
-  void _touch() => (state['oldSystem'] as Map<String, dynamic>)['modifiedAt'] = now;
+  void _touch() {
+    final o = normalizeOldSystem(state['oldSystem'], _catIds, now, uid)..['modifiedAt'] = now;
+    state['oldSystem'] = _os = o;
+  }
 
   String _name(String id) {
     final c = _cats.where((c) => jsStr(c['id']) == id).firstOrNull;

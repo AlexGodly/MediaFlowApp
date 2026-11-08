@@ -14,6 +14,7 @@ import '../logic/ratings_engine.dart' show StopToken;
 import '../logic/recovery.dart';
 import '../util/js.dart';
 import 'presence.dart';
+import 'cover_choice.dart';
 import 'theme.dart';
 
 /// Opens the quick preview ([kind]: cover | metadata | both). Returns the new
@@ -208,41 +209,29 @@ class _QuickRecoveryState extends State<_QuickRecovery> {
       else if (_covers.isEmpty)
         Text('No verified cover matches. Your existing cover stays untouched.', style: TextStyle(color: MF.textDim))
       else
-        SizedBox(
-          height: 196,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _covers.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (context, i) {
-              final c = _covers[i];
-              final selected = i == _coverIndex;
-              final link = item == null ? null : quickCoverLink(item, c);
-              return InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => setState(() => _coverIndex = selected ? -1 : i),
-                child: Container(
-                  width: 104,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: selected ? MF.accent : Colors.transparent, width: 2),
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.network(c.url, width: 96, height: 128, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(width: 96, height: 128, color: MF.surface)),
-                    ),
-                    Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                    Text('${c.provider} · ${(c.confidence * 100).round()}% match',
-                        maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: MF.textDim)),
-                    if (link != null && link.key.isNotEmpty)
-                      Text(link.canLink ? 'Links ${link.key.toUpperCase()} ${link.id}' : 'ID already saved',
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: MF.textDim)),
-                  ]),
-                ),
-              );
+        CoverChoiceGrid(
+          itemTitle: cleanTitle(item?['title']),
+          candidates: _covers,
+          selectedUrl: _coverIndex >= 0 ? _covers[_coverIndex].url : null,
+          onPick: (c) => setState(() {
+            final i = _covers.indexOf(c);
+            _coverIndex = i == _coverIndex ? -1 : i;
+          }),
+        ),
+      if (!_coverLoading && item != null)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: const Text('Search manually'),
+            onPressed: () async {
+              final c = await searchCoverManually(context, widget.account, item);
+              if (c == null || !mounted) return;
+              setState(() {
+                _covers.removeWhere((x) => x.url == c.url);
+                _covers.insert(0, c);
+                _coverIndex = 0;
+              });
             },
           ),
         ),

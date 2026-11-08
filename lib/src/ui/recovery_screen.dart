@@ -13,6 +13,7 @@ import '../logic/ratings_engine.dart';
 import '../logic/recovery.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'cover_choice.dart';
 import 'presence.dart';
 import 'ratings_ui.dart' show sourceLabel;
 import 'theme.dart';
@@ -175,8 +176,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
     final job = r.cover;
     final ids = _ids(covers: true);
     return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
-      Text('Finds covers for titles that have none. Only confident matches (same title and year) are saved automatically; '
-          'the others wait below for you to pick. Existing covers are never replaced.',
+      Text('Finds covers for titles that have none, like the website: saved External IDs first, then a name search that compares '
+          'every name a source knows the title by. Only a saved ID with a matching title is saved by itself; the others wait below '
+          'for you to pick. Existing covers are never replaced.',
           style: TextStyle(color: MF.textDim, fontSize: 13)),
       const SizedBox(height: 12),
       _scopePicker(),
@@ -219,6 +221,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
         ),
       if (job != null) _progress(job),
       for (final review in List.of(job?.coverReviews ?? const <CoverReview>[])) _coverReview(context, review),
+      if (job != null) _noMatches(context, job),
     ]);
   }
 
@@ -240,13 +243,42 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
         ]),
       );
 
+  Map<String, dynamic>? _title(String id) {
+    final lib = view?.state['library'];
+    for (final x in asList(lib)) {
+      final m = asMap(x);
+      if (m != null && jsStr(m['id']) == id) return m;
+    }
+    return null;
+  }
+
+  Future<void> _manual(BuildContext context, String id) async {
+    final item = _title(id);
+    if (item == null) return;
+    final c = await searchCoverManually(context, widget.account, item);
+    if (c == null || !context.mounted) return;
+    final ok = await RecoveryRunner.instance.chooseManualCover(widget.account, id, c);
+    if (context.mounted) _toast(context, ok ? 'Cover saved for ${cleanTitle(item['title'])}' : 'The title already has a cover or changed meanwhile; nothing was saved.');
+  }
+
+  Widget _lookingFor(String id, String fallback) {
+    final item = _title(id);
+    final year = jsStr(item?['year']);
+    final cat = item == null ? null : view?.category(jsStr(item['categoryId']));
+    return Text(
+      'Looking for: ${item == null ? fallback : cleanTitle(item['title'])}${year.isEmpty ? '' : ' ($year)'}${cat == null ? '' : ' · ${cat.name}'}',
+      style: const TextStyle(fontWeight: FontWeight.w800),
+    );
+  }
+
   Widget _coverReview(BuildContext context, CoverReview review) => Container(
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            Expanded(child: Text(review.title, style: const TextStyle(fontWeight: FontWeight.w800))),
+            Expanded(child: _lookingFor(review.id, review.title)),
+            TextButton(onPressed: () => _manual(context, review.id), child: const Text('Search manually')),
             TextButton(onPressed: () => RecoveryRunner.instance.skipCover(review), child: const Text('Skip')),
           ]),
           if (review.candidates.any((c) => c.ids.isNotEmpty))
@@ -258,40 +290,39 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
               onChanged: (v) => setState(() => v == true ? _noLink.remove(review) : _noLink.add(review)),
               title: const Text('Also link the verified External IDs of the cover I pick', style: TextStyle(fontSize: 12)),
             ),
-          SizedBox(
-            height: 162,
-            child: ListView(scrollDirection: Axis.horizontal, children: [
-              for (final c in review.candidates)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () async {
-                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
-                      if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
-                    },
-                    child: SizedBox(
-                      width: 84,
-                      child: Column(children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(c.url, width: 84, height: 112, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(width: 84, height: 112, color: MF.surface)),
-                        ),
-                        Text('${c.provider}${c.year != null ? ' · ${c.year}' : ''}',
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.confidence >= 0.94 ? MF.good : MF.textDim)),
-                        Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)),
-                        if (c.ids.isNotEmpty)
-                          Text(c.ids.map((x) => '${x.$1.toUpperCase()} ${x.$2}').join(' · '),
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: MF.textDim)),
-                      ]),
-                    ),
-                  ),
-                ),
-            ]),
+          const SizedBox(height: 6),
+          CoverChoiceGrid(
+            itemTitle: review.title,
+            candidates: review.candidates,
+            onPick: (c) async {
+              final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
+              if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
+            },
           ),
         ]),
       );
+
+  Widget _noMatches(BuildContext context, RecoveryJob job) {
+    final ids = [for (final id in job.noMatchIds) if (_title(id) != null && coverMissing(_title(id))) id];
+    if (ids.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('No match found (${ids.length})', style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text('Search another name for these, or pick from every result.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        for (final id in ids.take(100))
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(cleanTitle(_title(id)!['title'])),
+            subtitle: jsStr(_title(id)!['year']).isEmpty ? null : Text(jsStr(_title(id)!['year'])),
+            trailing: TextButton(onPressed: () => _manual(context, id), child: const Text('Search manually')),
+          ),
+      ]),
+    );
+  }
 
   // ---------- details ----------
 
