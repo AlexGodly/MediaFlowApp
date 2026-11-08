@@ -687,8 +687,8 @@ List<({int years, List<OtdEvent> rows})> onThisDay(Map<String, dynamic> state, D
       // Website v563: logs of titles deleted from the Library stay in History
       // but are left out of On This Day.
       if (item == null) continue;
-      add(d, (y) => OtdEvent('logged', cleanTitle(t['title']), jsStr(item?['id'] ?? t['libraryId']).isEmpty ? null : jsStr(item?['id'] ?? t['libraryId']),
-          jsStr(item?['categoryId'] ?? t['categoryId'] ?? s['categoryId']), qty, minutes, item, stamp, y));
+      add(d, (y) => OtdEvent('logged', cleanTitle(t['title']), jsStr(item['id'] ?? t['libraryId']).isEmpty ? null : jsStr(item['id'] ?? t['libraryId']),
+          jsStr(item['categoryId'] ?? t['categoryId'] ?? s['categoryId']), qty, minutes, item, stamp, y));
     }
   }
   for (final item in library) {
