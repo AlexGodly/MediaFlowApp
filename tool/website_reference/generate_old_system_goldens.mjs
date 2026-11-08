@@ -109,7 +109,7 @@ const scenarios = [
       { op: 'undo', at: NOW + 6000 },
       { op: 'mode', mode: 'view' }, { op: 'mode', mode: 'date' }, { op: 'mode', mode: 'nope' },
       { op: 'date', key: 'dateFrom', value: '2026-11-04' }, { op: 'date', key: 'dateTo', value: 'garbage' },
-      { op: 'consume', id: 'games', amount: 1 },
+      { op: 'consume', id: 'books', amount: 1 },
       { op: 'toggle', id: 'manga', at: NOW + 7000 },
     ],
   },

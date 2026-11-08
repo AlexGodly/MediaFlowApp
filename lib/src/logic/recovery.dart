@@ -401,7 +401,8 @@ String nfkcLite(String s) {
 final _notLetterOrNumber = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
 
 /// `mf424Normalize`.
-String coverNorm(Object? value) => nfkcLite(value == null ? '' : '$value').toLowerCase().replaceAll(_notLetterOrNumber, ' ').trim();
+// JS lowercases İ to i + combining dot (which then splits the word); Dart to i.
+String coverNorm(Object? value) => nfkcLite(value == null ? '' : '$value').replaceAll('\u0130', 'i\u0307').toLowerCase().replaceAll(_notLetterOrNumber, ' ').trim();
 
 /// `mf424Titles`: every name a provider record carries.
 List<String> coverRecordTitles(Map<String, dynamic>? x) {
