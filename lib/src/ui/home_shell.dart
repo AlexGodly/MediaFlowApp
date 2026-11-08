@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/account_controller.dart';
 import '../platform/app_shortcuts.dart';
 import 'account_screen.dart';
+import 'app_nav.dart';
 import 'collections_screen.dart';
 import 'extras_screen.dart';
 import 'floating_dock.dart';
@@ -10,8 +11,8 @@ import 'history_screen.dart';
 import 'library_screen.dart';
 import 'log_screen.dart';
 import 'order_screen.dart';
-import 'presence.dart';
 import 'old_system_screen.dart';
+import 'presence.dart';
 import 'recovery_screen.dart' show RecoveryScreen, openRecovery;
 import 'settings_screen.dart';
 import 'stats_screen.dart';
@@ -20,8 +21,9 @@ import 'theme_controller.dart' show CoverBackdrop;
 import 'title_screen.dart' show TitleEditor;
 import 'widgets.dart';
 
-/// The app's sections. Phones show Log · Library · History · Extras · More;
-/// wide screens list every section in a side rail.
+/// The app's sections. Phones show the dock pages + More, wide screens list
+/// every section in a side rail; both are arranged in Settings → Navigation
+/// (app_nav.dart). The lists below are the defaults.
 enum Section {
   log(Icons.edit_note_outlined, Icons.edit_note_rounded, 'Log'),
   library(Icons.video_library_outlined, Icons.video_library, 'Library'),
@@ -96,6 +98,7 @@ class _HomeShellState extends State<HomeShell> {
   void dispose() {
     AppShortcuts.instance.request.removeListener(_onShortcut);
     if (RecoveryScreen.goToPage == _goRecovery) RecoveryScreen.goToPage = null;
+    LibraryScreen.showCategory.removeListener(_goLibrary);
     super.dispose();
   }
 
@@ -103,6 +106,10 @@ class _HomeShellState extends State<HomeShell> {
   void didUpdateWidget(HomeShell old) {
     super.didUpdateWidget(old);
     if (!identical(old.account, widget.account)) _pages.clear();
+  }
+
+  void _goLibrary() {
+    if (mounted && LibraryScreen.showCategory.value != null) _go(Section.library);
   }
 
   void _goRecovery() {
@@ -120,6 +127,7 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     AppShortcuts.instance.request.addListener(_onShortcut);
     RecoveryScreen.goToPage = _goRecovery;
+    LibraryScreen.showCategory.addListener(_goLibrary);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onShortcut());
   }
 
@@ -148,6 +156,8 @@ class _HomeShellState extends State<HomeShell> {
       builder: (context, _) {
         final account = widget.account;
         final wide = MediaQuery.sizeOf(context).width >= 900;
+        final nav = AppNav.of(account.view?.state['settings'] as Map<String, dynamic>?);
+        final dock = nav.dock;
         final showMore = !wide && _moreOpen;
         // Discord Rich Presence follows the section on screen.
         PresenceHub.instance.setSection(_section, account.view);
@@ -160,7 +170,7 @@ class _HomeShellState extends State<HomeShell> {
                 children: [
                   for (final s in visible)
                     _visited.contains(s) ? _PageGate(active: !showMore && s == _section, child: _page(s)) : const SizedBox.shrink(),
-                  MoreScreen(onOpen: _go),
+                  MoreScreen(onOpen: _go, sections: nav.more),
                 ],
               );
         // The website's floating + (v397 dock) on every main screen.
@@ -205,8 +215,8 @@ class _HomeShellState extends State<HomeShell> {
                   constraints: BoxConstraints(minHeight: MediaQuery.sizeOf(context).height),
                   child: IntrinsicHeight(
                     child: NavigationRail(
-                      selectedIndex: Section.values.indexOf(_section),
-                      onDestinationSelected: (i) => _go(Section.values[i]),
+                      selectedIndex: nav.desktop.indexOf(_section),
+                      onDestinationSelected: (i) => _go(nav.desktop[i]),
                       labelType: NavigationRailLabelType.all,
                       leading: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -216,7 +226,7 @@ class _HomeShellState extends State<HomeShell> {
                         ),
                       ),
                       destinations: [
-                        for (final d in Section.values)
+                        for (final d in nav.desktop)
                           NavigationRailDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: Text(d.label)),
                       ],
                     ),
@@ -229,12 +239,12 @@ class _HomeShellState extends State<HomeShell> {
             ),
           );
         }
-        final tabIndex = showMore || !Section.phoneTabs.contains(_section) ? 4 : Section.phoneTabs.indexOf(_section);
+        final tabIndex = showMore || !dock.contains(_section) ? dock.length : dock.indexOf(_section);
         return PopScope(
-          canPop: !showMore && Section.phoneTabs.contains(_section),
+          canPop: !showMore && dock.contains(_section),
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            setState(() => _moreOpen = !_moreOpen && !Section.phoneTabs.contains(_section));
+            setState(() => _moreOpen = !_moreOpen && !dock.contains(_section));
           },
           child: Scaffold(
             floatingActionButton: fab,
@@ -242,14 +252,14 @@ class _HomeShellState extends State<HomeShell> {
             bottomNavigationBar: NavigationBar(
               selectedIndex: tabIndex,
               onDestinationSelected: (i) {
-                if (i == 4) {
+                if (i == dock.length) {
                   setState(() => _moreOpen = true);
                 } else {
-                  _go(Section.phoneTabs[i]);
+                  _go(dock[i]);
                 }
               },
               destinations: [
-                for (final d in Section.phoneTabs)
+                for (final d in dock)
                   NavigationDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: d.label),
                 const NavigationDestination(icon: Icon(Icons.menu_rounded), selectedIcon: Icon(Icons.menu_open_rounded), label: 'More'),
               ],
@@ -293,8 +303,9 @@ class _PageGateState extends State<_PageGate> {
 
 /// The "More" tab on phones.
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.onOpen});
+  const MoreScreen({super.key, required this.onOpen, this.sections = Section.more});
   final ValueChanged<Section> onOpen;
+  final List<Section> sections;
 
   @override
   Widget build(BuildContext context) {
@@ -303,7 +314,7 @@ class MoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          for (final s in Section.more)
+          for (final s in sections)
             ListTile(
               leading: Icon(s.icon, color: MF.accent),
               title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w700)),

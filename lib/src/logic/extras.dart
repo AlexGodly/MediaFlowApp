@@ -363,7 +363,83 @@ Map<String, dynamic> balancePanel(Map<String, dynamic> state, String key) {
     'hiddenIds': val.containsKey('hiddenIds') ? unique(val['hiddenIds']) : def['hiddenIds'],
     'order': val.containsKey('order') ? order : def['order'],
     'metrics': key == 'todayBalance' && val['metrics'] == 'visible' ? 'visible' : 'all',
+    'modifiedAt': jsOut(math.max(0.0, jsNum(val['modifiedAt']))),
   };
+}
+
+const kPanelKeys = ['todayBalance', 'libraryOverview'];
+
+/// `mf508NormalizeBoth`: both panels as the website saves them.
+Map<String, dynamic> normalizedPanels(Map<String, dynamic> state) {
+  final tb = balancePanel(state, 'todayBalance'), lo = balancePanel(state, 'libraryOverview');
+  if (tb['source'] == 'libraryOverview' && lo['source'] == 'todayBalance') lo['source'] = 'categories';
+  return {'todayBalance': tb, 'libraryOverview': lo};
+}
+
+/// A change to one panel the way the website's mf508Set* functions make it.
+/// Returns the new `v508Panels` (with the panel's modifiedAt stamped) or a
+/// message when the change isn't allowed; null when nothing changes.
+({Map<String, dynamic>? panels, String? message}) editPanel(
+  Map<String, dynamic> state,
+  String key,
+  int now, {
+  bool? enabled,
+  String? source,
+  ({String id, bool show})? category,
+  bool? showAll,
+  ({String id, int position})? move,
+  String? metrics,
+}) {
+  if (!kPanelKeys.contains(key)) return (panels: null, message: null);
+  final all = [
+    for (final c in asList(state['categories']).map(asMap).whereType<Map<String, dynamic>>())
+      if (c['id'] != null) jsStr(c['id']),
+  ];
+  // mf508SetSource resolves the current list before touching the config.
+  final current = source == 'custom' ? [for (final c in visiblePanelCategories(state, key)) jsStr(c['id'])] : const <String>[];
+  final cfg = normalizedPanels(state);
+  final panel = cfg[key] as Map<String, dynamic>;
+  if (enabled != null) panel['enabled'] = enabled;
+  if (metrics != null && key == 'todayBalance') panel['metrics'] = metrics == 'visible' ? 'visible' : 'all';
+  if (source != null) {
+    const sources = ['categories', 'system', 'custom', 'todayBalance', 'libraryOverview'];
+    if (!sources.contains(source) || source == key) return (panels: null, message: null);
+    final other = key == 'todayBalance' ? 'libraryOverview' : 'todayBalance';
+    if (source == other && (cfg[other] as Map)['source'] == key) {
+      return (panels: null, message: 'These sections cannot follow each other in a loop. Change the other source first.');
+    }
+    if (source == 'custom' && panel['source'] != 'custom') {
+      final shown = current.toSet();
+      panel['hiddenIds'] = [for (final id in all) if (!shown.contains(id)) id];
+      panel['order'] = [...current, for (final id in all) if (!shown.contains(id)) id];
+    }
+    panel['source'] = source;
+  }
+  if (category != null || showAll != null || move != null) {
+    if (panel['source'] != 'custom') return (panels: null, message: null);
+    if (category != null) {
+      if (!all.contains(category.id)) return (panels: null, message: null);
+      final hidden = [...asList(panel['hiddenIds']).map(jsStr)];
+      if (category.show) {
+        hidden.remove(category.id);
+      } else if (!hidden.contains(category.id)) {
+        hidden.add(category.id);
+      }
+      panel['hiddenIds'] = hidden;
+    }
+    if (showAll != null) panel['hiddenIds'] = showAll ? <String>[] : [...all];
+    if (move != null) {
+      final order = [...asList(panel['order']).map(jsStr)];
+      final from = order.indexOf(move.id);
+      if (from < 0) return (panels: null, message: null);
+      final target = move.position.clamp(0, order.length - 1);
+      if (from == target) return (panels: null, message: null);
+      order.insert(target, order.removeAt(from));
+      panel['order'] = order;
+    }
+  }
+  panel['modifiedAt'] = now;
+  return (panels: cfg, message: null);
 }
 
 /// `mf508VisibleCategories`.

@@ -48,11 +48,37 @@ class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key, required this.account});
   final AccountController account;
 
+  /// Opens the Library filtered to one category (Library Overview rows);
+  /// the shell switches to the Library when this changes.
+  static final showCategory = ValueNotifier<({String id, int n})?>(null);
+
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    LibraryScreen.showCategory.addListener(_onShowCategory);
+    _onShowCategory();
+  }
+
+  int _shownRequest = 0;
+  void _onShowCategory() {
+    final r = LibraryScreen.showCategory.value;
+    if (r == null || r.n == _shownRequest) return;
+    _shownRequest = r.n;
+    setState(() {
+      _cats
+        ..clear()
+        ..add(r.id);
+      _status = 'all';
+      _priority = 'all';
+      _page = 0;
+    });
+  }
+
   final _search = TextEditingController();
   final Set<String> _cats = {};
   final Set<String> _selected = {};
@@ -69,6 +95,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   void dispose() {
+    LibraryScreen.showCategory.removeListener(_onShowCategory);
     _searchTimer?.cancel();
     _search.dispose();
     super.dispose();

@@ -22,7 +22,7 @@ const kOldSystemModes = ['system', 'view', 'date', 'stats'];
 
 final _date = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 
-num _n(Object? v) {
+double _n(Object? v) {
   final n = jsNumOrNull(v);
   return n == null || !n.isFinite ? double.nan : n;
 }
@@ -42,9 +42,9 @@ Map<String, dynamic> normalizeOldSystem(Object? raw, List<String> categoryIds, i
   });
   final rules = <Map<String, dynamic>>[];
   for (final r in asList(src['rules']).map(asMap).whereType<Map<String, dynamic>>()) {
-    num amount(Object? v) {
+    double amount(Object? v) {
       final n = _n(v);
-      return math.max(0.000001, n.isFinite && n != 0 ? n : 1);
+      return math.max(0.000001, n.isFinite && n != 0 ? n : 1.0);
     }
 
     final rule = <String, dynamic>{
@@ -53,7 +53,7 @@ Map<String, dynamic> normalizeOldSystem(Object? raw, List<String> categoryIds, i
       'toCategoryId': jsTruthy(r['toCategoryId']) ? jsStr(r['toCategoryId']) : '',
       'fromAmount': jsOut(amount(r['fromAmount'])),
       'toAmount': jsOut(amount(r['toAmount'])),
-      'createdAt': jsOut(_n(r['createdAt']).isFinite && _n(r['createdAt']) != 0 ? _n(r['createdAt']) : now),
+      'createdAt': jsOut(_n(r['createdAt']).isFinite && _n(r['createdAt']) != 0 ? _n(r['createdAt']) : now.toDouble()),
     };
     if (jsStr(rule['fromCategoryId']).isNotEmpty && jsStr(rule['toCategoryId']).isNotEmpty && rule['fromCategoryId'] != rule['toCategoryId']) {
       rules.add(rule);
@@ -65,7 +65,7 @@ Map<String, dynamic> normalizeOldSystem(Object? raw, List<String> categoryIds, i
     final amount = _n(t['amount']);
     transactions.add({
       'id': jsTruthy(t['id']) ? jsStr(t['id']) : uid(),
-      'timestamp': jsOut(ts.isFinite && ts != 0 ? ts : now),
+      'timestamp': jsOut(ts.isFinite && ts != 0 ? ts : now.toDouble()),
       'type': jsTruthy(t['type']) ? jsStr(t['type']) : 'consume',
       'categoryId': jsTruthy(t['categoryId']) ? jsStr(t['categoryId']) : '',
       'amount': jsOut(amount.isFinite ? amount : 0),
@@ -274,12 +274,12 @@ class OldSystemOps {
   }
 }
 
-num _orZero(Object? v) {
+double _orZero(Object? v) {
   final n = _n(v);
   return n.isFinite ? n : 0;
 }
 
-num _orOne(Object? v) {
+double _orOne(Object? v) {
   final n = _n(v);
   return n.isFinite && n != 0 ? n : 1;
 }

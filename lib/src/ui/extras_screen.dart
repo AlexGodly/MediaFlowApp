@@ -8,10 +8,13 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../data/account_ops.dart';
+import '../data/app_prefs.dart';
 import '../logic/extras.dart';
+import '../logic/library_overview.dart';
 import '../logic/resume.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'library_screen.dart' show LibraryScreen;
 import 'recovery_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -36,6 +39,7 @@ class ExtrasScreen extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   _BalanceCard(view: view),
+                  if (balancePanel(view.state, 'libraryOverview')['enabled'] != false) LibraryOverviewCard(view: view),
                   _OnThisDayCard(account: account, view: view),
                   StopwatchCard(account: account),
                   RuntimeCalculatorCard(account: account),
@@ -64,6 +68,95 @@ Color _healthColor(String s) => switch (s) {
       'due' => const Color(0xFF7FB2FF),
       _ => MF.textDim,
     };
+
+// ---- Library Overview (website v183 overview, v508 categories) -----------------
+
+class LibraryOverviewCard extends StatefulWidget {
+  const LibraryOverviewCard({super.key, required this.view});
+  final AccountView view;
+
+  @override
+  State<LibraryOverviewCard> createState() => _LibraryOverviewCardState();
+}
+
+class _LibraryOverviewCardState extends State<LibraryOverviewCard> {
+  int _page = 0;
+  static int _requests = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final view = widget.view;
+    final ov = memoFor(view, 'libraryOverview', () => libraryOverview(view.state));
+    return ListenableBuilder(
+      listenable: AppPrefs.instance,
+      builder: (context, _) {
+        final per = AppPrefs.instance.get<int>('overviewPerPage', 15).clamp(1, 1000);
+        final pages = (ov.rows.length / per).ceil().clamp(1, 1 << 20);
+        if (_page >= pages) _page = pages - 1;
+        final rows = ov.rows.skip(_page * per).take(per);
+        return SectionCard(
+          prefKey: 'extras.overview',
+          icon: Icons.donut_large_rounded,
+          title: 'Library Overview',
+          subtitle: '${ov.overallPct}% of known tracked totals cleared · ≈ means display-only estimate',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (ov.rows.isEmpty) Text('No categories are shown in Library Overview.', style: TextStyle(color: MF.textDim)),
+            for (final r in rows) _row(view, r),
+            if (pages > 1)
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                IconButton(onPressed: _page == 0 ? null : () => setState(() => _page--), icon: const Icon(Icons.chevron_left_rounded)),
+                Text('Page ${_page + 1} of $pages', style: TextStyle(color: MF.textDim)),
+                IconButton(onPressed: _page >= pages - 1 ? null : () => setState(() => _page++), icon: const Icon(Icons.chevron_right_rounded)),
+              ]),
+          ]),
+        );
+      },
+    );
+  }
+
+  Widget _row(AccountView view, OverviewRow r) {
+    final cat = view.category(r.id);
+    final color = MF.parseColor(cat.color, fallback: MF.accent);
+    final row = InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => LibraryScreen.showCategory.value = (id: r.id, n: ++_requests),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+        child: Row(children: [
+          CategoryBadge(cat, size: 26),
+          const SizedBox(width: 8),
+          SizedBox(width: 110, child: Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: Container(
+                height: 8,
+                color: MF.raised,
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: r.pct / 100,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [color.withValues(alpha: .53), color])),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(r.label, style: TextStyle(color: MF.textDim, fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()])),
+        ]),
+      ),
+    );
+    return r.estimated
+        ? Tooltip(
+            message: 'Approximate overview only — unknown title totals are estimated for this progress bar and are not saved to Library titles.',
+            child: row,
+          )
+        : row;
+  }
+}
 
 // ---- Today's Balance ------------------------------------------------------------
 

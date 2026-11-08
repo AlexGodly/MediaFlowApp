@@ -12,11 +12,13 @@ import '../config.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
+import '../logic/extras.dart' show balancePanel, editPanel;
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
 import '../platform/desktop_tray.dart';
 import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'app_nav.dart' show openNavigationSettings;
 import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
@@ -137,8 +139,6 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v192Dashboard', 'showMissingCovers'], 'Show Missing Covers', kind: 'bool', def: true),
       _S(['v192Dashboard', 'showStopwatch'], 'Show Stopwatch', kind: 'bool', def: true),
       _S(['v508Panels', 'todayBalance', 'metrics'], "Today's Balance totals", kind: 'choice', def: 'all', choices: [('all', 'All categories'), ('visible', 'Only shown categories')]),
-      _S(['v508Panels', 'todayBalance', 'source'], "Today's Balance categories", kind: 'choice', def: 'categories',
-          choices: [('categories', 'Enabled categories'), ('system', 'MediaFlow System categories'), ('custom', 'Custom'), ('libraryOverview', 'Same as Library Overview')]),
     ]
   ),
 ];
@@ -277,6 +277,18 @@ class _AccountSettings extends StatelessWidget {
             ]),
           ),
           SectionCard(
+            prefKey: 'settings.panels',
+            initiallyOpen: false,
+            icon: Icons.view_list_rounded,
+            title: "Today's Balance & Library Overview",
+            subtitle: 'Which categories each panel shows, and in what order',
+            child: Column(children: [
+              _PanelEditor(account: account, view: view, keyName: 'todayBalance'),
+              const Divider(),
+              _PanelEditor(account: account, view: view, keyName: 'libraryOverview'),
+            ]),
+          ),
+          SectionCard(
             prefKey: 'settings.scopes',
             initiallyOpen: false,
             icon: Icons.tune_rounded,
@@ -343,6 +355,115 @@ class _AccountSettings extends StatelessWidget {
           onTap: () => _edit(context, s, v),
         );
     }
+  }
+}
+
+/// Settings for Today's Balance / Library Overview (website v508 panels):
+/// shown or hidden, where the categories come from, and a custom list with
+/// show/hide and order.
+class _PanelEditor extends StatelessWidget {
+  const _PanelEditor({required this.account, required this.view, required this.keyName});
+  final AccountController account;
+  final AccountView view;
+  final String keyName;
+
+  bool get _overview => keyName == 'libraryOverview';
+
+  Future<void> _apply(BuildContext context, {bool? enabled, String? source, ({String id, bool show})? category, bool? showAll, ({String id, int position})? move, String? metrics}) async {
+    final r = editPanel(view.state, keyName, DateTime.now().millisecondsSinceEpoch,
+        enabled: enabled, source: source, category: category, showAll: showAll, move: move, metrics: metrics);
+    if (r.message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r.message!)));
+      return;
+    }
+    final panels = r.panels;
+    if (panels == null) return;
+    await account.setSetting(['v508Panels'], panels);
+    // Older visibility switches stay in step (mf508Persist).
+    await account.setSetting(['v192Dashboard', 'showTodayBalance'], (panels['todayBalance'] as Map)['enabled']);
+    await account.setSetting(['v183LibraryOverview', 'showOverview'], (panels['libraryOverview'] as Map)['enabled']);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final panel = balancePanel(view.state, keyName);
+    final source = jsStr(panel['source']);
+    final custom = source == 'custom';
+    final hidden = asList(panel['hiddenIds']).map(jsStr).toSet();
+    final order = [for (final id in asList(panel['order']).map(jsStr)) view.category(id)];
+    final linked = _overview ? 'todayBalance' : 'libraryOverview';
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(_overview ? 'Show Library Overview (in Extras)' : "Show Today's Balance"),
+        value: panel['enabled'] != false,
+        onChanged: (v) => _apply(context, enabled: v),
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Category source'),
+        trailing: CompactDropdown<String>(
+          value: source,
+          items: [
+            ('categories', 'Follow Categories (default)'),
+            ('system', 'Follow MediaFlow System rotation'),
+            ('custom', 'Custom visibility & order'),
+            (linked, _overview ? "Follow Today's Balance" : 'Follow Library Overview'),
+          ],
+          onChanged: (v) => _apply(context, source: v),
+        ),
+      ),
+      if (!_overview)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Balance health totals'),
+          trailing: CompactDropdown<String>(
+            value: jsStr(panel['metrics']),
+            items: const [('all', 'All categories'), ('visible', 'Only shown categories')],
+            onChanged: (v) => _apply(context, metrics: v),
+          ),
+        ),
+      if (_overview)
+        ListenableBuilder(
+          listenable: AppPrefs.instance,
+          builder: (context, _) {
+            final perPage = AppPrefs.instance.get<int>('overviewPerPage', 15);
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Rows per page'),
+              subtitle: const Text('This device'),
+              trailing: CompactDropdown<int>(
+                value: const [5, 10, 15, 25, 50, 100].contains(perPage) ? perPage : 15,
+                items: [for (final n in const [5, 10, 15, 25, 50, 100]) (n, '$n')],
+                onChanged: (v) => AppPrefs.instance.set('overviewPerPage', v),
+              ),
+            );
+          },
+        ),
+      if (custom) ...[
+        Row(children: [
+          TextButton(onPressed: () => _apply(context, showAll: true), child: const Text('Show all')),
+          TextButton(onPressed: () => _apply(context, showAll: false), child: const Text('Hide all')),
+        ]),
+        for (final (i, c) in order.indexed)
+          Row(children: [
+            Checkbox(value: !hidden.contains(c.id), onChanged: (v) => _apply(context, category: (id: c.id, show: v == true))),
+            CategoryBadge(c, size: 26),
+            const SizedBox(width: 8),
+            Expanded(child: Text(c.name, overflow: TextOverflow.ellipsis)),
+            IconButton(
+              tooltip: 'Move up',
+              icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+              onPressed: i == 0 ? null : () => _apply(context, move: (id: c.id, position: i - 1)),
+            ),
+            IconButton(
+              tooltip: 'Move down',
+              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+              onPressed: i == order.length - 1 ? null : () => _apply(context, move: (id: c.id, position: i + 1)),
+            ),
+          ]),
+      ],
+    ]);
   }
 }
 
@@ -597,6 +718,14 @@ class _AppSettingsState extends State<_AppSettings> {
                   items: [for (final s in Section.values) (s.name, s.label)],
                   onChanged: (v) => prefs.set('startTab', v),
                 ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.view_carousel_outlined),
+                title: const Text('Navigation'),
+                subtitle: const Text('Phone dock pages, the order of More and the desktop sidebar (saved to your account)'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => openNavigationSettings(context, account),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
