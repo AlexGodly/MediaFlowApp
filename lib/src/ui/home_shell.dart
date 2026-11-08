@@ -333,6 +333,7 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (account.missingAccountData) return _NewAccount(account: account);
     if (account.status == SyncState.error || account.status == SyncState.offline) {
       return SafeArea(
         child: Column(children: [
@@ -353,6 +354,67 @@ class _Loading extends StatelessWidget {
         SizedBox(height: 16),
         Text('Loading your MediaFlow…', style: TextStyle(color: MF.textDim)),
       ]),
+    );
+  }
+}
+
+/// A new account (signed up, never opened): create its MediaFlow data the way
+/// the website does on its first visit.
+class _NewAccount extends StatefulWidget {
+  const _NewAccount({required this.account});
+  final AccountController account;
+
+  @override
+  State<_NewAccount> createState() => _NewAccountState();
+}
+
+class _NewAccountState extends State<_NewAccount> {
+  bool _busy = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Icon(Icons.auto_awesome_rounded, size: 48, color: MF.accent),
+              const SizedBox(height: 12),
+              const Text('Welcome to MediaFlow', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text('Your account is ready. Set up your MediaFlow with the default categories and settings; '
+                  'you can change everything later, here or on the website.',
+                  textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        setState(() {
+                          _busy = true;
+                          _error = null;
+                        });
+                        final e = await widget.account.createAccountData();
+                        if (mounted) {
+                          setState(() {
+                            _busy = false;
+                            _error = e;
+                          });
+                        }
+                      },
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                child: _busy
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+                    : const Text('Set up my MediaFlow', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+              if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: MF.bad))),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -5,18 +5,21 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../logic/activity.dart';
+import '../logic/initial_state.dart';
 import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
 import '../logic/rec_submit.dart';
 import '../logic/resume.dart';
 import '../logic/xp_preview.dart';
 import '../state/lazy_copy.dart';
+import '../state/state_codec.dart' show encodeStateData;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
 import 'edit_op.dart';
 import 'local_cache.dart';
 import 'records.dart';
+import 'supabase_cloud.dart' show SupabaseCloud;
 import 'sync_engine.dart';
 
 enum SyncState { loading, syncing, synced, offline, error }
@@ -77,6 +80,28 @@ class AccountController extends ChangeNotifier {
 
   SyncState status = SyncState.loading;
   String? message;
+
+  /// The account has no MediaFlow data yet (signed up but never opened).
+  bool missingAccountData = false;
+
+  /// Creates a new account's first cloud save, exactly as the website's first
+  /// save (default categories and settings, empty Library and History), then
+  /// syncs. Never overwrites existing data. Returns an error message or null.
+  Future<String?> createAccountData() async {
+    final c = cloud;
+    if (c is! SupabaseCloud) return 'Not available here.';
+    try {
+      if (await c.version(userId) == null) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await c.createRow(userId, encodeStateData(newAccountState(now)));
+      }
+      missingAccountData = false;
+      await sync();
+      return status == SyncState.error ? message : null;
+    } catch (e) {
+      return _isNetworkError(e) ? 'Could not reach MediaFlow. Check your connection and try again.' : '$e';
+    }
+  }
 
   /// A change made on this device that your account could no longer accept.
   String? lastRejection;
@@ -170,6 +195,7 @@ class AccountController extends ChangeNotifier {
       lastSynced = DateTime.now();
     } on MissingCloudRow catch (e) {
       status = SyncState.error;
+      missingAccountData = _display == null;
       message = e.toString();
     } on NotSignedIn catch (e) {
       status = SyncState.offline;
