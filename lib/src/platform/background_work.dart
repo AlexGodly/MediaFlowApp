@@ -21,6 +21,7 @@ import '../data/account_controller.dart';
 import '../data/recovery_runner.dart';
 import 'app_shortcuts.dart';
 import 'desktop_tray.dart';
+import 'discord_presence.dart';
 
 /// The progress line shown in the notification / tray.
 ({String title, String text, int done, int total, bool paused})? recoveryStatus(RecoveryRunner r) {
@@ -64,6 +65,8 @@ class BackgroundWork with WidgetsBindingObserver {
       _observing = true;
       WidgetsBinding.instance.addObserver(this);
       RecoveryRunner.instance.addListener(_onRunner);
+      // Android: the Discord status keeps showing in the background (5.2.0).
+      if (Platform.isAndroid) DiscordPresence.instance.addListener(_onRunner);
       if (Platform.isAndroid) {
         _channel.setMethodCallHandler((call) async {
           if (call.method == 'action') _action('${call.arguments}');
@@ -110,12 +113,20 @@ class BackgroundWork with WidgetsBindingObserver {
 
   Future<void> _publish() async {
     final status = recoveryStatus(RecoveryRunner.instance);
-    final key = status == null ? '' : '${status.title}|${status.text}|${status.paused}';
+    final discord = status == null && Platform.isAndroid && DiscordPresence.instance.wantsBackground;
+    final key = status == null ? (discord ? 'discord' : '') : '${status.title}|${status.text}|${status.paused}';
     if (key != _lastSent) {
       _lastSent = key;
       if (Platform.isAndroid) {
         try {
-          if (status == null) {
+          if (status == null && discord) {
+            _native = await _channel.invokeMethod<bool>('update', {
+                  'title': 'Showing your status on Discord',
+                  'text': 'MediaFlow keeps your Discord status while it is in the background.',
+                  'presence': true,
+                }) ??
+                false;
+          } else if (status == null) {
             if (_native) await _channel.invokeMethod('stop');
             _native = false;
           } else {

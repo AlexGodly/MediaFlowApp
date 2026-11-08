@@ -179,7 +179,7 @@ class PresenceConfig {
   String get nameTemplate => raw.containsKey('nameTemplate') ? jsStr(raw['nameTemplate']) : '{title}';
 
   /// show | clear.
-  String get idle => _pick('idle', const ['show', 'clear'], 'show');
+  String get idle => _pick('idle', const ['show', 'clear', 'never'], 'show');
 
   int get idleMinutes {
     final n = jsNum(raw['idleMinutes']).toInt();

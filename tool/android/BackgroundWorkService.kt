@@ -160,6 +160,7 @@ class BackgroundWorkService : Service() {
         val done = (state["done"] as? Number)?.toInt() ?: 0
         val total = (state["total"] as? Number)?.toInt() ?: 0
         val paused = state["paused"] == true
+        val presence = state["presence"] == true
         val b = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, CHANNEL_ID) else Notification.Builder(this)
         val open = packageManager.getLaunchIntentForPackage(packageName)?.let {
             PendingIntent.getActivity(this, 0, it, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -170,9 +171,13 @@ class BackgroundWorkService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            .setProgress(if (total > 0) total else 0, done, total <= 0)
-            .addAction(Notification.Action.Builder(0, if (paused) "Resume" else "Pause", action(if (paused) "resume" else "pause", 1)).build())
-            .addAction(Notification.Action.Builder(0, "Stop", action("stop", 2)).build())
+        if (!presence) {
+            // A recovery: progress with Pause / Stop. (The Discord status
+            // notification has neither: turn it off in Settings → Discord.)
+            b.setProgress(if (total > 0) total else 0, done, total <= 0)
+                .addAction(Notification.Action.Builder(0, if (paused) "Resume" else "Pause", action(if (paused) "resume" else "pause", 1)).build())
+                .addAction(Notification.Action.Builder(0, "Stop", action("stop", 2)).build())
+        }
         if (open != null) b.setContentIntent(open)
         if (Build.VERSION.SDK_INT >= 31) b.setForegroundServiceBehavior(Notification.FOREGROUND_SERVICE_IMMEDIATE)
         return b.build()

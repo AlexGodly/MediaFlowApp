@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  APP_VERSION: 5.1.0.564
-  TAG: mediaflowapp-v5.1.0.564
+  APP_VERSION: 5.2.0.564
+  TAG: mediaflowapp-v5.2.0.564
 
 jobs:
   archive-check:
@@ -33,7 +33,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
-      app_version: 5.1.0.564
+      app_version: 5.2.0.564
 
   release:
     name: Publish GitHub release

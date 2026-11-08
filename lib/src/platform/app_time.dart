@@ -39,7 +39,7 @@ class AppTime with WidgetsBindingObserver {
       _observing = true;
     }
     final state = WidgetsBinding.instance.lifecycleState;
-    if (state == null || state == AppLifecycleState.resumed || state == AppLifecycleState.inactive) _start();
+    if (state != AppLifecycleState.detached) _start();
   }
 
   void detach(AccountController account) {
@@ -55,8 +55,14 @@ class AppTime with WidgetsBindingObserver {
       case AppLifecycleState.resumed:
       case AppLifecycleState.inactive: // visible but not focused
         _start();
+      // In the background (or idle) the time still counts (5.2.0): only
+      // closing stops it. A suspended phone doesn't tick, and a gap longer
+      // than five minutes (sleep) is dropped below.
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+        _start();
+        _count();
+        _flush();
       case AppLifecycleState.detached:
         _stop();
         _flush();

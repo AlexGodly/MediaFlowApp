@@ -199,8 +199,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       _account?.stopAutoPull();
       _account?.flushDraft();
-      // Phones suspend apps in the background: don't leave a stale status.
-      if (DiscordPresence.mobile) DiscordPresence.instance.pause();
+      // The Discord status stays while MediaFlow is in the background (5.2.0).
     }
   }
 

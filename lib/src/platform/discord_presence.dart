@@ -143,7 +143,7 @@ class DiscordPresence extends ChangeNotifier {
         } catch (_) {}
       });
       _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
-      statusText = mobile ? 'Not linked' : 'Waiting for the Discord app';
+      statusText = mobile ? 'Not linked' : 'Waiting for the Discord app (or link your account)';
       final refresh = await _readToken('refresh');
       linked = refresh != null && refresh.isNotEmpty;
       if (linked) {
@@ -185,7 +185,7 @@ class DiscordPresence extends ChangeNotifier {
       ClientStatus.ready => 'Connected',
       ClientStatus.connected => 'Connected',
       ClientStatus.connecting || ClientStatus.reconnecting => 'Connecting…',
-      _ => linked ? 'Disconnected' : (mobile ? 'Not linked' : 'Waiting for the Discord app'),
+      _ => linked ? 'Disconnected' : (mobile ? 'Not linked' : 'Waiting for the Discord app (or link your account)'),
     };
     if (status == ClientStatus.ready) {
       _sentKey = '';
@@ -414,7 +414,7 @@ class DiscordPresence extends ChangeNotifier {
     final g = globals?.call() ?? const <String, String>{};
     final pin = activePin(c.raw, now.millisecondsSinceEpoch);
     final pinned = pin == null ? null : pinnedInfo?.call(pin.titleId);
-    if (_idle && pinned == null) {
+    if (_idle && pinned == null && c.idle != 'never') {
       if (c.idle == 'clear') return null;
       final t = c.template('idle');
       final d = renderPresence(t.$1, g);
@@ -663,8 +663,13 @@ class DiscordPresence extends ChangeNotifier {
     accepted = null;
   }
 
-  /// Clears the status (app closing or going to the background on a phone).
+  /// Clears the status (MediaFlow closing). Going to the background keeps it
+  /// (5.2.0): Android keeps MediaFlow running with a notification while the
+  /// status is on; iOS keeps it until the system suspends MediaFlow.
   void pause() => _clear();
+
+  /// Android keeps MediaFlow running in the background for this.
+  bool get wantsBackground => mobile && enabled && linked && _client != null;
 
   void resume() {
     _sentKey = '';

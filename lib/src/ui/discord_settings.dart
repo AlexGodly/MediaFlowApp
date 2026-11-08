@@ -66,7 +66,7 @@ class DiscordSettings extends StatelessWidget {
             title: const Text('Show what I\'m doing in MediaFlow on Discord'),
             subtitle: Text(DiscordPresence.mobile
                 ? 'On this device. Link your Discord account once (Discord\'s own sign-in).'
-                : 'On this PC, while the Discord app is open. Nothing to link.'),
+                : 'On this PC: through the Discord app when it is open, or link your Discord account to show it without the app.'),
             value: d.enabled,
             onChanged: (v) => d.setEnabled(v),
           ),
@@ -75,11 +75,11 @@ class DiscordSettings extends StatelessWidget {
               Icon(Icons.circle, size: 10, color: d.connected ? MF.good : MF.textMute),
               const SizedBox(width: 8),
               Expanded(child: Text(d.statusText, style: const TextStyle(fontWeight: FontWeight.w700))),
-              if (DiscordPresence.mobile && !d.linked)
+              if (!d.linked)
                 FilledButton.icon(
                   onPressed: d.linking ? null : d.link,
                   icon: const Icon(Icons.link_rounded),
-                  label: Text(d.linking ? 'Waiting…' : 'Link Discord'),
+                  label: Text(d.linking ? 'Waiting…' : (DiscordPresence.mobile ? 'Link Discord' : 'Link Discord account')),
                 )
               else if (d.linked)
                 TextButton(onPressed: d.unlink, child: const Text('Unlink')),
@@ -174,7 +174,7 @@ class DiscordSettings extends StatelessWidget {
             value: c.showAction,
             onChanged: (v) => _save({'showAction': v}),
           ),
-          _choice<String>('When idle', c.idle, const [('show', 'Show the Idle status'), ('clear', 'Clear my status')], (v) => _save({'idle': v})),
+          _choice<String>('When idle', c.idle, const [('show', 'Show the Idle status'), ('clear', 'Clear my status'), ('never', 'Never show idle (keep my status)')], (v) => _save({'idle': v})),
           _choice<int>('Idle after', c.idleMinutes, const [(2, '2 minutes'), (5, '5 minutes'), (10, '10 minutes'), (15, '15 minutes'), (30, '30 minutes')],
               (v) => _save({'idleMinutes': v})),
           const SizedBox(height: 14),
