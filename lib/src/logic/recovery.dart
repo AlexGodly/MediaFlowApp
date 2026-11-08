@@ -559,9 +559,15 @@ bool fieldProtected(Map<String, dynamic> item, String token) {
 }
 
 class FieldSource {
-  FieldSource(this.provider, this.recordId, this.recordTitle, this.evidence, this.confidence);
+  FieldSource(this.provider, this.recordId, this.recordTitle, this.evidence, this.confidence,
+      {this.year = 0, this.format = '', this.matchedName = ''});
   final String provider, recordId, recordTitle, evidence;
   final double confidence;
+
+  /// The source record as the review shows it: its year, format and the
+  /// name of it that matched the title (when not its main title).
+  final int year;
+  final String format, matchedName;
 }
 
 class FieldOption {
@@ -593,11 +599,14 @@ class FieldProposal {
 }
 
 class MetadataPreview {
-  MetadataPreview(this.titleId, this.title, this.proposals, this.errors, this.providers);
+  MetadataPreview(this.titleId, this.title, this.proposals, this.errors, this.providers, [this.records = const []]);
   final String titleId, title;
   final List<FieldProposal> proposals;
   final List<(String, String)> errors;
   final List<String> providers;
+
+  /// The source records the values come from.
+  final List<FieldSource> records;
   int get ready => proposals.where((p) => p.selected).length;
 }
 
@@ -609,16 +618,26 @@ String _label(String token) {
 }
 
 /// `mf439Proposals`.
-MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dynamic>> results, {double minimumConfidence = 0.94}) {
+/// [picked]: records the person chose with "Search manually" (evidence
+/// "Picked by you"); existing and locked values are still never replaced.
+MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dynamic>> results,
+    {double minimumConfidence = 0.94, bool picked = false}) {
   final bucket = <String, Map<String, FieldOption>>{};
   final errors = <(String, String)>[];
+  final records = <FieldSource>[];
+  final wanted = titleVariants(item).map(normTitle).where((n) => n.isNotEmpty).toSet();
   for (final row in results) {
-    final ev = metadataEvidence(item, row);
+    final ev = picked ? (confidence: 1.0, reason: 'Picked by you') : metadataEvidence(item, row);
     if (ev.confidence < 0.7) {
       errors.add((jsStr(row['provider']), ev.reason));
       continue;
     }
-    final source = FieldSource(jsStr(row['provider']), jsStr(row['recordId']), jsStr(row['title']), ev.reason, ev.confidence);
+    final matched = [row['title'], ...asList(row['aliases'])].map(jsStr).firstWhere((n) => wanted.contains(normTitle(n)), orElse: () => '');
+    final source = FieldSource(jsStr(row['provider']), jsStr(row['recordId']), jsStr(row['title']), ev.reason, ev.confidence,
+        year: jsNum(row['year']).toInt(),
+        format: jsStr(asMap(row['legacy'])?['mediaFormat']).isNotEmpty ? jsStr(asMap(row['legacy'])?['mediaFormat']) : jsStr(row['format']),
+        matchedName: matched == jsStr(row['title']) ? '' : matched);
+    records.add(source);
     for (final (scope, values) in [('legacy', row['legacy']), ('field', row['fields']), ('rating', row['ratings'])]) {
       (asMap(values) ?? const {}).forEach((key, original) {
         final token = '$scope.$key';
@@ -660,7 +679,7 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
     ));
   });
   proposals.sort((a, b) => a.token == 'legacy.synopsis' ? -1 : b.token == 'legacy.synopsis' ? 1 : localeCompare(a.token, b.token));
-  return MetadataPreview(jsStr(item['id']), cleanTitle(item['title']), proposals, errors, [...{...results.map((r) => jsStr(r['provider']))}]);
+  return MetadataPreview(jsStr(item['id']), cleanTitle(item['title']), proposals, errors, [...{...results.map((r) => jsStr(r['provider']))}], records);
 }
 
 /// `mf439Discover`: asks each source with up to five names, stopping at the

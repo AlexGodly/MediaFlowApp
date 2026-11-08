@@ -271,6 +271,27 @@ class RecoveryRunner extends ChangeNotifier {
     return ok;
   }
 
+  /// Details from a record the person picked with "Search manually": the
+  /// empty, unlocked fields it can fill wait as a review (nothing is saved yet).
+  MetadataPreview? pickMetadataRecord(AccountController account, String id, Map<String, dynamic> row) {
+    final item = _item(account, id);
+    if (item == null) return null;
+    final settings = asMap(account.view?.state['settings']);
+    final minConf = jsNum(metadataPreferences(settings)['minimumConfidence']);
+    final preview = metadataProposals(jsonClone(item) as Map<String, dynamic>, [row], minimumConfidence: minConf, picked: true);
+    for (final p in preview.proposals) {
+      p.selected = !p.hasOriginal && !p.isProtected && !p.same;
+    }
+    final job = metadata ??= (RecoveryJob('metadata', const [], 'Details')
+      ..running = false
+      ..done = 0);
+    job.metadataReviews.removeWhere((r) => r.titleId == id);
+    job.metadataReviews.insert(0, preview);
+    job.noMatchIds.remove(id);
+    notifyListeners();
+    return preview;
+  }
+
   /// A cover picked through "Search manually" for a title nothing was found for.
   Future<bool> chooseManualCover(AccountController account, String id, CoverCandidate c) async {
     final item = _item(account, id);
@@ -369,6 +390,7 @@ class RecoveryRunner extends ChangeNotifier {
           job.metadataReviews.add(preview);
         } else if (changed == 0) {
           job.noMatch++;
+          job.noMatchIds.add(id);
         }
         job.done++;
         notifyListeners();
