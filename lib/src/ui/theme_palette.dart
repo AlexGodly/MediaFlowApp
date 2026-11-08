@@ -263,7 +263,8 @@ Palette staticPalette(Map<String, dynamic>? settings, List<ThemeDef> themes) {
   final base = id == 'custom'
       ? customPalette(asMap(settings?['customTheme']))
       : (themes.where((t) => t.id == id).firstOrNull ?? themes.first).palette;
-  if (settings?['globalAppearanceEnabled'] == false) return base;
+  // Website v564: off unless switched on (DEFAULT_SETTINGS.globalAppearanceEnabled = false).
+  if (settings?['globalAppearanceEnabled'] != true) return base;
   final layer = appearanceMode(settings, base) == 'light' ? _lightSurfaces : _darkSurfaces;
   return layer.withFlow(base.flow);
 }

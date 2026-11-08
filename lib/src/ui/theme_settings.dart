@@ -53,7 +53,7 @@ class ThemeSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = _s;
     final dynamicOn = s['dynamicCoverTheme'] == true;
-    final globalOn = s['globalAppearanceEnabled'] != false;
+    final globalOn = s['globalAppearanceEnabled'] == true;
     final base = staticPalette({...s, 'globalAppearanceEnabled': false}, kWebsiteThemes);
     final appearance = appearanceMode(s, base);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -84,7 +84,7 @@ class ThemeSettings extends StatelessWidget {
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Global Light / Dark appearance'),
-        subtitle: const Text('On: standard light or dark surfaces with the theme’s accent. Off: the theme’s own colours.'),
+        subtitle: const Text('Off (default): the theme’s own colours. On: standard light or dark surfaces with the theme’s accent.'),
         value: globalOn,
         onChanged: (v) => _set(['globalAppearanceEnabled'], v),
       ),

@@ -82,6 +82,7 @@ class ThemeController extends ChangeNotifier {
     final state = _account?.view?.state;
     if (state == null) return;
     final s = asMap(state['settings']) ?? const {};
+    _migrateNativeTheme(s);
     final task = asMap(state['currentTask']);
     final inputs = [
       jsStr(s['theme']),
@@ -104,6 +105,28 @@ class ThemeController extends ChangeNotifier {
     _inputs = inputs;
     _rotationIndex = 0;
     unawaited(_refresh());
+  }
+
+  bool _migrating = false;
+
+  /// Website v564: themes show their own colours by default. Each account is
+  /// moved over once (Global appearance off), and an unset Light / Dark is
+  /// saved as the theme's own, as the website does when it first resolves it.
+  void _migrateNativeTheme(Map<String, dynamic> s) {
+    final account = _account;
+    if (account == null || _migrating || s['v564NativeThemeDefault'] == true) return;
+    _migrating = true;
+    final native = nativeAppearance(staticPalette({...s, 'globalAppearanceEnabled': false}, kWebsiteThemes));
+    final unset = jsStr(s['appearanceMode']) != 'light' && jsStr(s['appearanceMode']) != 'dark';
+    unawaited(() async {
+      try {
+        await account.setSetting(['globalAppearanceEnabled'], false);
+        if (unset) await account.setSetting(['appearanceMode'], native);
+        await account.setSetting(['v564NativeThemeDefault'], true);
+      } finally {
+        _migrating = false;
+      }
+    }());
   }
 
   Future<void> _refresh() async {
