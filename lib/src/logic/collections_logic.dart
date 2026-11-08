@@ -325,9 +325,6 @@ void orderEdit(Map<String, dynamic> state, int now, String Function() uid, void 
   _touchOrder(state, prev, now, uid);
 }
 
-String? _categoryOf(Map<String, dynamic> state, String titleId) =>
-    asList(readOnlyPart(state, 'library')).map(asMap).where((i) => jsStr(i?['id']) == titleId).firstOrNull?['categoryId']?.toString();
-
 void orderAddTitles(Map<String, dynamic> p, Map<String, dynamic> state, List<String> ids) {
   final list = _ids(p['titleIds']);
   final have = list.toSet();
@@ -340,9 +337,197 @@ void orderAddTitles(Map<String, dynamic> p, Map<String, dynamic> state, List<Str
 
 void orderRemoveTitle(Map<String, dynamic> p, String id) => p['titleIds'] = _ids(p['titleIds']).where((x) => x != id).toList();
 
-void orderClear(Map<String, dynamic> p) {
-  p['lastClearedOrder'] = {'titleIds': _ids(p['titleIds']), 'clearedAt': DateTime.now().millisecondsSinceEpoch};
+/// `v142OrderSnapshotFrom`.
+Map<String, dynamic> orderSnapshot(Map<String, dynamic> p, int now) => {
+      'titleIds': _ids(p['titleIds']),
+      'viewMode': p['viewMode'] == 'category' ? 'category' : 'all',
+      'categoryMode': p['categoryMode'] == 'custom' ? 'custom' : 'default',
+      'categoryOrder': _ids(p['categoryOrder']),
+      'hiddenCategories': _ids(p['hiddenCategories']),
+      'savedAt': now,
+    };
+
+/// `v142NormalizeSavedOrderSnapshot`.
+Map<String, dynamic>? normalizeOrderSnapshot(Object? raw, Map<String, dynamic> state, int now) {
+  final m = asMap(raw);
+  if (m == null) return null;
+  final libIds = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id'])}..remove('');
+  final cats = [for (final c in asList(readOnlyPart(state, 'categories'))) jsStr(asMap(c)?['id'])]..removeWhere((x) => x.isEmpty);
+  final catIds = cats.toSet();
+  List<String> unique(Object? v, Set<String> allowed) {
+    final out = <String>[];
+    for (final x in asList(v)) {
+      final id = jsStr(x);
+      if (id.isNotEmpty && !out.contains(id) && allowed.contains(id)) out.add(id);
+    }
+    return out;
+  }
+
+  final titleIds = unique(m['titleIds'], libIds);
+  if (titleIds.isEmpty) return null;
+  final order = unique(m['categoryOrder'], catIds);
+  for (final c in cats) {
+    if (!order.contains(c)) order.add(c);
+  }
+  final saved = jsNum(m['savedAt']);
+  return {
+    'titleIds': titleIds,
+    'viewMode': m['viewMode'] == 'category' ? 'category' : 'all',
+    'categoryMode': m['categoryMode'] == 'custom' ? 'custom' : 'default',
+    'categoryOrder': order,
+    'hiddenCategories': unique(m['hiddenCategories'], catIds),
+    'savedAt': saved > 0 ? jsOut(saved) : now,
+  };
+}
+
+/// `v142ConfirmClearOrder` (keeps one recovery copy; no XP, like the website).
+void orderClear(Map<String, dynamic> state, int now) {
+  final p = ensureOrderPlan(state);
+  if (_ids(p['titleIds']).isEmpty) return;
+  p['lastClearedOrder'] = orderSnapshot(p, now);
   p['titleIds'] = <String>[];
+  p['modifiedAt'] = now;
+}
+
+/// `v142RestoreLastOrder`. Returns how many titles came back.
+int orderRestoreLast(Map<String, dynamic> state, int now) {
+  final p = ensureOrderPlan(state);
+  final last = normalizeOrderSnapshot(p['lastClearedOrder'], state, now);
+  if (last == null) {
+    p['lastClearedOrder'] = null;
+    return 0;
+  }
+  p['titleIds'] = [...last['titleIds'] as List];
+  p['viewMode'] = last['viewMode'];
+  p['categoryMode'] = last['categoryMode'];
+  p['categoryOrder'] = [...last['categoryOrder'] as List];
+  p['hiddenCategories'] = [...last['hiddenCategories'] as List];
+  p['lastClearedOrder'] = null;
+  p['modifiedAt'] = now;
+  return (p['titleIds'] as List).length;
+}
+
+/// `v142OrderExportPayload`.
+Map<String, dynamic> orderExport(Map<String, dynamic> state, DateTime now) {
+  final p = ensureOrderPlan(state);
+  final byId = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): asMap(i)};
+  final cats = {for (final c in asList(readOnlyPart(state, 'categories'))) jsStr(asMap(c)?['id']): jsStr(asMap(c)?['name'])};
+  final ids = _ids(p['titleIds']);
+  return {
+    'format': 'MediaFlowOrder',
+    'formatVersion': 1,
+    'mediaFlowVersion': 142,
+    'exportedAt': now.toUtc().toIso8601String(),
+    'orderPlan': {
+      'titleIds': [...{...ids}],
+      'viewMode': p['viewMode'],
+      'categoryMode': p['categoryMode'],
+      'categoryOrder': _ids(p['categoryOrder']),
+      'hiddenCategories': _ids(p['hiddenCategories']),
+    },
+    'titles': [
+      for (final id in ids)
+        if (byId[id] != null)
+          {
+            'id': id,
+            'title': cleanTitle(byId[id]!['title']),
+            'categoryId': jsStr(byId[id]!['categoryId']),
+            'categoryName': cats[jsStr(byId[id]!['categoryId'])] ?? '',
+            'externalIds': {...?asMap(byId[id]!['externalIds'])},
+          },
+    ],
+    'categories': [for (final e in cats.entries) if (e.key.isNotEmpty) {'id': e.key, 'name': e.value}],
+  };
+}
+
+/// `v142ImportOrder`: matches the file's titles to this Library (id, then
+/// External IDs, then title + category). Returns counts or an error.
+({int imported, int skipped, String? error}) orderImport(Map<String, dynamic> state, Object? data, int now) {
+  final d = asMap(data);
+  final rawPlan = asMap(d?['orderPlan']) ?? (d?['titleIds'] is List ? d : null);
+  if (rawPlan == null || rawPlan['titleIds'] is! List) return (imported: 0, skipped: 0, error: 'This is not a MediaFlow Order export.');
+  final importedCats = asList(d?['categories']).map(asMap).whereType<Map<String, dynamic>>().toList();
+  final lib = asList(readOnlyPart(state, 'library')).map(asMap).whereType<Map<String, dynamic>>().toList();
+  final cats = asList(readOnlyPart(state, 'categories')).map(asMap).whereType<Map<String, dynamic>>().toList();
+  final byId = {for (final i in lib) jsStr(i['id']): i};
+  String key(Object? t) => cleanTitle(t).trim().toLowerCase();
+  String mapCat(Object? raw) {
+    final id = jsStr(raw);
+    if (id.isNotEmpty && cats.any((c) => jsStr(c['id']) == id)) return id;
+    final src = importedCats.where((c) => jsStr(c['id']) == id).firstOrNull;
+    final name = jsStr(src?['name']).trim().toLowerCase();
+    if (name.isEmpty) return '';
+    return jsStr(cats.where((c) => jsStr(c['name']).trim().toLowerCase() == name).firstOrNull?['id']);
+  }
+
+  final desc = {
+    for (final t in asList(d?['titles']).map(asMap).whereType<Map<String, dynamic>>())
+      if (t['id'] != null) jsStr(t['id']): t,
+  };
+  Map<String, dynamic>? find(Map<String, dynamic> t) {
+    final direct = byId[jsStr(t['id'])];
+    if (direct != null) return direct;
+    final ext = (asMap(t['externalIds']) ?? const {}).entries.where((e) => e.value != null && jsStr(e.value).isNotEmpty).toList();
+    if (ext.isNotEmpty) {
+      for (final i in lib) {
+        final ids = asMap(i['externalIds']);
+        if (ids != null && ext.any((e) => ids[e.key] != null && jsStr(ids[e.key]) == jsStr(e.value))) return i;
+      }
+    }
+    final k = key(t['title']);
+    if (k.isEmpty) return null;
+    final all = lib.where((i) => key(i['title']) == k).toList();
+    if (all.isEmpty) return null;
+    final mc = mapCat(t['categoryId']);
+    if (mc.isNotEmpty) {
+      final hit = all.where((i) => jsStr(i['categoryId']) == mc).firstOrNull;
+      if (hit != null) return hit;
+    }
+    final cn = jsStr(t['categoryName']).trim().toLowerCase();
+    if (cn.isNotEmpty) {
+      final hit = all.where((i) => jsStr(cats.where((c) => jsStr(c['id']) == jsStr(i['categoryId'])).firstOrNull?['name']).trim().toLowerCase() == cn).firstOrNull;
+      if (hit != null) return hit;
+    }
+    return all.length == 1 ? all.first : null;
+  }
+
+  final resolved = <String>[];
+  var skipped = 0;
+  for (final raw in asList(rawPlan['titleIds'])) {
+    final id = jsStr(raw);
+    var item = byId[id];
+    if (item == null && desc[id] != null) item = find(desc[id]!);
+    if (item == null || jsStr(item['id']).isEmpty) {
+      skipped++;
+      continue;
+    }
+    final iid = jsStr(item['id']);
+    if (!resolved.contains(iid)) resolved.add(iid);
+  }
+  if (resolved.isEmpty) return (imported: 0, skipped: skipped, error: 'None of the exported titles could be matched to your current Library.');
+  final p = ensureOrderPlan(state);
+  if (_ids(p['titleIds']).isNotEmpty) p['lastClearedOrder'] = orderSnapshot(p, now);
+  List<String> mapList(Object? v) {
+    final out = <String>[];
+    for (final x in asList(v)) {
+      final m = mapCat(x);
+      if (m.isNotEmpty && !out.contains(m)) out.add(m);
+    }
+    return out;
+  }
+
+  final order = mapList(rawPlan['categoryOrder']);
+  for (final c in cats) {
+    final id = jsStr(c['id']);
+    if (!order.contains(id)) order.add(id);
+  }
+  p['titleIds'] = resolved;
+  p['viewMode'] = rawPlan['viewMode'] == 'category' ? 'category' : 'all';
+  p['categoryMode'] = rawPlan['categoryMode'] == 'custom' ? 'custom' : 'default';
+  p['categoryOrder'] = order;
+  p['hiddenCategories'] = mapList(rawPlan['hiddenCategories']);
+  p['modifiedAt'] = now;
+  return (imported: resolved.length, skipped: skipped, error: null);
 }
 
 /// `v138MoveTitle` / `v138MoveTitleInCategory` / `v157SetOrderTitlePosition`.
@@ -363,7 +548,8 @@ void orderMoveTitle(Map<String, dynamic> p, Map<String, dynamic> state, String i
     p['titleIds'] = ids;
     return;
   }
-  final positions = [for (var k = 0; k < ids.length; k++) if (_categoryOf(state, ids[k]) == categoryId) k];
+  final catOf = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): jsStr(asMap(i)?['categoryId'])};
+  final positions = [for (var k = 0; k < ids.length; k++) if (catOf[ids[k]] == categoryId) k];
   final subset = [for (final k in positions) ids[k]];
   final i = subset.indexOf(id);
   if (i < 0) return;

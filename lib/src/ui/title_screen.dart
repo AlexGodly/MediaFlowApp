@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
+import '../logic/collections_logic.dart' show orderEdit, orderAddTitles, orderRemoveTitle;
 import '../logic/custom_status.dart' show activePin;
 import '../logic/external_ids.dart';
 import '../logic/library_logic.dart';
@@ -139,9 +140,20 @@ class TitleScreen extends StatelessWidget {
                   if (v.startsWith('quick:')) openQuickRecovery(context, account, id, kind: v.substring(6));
                   if (v == 'discord') showOnDiscord(context, account, id);
                   if (v == 'discordStop') stopShowingOnDiscord(account);
+                  if (v == 'orderAdd' || v == 'orderRemove') {
+                    account.edit((s, now) {
+                      var k = 0;
+                      orderEdit(s, now, () => mediaFlowUid(now + k++),
+                          (plan) => v == 'orderAdd' ? orderAddTitles(plan, s, [id]) : orderRemoveTitle(plan, id));
+                    }, label: v == 'orderAdd' ? 'Add to Personal Order' : 'Remove from Personal Order');
+                    _toast(context, v == 'orderAdd' ? 'Added to your Personal Order ✓' : 'Removed from your Personal Order');
+                  }
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'rate', child: Text('Rate')),
+                  asList(asMap(view.state['orderPlan'])?['titleIds']).map(jsStr).contains(id)
+                      ? const PopupMenuItem(value: 'orderRemove', child: Text('Remove from Personal Order'))
+                      : const PopupMenuItem(value: 'orderAdd', child: Text('Add to Personal Order')),
                   if (DiscordPresence.supported)
                     activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch)?.titleId == id
                         ? const PopupMenuItem(value: 'discordStop', child: Text('Stop showing on Discord'))

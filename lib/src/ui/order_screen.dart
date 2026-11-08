@@ -3,15 +3,19 @@
 // Collection queues per task category (assign, rules, move, reset, remove);
 // and the "Prioritize Personal Order" recommendation switch.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
+import '../data/app_prefs.dart';
 import '../logic/collections_logic.dart';
 import '../logic/recommend.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles, CollectionCover;
+import 'history_screen.dart' show saveExportFile;
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -60,19 +64,274 @@ class _OrderScreenState extends State<OrderScreen> {
     return v;
   }
 
+  // Display only: search, filters, sort and the title view never change the Order.
+  final _search = TextEditingController();
+  String _cat = 'all', _status = 'all', _sort = 'order';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  String get _titleView => AppPrefs.instance.get<String>('orderTitleView', 'list');
+  int get _columns => AppPrefs.instance.get<int>('orderColumns', 2).clamp(1, 4);
+
+  Future<void> _export(AccountView view) async {
+    final ids = asList(asMap(view.state['orderPlan'])?['titleIds']);
+    if (ids.isEmpty) return _toast(context, 'Your Order is empty.');
+    final data = orderExport(Map<String, dynamic>.of(view.state), DateTime.now());
+    final d = DateTime.now();
+    final path = await saveExportFile(
+        'MediaFlow_Order_${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}.json',
+        const JsonEncoder.withIndent('  ').convert(data));
+    if (mounted) {
+      _toast(context, path == null ? 'Could not save the export.' : '${(data['titles'] as List).length} ordered titles exported to $path ✓');
+    }
+  }
+
+  Future<void> _import() async {
+    final c = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Import an Order'),
+        content: SizedBox(
+          width: 420,
+          child: TextField(
+            controller: c,
+            minLines: 6,
+            maxLines: 12,
+            decoration: const InputDecoration(hintText: 'Paste the contents of a MediaFlow_Order_….json export', border: OutlineInputBorder()),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final clip = await Clipboard.getData('text/plain');
+              if (clip?.text != null) c.text = clip!.text!;
+            },
+            child: const Text('Paste'),
+          ),
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, c.text), child: const Text('Import')),
+        ],
+      ),
+    );
+    c.dispose();
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    Object? data;
+    try {
+      data = jsonDecode(text);
+    } catch (_) {
+      return _toast(context, 'That is not a MediaFlow Order export.');
+    }
+    ({int imported, int skipped, String? error})? r;
+    await account.edit((s, now) => r = orderImport(s, data, now), label: 'Import Personal Order');
+    if (!mounted || r == null) return;
+    _toast(context, r!.error ?? 'Order imported: ${r!.imported} title${r!.imported == 1 ? '' : 's'}${r!.skipped > 0 ? ' · ${r!.skipped} unmatched skipped' : ''} ✓');
+  }
+
+  Future<void> _clear(int count) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Clear Personal Order?'),
+        content: Text("You're about to remove $count title${count == 1 ? '' : 's'} from your Personal Order.\n\n"
+            'Your Library will not be changed. Titles, progress, History, XP and scheduler data stay untouched. '
+            'MediaFlow keeps one recovery copy so you can restore this exact Order afterward.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: MF.bad), onPressed: () => Navigator.pop(d, true), child: const Text('Clear Order')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await account.edit((s, now) => orderClear(s, now), label: 'Clear Order');
+    if (mounted) _toast(context, 'Order cleared · Restore Last Order is available');
+  }
+
+  Future<void> _restoreLast() async {
+    var n = 0;
+    await account.edit((s, now) => n = orderRestoreLast(s, now), label: 'Restore last Order');
+    if (mounted) _toast(context, n == 0 ? 'No cleared Order is available to restore.' : '$n ordered title${n == 1 ? '' : 's'} restored ✓');
+  }
+
+  List<String> _visible(AccountView view, List<String> ids, Map<String, LibraryTitle> byId) {
+    final q = _search.text.trim().toLowerCase();
+    var out = [
+      for (final id in ids)
+        if ((_cat == 'all' || byId[id]!.categoryId == _cat) &&
+            (_status == 'all' || byId[id]!.status == _status) &&
+            (q.isEmpty || byId[id]!.title.toLowerCase().contains(q)))
+          id,
+    ];
+    if (_sort != 'order') {
+      final pos = {for (var i = 0; i < ids.length; i++) ids[i]: i};
+      int cmp(String a, String b) {
+        final x = byId[a]!, y = byId[b]!;
+        final r = switch (_sort) {
+          'title' => x.title.toLowerCase().compareTo(y.title.toLowerCase()),
+          'progress' => y.progress.compareTo(x.progress),
+          'added' => jsNum(y.raw['createdAt']).compareTo(jsNum(x.raw['createdAt'])),
+          'rating' => (y.rating ?? 0).compareTo(x.rating ?? 0),
+          _ => 0,
+        };
+        return r != 0 ? r : pos[a]! - pos[b]!;
+      }
+
+      out = [...out]..sort(cmp);
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LiveBuilder(
-      listenable: account,
+      listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
         if (view == null) return const SizedBox.shrink();
         final state = view.state;
         final p = asMap(state['orderPlan']) ?? const <String, dynamic>{};
-        final byId = {for (final t in view.library) t.id: t};
+        final byId = memoFor(view, 'libraryById', () => {for (final t in view.library) t.id: t});
         final titleIds = [for (final x in asList(p['titleIds'])) if (byId.containsKey(jsStr(x))) jsStr(x)];
         final prioritize = jsTruthy(asMap(state['settings'])?['prioritizePersonalOrder']);
         final byCategory = p['viewMode'] == 'category';
+        final canRestore = asList(asMap(p['lastClearedOrder'])?['titleIds']).isNotEmpty;
+        final shown = _visible(view, titleIds, byId);
+        final filtered = shown.length != titleIds.length || _sort != 'order';
+        final grid = _titleView == 'covers' || _titleView == 'covers-title' || _titleView == 'cards';
+        final header = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Prioritize Personal Order'),
+            subtitle: const Text('MediaFlow Recommends picks the next title of your Order (and assigned Collections) in each category.'),
+            value: prioritize,
+            onChanged: (v) => account.setSetting(['prioritizePersonalOrder'], v),
+          ),
+          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            SegmentedButton<String>(
+              segments: const [ButtonSegment(value: 'all', label: Text('All titles')), ButtonSegment(value: 'category', label: Text('By category'))],
+              selected: {byCategory ? 'category' : 'all'},
+              onSelectionChanged: (s) => _order('Order view', (plan, st, now, uid) => plan['viewMode'] = s.first),
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Order tools',
+              icon: const Icon(Icons.more_horiz_rounded),
+              onSelected: (v) => switch (v) {
+                'export' => _export(view),
+                'import' => _import(),
+                'clear' => _clear(titleIds.length),
+                'restore' => _restoreLast(),
+                _ => null,
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'export', child: Text('Export Order')),
+                const PopupMenuItem(value: 'import', child: Text('Import Order…')),
+                if (titleIds.isNotEmpty) const PopupMenuItem(value: 'clear', child: Text('Clear Order…', style: TextStyle(color: MF.bad))),
+                if (canRestore) const PopupMenuItem(value: 'restore', child: Text('Restore last Order')),
+              ],
+            ),
+          ]),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _search,
+            decoration: const InputDecoration(hintText: 'Search your Order', prefixIcon: Icon(Icons.search_rounded), isDense: true),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              CompactDropdown<String>(
+                value: _cat,
+                items: [('all', 'All categories'), for (final c in view.categories) (c.id, c.name)],
+                onChanged: (v) => setState(() => _cat = v),
+              ),
+              const SizedBox(width: 6),
+              CompactDropdown<String>(
+                value: _status,
+                items: const [('all', 'Any status'), ('planned', 'Planned'), ('active', 'Active'), ('paused', 'Paused'), ('completed', 'Completed'), ('dropped', 'Dropped')],
+                onChanged: (v) => setState(() => _status = v),
+              ),
+              const SizedBox(width: 6),
+              CompactDropdown<String>(
+                value: _sort,
+                items: const [('order', 'Your order'), ('title', 'Title'), ('progress', 'Progress'), ('added', 'Recently added'), ('rating', 'Rating')],
+                onChanged: (v) => setState(() => _sort = v),
+              ),
+              const SizedBox(width: 6),
+              CompactDropdown<String>(
+                value: _titleView,
+                items: const [('list', 'List'), ('compact', 'Compact'), ('cards', 'Cards'), ('covers', 'Covers'), ('covers-title', 'Covers + title')],
+                onChanged: (v) => AppPrefs.instance.set('orderTitleView', v),
+              ),
+              if (grid) ...[
+                const SizedBox(width: 6),
+                CompactDropdown<int>(
+                  value: _columns,
+                  items: const [(1, '1 column'), (2, '2 columns'), (3, '3 columns'), (4, '4 columns')],
+                  onChanged: (v) => AppPrefs.instance.set('orderColumns', v),
+                ),
+              ],
+            ]),
+          ),
+          if (filtered)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Showing ${shown.length} of ${titleIds.length}. Search, filters and sorting only change what you see, never your Order.',
+                  style: TextStyle(color: MF.textDim, fontSize: 12)),
+            ),
+          const SizedBox(height: 8),
+          if (titleIds.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text('Your Order is empty. Add the titles you plan to watch or read next, in order.',
+                  textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+            ),
+        ]);
+        Widget titles;
+        if (byCategory && !filtered) {
+          titles = ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [header, ..._byCategory(view, p, titleIds, byId)]);
+        } else if (grid) {
+          titles = CustomScrollView(slivers: [
+            SliverPadding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), sliver: SliverToBoxAdapter(child: header)),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              sliver: SliverGrid.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: _columns,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: _titleView == 'cards' ? (_columns == 1 ? 4 : 1.6) : (_titleView == 'covers' ? .69 : .56),
+                ),
+                itemCount: shown.length,
+                itemBuilder: (context, i) => _tile(view, byId[shown[i]]!, titleIds.indexOf(shown[i])),
+              ),
+            ),
+          ]);
+        } else if (!filtered) {
+          // Drag to reorder (the Order itself).
+          titles = ReorderableListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            header: header,
+            buildDefaultDragHandles: false,
+            itemCount: titleIds.length,
+            onReorderItem: (from, to) =>
+                _order('Reorder Personal Order', (plan, s, now, uid) => orderMoveTitle(plan, s, titleIds[from], toPosition: to)),
+            itemBuilder: (context, i) => KeyedSubtree(
+              key: ValueKey(titleIds[i]),
+              child: _row(view, byId[titleIds[i]]!, i, titleIds.length, null, dragIndex: i),
+            ),
+          );
+        } else {
+          titles = ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: shown.length + 1,
+            itemBuilder: (context, i) => i == 0 ? header : _row(view, byId[shown[i - 1]]!, titleIds.indexOf(shown[i - 1]), titleIds.length, null),
+          );
+        }
         return DefaultTabController(
           length: 2,
           child: Scaffold(
@@ -86,7 +345,7 @@ class _OrderScreenState extends State<OrderScreen> {
                     final ids = await pickLibraryTitles(context, view, exclude: titleIds.toSet(), title: 'Add titles to Order');
                     if (ids == null || ids.isEmpty) return;
                     await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
-                    if (context.mounted) _toast(context, 'Titles added to Order ✓');
+                    if (context.mounted) _toast(context, '${ids.length} title${ids.length == 1 ? '' : 's'} added to Order ✓');
                   },
                 ),
                 SyncIndicator(account: account),
@@ -94,56 +353,61 @@ class _OrderScreenState extends State<OrderScreen> {
               bottom: const TabBar(tabs: [Tab(text: 'Titles'), Tab(text: 'Collection queues')]),
             ),
             body: TabBarView(children: [
-              ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Prioritize Personal Order'),
-                  subtitle: const Text('MediaFlow Recommends picks the next title of your Order (and assigned Collections) in each category.'),
-                  value: prioritize,
-                  onChanged: (v) => account.setSetting(['prioritizePersonalOrder'], v),
-                ),
-                Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  SegmentedButton<String>(
-                    segments: const [ButtonSegment(value: 'all', label: Text('All titles')), ButtonSegment(value: 'category', label: Text('By category'))],
-                    selected: {byCategory ? 'category' : 'all'},
-                    onSelectionChanged: (s) => _order('Order view', (plan, st, now, uid) => plan['viewMode'] = s.first),
-                  ),
-                  if (titleIds.isNotEmpty)
-                    TextButton(
-                      onPressed: () async {
-                        final ok = await showDialog<bool>(
-                          context: context,
-                          builder: (d) => AlertDialog(
-                            title: const Text('Clear your Order?'),
-                            content: const Text('Every title is removed from your Order. Nothing is deleted from the Library. Undo is available.'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-                              FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Clear')),
-                            ],
-                          ),
-                        );
-                        if (ok == true) await _order('Clear Order', (plan, s, now, uid) => orderClear(plan));
-                      },
-                      child: const Text('Clear Order', style: TextStyle(color: MF.bad)),
-                    ),
-                ]),
-                const SizedBox(height: 8),
-                if (titleIds.isEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('Your Order is empty. Add the titles you plan to watch or read next, in order.',
-                        textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
-                  )
-                else if (!byCategory)
-                  for (var i = 0; i < titleIds.length; i++) _row(view, byId[titleIds[i]]!, i, titleIds.length, null)
-                else
-                  ..._byCategory(view, p, titleIds, byId),
-              ]),
+              titles,
               _QueuesTab(account: account, view: view, order: _order),
             ]),
           ),
         );
       },
+    );
+  }
+
+  /// A title in the Cards / Covers / Covers + title views.
+  Widget _tile(AccountView view, LibraryTitle t, int position) {
+    final cat = view.category(t.categoryId);
+    if (_titleView == 'cards') {
+      return InkWell(
+        onTap: () => openTitle(context, account, t.id),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: MF.border)),
+          child: Row(children: [
+            Cover(title: t, category: cat, width: 44),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('#${position + 1}', style: TextStyle(color: MF.accent, fontWeight: FontWeight.w900, fontSize: 11)),
+                Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('${cat.name} · ${progressText(t, cat)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 11)),
+              ]),
+            ),
+          ]),
+        ),
+      );
+    }
+    return InkWell(
+      onTap: () => openTitle(context, account, t.id),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: Stack(fit: StackFit.expand, children: [
+            LayoutBuilder(builder: (context, c) => Cover(title: t, category: cat, width: c.maxWidth)),
+            Positioned(
+              left: 4,
+              top: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .6), borderRadius: BorderRadius.circular(8)),
+                child: Text('${position + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11)),
+              ),
+            ),
+          ]),
+        ),
+        if (_titleView == 'covers-title')
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          ),
+      ]),
     );
   }
 
@@ -190,23 +454,27 @@ class _OrderScreenState extends State<OrderScreen> {
     return out;
   }
 
-  Widget _row(AccountView view, LibraryTitle t, int i, int count, String? categoryId) {
+  Widget _row(AccountView view, LibraryTitle t, int i, int count, String? categoryId, {int? dragIndex}) {
     final cat = view.category(t.categoryId);
+    final compact = _titleView == 'compact';
     void move({int delta = 0, int? to}) =>
         _order('Reorder Personal Order', (plan, s, now, uid) => orderMoveTitle(plan, s, t.id, delta: delta, toPosition: to, categoryId: categoryId));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
+        if (dragIndex != null)
+          ReorderableDragStartListener(index: dragIndex, child: Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim))),
         SizedBox(width: 32, child: Text('${i + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
-        Cover(title: t, category: cat, width: 36),
+        if (!compact) Cover(title: t, category: cat, width: 36),
         const SizedBox(width: 10),
         Expanded(
           child: InkWell(
             onTap: () => openTitle(context, account, t.id),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-              Text('${cat.name} · ${progressText(t, cat)} · ${statusLabel(t.status)}', maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: MF.textDim, fontSize: 12)),
+              Text(t.title, maxLines: compact ? 1 : 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (!compact)
+                Text('${cat.name} · ${progressText(t, cat)} · ${statusLabel(t.status)}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
         ),
