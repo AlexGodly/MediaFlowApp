@@ -40,9 +40,10 @@ void main() {
       'savedAt': 1000,
     });
     expect(orderRestoreLast(s, 2000), 3);
-    expect(p['titleIds'], ['c', 'a', 'b']);
-    expect(p['lastClearedOrder'], isNull);
-    expect(p['modifiedAt'], 2000);
+    final r = s['orderPlan'] as Map<String, dynamic>;
+    expect(r['titleIds'], ['c', 'a', 'b']);
+    expect(r['lastClearedOrder'], isNull);
+    expect(r['modifiedAt'], 2000);
     expect(orderRestoreLast(s, 3000), 0);
   });
 
