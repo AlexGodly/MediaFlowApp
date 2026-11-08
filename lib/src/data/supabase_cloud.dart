@@ -56,6 +56,24 @@ class SupabaseCloud implements RecordBackend {
     return CloudSnapshot(row['state_data'], updatedAt);
   }
 
+  /// Creates the account's first cloud row (a new account; the website's
+  /// first save). Never overwrites: returns null when a row already exists.
+  Future<String?> createRow(String userId, Object payload) async {
+    final next = DateTime.now().toUtc().toIso8601String();
+    try {
+      final row = await client
+          .from(kStateTable)
+          .insert({'user_id': userId, 'state_data': payload, 'updated_at': next})
+          .select('updated_at')
+          .single();
+      final written = row['updated_at'];
+      return written is String && written.isNotEmpty ? written : next;
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') return null; // already there (another device or the website)
+      rethrow;
+    }
+  }
+
   @override
   Future<String?> compareAndSwap(String userId, String expectedUpdatedAt, Object payload) async {
     final next = DateTime.now().toUtc().toIso8601String();

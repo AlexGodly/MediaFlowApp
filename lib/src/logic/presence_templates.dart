@@ -28,6 +28,14 @@ const kPresenceSituations = <(String, String)>[
   ('recovery', 'Recovery'),
   ('settings', 'Settings'),
   ('account', 'Account'),
+  ('pinned', 'A title shown with "Show on Discord"'),
+  ('rating', 'Rate Your Library'),
+  ('missingCovers', 'Missing Covers'),
+  ('oldSystem', 'Old System'),
+  ('overview', 'Library Overview'),
+  ('consumption', 'Consumption history'),
+  ('recent', 'Recently viewed'),
+  ('ratings', 'Ratings history'),
   ('other', 'Anything else'),
   ('idle', 'Idle'),
 ];
@@ -37,7 +45,9 @@ const kPresencePlaceholders = <(String, String)>[
   ('{title}', 'Title name · Frieren'),
   ('{verb}', 'Watching / Reading / Listening to / Playing'),
   ('{action}', 'What you\'re doing · Logging'),
-  ('{progress}', 'Progress (from your log draft while logging) · 12'),
+  ('{progress}', 'Progress (while logging: after or before this log, see Settings) · 12'),
+  ('{before}', 'Progress before this log · 12'),
+  ('{after}', 'Progress after this log · 15'),
   ('{total}', 'Total · 28'),
   ('{unit}', 'Unit · Episode'),
   ('{units}', 'Unit, plural · episodes'),
@@ -73,6 +83,14 @@ final Map<String, Map<String, (String, String)>> kPresencePresets = {
     'recovery': ('Recovering covers and details', ''),
     'settings': ('Tidying up settings', ''),
     'account': ('Managing the account', ''),
+    'pinned': ('{title}', '{unit} {progress} / {total}'),
+    'rating': ('Rating the Library', '{category}'),
+    'missingCovers': ('Finding missing covers', ''),
+    'oldSystem': ('Balancing the Old System', ''),
+    'overview': ('Looking at the Library overview', '{library} titles'),
+    'consumption': ('Looking through consumption history', ''),
+    'recent': ('Browsing recently viewed', ''),
+    'ratings': ('Looking at ratings', ''),
     'other': ('Using MediaFlow', ''),
     'idle': ('Idle in MediaFlow', ''),
   },
@@ -93,6 +111,14 @@ final Map<String, Map<String, (String, String)>> kPresencePresets = {
     'recovery': ('Using MediaFlow', ''),
     'settings': ('Using MediaFlow', ''),
     'account': ('Using MediaFlow', ''),
+    'pinned': ('{title}', '{unit} {progress}'),
+    'rating': ('Using MediaFlow', ''),
+    'missingCovers': ('Using MediaFlow', ''),
+    'oldSystem': ('Using MediaFlow', ''),
+    'overview': ('Using MediaFlow', ''),
+    'consumption': ('Using MediaFlow', ''),
+    'recent': ('Using MediaFlow', ''),
+    'ratings': ('Using MediaFlow', ''),
     'other': ('Using MediaFlow', ''),
     'idle': ('Idle', ''),
   },
@@ -135,6 +161,22 @@ class PresenceConfig {
 
   /// "Logging Frieren" or just "Frieren" for {action} while logging.
   bool get showAction => raw['showAction'] != false;
+
+  /// While logging, {progress} is where the title will be after this log
+  /// (the draft) or where it is now (before it).
+  String get progressMode => _pick('progressMode', const ['after', 'before'], 'after');
+
+  /// What the activity name says, i.e. the header of the profile card
+  /// ("Watching MediaFlow" / "Watching Frieren"): mediaflow | status (the same
+  /// line as the short status) | custom ([nameTemplate]). By default it
+  /// follows the status line, so choosing "the title" changes both.
+  String get activityName {
+    final v = jsStr(raw['activityName']);
+    if (const ['mediaflow', 'status', 'custom'].contains(v)) return v;
+    return statusLine == 'name' ? 'mediaflow' : 'status';
+  }
+
+  String get nameTemplate => raw.containsKey('nameTemplate') ? jsStr(raw['nameTemplate']) : '{title}';
 
   /// show | clear.
   String get idle => _pick('idle', const ['show', 'clear'], 'show');

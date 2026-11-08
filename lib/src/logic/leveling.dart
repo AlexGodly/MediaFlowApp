@@ -148,17 +148,28 @@ Map<String, int> buildStreakMap(List<dynamic> sessions) {
 }
 
 /// `v149ProspectiveTodayStreak`.
-int prospectiveTodayStreak(List<dynamic> sessions, int nowMs) {
-  final map = buildStreakMap(sessions);
+int prospectiveTodayStreak(List<dynamic> sessions, int nowMs, {bool reuse = false}) {
+  // The streak map walks every log; edits that don't touch History (adding
+  // titles to a collection…) may reuse the last one ([reuse]). Logging never does.
+  final c = _streakCache;
+  final Map<String, int> map;
+  if (reuse && c != null && identical(c.$1, sessions) && c.$2 == sessions.length) {
+    map = c.$3;
+  } else {
+    map = buildStreakMap(sessions);
+    _streakCache = (sessions, sessions.length, map);
+  }
   final today = isoDateUtc(nowMs);
   if (map.containsKey(today)) return map[today] == 0 ? 1 : map[today]!;
   return (map[shiftDayKey(today, -1)] ?? 0) + 1;
 }
 
+(List<dynamic>, int, Map<String, int>)? _streakCache;
+
 /// `v348Multiplier`: today's streak multiplier used for ledger awards.
-double awardMultiplier(Leveling l, List<dynamic> sessions, int nowMs) {
+double awardMultiplier(Leveling l, List<dynamic> sessions, int nowMs, {bool reuse = false}) {
   if (!l.enabled || !l.globalStreakEnabled) return 1;
-  final m = l.streakMultiplier(prospectiveTodayStreak(sessions, nowMs));
+  final m = l.streakMultiplier(prospectiveTodayStreak(sessions, nowMs, reuse: reuse));
   return m < 1 ? 1 : m;
 }
 

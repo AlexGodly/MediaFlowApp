@@ -30,6 +30,10 @@ PresenceInfo sectionPresence(Section s, [AccountView? view]) => PresenceInfo(
         Section.extras => 'extras',
         Section.collections => 'collections',
         Section.order => 'order',
+        Section.oldSystem => 'oldSystem',
+        Section.recovery => 'recovery',
+        Section.rate => 'rating',
+        Section.covers => 'missingCovers',
         Section.stats => 'stats',
         Section.settings => 'settings',
         Section.account => 'account',
@@ -70,10 +74,14 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
 /// A status about one title: its name, progress (from the log draft while
 /// logging) and cover.
 PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category cat,
-    {double? progress, String? season, String more = '', int count = 0, String action = ''}) {
+    {double? progress, double? before, String? season, String more = '', int count = 0, String action = ''}) {
   final title = cleanTitle(item['title']);
   final cover = jsStr(item['coverUrl']).trim();
-  final p = progress ?? jsNumOrNull(item['progress']);
+  // While logging, {progress} follows Settings → Discord: after the draft
+  // (default) or before it; {before} and {after} are both always there.
+  final after = progress;
+  final useBefore = before != null && DiscordPresence.instance.config.progressMode == 'before';
+  final p = (useBefore ? before : progress) ?? jsNumOrNull(item['progress']);
   final total = jsNumOrNull(item['total']);
   final hasProgress = p != null && (p > 0 || (total ?? 0) > 0);
   String num(double v) => v == v.truncateToDouble() ? fmtCount(v.toInt()) : v.toStringAsFixed(1);
@@ -86,6 +94,8 @@ PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category
       'verb': presenceVerb(cat, fallback: 'Logging'),
       'action': action.isEmpty ? presenceVerb(cat, fallback: 'Logging') : action,
       if (hasProgress) 'progress': num(p),
+      if (before != null) 'before': num(before),
+      if (after != null) 'after': num(after),
       if (hasProgress && total != null && total > 0) 'total': num(total),
       if (hasProgress && total != null && total > 0) 'percent': '${(p / total * 100).clamp(0, 100).round()}%',
       if (hasProgress) 'unit': capFirst(unit),
@@ -118,6 +128,13 @@ class PresenceHub {
       _globals = null;
       DiscordPresence.instance.globals ??= () => _globals ??= _computeGlobals();
       DiscordPresence.instance.setConfig(PresenceConfig.of(asMap(view?.state['settings'])));
+      DiscordPresence.instance.setAccountSettings(asMap(view?.state['settings']));
+      DiscordPresence.instance.pinnedInfo ??= (id) {
+        final v = _view;
+        final t = v?.library.where((x) => x.id == id).firstOrNull;
+        if (v == null || t == null) return null;
+        return titlePresence('pinned', t.raw, v.category(t.categoryId));
+      };
     }
     _update();
   }
@@ -189,16 +206,30 @@ class PresenceScope extends StatefulWidget {
 }
 
 class _PresenceScopeState extends State<PresenceScope> {
+  // Pages kept alive in the background (a section you left) have tickers off;
+  // their status only counts while they are on screen.
+  bool _on = false;
+
+  void _sync() {
+    final on = TickerMode.of(context);
+    if (on) {
+      PresenceHub.instance.push(this, widget.info);
+    } else if (_on) {
+      PresenceHub.instance.remove(this);
+    }
+    _on = on;
+  }
+
   @override
-  void initState() {
-    super.initState();
-    PresenceHub.instance.push(this, widget.info);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
   void didUpdateWidget(PresenceScope old) {
     super.didUpdateWidget(old);
-    PresenceHub.instance.push(this, widget.info);
+    _sync();
   }
 
   @override

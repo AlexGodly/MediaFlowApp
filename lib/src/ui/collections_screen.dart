@@ -473,9 +473,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   Future<void> _addTitles(AccountView view, Map<String, dynamic> c) async {
     final ids = await pickLibraryTitles(context, view, exclude: collectionTitleIds(c).toSet(), title: 'Add titles to ${jsStr(c['title'])}');
-    if (ids == null || ids.isEmpty) return;
+    if (ids == null || ids.isEmpty || !mounted) return;
     var n = 0;
+    if (ids.length > 50) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Adding ${ids.length} titles…'), duration: const Duration(seconds: 2)));
+      await Future<void>.delayed(const Duration(milliseconds: 50)); // let it show before the save
+    }
     await _run('Add titles to collection', (s, now, uid) => n = addCollectionTitles(s, widget.id, ids, now, uid));
+    if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (mounted) _toast(context, '$n title${n == 1 ? '' : 's'} added ✓');
   }
 
@@ -1040,7 +1045,10 @@ class _CategoryPickerState extends State<_CategoryPicker> {
 
 /// A Library title picker (search, category and status filters, multi-select).
 /// Uses the Library's prepared index: no re-sorting on each keystroke or tap.
-Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, {Set<String> exclude = const {}, String title = 'Add titles'}) {
+/// Library titles picked with search and filters; [single] returns the first
+/// tapped title at once.
+Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view,
+    {Set<String> exclude = const {}, String title = 'Add titles', bool single = false}) {
   return showModalBottomSheet<List<String>>(
     context: context,
     isScrollControlled: true,
@@ -1048,16 +1056,17 @@ Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view, 
     backgroundColor: MF.surface,
     builder: (c) => PresenceScope(
       info: const PresenceInfo(situation: 'collections'),
-      child: _TitlePicker(view: view, exclude: exclude, title: title),
+      child: _TitlePicker(view: view, exclude: exclude, title: title, single: single),
     ),
   );
 }
 
 class _TitlePicker extends StatefulWidget {
-  const _TitlePicker({required this.view, required this.exclude, required this.title});
+  const _TitlePicker({required this.view, required this.exclude, required this.title, this.single = false});
   final AccountView view;
   final Set<String> exclude;
   final String title;
+  final bool single;
 
   @override
   State<_TitlePicker> createState() => _TitlePickerState();
@@ -1192,6 +1201,15 @@ class _TitlePickerState extends State<_TitlePicker> {
                     }
                     final t = rows[i];
                     final cat = view.category(t.categoryId);
+                    if (widget.single) {
+                      return ListTile(
+                        key: ValueKey(t.id),
+                        leading: Cover(title: t, category: cat, width: 32),
+                        title: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        subtitle: Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1),
+                        onTap: () => Navigator.pop(context, [t.id]),
+                      );
+                    }
                     return CheckboxListTile(
                       key: ValueKey(t.id),
                       value: _picked.contains(t.id),

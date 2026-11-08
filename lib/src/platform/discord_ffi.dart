@@ -51,7 +51,15 @@ typedef _WithCb<T extends Function> = Void Function(Pointer<DOpaque>, Pointer<Na
 
 /// `Discord_ActivityTypes`.
 abstract final class ActivityType {
-  static const playing = 0, listening = 2, watching = 3;
+  static const playing = 0, listening = 2, watching = 3, competing = 5;
+}
+
+T? _optional<T>(T Function() lookup) {
+  try {
+    return lookup();
+  } catch (_) {
+    return null; // not in this SDK version
+  }
 }
 
 /// `Discord_Client_Status`.
@@ -133,7 +141,23 @@ class DiscordFfi {
         assetsSetSmallText = l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetSmallText'),
         timestampsInit = l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityTimestamps_Init'),
         timestampsDrop = l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityTimestamps_Drop'),
-        timestampsSetStart = l.lookupFunction<_SetU64, _SetU64D>('Discord_ActivityTimestamps_SetStart');
+        timestampsSetStart = l.lookupFunction<_SetU64, _SetU64D>('Discord_ActivityTimestamps_SetStart'),
+        timestampsSetEnd = _optional(() => l.lookupFunction<_SetU64, _SetU64D>('Discord_ActivityTimestamps_SetEnd')),
+        activitySetParty = _optional(() => l.lookupFunction<_SetObj, _SetObjD>('Discord_Activity_SetParty')),
+        partyInit = _optional(() => l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityParty_Init')),
+        partyDrop = _optional(() => l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityParty_Drop')),
+        partySetId = _optional(() => l.lookupFunction<_SetStr, _SetStrD>('Discord_ActivityParty_SetId')),
+        partySetCurrentSize = _optional(() => l.lookupFunction<_SetI32, _SetI32D>('Discord_ActivityParty_SetCurrentSize')),
+        partySetMaxSize = _optional(() => l.lookupFunction<_SetI32, _SetI32D>('Discord_ActivityParty_SetMaxSize')),
+        buttonInit = _optional(() => l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityButton_Init')),
+        buttonDrop = _optional(() => l.lookupFunction<_VoidObj, _VoidObjD>('Discord_ActivityButton_Drop')),
+        buttonSetLabel = _optional(() => l.lookupFunction<_SetStr, _SetStrD>('Discord_ActivityButton_SetLabel')),
+        buttonSetUrl = _optional(() => l.lookupFunction<_SetStr, _SetStrD>('Discord_ActivityButton_SetUrl')),
+        activityAddButton = _optional(() => l.lookupFunction<_SetObj, _SetObjD>('Discord_Activity_AddButton')),
+        activitySetDetailsUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetDetailsUrl')),
+        activitySetStateUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetStateUrl')),
+        assetsSetLargeUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetLargeUrl')),
+        assetsSetSmallUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetSmallUrl'));
 
   static DiscordFfi? _instance;
   static bool _tried = false;
@@ -188,6 +212,21 @@ class DiscordFfi {
   final _SetStrPtrD activitySetState, activitySetDetails, assetsSetLargeImage, assetsSetLargeText, assetsSetSmallImage, assetsSetSmallText;
   final _SetObjD activitySetAssets, activitySetTimestamps;
   final _SetU64D timestampsSetStart;
+
+  // Custom Status extras: null when this SDK version lacks them (the option
+  // is then hidden), so an older SDK never breaks Rich Presence itself.
+  final _SetU64D? timestampsSetEnd;
+  final _SetObjD? activitySetParty, activityAddButton;
+  final _VoidObjD? partyInit, partyDrop, buttonInit, buttonDrop;
+  final _SetStrD? partySetId, buttonSetLabel, buttonSetUrl;
+  final _SetI32D? partySetCurrentSize, partySetMaxSize;
+
+  bool get hasParty => activitySetParty != null && partyInit != null && partyDrop != null && partySetId != null && partySetCurrentSize != null && partySetMaxSize != null;
+  bool get hasButtons => activityAddButton != null && buttonInit != null && buttonDrop != null && buttonSetLabel != null && buttonSetUrl != null;
+  bool get hasLinks => activitySetDetailsUrl != null && assetsSetLargeUrl != null;
+
+  /// Links on text and images; null when this SDK version has none.
+  final _SetStrPtrD? activitySetDetailsUrl, activitySetStateUrl, assetsSetLargeUrl, assetsSetSmallUrl;
 
   // ---- helpers ----
 

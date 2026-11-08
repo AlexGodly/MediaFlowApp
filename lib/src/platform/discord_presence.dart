@@ -16,9 +16,10 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../logic/presence_templates.dart';
-
 import '../data/app_prefs.dart';
+import '../logic/custom_status.dart';
+import '../logic/presence_templates.dart';
+import '../util/js.dart';
 import 'discord_ffi.dart';
 
 /// What MediaFlow is doing at a moment: a situation (see
@@ -59,7 +60,7 @@ class DiscordPresence extends ChangeNotifier {
   static final DiscordPresence instance = DiscordPresence._();
 
   static const int applicationId = 1554979701787992225;
-  static const String logoUrl = 'https://raw.githubusercontent.com/AlexGodly/MediaFlowApp/main/assets/branding/mediaflow-launcher-512.png';
+  static const String logoUrl = 'https://raw.githubusercontent.com/AlexGodly/MediaFlowApp/main/assets/branding/mediaflow-logo-rounded-512.png';
 
   static bool get mobile => Platform.isAndroid || Platform.isIOS;
   static bool get supported => Platform.isWindows || Platform.isAndroid || Platform.isIOS;
@@ -141,6 +142,7 @@ class DiscordPresence extends ChangeNotifier {
           ffi.runCallbacks();
         } catch (_) {}
       });
+      _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
       statusText = mobile ? 'Not linked' : 'Waiting for the Discord app';
       final refresh = await _readToken('refresh');
       linked = refresh != null && refresh.isNotEmpty;
@@ -161,6 +163,8 @@ class DiscordPresence extends ChangeNotifier {
     final ffi = _ffi, client = _client;
     _pump?.cancel();
     _pump = null;
+    _minute?.cancel();
+    _minute = null;
     if (ffi != null && client != null) {
       try {
         ffi.clientDisconnect(client);
@@ -376,42 +380,67 @@ class DiscordPresence extends ChangeNotifier {
     _sendTimer = Timer(wait.isNegative ? const Duration(milliseconds: 300) : wait, _send);
   }
 
-  /// What is actually shown: the situation's templates filled in, after the
-  /// privacy settings.
-  ({String details, String? state, String large, String largeText, String? small, String? smallText, int type, int statusLine, bool timer})?
-      effective() {
+  /// The account's settings (Custom Status lives there) and how to turn a
+  /// pinned Library title into a status; set by the app.
+  Map<String, dynamic>? accountSettings;
+  PresenceInfo? Function(String titleId)? pinnedInfo;
+  Timer? _minute;
+
+  void setAccountSettings(Map<String, dynamic>? settings) {
+    final custom = jsonEncode(settings?[kCustomStatusKey]);
+    final before = jsonEncode(accountSettings?[kCustomStatusKey]);
+    accountSettings = settings;
+    if (custom != before) {
+      _sentKey = '';
+      _schedule();
+      notifyListeners();
+    }
+    // Schedules and "until" times are checked every minute while connected.
+    if (_client != null) _minute ??= Timer.periodic(const Duration(minutes: 1), (_) => _schedule());
+  }
+
+  /// What Discord last accepted (for Settings' preview).
+  DiscordActivity? accepted;
+
+  /// What is actually shown: Custom Status when one applies, else a title
+  /// pinned with "Show on Discord", else the situation's templates — after
+  /// the privacy settings.
+  DiscordActivity? effective() {
+    final now = DateTime.now();
+    final custom = currentCustomStatus(accountSettings, now);
+    if (custom != null) return customActivity(custom.status, custom.appliedAt);
     final c = config;
     final statusLine = switch (c.statusLine) { 'details' => 2, 'state' => 1, _ => 0 };
     final g = globals?.call() ?? const <String, String>{};
-    if (_idle) {
+    final pin = activePin(c.raw, now.millisecondsSinceEpoch);
+    final pinned = pin == null ? null : pinnedInfo?.call(pin.titleId);
+    if (_idle && pinned == null) {
       if (c.idle == 'clear') return null;
       final t = c.template('idle');
       final d = renderPresence(t.$1, g);
-      return (
-        details: _clip(d.isEmpty ? 'Idle in MediaFlow' : d),
-        state: _opt(renderPresence(t.$2, g)),
+      final details = _clip(d.isEmpty ? 'Idle in MediaFlow' : d);
+      final state = _opt(renderPresence(t.$2, g));
+      return DiscordActivity(
+        name: _activityName(c, statusLine, details, state, g),
+        details: details,
+        state: state,
         large: logoUrl,
         largeText: 'MediaFlow',
-        small: null,
-        smallText: null,
         type: ActivityType.playing,
         statusLine: statusLine,
-        timer: false,
       );
     }
-    final w = _wanted ?? const PresenceInfo(situation: 'other');
+    final w = pinned ?? _wanted ?? const PresenceInfo(situation: 'other');
     final hidden = w.categoryId != null && c.hiddenCategories.contains(w.categoryId);
     if (c.privacy == 'minimal' || hidden) {
-      return (
+      return DiscordActivity(
+        name: 'MediaFlow',
         details: 'Using MediaFlow',
-        state: null,
         large: logoUrl,
         largeText: 'MediaFlow',
-        small: null,
-        smallText: null,
         type: ActivityType.playing,
         statusLine: 0,
-        timer: c.timer != 'off',
+        start: c.timer != 'off' ? _startedAt : 0,
       );
     }
     final full = c.privacy == 'full';
@@ -425,10 +454,11 @@ class DiscordPresence extends ChangeNotifier {
     }
     if (!c.showAction) values['action'] = '';
     final t = c.template(w.situation);
-    final details = renderPresence(t.$1, values);
-    final state = renderPresence(t.$2, values);
+    final details = _clip(renderPresence(t.$1, values).isEmpty ? 'Using MediaFlow' : renderPresence(t.$1, values));
+    final state = _opt(renderPresence(t.$2, values));
     final cover = full && c.picture == 'cover' && (w.cover ?? '').startsWith('https://') ? w.cover! : null;
-    final kind = switch (c.types[w.categoryId ?? '']) {
+    final pinType = pin == null ? '' : pin.type;
+    final kind = switch (pinType.isNotEmpty ? pinType : c.types[w.categoryId ?? '']) {
       'watching' => PresenceKind.watching,
       'listening' => PresenceKind.listening,
       'playing' || 'reading' => PresenceKind.playing,
@@ -441,16 +471,69 @@ class DiscordPresence extends ChangeNotifier {
     };
     final largeText = renderPresence(c.largeText, values);
     final smallText = renderPresence(c.smallText, values);
-    return (
-      details: _clip(details.isEmpty ? 'Using MediaFlow' : details),
-      state: _opt(state),
+    return DiscordActivity(
+      name: _activityName(c, statusLine, details, state, values),
+      details: details,
+      state: state,
       large: cover ?? logoUrl,
       largeText: _clip(largeText.isEmpty ? 'MediaFlow' : largeText),
       small: cover != null && c.smallPicture == 'logo' ? logoUrl : null,
       smallText: cover != null && c.smallPicture == 'logo' ? _clip(smallText.isEmpty ? 'MediaFlow' : smallText) : null,
       type: type,
       statusLine: statusLine,
-      timer: c.timer != 'off',
+      start: c.timer != 'off' ? _startedAt : 0,
+    );
+  }
+
+  /// The activity name (profile card header): MediaFlow, the same text as
+  /// the status line, or the custom template.
+  static String _activityName(PresenceConfig c, int statusLine, String details, String? state, Map<String, String> values) {
+    switch (c.activityName) {
+      case 'status':
+        final line = statusLine == 2 ? details : statusLine == 1 ? (state ?? details) : '';
+        final title = (values['title'] ?? '').trim();
+        return _clip(line.isNotEmpty ? line : (title.isNotEmpty ? title : 'MediaFlow'));
+      case 'custom':
+        final n = renderPresence(c.nameTemplate, values);
+        return _clip(n.isEmpty ? 'MediaFlow' : n);
+      default:
+        return 'MediaFlow';
+    }
+  }
+
+  /// A Custom Status as Discord would get it (also for the editor's preview).
+  DiscordActivity customActivity(Map<String, dynamic> st, int appliedAt) {
+    final g = globals?.call() ?? const <String, String>{};
+    final values = <String, String>{...g, ...?_wanted?.values};
+    String fill(Object? v) => renderPresence(jsStr(v), values);
+    final times = statusTimes(st, appliedAt);
+    final name = fill(st['name']);
+    final details = fill(st['details']);
+    return DiscordActivity(
+      name: _clip(name.isEmpty ? 'MediaFlow' : name),
+      details: details.isEmpty ? null : _clip(details),
+      state: _opt(fill(st['state'])),
+      large: jsStr(st['largeImage']),
+      largeText: _opt(fill(st['largeText'])),
+      small: jsStr(st['smallImage']).isEmpty ? null : jsStr(st['smallImage']),
+      smallText: _opt(fill(st['smallText'])),
+      type: switch (st['type']) {
+        'listening' => ActivityType.listening,
+        'watching' => ActivityType.watching,
+        'competing' => ActivityType.competing,
+        _ => ActivityType.playing,
+      },
+      statusLine: switch (st['display']) { 'details' => 2, 'state' => 1, _ => 0 },
+      start: times.start,
+      end: times.end,
+      detailsUrl: jsStr(st['detailsUrl']),
+      stateUrl: jsStr(st['stateUrl']),
+      largeUrl: jsStr(st['largeUrl']),
+      smallUrl: jsStr(st['smallUrl']),
+      partyCurrent: jsNum(st['partyCurrent']).toInt(),
+      partyMax: jsNum(st['partyMax']).toInt(),
+      buttons: [for (final b in asList(st['buttons']).map(asMap).whereType<Map<String, dynamic>>()) (jsStr(b['label']), jsStr(b['url']))],
+      custom: true,
     );
   }
 
@@ -462,11 +545,17 @@ class DiscordPresence extends ChangeNotifier {
     return t.length > 128 ? '${t.substring(0, 127)}…' : t;
   }
 
+  /// What the SDK version in this build can show (Custom Status hides the rest).
+  bool get supportsParty => _ffi?.hasParty ?? DiscordFfi.load()?.hasParty ?? false;
+  bool get supportsButtons => _ffi?.hasButtons ?? DiscordFfi.load()?.hasButtons ?? false;
+  bool get supportsLinks => _ffi?.hasLinks ?? DiscordFfi.load()?.hasLinks ?? false;
+  bool get supportsEnd => (_ffi ?? DiscordFfi.load())?.timestampsSetEnd != null;
+
   void _send() {
     final ffi = _ffi, client = _client;
     if (ffi == null || client == null || !enabled) return;
     final e = effective();
-    final key = e == null ? 'clear' : '${e.details}|${e.state}|${e.large}|${e.largeText}|${e.small}|${e.smallText}|${e.type}|${e.statusLine}|${e.timer ? _startedAt : 0}';
+    final key = e?.key ?? 'clear';
     if (key == _sentKey) return;
     _lastSend = DateTime.now();
     _sentKey = key;
@@ -475,28 +564,57 @@ class DiscordPresence extends ChangeNotifier {
       return;
     }
     final activity = DiscordFfi.obj(), assets = DiscordFfi.obj(), times = DiscordFfi.obj();
+    final party = DiscordFfi.obj();
+    final buttons = <Pointer<DOpaque>>[];
+    var partyInit = false;
     try {
       using((a) {
+        Pointer<DString> str(String v) => DiscordFfi.str(v, a);
         ffi.activityInit(activity);
-        ffi.activitySetName(activity, DiscordFfi.str('MediaFlow', a).ref);
+        ffi.activitySetName(activity, str(e.name).ref);
         ffi.activitySetType(activity, e.type);
         // What the short status line shows ("Watching MediaFlow" / "Watching Frieren").
         final display = a<Int32>()..value = e.statusLine;
         ffi.activitySetStatusDisplayType(activity, display);
-        ffi.activitySetDetails(activity, DiscordFfi.str(e.details, a));
-        if (e.state != null) ffi.activitySetState(activity, DiscordFfi.str(e.state!, a));
+        if (e.details != null) ffi.activitySetDetails(activity, str(e.details!));
+        if (e.state != null) ffi.activitySetState(activity, str(e.state!));
+        if (e.detailsUrl.isNotEmpty) ffi.activitySetDetailsUrl?.call(activity, str(e.detailsUrl));
+        if (e.stateUrl.isNotEmpty) ffi.activitySetStateUrl?.call(activity, str(e.stateUrl));
         ffi.assetsInit(assets);
-        ffi.assetsSetLargeImage(assets, DiscordFfi.str(e.large, a));
-        ffi.assetsSetLargeText(assets, DiscordFfi.str(e.largeText, a));
+        if (e.large.isNotEmpty) {
+          ffi.assetsSetLargeImage(assets, str(e.large));
+          if (e.largeText != null) ffi.assetsSetLargeText(assets, str(e.largeText!));
+          if (e.largeUrl.isNotEmpty) ffi.assetsSetLargeUrl?.call(assets, str(e.largeUrl));
+        }
         if (e.small != null) {
-          ffi.assetsSetSmallImage(assets, DiscordFfi.str(e.small!, a));
-          ffi.assetsSetSmallText(assets, DiscordFfi.str(e.smallText ?? 'MediaFlow', a));
+          ffi.assetsSetSmallImage(assets, str(e.small!));
+          if (e.smallText != null) ffi.assetsSetSmallText(assets, str(e.smallText!));
+          if (e.smallUrl.isNotEmpty) ffi.assetsSetSmallUrl?.call(assets, str(e.smallUrl));
         }
         ffi.activitySetAssets(activity, assets);
         ffi.timestampsInit(times);
-        if (e.timer) {
-          ffi.timestampsSetStart(times, _startedAt);
+        if (e.start > 0 || e.end > 0) {
+          if (e.start > 0) ffi.timestampsSetStart(times, e.start);
+          if (e.end > 0) ffi.timestampsSetEnd?.call(times, e.end);
           ffi.activitySetTimestamps(activity, times);
+        }
+        if (e.partyMax > 0 && ffi.hasParty) {
+          ffi.partyInit!(party);
+          partyInit = true;
+          ffi.partySetId!(party, str('mediaflow-${e.name}').ref);
+          ffi.partySetCurrentSize!(party, e.partyCurrent.clamp(0, e.partyMax).toInt());
+          ffi.partySetMaxSize!(party, e.partyMax);
+          ffi.activitySetParty!(activity, party);
+        }
+        if (e.buttons.isNotEmpty && ffi.hasButtons) {
+          for (final (label, url) in e.buttons.take(2)) {
+            final b = DiscordFfi.obj();
+            buttons.add(b);
+            ffi.buttonInit!(b);
+            ffi.buttonSetLabel!(b, str(label).ref);
+            ffi.buttonSetUrl!(b, str(url).ref);
+            ffi.activityAddButton!(activity, b);
+          }
         }
         late final NativeCallable<ResultCb> cb;
         cb = NativeCallable<ResultCb>.isolateLocal((Pointer<DOpaque> result, Pointer<Void> _) {
@@ -505,11 +623,11 @@ class DiscordPresence extends ChangeNotifier {
           if (!ok) {
             lastError = error;
             _sentKey = ''; // try again with the next change
-            notifyListeners();
-          } else if (lastError.isNotEmpty) {
+          } else {
             lastError = '';
-            notifyListeners();
+            accepted = e;
           }
+          notifyListeners();
         });
         ffi.clientUpdatePresence(client, activity, cb.nativeFunction, nullptr, nullptr);
       });
@@ -517,10 +635,18 @@ class DiscordPresence extends ChangeNotifier {
       lastError = '$err';
     } finally {
       try {
+        for (final b in buttons) {
+          ffi.buttonDrop?.call(b);
+        }
+        if (partyInit) ffi.partyDrop?.call(party);
         ffi.timestampsDrop(times);
         ffi.assetsDrop(assets);
         ffi.activityDrop(activity);
       } catch (_) {}
+      for (final b in buttons) {
+        calloc.free(b);
+      }
+      calloc.free(party);
       calloc.free(times);
       calloc.free(assets);
       calloc.free(activity);
@@ -534,6 +660,7 @@ class DiscordPresence extends ChangeNotifier {
       ffi.clientClearPresence(client);
     } catch (_) {}
     _sentKey = 'clear';
+    accepted = null;
   }
 
   /// Clears the status (app closing or going to the background on a phone).
@@ -543,4 +670,48 @@ class DiscordPresence extends ChangeNotifier {
     _sentKey = '';
     _schedule();
   }
+}
+
+/// One status as sent to Discord.
+class DiscordActivity {
+  const DiscordActivity({
+    required this.name,
+    this.details,
+    this.state,
+    required this.large,
+    this.largeText,
+    this.small,
+    this.smallText,
+    required this.type,
+    required this.statusLine,
+    this.start = 0,
+    this.end = 0,
+    this.detailsUrl = '',
+    this.stateUrl = '',
+    this.largeUrl = '',
+    this.smallUrl = '',
+    this.partyCurrent = 0,
+    this.partyMax = 0,
+    this.buttons = const [],
+    this.custom = false,
+  });
+  final String name, large;
+  final String? details, state, largeText, small, smallText;
+  final int type, statusLine, start, end, partyCurrent, partyMax;
+  final String detailsUrl, stateUrl, largeUrl, smallUrl;
+  final List<(String, String)> buttons;
+
+  /// From Custom Status (not the automatic status).
+  final bool custom;
+
+  /// Kept for older callers: whether a timer runs.
+  bool get timer => start > 0;
+
+  /// The status line text Discord shows next to the verb.
+  String get statusText => statusLine == 2 ? (details ?? name) : statusLine == 1 ? (state ?? name) : name;
+
+  String get key => [
+        name, details, state, large, largeText, small, smallText, type, statusLine, start, end,
+        detailsUrl, stateUrl, largeUrl, smallUrl, partyCurrent, partyMax, buttons.map((b) => '${b.$1}>${b.$2}').join(','),
+      ].join('|');
 }

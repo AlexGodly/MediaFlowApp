@@ -14,7 +14,10 @@ import '../data/app_prefs.dart';
 import '../logic/history_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'history_tabs.dart';
+import 'home_shell.dart' show Section;
 import 'presence.dart';
+import 'title_screen.dart' show TitleEditor, TitleScreen;
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -45,31 +48,66 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProviderStateMixin {
   AccountController get account => widget.account;
+  late final TabController _tabs = TabController(length: _tabNames.length, vsync: this)..addListener(_onTab);
+
+  static const _tabNames = ['Logs', 'Consumption history', 'Recently viewed', 'Ratings', 'XP History', 'Library History'];
+
+  /// Each tab's Discord status (Logs keeps the History default).
+  static const _tabPresence = <int, PresenceInfo>{
+    1: PresenceInfo(situation: 'consumption', values: {'action': 'Looking back at consumption history'}),
+    2: PresenceInfo(situation: 'recent', values: {'action': 'Browsing recently viewed titles'}),
+    3: PresenceInfo(situation: 'ratings', values: {'action': 'Looking through ratings'}),
+    4: PresenceInfo(situation: 'history', values: {'action': 'Reading XP History'}),
+    5: PresenceInfo(situation: 'history', values: {'action': 'Reviewing Library History'}),
+  };
+
+  void _onTab() {
+    if (_tabs.indexIsChanging) return;
+    PresenceHub.instance.section(Section.history, _tabPresence[_tabs.index]);
+  }
+
+  @override
+  void dispose() {
+    PresenceHub.instance.section(Section.history, null);
+    _tabs.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('History'),
-          actions: [SyncIndicator(account: account)],
-          bottom: const TabBar(tabs: [Tab(text: 'Logs'), Tab(text: 'XP History'), Tab(text: 'Library History')]),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+        actions: [SyncIndicator(account: account)],
+        bottom: TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: [for (final t in _tabNames) Tab(text: t)],
         ),
-        body: LiveBuilder(
-          listenable: account,
-          builder: (context, _) {
-            final view = account.view;
-            if (view == null) return const SizedBox.shrink();
-            return TabBarView(children: [
-              _LogsTab(account: account, view: view),
-              _XpTab(view: view),
-              _LibraryHistoryTab(account: account, view: view),
-            ]);
-          },
-        ),
+      ),
+      body: LiveBuilder(
+        listenable: account,
+        builder: (context, _) {
+          final view = account.view;
+          if (view == null) return const SizedBox.shrink();
+          return TabBarView(controller: _tabs, children: [
+            _LogsTab(account: account, view: view),
+            ConsumptionHistoryTab(
+              account: account,
+              view: view,
+              onEdit: (log) => editHistoryEntry(context, account, view, log),
+              onDelete: (ids, what) => deleteHistoryEntries(context, account, ids, what),
+              saveExport: saveExportFile,
+            ),
+            RecentlyViewedTab(account: account, view: view),
+            RatingsHistoryTab(account: account, view: view),
+            _XpTab(view: view),
+            _LibraryHistoryTab(account: account, view: view),
+          ]);
+        },
       ),
     );
   }
@@ -77,6 +115,59 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
+
+
+/// Deletes History entries after asking (Logs and Consumption history).
+/// Returns how many were removed, or null when cancelled.
+Future<int?> deleteHistoryEntries(BuildContext context, AccountController account, List<String> ids, String what) async {
+  final n = ids.length;
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      title: Text('Delete $what History ${n == 1 ? 'entry' : 'entries'}?'),
+      content: Text('You are about to permanently remove $n ${n == 1 ? 'History entry' : 'History entries'}. '
+          'MediaFlow will recalculate History-based statistics and scheduling from what remains. The deletion is one undoable change.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        FilledButton(style: FilledButton.styleFrom(backgroundColor: MF.bad), onPressed: () => Navigator.pop(c, true), child: Text('Delete $n')),
+      ],
+    ),
+  );
+  if (ok != true) return null;
+  var removed = 0;
+  await account.edit((s, now) => removed = deleteSessions(s, ids.toSet(), now), label: 'Delete history', annotateStreaks: true);
+  if (context.mounted) _toast(context, '$removed History ${removed == 1 ? 'entry' : 'entries'} deleted · Undo available');
+  return removed;
+}
+
+/// Opens the History entry editor (Logs and Consumption history).
+Future<void> editHistoryEntry(BuildContext context, AccountController account, AccountView view, LogRecord log) async {
+  final result = await showModalBottomSheet<_SessionEdit>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: MF.surface,
+    builder: (c) => PresenceScope(info: const PresenceInfo(situation: 'history'), child: _SessionEditor(view: view, log: log)),
+  );
+  if (result == null || !context.mounted) return;
+  if (result.delete) {
+    await deleteHistoryEntries(context, account, [log.id], 'this');
+    return;
+  }
+  await account.edit(
+    (s, now) => editSession(s, log.id, now,
+        categoryId: result.categoryId,
+        date: result.date,
+        status: result.status,
+        targetAmount: result.target,
+        actualAmount: result.actual,
+        minutes: result.minutes,
+        note: result.note),
+    label: 'Edit history',
+    annotateStreaks: true,
+  );
+  if (context.mounted) _toast(context, 'History entry saved');
+}
 
 // ---- Logs --------------------------------------------------------------------------
 
@@ -133,28 +224,12 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
   }
 
   Future<void> _delete(List<String> ids, String what) async {
-    final n = ids.length;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: Text('Delete $what History ${n == 1 ? 'entry' : 'entries'}?'),
-        content: Text('You are about to permanently remove $n ${n == 1 ? 'History entry' : 'History entries'}. '
-            'MediaFlow will recalculate History-based statistics and scheduling from what remains. The deletion is one undoable change.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: MF.bad), onPressed: () => Navigator.pop(c, true), child: Text('Delete $n')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    var removed = 0;
-    await account.edit((s, now) => removed = deleteSessions(s, ids.toSet(), now),
-        label: 'Delete history', annotateStreaks: true);
+    final removed = await deleteHistoryEntries(context, account, ids, what);
+    if (removed == null || !mounted) return;
     setState(() {
       _selected.removeAll(ids);
       _page = 0;
     });
-    if (mounted) _toast(context, '$removed History ${removed == 1 ? 'entry' : 'entries'} deleted · Undo available');
   }
 
   Future<void> _undoLast() async {
@@ -178,33 +253,7 @@ class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
     await account.edit((s, now) => undoLastEntry(s, now), label: 'Undo last entry', annotateStreaks: true);
   }
 
-  Future<void> _edit(LogRecord log) async {
-    final result = await showModalBottomSheet<_SessionEdit>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: MF.surface,
-      builder: (c) => PresenceScope(info: const PresenceInfo(situation: 'history'), child: _SessionEditor(view: view, log: log)),
-    );
-    if (result == null || !mounted) return;
-    if (result.delete) {
-      await _delete([log.id], 'this');
-      return;
-    }
-    await account.edit(
-      (s, now) => editSession(s, log.id, now,
-          categoryId: result.categoryId,
-          date: result.date,
-          status: result.status,
-          targetAmount: result.target,
-          actualAmount: result.actual,
-          minutes: result.minutes,
-          note: result.note),
-      label: 'Edit history',
-      annotateStreaks: true,
-    );
-    if (mounted) _toast(context, 'History entry saved');
-  }
+  Future<void> _edit(LogRecord log) => editHistoryEntry(context, account, view, log);
 
   Future<void> _pickCategories() async {
     final chosen = {..._cats};
@@ -846,6 +895,103 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
     ]);
   }
 
+  /// A changed title: open it (or offer Restore when it was deleted).
+  void _openChange(Map<String, dynamic> c, Map<String, dynamic> e, Set<String> libraryIds) {
+    final id = jsStr(c['id']);
+    if (libraryIds.contains(id)) {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleScreen(account: widget.account, id: id)));
+    } else if (asList(e['deletedItems']).any((i) => jsStr(asMap(i)?['id']) == id)) {
+      _restore(jsStr(e['id']), itemId: id);
+    } else {
+      _toast(context, 'That title is no longer in your Library.');
+    }
+  }
+
+  /// "More · N titles": every title the change touched, with cover, full
+  /// title, what changed, Edit or Restore, and a search (website v562).
+  Future<void> _showMore(Map<String, dynamic> e, List<Map<String, dynamic>> changes, Set<String> libraryIds) {
+    final query = TextEditingController();
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: MF.surface,
+      builder: (sheet) => PresenceScope(
+        info: const PresenceInfo(situation: 'history', values: {'action': 'Reviewing Library History'}),
+        child: StatefulBuilder(builder: (sheet, set) {
+          final view = widget.account.view ?? widget.view;
+          final byId = {for (final t in view.library) t.id: t};
+          final deleted = {for (final i in asList(e['deletedItems']).map(asMap).whereType<Map<String, dynamic>>()) jsStr(i['id']): i};
+          final q = query.text.trim().toLowerCase();
+          final rows = [for (final c in changes) if (q.isEmpty || cleanTitle(c['title']).toLowerCase().contains(q)) c];
+          return SizedBox(
+            height: MediaQuery.sizeOf(sheet).height * .85,
+            child: Column(children: [
+              ListTile(
+                title: Text(jsStr(e['action']).isEmpty ? 'Changed titles' : jsStr(e['action']), style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text('${changes.length} titles${jsNum(e['timestamp']) > 0 ? ' · ${_when(jsNum(e['timestamp']))}' : ''}'),
+                trailing: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(sheet)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: query,
+                  decoration: const InputDecoration(hintText: 'Search these titles', prefixIcon: Icon(Icons.search_rounded), isDense: true),
+                  onChanged: (_) => set(() {}),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: rows.length,
+                  itemBuilder: (_, i) {
+                    final c = rows[i];
+                    final id = jsStr(c['id']);
+                    final t = byId[id];
+                    final snap = deleted[id];
+                    final cat = view.category(jsStr(t?.raw['categoryId'] ?? snap?['categoryId'] ?? c['categoryId']));
+                    final kind = c['kind'] == 'added' ? 'Added' : c['kind'] == 'deleted' ? 'Deleted' : 'Edited';
+                    final fields = asList(c['fields']).map(jsStr).where((x) => x.isNotEmpty).join(' · ');
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        t != null
+                            ? Cover(title: t, category: cat, width: 44)
+                            : Cover(title: LibraryTitle(snap ?? {'title': c['title'], 'categoryId': cat.id}), category: cat, width: 44),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(cleanTitle(c['title']), style: const TextStyle(fontWeight: FontWeight.w800)),
+                            Text('$kind · ${cat.name}${fields.isEmpty ? '' : ' · $fields'}', style: TextStyle(color: MF.textDim, fontSize: 12)),
+                          ]),
+                        ),
+                        if (t != null)
+                          TextButton(
+                            onPressed: () => Navigator.of(sheet).push(MaterialPageRoute(builder: (_) => TitleEditor(account: widget.account, id: id))),
+                            child: const Text('Edit'),
+                          )
+                        else if (snap != null)
+                          TextButton(
+                            onPressed: () async {
+                              await _restore(jsStr(e['id']), itemId: id);
+                              set(() {});
+                            },
+                            child: const Text('Restore'),
+                          )
+                        else
+                          Padding(padding: const EdgeInsets.only(top: 12), child: Text('Not in Library', style: TextStyle(color: MF.textDim, fontSize: 11))),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+            ]),
+          );
+        }),
+      ),
+    ).whenComplete(query.dispose);
+  }
+
   Widget _entry(Map<String, dynamic> e, Set<String> libraryIds) {
     final changes = asList(e['changes']).map(asMap).whereType<Map<String, dynamic>>().toList();
     final deleted = asList(e['deletedItems']).map(asMap).whereType<Map<String, dynamic>>().toList();
@@ -862,16 +1008,26 @@ class _LibraryHistoryTabState extends State<_LibraryHistoryTab> with AutomaticKe
         ]),
         Text(jsNum(e['timestamp']) > 0 ? _when(jsNum(e['timestamp'])) : '', style: TextStyle(color: MF.textDim, fontSize: 12)),
         if (jsStr(e['detail']).isNotEmpty) Text(jsStr(e['detail']), style: TextStyle(color: MF.textDim, fontSize: 13)),
-        for (final c in changes.take(8))
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${c['kind'] == 'added' ? '＋' : c['kind'] == 'deleted' ? '－' : '✎'} ${cleanTitle(c['title'])}'
-              '${asList(c['fields']).isEmpty ? '' : ' · ${asList(c['fields']).map(jsStr).join(' · ')}'}',
-              style: const TextStyle(fontSize: 12.5),
-            ),
-          ),
-        if (changes.length > 8) Text('+${changes.length - 8} more', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        if (changes.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final c in changes.take(3))
+              ActionChip(
+                avatar: Text(c['kind'] == 'added' ? '＋' : c['kind'] == 'deleted' ? '－' : '✎'),
+                label: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 220),
+                  child: Text(cleanTitle(c['title']), overflow: TextOverflow.ellipsis),
+                ),
+                onPressed: () => _openChange(c, e, libraryIds),
+              ),
+            if (changes.length > 1)
+              ActionChip(
+                avatar: const Icon(Icons.unfold_more_rounded, size: 16),
+                label: Text('More · ${changes.length} titles'),
+                onPressed: () => _showMore(e, changes, libraryIds),
+              ),
+          ]),
+        ],
         if (restorable.isNotEmpty) ...[
           const SizedBox(height: 6),
           Wrap(spacing: 6, runSpacing: 4, children: [

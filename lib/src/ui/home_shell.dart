@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/account_controller.dart';
 import '../platform/app_shortcuts.dart';
 import 'account_screen.dart';
+import 'app_nav.dart';
 import 'collections_screen.dart';
 import 'extras_screen.dart';
 import 'floating_dock.dart';
@@ -10,8 +11,9 @@ import 'history_screen.dart';
 import 'library_screen.dart';
 import 'log_screen.dart';
 import 'order_screen.dart';
+import 'old_system_screen.dart';
 import 'presence.dart';
-import 'recovery_screen.dart' show openRecovery;
+import 'recovery_screen.dart' show RecoveryScreen, openRecovery;
 import 'settings_screen.dart';
 import 'stats_screen.dart';
 import 'theme.dart';
@@ -19,8 +21,9 @@ import 'theme_controller.dart' show CoverBackdrop;
 import 'title_screen.dart' show TitleEditor;
 import 'widgets.dart';
 
-/// The app's sections. Phones show Log · Library · History · Extras · More;
-/// wide screens list every section in a side rail.
+/// The app's sections. Phones show the dock pages + More, wide screens list
+/// every section in a side rail; both are arranged in Settings → Navigation
+/// (app_nav.dart). The lists below are the defaults.
 enum Section {
   log(Icons.edit_note_outlined, Icons.edit_note_rounded, 'Log'),
   library(Icons.video_library_outlined, Icons.video_library, 'Library'),
@@ -28,6 +31,10 @@ enum Section {
   extras(Icons.timer_outlined, Icons.timer_rounded, 'Extras'),
   collections(Icons.collections_bookmark_outlined, Icons.collections_bookmark_rounded, 'Collections'),
   order(Icons.format_list_numbered_rounded, Icons.format_list_numbered_rounded, 'Personal Order'),
+  oldSystem(Icons.swap_horiz_rounded, Icons.swap_horiz_rounded, 'Old System'),
+  recovery(Icons.healing_outlined, Icons.healing_rounded, 'Recovery Workspace'),
+  rate(Icons.star_outline_rounded, Icons.star_rounded, 'Rate Your Library'),
+  covers(Icons.image_not_supported_outlined, Icons.image_not_supported_rounded, 'Missing Covers'),
   stats(Icons.insights_outlined, Icons.insights_rounded, 'Statistics'),
   settings(Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
   account(Icons.person_outline_rounded, Icons.person_rounded, 'Account');
@@ -38,7 +45,17 @@ enum Section {
   final String label;
 
   static const phoneTabs = [Section.log, Section.library, Section.history, Section.extras];
-  static const more = [Section.collections, Section.order, Section.stats, Section.settings, Section.account];
+  static const more = [
+    Section.collections,
+    Section.order,
+    Section.oldSystem,
+    Section.recovery,
+    Section.rate,
+    Section.covers,
+    Section.stats,
+    Section.settings,
+    Section.account,
+  ];
 }
 
 Widget sectionPage(Section s, AccountController account) => switch (s) {
@@ -48,6 +65,10 @@ Widget sectionPage(Section s, AccountController account) => switch (s) {
       Section.extras => ExtrasScreen(account: account),
       Section.collections => CollectionsScreen(account: account),
       Section.order => OrderScreen(account: account),
+      Section.oldSystem => OldSystemScreen(account: account),
+      Section.recovery => RecoveryScreen(account: account),
+      Section.rate => RateLibraryScreen(account: account),
+      Section.covers => MissingCoversScreen(account: account),
       Section.stats => StatsScreen(account: account),
       Section.settings => SettingsScreen(account: account),
       Section.account => AccountScreen(account: account),
@@ -76,6 +97,8 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     AppShortcuts.instance.request.removeListener(_onShortcut);
+    if (RecoveryScreen.goToPage == _goRecovery) RecoveryScreen.goToPage = null;
+    LibraryScreen.showCategory.removeListener(_goLibrary);
     super.dispose();
   }
 
@@ -83,6 +106,14 @@ class _HomeShellState extends State<HomeShell> {
   void didUpdateWidget(HomeShell old) {
     super.didUpdateWidget(old);
     if (!identical(old.account, widget.account)) _pages.clear();
+  }
+
+  void _goLibrary() {
+    if (mounted && LibraryScreen.showCategory.value != null) _go(Section.library);
+  }
+
+  void _goRecovery() {
+    if (mounted) _go(Section.recovery);
   }
 
   void _go(Section s) => setState(() {
@@ -95,6 +126,8 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     AppShortcuts.instance.request.addListener(_onShortcut);
+    RecoveryScreen.goToPage = _goRecovery;
+    LibraryScreen.showCategory.addListener(_goLibrary);
     WidgetsBinding.instance.addPostFrameCallback((_) => _onShortcut());
   }
 
@@ -123,6 +156,8 @@ class _HomeShellState extends State<HomeShell> {
       builder: (context, _) {
         final account = widget.account;
         final wide = MediaQuery.sizeOf(context).width >= 900;
+        final nav = AppNav.of(account.view?.state['settings'] as Map<String, dynamic>?);
+        final dock = nav.dock;
         final showMore = !wide && _moreOpen;
         // Discord Rich Presence follows the section on screen.
         PresenceHub.instance.setSection(_section, account.view);
@@ -135,7 +170,7 @@ class _HomeShellState extends State<HomeShell> {
                 children: [
                   for (final s in visible)
                     _visited.contains(s) ? _PageGate(active: !showMore && s == _section, child: _page(s)) : const SizedBox.shrink(),
-                  MoreScreen(onOpen: _go),
+                  MoreScreen(onOpen: _go, sections: nav.more),
                 ],
               );
         // The website's floating + (v397 dock) on every main screen.
@@ -166,6 +201,7 @@ class _HomeShellState extends State<HomeShell> {
                 BackgroundProcesses(
                   account: account,
                   onOpen: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0),
+                  onSettings: () => openRecovery(context, account, tab: 2),
                 ),
               ])
             : body;
@@ -179,8 +215,8 @@ class _HomeShellState extends State<HomeShell> {
                   constraints: BoxConstraints(minHeight: MediaQuery.sizeOf(context).height),
                   child: IntrinsicHeight(
                     child: NavigationRail(
-                      selectedIndex: Section.values.indexOf(_section),
-                      onDestinationSelected: (i) => _go(Section.values[i]),
+                      selectedIndex: nav.desktop.indexOf(_section),
+                      onDestinationSelected: (i) => _go(nav.desktop[i]),
                       labelType: NavigationRailLabelType.all,
                       leading: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -190,7 +226,7 @@ class _HomeShellState extends State<HomeShell> {
                         ),
                       ),
                       destinations: [
-                        for (final d in Section.values)
+                        for (final d in nav.desktop)
                           NavigationRailDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: Text(d.label)),
                       ],
                     ),
@@ -203,12 +239,12 @@ class _HomeShellState extends State<HomeShell> {
             ),
           );
         }
-        final tabIndex = showMore || !Section.phoneTabs.contains(_section) ? 4 : Section.phoneTabs.indexOf(_section);
+        final tabIndex = showMore || !dock.contains(_section) ? dock.length : dock.indexOf(_section);
         return PopScope(
-          canPop: !showMore && Section.phoneTabs.contains(_section),
+          canPop: !showMore && dock.contains(_section),
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            setState(() => _moreOpen = !_moreOpen && !Section.phoneTabs.contains(_section));
+            setState(() => _moreOpen = !_moreOpen && !dock.contains(_section));
           },
           child: Scaffold(
             floatingActionButton: fab,
@@ -216,14 +252,14 @@ class _HomeShellState extends State<HomeShell> {
             bottomNavigationBar: NavigationBar(
               selectedIndex: tabIndex,
               onDestinationSelected: (i) {
-                if (i == 4) {
+                if (i == dock.length) {
                   setState(() => _moreOpen = true);
                 } else {
-                  _go(Section.phoneTabs[i]);
+                  _go(dock[i]);
                 }
               },
               destinations: [
-                for (final d in Section.phoneTabs)
+                for (final d in dock)
                   NavigationDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: d.label),
                 const NavigationDestination(icon: Icon(Icons.menu_rounded), selectedIcon: Icon(Icons.menu_open_rounded), label: 'More'),
               ],
@@ -267,8 +303,9 @@ class _PageGateState extends State<_PageGate> {
 
 /// The "More" tab on phones.
 class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key, required this.onOpen});
+  const MoreScreen({super.key, required this.onOpen, this.sections = Section.more});
   final ValueChanged<Section> onOpen;
+  final List<Section> sections;
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +314,7 @@ class MoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
-          for (final s in Section.more)
+          for (final s in sections)
             ListTile(
               leading: Icon(s.icon, color: MF.accent),
               title: Text(s.label, style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -296,6 +333,7 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (account.missingAccountData) return _NewAccount(account: account);
     if (account.status == SyncState.error || account.status == SyncState.offline) {
       return SafeArea(
         child: Column(children: [
@@ -316,6 +354,67 @@ class _Loading extends StatelessWidget {
         SizedBox(height: 16),
         Text('Loading your MediaFlow…', style: TextStyle(color: MF.textDim)),
       ]),
+    );
+  }
+}
+
+/// A new account (signed up, never opened): create its MediaFlow data the way
+/// the website does on its first visit.
+class _NewAccount extends StatefulWidget {
+  const _NewAccount({required this.account});
+  final AccountController account;
+
+  @override
+  State<_NewAccount> createState() => _NewAccountState();
+}
+
+class _NewAccountState extends State<_NewAccount> {
+  bool _busy = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Icon(Icons.auto_awesome_rounded, size: 48, color: MF.accent),
+              const SizedBox(height: 12),
+              const Text('Welcome to MediaFlow', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text('Your account is ready. Set up your MediaFlow with the default categories and settings; '
+                  'you can change everything later, here or on the website.',
+                  textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        setState(() {
+                          _busy = true;
+                          _error = null;
+                        });
+                        final e = await widget.account.createAccountData();
+                        if (mounted) {
+                          setState(() {
+                            _busy = false;
+                            _error = e;
+                          });
+                        }
+                      },
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                child: _busy
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+                    : const Text('Set up my MediaFlow', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+              if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: MF.bad))),
+            ]),
+          ),
+        ),
+      ),
     );
   }
 }

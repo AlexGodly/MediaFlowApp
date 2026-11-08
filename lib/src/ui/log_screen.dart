@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../data/account_ops.dart';
+import '../data/app_prefs.dart';
 import '../logic/log_arrange.dart';
 import '../logic/log_draft.dart';
 import '../logic/rec_submit.dart';
@@ -505,6 +506,56 @@ class _LogScreenState extends State<LogScreen> {
     ]);
   }
 
+  /// While logging: why this was recommended (or rerolled), the no-skip and
+  /// first-pick streaks, and whether this log still follows the task, live.
+  List<Widget> _whyAndStreaks(AccountView view, LogDraftEditor ed, Map<String, dynamic> task) {
+    final reasons = asList(task['reasons']).map(jsStr).where((x) => x.isNotEmpty).toList();
+    final respect = normalizeRespectState(view.state['respectState']);
+    final byId = memoFor(view, 'libraryById', () => {for (final t in view.library) t.id: t.raw});
+    final p = respectPreview(view.state, task, ed.entries.map((e) => e).toList(), (id) => byId[jsStr(id)], itemized: ed.itemized);
+    final open = AppPrefs.instance.get<bool>('logReasonsOpen', MediaQuery.sizeOf(context).width > 520);
+    return [
+      if (reasons.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => setState(() => AppPrefs.instance.set('logReasonsOpen', !open)),
+          child: Row(children: [
+            Icon(Icons.lightbulb_outline_rounded, size: 16, color: MF.accent),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(open ? 'Why this' : 'Why this · ${reasons.first}',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+            ),
+            Icon(open ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: MF.textDim),
+          ]),
+        ),
+        if (open)
+          for (final r in reasons)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 4),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(padding: const EdgeInsets.only(top: 6), child: Icon(Icons.circle, size: 6, color: MF.accent)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(r, style: TextStyle(color: MF.textDim, fontSize: 13))),
+              ]),
+            ),
+      ],
+      const SizedBox(height: 10),
+      _streaks(respect),
+      const SizedBox(height: 6),
+      if (p.following && p.bonus > 0)
+        Text(
+          '✓ Following it · +${fmtNumber(p.bonus)} XP System Respect'
+          '${p.withTitle > p.bonus ? ' (add the recommended title for +${fmtNumber(p.withTitle)})' : ''}',
+          style: const TextStyle(color: MF.good, fontSize: 12, fontWeight: FontWeight.w700),
+        )
+      else if (p.withTitle > 0)
+        Text('Log ${view.category(jsStr(task['categoryId'])).name} to keep the +${fmtNumber(p.withTitle)} XP System Respect bonus and your streaks',
+            style: TextStyle(color: MF.warn, fontSize: 12, fontWeight: FontWeight.w700)),
+    ];
+  }
+
   Widget _streaks(Map<String, dynamic> respect) {
     Widget chip(IconData icon, String label) => Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -757,6 +808,7 @@ class _LogScreenState extends State<LogScreen> {
         const SizedBox(height: 8),
         _rerollRow(titleRerollCount(task)),
       ],
+      ..._whyAndStreaks(view, ed, task),
       if (title != null) ...[
         const SizedBox(height: 10),
         Align(
@@ -1370,16 +1422,16 @@ class _LogScreenState extends State<LogScreen> {
       final item = itemOf(entry?['libraryId'] ?? t['libraryId']);
       final cat = view.category(jsStr(item?['categoryId'] ?? entry?['categoryId'] ?? t['categoryId']));
       final data = item ?? <String, dynamic>{'title': entry?['title'] ?? t['title'], 'categoryId': cat.id};
-      double? progress;
+      double? progress, before;
       String? season;
       if (ed != null && entry != null && item != null) {
+        before = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
         if (ed.itemized) {
           progress = ed.projectedProgress(item, entry);
         } else if (entry['v179EndProgress'] != null) {
           progress = jsNum(entry['v179EndProgress']);
         } else {
-          final start = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
-          progress = start + jsNum(entry['qty']);
+          progress = before + jsNum(entry['qty']);
         }
         season = jsStr(ed.selectedSeason(entry, item)?['name']);
       }
@@ -1390,6 +1442,7 @@ class _LogScreenState extends State<LogScreen> {
         allMode ? {...data, 'title': '${cleanTitle(data['title'])} + $others more'} : data,
         cat,
         progress: progress,
+        before: before,
         season: season,
         more: others > 0 && !allMode ? '+$others more' : '',
         count: entries.length,
@@ -1484,12 +1537,53 @@ class _LogScreenState extends State<LogScreen> {
               ),
             ]),
           ),
+          _beforeAfter(ed, e, item, cat),
         ],
       ]),
     );
   }
 
   String _progressLabel(Category cat) => '${_cap(_word(cat.unit, 1))} reached';
+
+  /// "Episode 12 → 15 / 28" for an entry: where the title stands before this
+  /// log and where it will be after it (website v179 start / end progress,
+  /// v369 projection for itemized logs), live as the draft changes.
+  Widget _beforeAfter(LogDraftEditor ed, Map<String, dynamic> e, Map<String, dynamic>? item, Category cat) {
+    if (item == null) return const SizedBox.shrink();
+    final repeat = e['isRepeat'] == true;
+    final before = repeat ? 0.0 : (jsNumOrNull(e['v179StartProgress']) ?? LogDraftEditor.startProgress(item));
+    final double after;
+    if (ed.itemized) {
+      after = ed.projectedProgress(item, e);
+    } else if (ed.mode == 'progress' && e['v179EndProgress'] != null) {
+      after = jsNum(e['v179EndProgress']);
+    } else {
+      after = before + jsNum(e['qty']);
+    }
+    final total = jsNum(item['total']);
+    final season = jsStr(ed.selectedSeason(e, item)?['name']);
+    final done = total > 0 && after >= total;
+    final noun = _cap(_word(cat.unit, 1));
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, right: 8),
+      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 4, children: [
+        Icon(Icons.trending_flat_rounded, size: 16, color: MF.textDim),
+        Text.rich(TextSpan(children: [
+          if (season.isNotEmpty) TextSpan(text: '$season · ', style: TextStyle(color: MF.textDim)),
+          TextSpan(text: '$noun ${_num(before)}', style: TextStyle(color: MF.textDim)),
+          const TextSpan(text: '  →  '),
+          TextSpan(text: done ? 'Completed' : _num(after), style: TextStyle(fontWeight: FontWeight.w900, color: done ? MF.good : MF.text)),
+          if (total > 0 && !done) TextSpan(text: ' / ${_num(total)}', style: TextStyle(color: MF.textDim)),
+        ]), style: const TextStyle(fontSize: 13)),
+        if (repeat)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(8)),
+            child: Text('Starts at 0 (rewatch / reread)', style: TextStyle(fontSize: 11, color: MF.accent, fontWeight: FontWeight.w700)),
+          ),
+      ]),
+    );
+  }
 
   // ---- Advanced entries ------------------------------------------------------------------
 
@@ -1548,6 +1642,7 @@ class _LogScreenState extends State<LogScreen> {
                     ),
                 ]),
               ),
+              _beforeAfter(ed, e, item, cat),
               if (seasons.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(

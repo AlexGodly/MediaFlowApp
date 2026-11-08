@@ -341,11 +341,12 @@ class _LogFormState extends State<LogForm> {
               }),
               decoration: InputDecoration(
                 labelText: _reachedMode ? '${_cap(unitLabel(unit, 1))} reached' : 'How many ${unitLabel(unit, 2)}',
+                // Before → after, like the log form ("Episode 12 → 15 / 28 · +3 episodes").
                 helperText: p == null
                     ? null
-                    : _reachedMode
-                        ? 'From ${fmtNumber(p.start)} → +${fmtNumber(p.qty)} ${unitLabel(unit, p.qty)}'
-                        : '${fmtNumber(p.start)} → ${fmtNumber(p.end)}',
+                    : '${_cap(unitLabel(unit, 1))} ${fmtNumber(p.start)} → '
+                        '${(title.total ?? 0) > 0 && p.end >= title.total! ? 'Completed' : '${fmtNumber(p.end)}${(title.total ?? 0) > 0 ? ' / ${fmtNumber(title.total!)}' : ''}'}'
+                        ' · +${fmtNumber(p.qty)} ${unitLabel(unit, p.qty)}',
               ),
             ),
           ),

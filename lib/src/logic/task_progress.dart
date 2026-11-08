@@ -14,8 +14,12 @@ class TaskProgress {
     required this.denominator,
     required this.status,
     required this.pct,
+    this.unit = '',
   });
   final String categoryName;
+
+  /// The task's unit (episodes, chapters, …) for "3 / 5 episodes".
+  final String unit;
   final double amount;
   final int low, high;
   final double denominator;
@@ -92,5 +96,6 @@ TaskProgress? taskProgress({
     denominator: denominator,
     status: status,
     pct: math.max(0, math.min(100, amount / high * 100)).toDouble(),
+    unit: unit,
   );
 }

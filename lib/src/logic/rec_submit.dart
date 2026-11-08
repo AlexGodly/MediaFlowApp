@@ -975,3 +975,56 @@ double _ledgerTotals(Map<String, dynamic> state) {
   }
   return total;
 }
+
+/// What System Respect would give if the log in [entries] were saved now
+/// (the same rules as `_applyRespectReward`, without changing anything):
+/// whether the log follows the task (its category, with an amount), how many
+/// recommended titles it includes, the bonus now, and the bonus with the
+/// recommended title included.
+({bool following, int matched, double bonus, double withTitle}) respectPreview(
+  Map<String, dynamic> state,
+  Map<String, dynamic> task,
+  List<Map<String, dynamic>> entries,
+  Map<String, dynamic>? Function(Object? libraryId) item, {
+  required bool itemized,
+  int? now,
+}) {
+  final r = Recommender(state, now: now ?? DateTime.now().millisecondsSinceEpoch);
+  final cfg = normalizeRespectConfig(asMap(state['settings'])?['systemRespectXP']);
+  final st = normalizeRespectState(state['respectState']);
+  double qty(Map<String, dynamic> e) => itemized ? (e['v369Units'] is List ? (e['v369Units'] as List).length.toDouble() : 0) : jsNum(e['qty']);
+  final catId = jsStr(task['categoryId']);
+  final logged = entries.where((e) => qty(e) > 0).toList();
+  final following = logged.any((e) {
+    final it = item(e['libraryId']);
+    return (it != null ? jsStr(it['categoryId']) : jsStr(e['categoryId'])) == catId;
+  });
+  final noSkip = jsNum(st['noSkipStreak']).toInt() + 1;
+  final noReroll = jsNum(st['currentRerolls']) > 0 ? 0 : jsNum(st['noRerollStreak']).toInt() + 1;
+  var matched = 0, eligibleCount = 0;
+  if (r.exactTitles) {
+    final copy = jsonClone(task) as Map<String, dynamic>;
+    final history = r.ensureHistory(copy);
+    final eligible = history.take(respectSlotLimit(r, copy)).toList();
+    eligibleCount = eligible.length;
+    final ids = {for (final e in logged) jsStr(e['libraryId'])}..remove('');
+    final titles = {for (final e in logged) _normTitle(e['title'])}..remove('');
+    for (final rec in eligible) {
+      final id = jsStr(rec['libraryId']), t = _normTitle(rec['title']);
+      if ((id.isNotEmpty && ids.contains(id)) || (t.isNotEmpty && titles.contains(t))) matched++;
+    }
+  }
+  final enabled = Leveling(state).enabled;
+  final mult = respectMultipliers(cfg, noSkip, noReroll);
+  double total(int titles) {
+    final base = math.max(0.0, jsRound(jsNum(cfg['categoryBaseXP']))) + (r.exactTitles ? math.max(0.0, jsRound(jsNum(cfg['exactTitleBaseXP']))) * titles : 0);
+    return enabled ? math.max(0.0, jsRound(base * mult.noSkip * mult.noReroll)) : 0;
+  }
+
+  return (
+    following: following,
+    matched: matched,
+    bonus: following ? total(matched) : 0,
+    withTitle: total(eligibleCount > 0 ? math.max(matched, 1) : 0),
+  );
+}

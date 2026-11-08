@@ -18,6 +18,14 @@ LOGO = ROOT / "assets/branding/mediaflow-launcher-512.png"
 NAME = "MediaFlow"
 
 
+def app_label():
+    """The full version label (MAJOR.FEATURE.FIX.WEBSITE) from lib/src/config.dart."""
+    m = re.search(r"kAppVersionLabel = '([0-9.]+)'", (ROOT / "lib/src/config.dart").read_text(encoding="utf-8"))
+    if not m:
+        sys.exit("kAppVersionLabel not found in lib/src/config.dart")
+    return m.group(1)
+
+
 def edit(path, fn, required=True):
     p = ROOT / path
     if not p.exists():
@@ -111,11 +119,23 @@ def android_desugaring(text):
     return text
 
 
+def android_version_name(text):
+    """App info shows the full label (5.0.0.562), not pubspec's three numbers.
+    The build number (versionCode) still comes from pubspec."""
+    label = app_label()
+    text, n = re.subn(r"versionName\s*=\s*flutter\.versionName", f'versionName = "{label}"', text)
+    if n == 0 and f'versionName = "{label}"' not in text:
+        text, n = re.subn(r'versionName\s*=\s*"[0-9.]+"', f'versionName = "{label}"', text)
+        if n == 0:
+            sys.exit("android/app/build.gradle.kts has no versionName")
+    return text
+
+
 def android_gradle(text):
     """Release builds use the permanent MediaFlow key when CI provides
     android/key.properties (from the repository secrets); otherwise Flutter's
     debug key, as before. A stable key lets each release install over the last."""
-    text = android_desugaring(text)
+    text = android_version_name(android_desugaring(text))
     if "mediaflowRelease" in text:
         return text
     m = re.search(r"^plugins\s*\{.*?^\}\s*$", text, re.S | re.M)
@@ -414,6 +434,13 @@ def windows_main(text):
 
 
 def windows_rc(text):
+    # Properties → Details and Settings → Apps show the full label; the file
+    # version is the same four numbers (5,0,0,562).
+    label = app_label()
+    parts = (label.split(".") + ["0", "0", "0", "0"])[:4]
+    numbers = ",".join(str(int(p)) for p in parts)
+    text = re.sub(r'(VALUE "(?:ProductVersion|FileVersion)", )[^\n]*', rf'\g<1>"{label}"', text)
+    text = re.sub(r"^(\s*(?:FILEVERSION|PRODUCTVERSION)\s+).*$", rf"\g<1>{numbers}", text, flags=re.M)
     for field in ("FileDescription", "InternalName", "ProductName"):
         text = re.sub(rf'(VALUE "{field}", )"[^"]*"', rf'\1"{NAME}"', text)
     text = re.sub(r'(VALUE "OriginalFilename", )"[^"]*"', rf'\1"{NAME}.exe"', text)
@@ -422,22 +449,44 @@ def windows_rc(text):
 
 
 def icons():
+    """The rounded logo with transparent corners everywhere it can be (Android,
+    Windows); iOS needs an opaque square (iOS rounds it itself)."""
     logo = Image.open(LOGO).convert("RGBA")
-    # Android launcher icons
+    square = Image.open(ROOT / "assets/branding/mediaflow-logo-square-512.png").convert("RGB")
+    foreground = Image.open(ROOT / "assets/branding/mediaflow-adaptive-foreground-432.png").convert("RGBA")
+    # Android: legacy launcher PNGs (transparent corners) …
     for density, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
         out = ROOT / f"android/app/src/main/res/mipmap-{density}/ic_launcher.png"
         if out.parent.exists():
             logo.resize((size, size), Image.Resampling.LANCZOS).save(out)
-    # iOS: replace every template icon with the logo at the same pixel size (opaque).
+            # … and the adaptive icon's artwork layer (108 dp canvas).
+            fg = ROOT / f"android/app/src/main/res/mipmap-{density}/ic_launcher_foreground.png"
+            fg_size = round(size * 108 / 48)
+            foreground.resize((fg_size, fg_size), Image.Resampling.LANCZOS).save(fg)
+    res = ROOT / "android/app/src/main/res"
+    if res.exists():
+        # Adaptive icon (Android 8+): launchers shape it themselves, no black ring.
+        (res / "mipmap-anydpi-v26").mkdir(parents=True, exist_ok=True)
+        (res / "mipmap-anydpi-v26/ic_launcher.xml").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+            '    <background android:drawable="@color/ic_launcher_background" />\n'
+            '    <foreground android:drawable="@mipmap/ic_launcher_foreground" />\n'
+            '</adaptive-icon>\n', encoding="utf-8")
+        (res / "values").mkdir(parents=True, exist_ok=True)
+        (res / "values/ic_launcher_background.xml").write_text(
+            '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+            '    <color name="ic_launcher_background">#12172A</color>\n</resources>\n', encoding="utf-8")
+    # iOS: replace every template icon with the opaque square at the same size.
     appicon = ROOT / "ios/Runner/Assets.xcassets/AppIcon.appiconset"
     if appicon.exists():
         for png in appicon.glob("*.png"):
             w, h = Image.open(png).size
-            logo.resize((w, h), Image.Resampling.LANCZOS).convert("RGB").save(png)
-    # Windows
+            square.resize((w, h), Image.Resampling.LANCZOS).save(png)
+    # Windows: app icon with transparent corners.
     ico = ROOT / "windows/runner/resources/app_icon.ico"
     if ico.parent.exists():
-        logo.save(ico, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+        logo.save(ico, sizes=[(16, 16), (20, 20), (24, 24), (32, 32), (40, 40), (48, 48), (64, 64), (128, 128), (256, 256)])
 
 
 def main():

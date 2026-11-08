@@ -37,6 +37,9 @@ class RecoveryJob {
   bool paused = false, pausedBySystem = false;
   final List<String> errors = [];
   final List<CoverReview> coverReviews = [];
+
+  /// Titles nothing was found for (for "Search manually").
+  final List<String> noMatchIds = [];
   final List<MetadataPreview> metadataReviews = [];
 
   int get total => ids.length;
@@ -50,6 +53,7 @@ class RecoveryJob {
         'done': done,
         'applied': applied,
         'noMatch': noMatch,
+        'noMatchIds': noMatchIds,
         'fieldsFilled': fieldsFilled,
         'xp': xp,
         'paused': paused && !pausedBySystem,
@@ -63,6 +67,7 @@ class RecoveryJob {
       ..done = jsNum(m['done']).toInt().clamp(0, ids.length).toInt()
       ..applied = jsNum(m['applied']).toInt()
       ..noMatch = jsNum(m['noMatch']).toInt()
+      ..noMatchIds.addAll(asList(m['noMatchIds']).map(jsStr))
       ..fieldsFilled = jsNum(m['fieldsFilled']).toInt()
       ..xp = jsNum(m['xp']).toInt()
       ..paused = m['paused'] == true;
@@ -106,14 +111,17 @@ class RecoveryRunner extends ChangeNotifier {
         notifyListeners();
         final candidates = await coverCandidates(account, item);
         if (stop.stopped) break;
-        final confident = candidates.where((c) => c.confidence >= 0.94).toList();
-        if (confident.length == 1 || (confident.isNotEmpty && confident.every((c) => c.url == confident.first.url))) {
-          final ok = await _applyCover(account, id, confident.first, jsNum(item['modifiedAt']).toInt(), job);
+        // mf424Process: only a verified saved ID plus a matching title is
+        // saved by itself; everything else waits for the owner's choice.
+        final best = candidates.firstOrNull;
+        if (best != null && best.idMatch && best.confidence >= 0.95) {
+          final ok = await _applyCover(account, id, best, jsNum(item['modifiedAt']).toInt(), job);
           if (!ok) job.coverReviews.add(CoverReview(id, job.current, jsNum(item['modifiedAt']).toInt(), candidates));
         } else if (candidates.isNotEmpty) {
-          job.coverReviews.add(CoverReview(id, job.current, jsNum(item['modifiedAt']).toInt(), candidates.take(8).toList()));
+          job.coverReviews.add(CoverReview(id, job.current, jsNum(item['modifiedAt']).toInt(), candidates));
         } else {
           job.noMatch++;
+          job.noMatchIds.add(id);
         }
         job.done++;
         notifyListeners();
@@ -175,44 +183,65 @@ class RecoveryRunner extends ChangeNotifier {
 
   bool _combinedStopped = false;
 
-  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item) async {
+  /// `mf424Candidates`: saved External IDs get the first chance, then a name
+  /// search; every name a record carries is compared with the title
+  /// (`mf424Match`). Up to 24 covers of 65% confidence or more, best first.
+  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item, {String? query, bool manual = false}) async {
     final cat = account.view!.category(jsStr(item['categoryId']));
+    final unit = jsStr(cat.raw['unit']).isEmpty ? cat.unit : jsStr(cat.raw['unit']);
+    final ids = asMap(item['externalIds']);
     final found = <String, CoverCandidate>{};
-    final names = titleVariants(item).take(3).toList();
+    void take(MetadataResult r) {
+      final url = r.coverUrl.trim();
+      if (!url.startsWith('https://') || found.containsKey(url) || found.length >= 24) return;
+      final isbn = r.idMatch && r.externalIdKey == 'isbn';
+      final m = isbn ? (confidence: 1.0, reason: 'Exact ISBN edition') : coverMatch(item, r.matchRecord, r.idMatch);
+      if (!manual && m.confidence < 0.65) return;
+      final provider = coverProviderId(r.source);
+      var recordId = (r.externalId ?? '').trim();
+      if (provider == 'openlibrary') recordId = recordId.replaceFirst(RegExp(r'^/works/'), '');
+      found[url] = CoverCandidate(
+        url: url,
+        provider: provider,
+        title: r.title.isEmpty ? cleanTitle(item['title']) : r.title,
+        altTitles: r.altTitles,
+        year: r.recordYear ?? r.year,
+        format: r.subtitle,
+        confidence: m.confidence,
+        reason: m.reason,
+        recordId: isbn ? '' : recordId,
+        externalIdKey: isbn ? '' : (r.externalIdKey.isNotEmpty ? r.externalIdKey : coverExternalIdKey(provider)),
+        reportedIds: r.linkedIds,
+        idMatch: r.idMatch,
+      );
+    }
+
+    if (query == null) {
+      try {
+        for (final r in await lookupByIds(ids, unit: unit)) {
+          take(r);
+        }
+      } catch (_) {}
+    }
+    final names = query != null ? [query] : titleVariants(item).take(3).toList();
     for (final name in names) {
       List<MetadataResult> results;
       try {
         results = await searchMetadata(
           name,
-          unit: jsStr(cat.raw['unit']).isEmpty ? cat.unit : jsStr(cat.raw['unit']),
+          unit: unit,
           type: jsStr(cat.raw['type']),
-          kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: asMap(item['externalIds'])),
-          externalIds: asMap(item['externalIds']),
+          kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: ids),
+          externalIds: ids,
         );
       } catch (_) {
         continue;
       }
       for (final r in results) {
-        final url = r.coverUrl.trim();
-        if (!url.startsWith('https://') || found.containsKey(url)) continue;
-        final ev = coverEvidence(item, r.title, r.year);
-        if (ev.confidence < 0.65) continue;
-        final provider = coverProviderId(r.source);
-        var recordId = (r.externalId ?? '').trim();
-        if (provider == 'openlibrary') recordId = recordId.replaceFirst(RegExp(r'^/works/'), '');
-        found[url] = CoverCandidate(
-          url: url,
-          provider: provider,
-          title: r.title,
-          year: r.year,
-          confidence: ev.confidence,
-          reason: ev.reason,
-          recordId: recordId,
-          externalIdKey: r.externalIdKey.isNotEmpty ? r.externalIdKey : coverExternalIdKey(provider),
-          reportedIds: r.linkedIds,
-        );
+        take(r);
       }
-      if (found.values.any((c) => c.confidence >= 0.94)) break;
+      // The title's own name found something: the other names are only a fallback.
+      if (found.isNotEmpty) break;
     }
     final list = found.values.toList();
     mergeSortBy(list, (a, b) => a.confidence == b.confidence ? 0 : (b.confidence > a.confidence ? 1 : -1));
@@ -238,6 +267,38 @@ class RecoveryRunner extends ChangeNotifier {
   Future<bool> chooseCover(AccountController account, CoverReview review, CoverCandidate c, {bool linkIds = true}) async {
     final ok = await _applyCover(account, review.id, c, review.expectedModifiedAt, cover, manual: true, linkIds: linkIds);
     cover?.coverReviews.remove(review); // also when the title changed meanwhile
+    notifyListeners();
+    return ok;
+  }
+
+  /// Details from a record the person picked with "Search manually": the
+  /// empty, unlocked fields it can fill wait as a review (nothing is saved yet).
+  MetadataPreview? pickMetadataRecord(AccountController account, String id, Map<String, dynamic> row) {
+    final item = _item(account, id);
+    if (item == null) return null;
+    final settings = asMap(account.view?.state['settings']);
+    final minConf = jsNum(metadataPreferences(settings)['minimumConfidence']);
+    final preview = metadataProposals(jsonClone(item) as Map<String, dynamic>, [row], minimumConfidence: minConf, picked: true);
+    for (final p in preview.proposals) {
+      p.selected = !p.hasOriginal && !p.isProtected && !p.same;
+    }
+    final job = metadata ??= (RecoveryJob('metadata', const [], 'Details')
+      ..running = false
+      ..done = 0);
+    job.metadataReviews.removeWhere((r) => r.titleId == id);
+    job.metadataReviews.insert(0, preview);
+    job.noMatchIds.remove(id);
+    notifyListeners();
+    return preview;
+  }
+
+  /// A cover picked through "Search manually" for a title nothing was found for.
+  Future<bool> chooseManualCover(AccountController account, String id, CoverCandidate c) async {
+    final item = _item(account, id);
+    if (item == null) return false;
+    final ok = await _applyCover(account, id, c, jsNum(item['modifiedAt']).toInt(), cover, manual: true);
+    cover?.noMatchIds.remove(id);
+    cover?.coverReviews.removeWhere((r) => r.id == id);
     notifyListeners();
     return ok;
   }
@@ -329,6 +390,7 @@ class RecoveryRunner extends ChangeNotifier {
           job.metadataReviews.add(preview);
         } else if (changed == 0) {
           job.noMatch++;
+          job.noMatchIds.add(id);
         }
         job.done++;
         notifyListeners();

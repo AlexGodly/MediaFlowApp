@@ -16,7 +16,6 @@ import '../logic/library_index.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'presence.dart';
-import 'recovery_screen.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -49,11 +48,37 @@ class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key, required this.account});
   final AccountController account;
 
+  /// Opens the Library filtered to one category (Library Overview rows);
+  /// the shell switches to the Library when this changes.
+  static final showCategory = ValueNotifier<({String id, int n})?>(null);
+
   @override
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    LibraryScreen.showCategory.addListener(_onShowCategory);
+    _onShowCategory();
+  }
+
+  int _shownRequest = 0;
+  void _onShowCategory() {
+    final r = LibraryScreen.showCategory.value;
+    if (r == null || r.n == _shownRequest) return;
+    _shownRequest = r.n;
+    setState(() {
+      _cats
+        ..clear()
+        ..add(r.id);
+      _status = 'all';
+      _priority = 'all';
+      _page = 0;
+    });
+  }
+
   final _search = TextEditingController();
   final Set<String> _cats = {};
   final Set<String> _selected = {};
@@ -70,6 +95,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   @override
   void dispose() {
+    LibraryScreen.showCategory.removeListener(_onShowCategory);
     _searchTimer?.cancel();
     _search.dispose();
     super.dispose();
@@ -260,26 +286,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
         final pages = math.max(1, (titles.length / size).ceil());
         if (_page > pages - 1) _page = pages - 1;
         final pageItems = titles.skip(_page * size).take(size).toList();
-        final unrated = index.unrated;
-        final noCover = index.missingCovers;
         return Scaffold(
           appBar: AppBar(
             title: const Text('Library'),
             actions: [
-              IconButton(
-                tooltip: 'Rate Your Library ($unrated unrated)',
-                icon: Badge(isLabelVisible: unrated > 0, label: Text('$unrated'), child: const Icon(Icons.star_outline_rounded)),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => RateLibraryScreen(account: account))),
-              ),
-              IconButton(
-                tooltip: 'Missing Covers ($noCover)',
-                icon: Badge(isLabelVisible: noCover > 0, label: Text('$noCover'), child: const Icon(Icons.image_not_supported_outlined)),
-                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MissingCoversScreen(account: account))),
-              ),
               PopupMenuButton<String>(
                 onSelected: (v) async {
                   if (v == 'repairAll') _repair(selectedOnly: false);
-                  if (v == 'recovery' && context.mounted) await openRecovery(context, account);
                   if (v == 'undo') {
                     final l = await account.undo();
                     if (l != null && context.mounted) _toast(context, 'Undid $l');
@@ -292,7 +305,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'undo', enabled: account.undoStack.isNotEmpty, child: const Text('Undo')),
                   PopupMenuItem(value: 'redo', enabled: account.redoStack.isNotEmpty, child: const Text('Redo')),
-                  const PopupMenuItem(value: 'recovery', child: Text('Recovery Workspace (covers & details)')),
                   const PopupMenuItem(value: 'repairAll', child: Text('Fix all completed progress')),
                 ],
               ),
@@ -603,7 +615,7 @@ class _RateLibraryScreenState extends State<RateLibraryScreen> {
   @override
   Widget build(BuildContext context) {
     final account = widget.account;
-    return PresenceScope(info: const PresenceInfo(situation: 'library', values: {'action': 'Rating the Library'}), child: LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(situation: 'rating', values: {'action': 'Rating the Library'}), child: LiveBuilder(
       listenable: Listenable.merge([account, AppPrefs.instance]),
       builder: (context, _) {
         final view = account.view;
@@ -704,7 +716,7 @@ class MissingCoversScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PresenceScope(info: const PresenceInfo(situation: 'recovery'), child: LiveBuilder(
+    return PresenceScope(info: const PresenceInfo(situation: 'missingCovers'), child: LiveBuilder(
       listenable: account,
       builder: (context, _) {
         final view = account.view;

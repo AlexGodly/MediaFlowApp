@@ -13,6 +13,7 @@ import '../logic/ratings_engine.dart';
 import '../logic/recovery.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'cover_choice.dart';
 import 'presence.dart';
 import 'ratings_ui.dart' show sourceLabel;
 import 'theme.dart';
@@ -34,10 +35,19 @@ List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEve
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
 
+/// Opens Recovery: the Recovery Workspace page (More) on [tab], or — for a
+/// given set of titles (On This Day, a selection) — a screen for just those.
 Future<void> openRecovery(BuildContext context, AccountController account,
-        {List<String>? ids, String label = '', int tab = 0, bool combined = false}) =>
-    Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
+    {List<String>? ids, String label = '', int tab = 0, bool combined = false}) async {
+  final go = RecoveryScreen.goToPage;
+  if (ids == null && go != null) {
+    RecoveryScreen.request.value = (tab: tab, combined: combined, n: (RecoveryScreen.request.value?.n ?? 0) + 1);
+    go();
+    return;
+  }
+  await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => RecoveryScreen(account: account, ids: ids, label: label, initialTab: tab, combined: combined)));
+}
 
 class RecoveryScreen extends StatefulWidget {
   const RecoveryScreen({super.key, required this.account, this.ids, this.label = '', this.initialTab = 0, this.combined = false});
@@ -51,12 +61,36 @@ class RecoveryScreen extends StatefulWidget {
   final String label;
   final int initialTab;
 
+  /// Set by the home shell: shows the Recovery Workspace page.
+  static void Function()? goToPage;
+
+  /// A tab (and Combined) to show on the page, from the + menu and elsewhere.
+  static final ValueNotifier<({int tab, bool combined, int n})?> request = ValueNotifier(null);
+
   @override
   State<RecoveryScreen> createState() => _RecoveryScreenState();
 }
 
-class _RecoveryScreenState extends State<RecoveryScreen> {
+class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProviderStateMixin {
   String _scope = 'given'; // given | all | <categoryId>
+  late final TabController _tabs = TabController(length: 3, vsync: this, initialIndex: widget.initialTab.clamp(0, 2).toInt());
+  bool _combined = false;
+  int _seen = 0;
+
+  void _onRequest() {
+    final r = RecoveryScreen.request.value;
+    if (widget.ids != null || r == null || r.n <= _seen || !mounted) return;
+    _seen = r.n;
+    setState(() => _combined = r.combined);
+    _tabs.animateTo(r.tab.clamp(0, 2).toInt());
+  }
+
+  @override
+  void dispose() {
+    RecoveryScreen.request.removeListener(_onRequest);
+    _tabs.dispose();
+    super.dispose();
+  }
 
   /// Reviews where "Link verified External IDs" was turned off.
   final Set<CoverReview> _noLink = {};
@@ -65,6 +99,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   void initState() {
     super.initState();
     if (widget.ids == null) _scope = 'all';
+    _combined = widget.combined;
+    RecoveryScreen.request.addListener(_onRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onRequest());
   }
 
   AccountView? get view => widget.account.view;
@@ -115,22 +152,18 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
   Widget build(BuildContext context) {
     return PresenceScope(
       info: const PresenceInfo(situation: 'recovery'),
-      child: DefaultTabController(
-        length: 3,
-        initialIndex: widget.initialTab,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Recovery'),
-            bottom: const TabBar(tabs: [Tab(text: 'Covers'), Tab(text: 'Details'), Tab(text: 'Sources')]),
-          ),
-          body: ListenableBuilder(
-            listenable: Listenable.merge([RecoveryRunner.instance, widget.account]),
-            builder: (context, _) => TabBarView(children: [
-              _coverTab(context),
-              _metadataTab(context),
-              SourcesSettings(account: widget.account),
-            ]),
-          ),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.ids == null ? 'Recovery Workspace' : 'Recovery'),
+          bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Covers'), Tab(text: 'Details'), Tab(text: 'Sources')]),
+        ),
+        body: ListenableBuilder(
+          listenable: Listenable.merge([RecoveryRunner.instance, widget.account]),
+          builder: (context, _) => TabBarView(controller: _tabs, children: [
+            _coverTab(context),
+            _metadataTab(context),
+            SourcesSettings(account: widget.account),
+          ]),
         ),
       ),
     );
@@ -143,8 +176,9 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
     final job = r.cover;
     final ids = _ids(covers: true);
     return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
-      Text('Finds covers for titles that have none. Only confident matches (same title and year) are saved automatically; '
-          'the others wait below for you to pick. Existing covers are never replaced.',
+      Text('Finds covers for titles that have none, like the website: saved External IDs first, then a name search that compares '
+          'every name a source knows the title by. Only a saved ID with a matching title is saved by itself; the others wait below '
+          'for you to pick. Existing covers are never replaced.',
           style: TextStyle(color: MF.textDim, fontSize: 13)),
       const SizedBox(height: 12),
       _scopePicker(),
@@ -166,7 +200,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             label: const Text('Start Cover Recovery'),
           ),
       ]),
-      if (widget.combined || r.combinedRunning)
+      if (_combined || r.combinedRunning)
         Padding(
           padding: const EdgeInsets.only(top: 10),
           child: Container(
@@ -187,6 +221,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
         ),
       if (job != null) _progress(job),
       for (final review in List.of(job?.coverReviews ?? const <CoverReview>[])) _coverReview(context, review),
+      if (job != null) _noMatches(context, job),
     ]);
   }
 
@@ -208,13 +243,42 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
         ]),
       );
 
+  Map<String, dynamic>? _title(String id) {
+    final lib = view?.state['library'];
+    for (final x in asList(lib)) {
+      final m = asMap(x);
+      if (m != null && jsStr(m['id']) == id) return m;
+    }
+    return null;
+  }
+
+  Future<void> _manual(BuildContext context, String id) async {
+    final item = _title(id);
+    if (item == null) return;
+    final c = await searchCoverManually(context, widget.account, item);
+    if (c == null || !context.mounted) return;
+    final ok = await RecoveryRunner.instance.chooseManualCover(widget.account, id, c);
+    if (context.mounted) _toast(context, ok ? 'Cover saved for ${cleanTitle(item['title'])}' : 'The title already has a cover or changed meanwhile; nothing was saved.');
+  }
+
+  Widget _lookingFor(String id, String fallback) {
+    final item = _title(id);
+    final year = jsStr(item?['year']);
+    final cat = item == null ? null : view?.category(jsStr(item['categoryId']));
+    return Text(
+      'Looking for: ${item == null ? fallback : cleanTitle(item['title'])}${year.isEmpty ? '' : ' ($year)'}${cat == null ? '' : ' · ${cat.name}'}',
+      style: const TextStyle(fontWeight: FontWeight.w800),
+    );
+  }
+
   Widget _coverReview(BuildContext context, CoverReview review) => Container(
         margin: const EdgeInsets.only(top: 10),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            Expanded(child: Text(review.title, style: const TextStyle(fontWeight: FontWeight.w800))),
+            Expanded(child: _lookingFor(review.id, review.title)),
+            TextButton(onPressed: () => _manual(context, review.id), child: const Text('Search manually')),
             TextButton(onPressed: () => RecoveryRunner.instance.skipCover(review), child: const Text('Skip')),
           ]),
           if (review.candidates.any((c) => c.ids.isNotEmpty))
@@ -226,40 +290,39 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
               onChanged: (v) => setState(() => v == true ? _noLink.remove(review) : _noLink.add(review)),
               title: const Text('Also link the verified External IDs of the cover I pick', style: TextStyle(fontSize: 12)),
             ),
-          SizedBox(
-            height: 162,
-            child: ListView(scrollDirection: Axis.horizontal, children: [
-              for (final c in review.candidates)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () async {
-                      final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
-                      if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
-                    },
-                    child: SizedBox(
-                      width: 84,
-                      child: Column(children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(c.url, width: 84, height: 112, fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(width: 84, height: 112, color: MF.surface)),
-                        ),
-                        Text('${c.provider}${c.year != null ? ' · ${c.year}' : ''}',
-                            maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: c.confidence >= 0.94 ? MF.good : MF.textDim)),
-                        Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)),
-                        if (c.ids.isNotEmpty)
-                          Text(c.ids.map((x) => '${x.$1.toUpperCase()} ${x.$2}').join(' · '),
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 9, color: MF.textDim)),
-                      ]),
-                    ),
-                  ),
-                ),
-            ]),
+          const SizedBox(height: 6),
+          CoverChoiceGrid(
+            itemTitle: review.title,
+            candidates: review.candidates,
+            onPick: (c) async {
+              final ok = await RecoveryRunner.instance.chooseCover(widget.account, review, c, linkIds: !_noLink.contains(review));
+              if (context.mounted) _toast(context, ok ? 'Cover saved for ${review.title}' : 'The title changed meanwhile; nothing was saved.');
+            },
           ),
         ]),
       );
+
+  Widget _noMatches(BuildContext context, RecoveryJob job) {
+    final ids = [for (final id in job.noMatchIds) if (_title(id) != null && coverMissing(_title(id))) id];
+    if (ids.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('No match found (${ids.length})', style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text('Search another name for these, or pick from every result.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        for (final id in ids.take(100))
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(cleanTitle(_title(id)!['title'])),
+            subtitle: jsStr(_title(id)!['year']).isEmpty ? null : Text(jsStr(_title(id)!['year'])),
+            trailing: TextButton(onPressed: () => _manual(context, id), child: const Text('Search manually')),
+          ),
+      ]),
+    );
+  }
 
   // ---------- details ----------
 
@@ -300,25 +363,93 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
           ),
       ]),
       if (job != null) _progress(job),
-      for (final preview in List.of(job?.metadataReviews ?? const <MetadataPreview>[])) _MetadataReviewCard(account: widget.account, preview: preview),
+      for (final preview in List.of(job?.metadataReviews ?? const <MetadataPreview>[]))
+        _MetadataReviewCard(
+          account: widget.account,
+          preview: preview,
+          lookingFor: _lookingFor(preview.titleId, preview.title),
+          onSearch: () => _manualDetails(context, preview.titleId),
+        ),
+      if (job != null) _metaNoMatches(context, job),
     ]);
+  }
+
+  Future<void> _manualDetails(BuildContext context, String id) async {
+    final item = _title(id);
+    if (item == null) return;
+    final row = await Navigator.of(context).push<Map<String, dynamic>>(
+        MaterialPageRoute(builder: (_) => ManualDetailsSearch(account: widget.account, item: item)));
+    if (row == null || !context.mounted) return;
+    final p = RecoveryRunner.instance.pickMetadataRecord(widget.account, id, row);
+    if (context.mounted) {
+      _toast(context, p == null || p.proposals.every((x) => x.hasOriginal || x.isProtected || x.same)
+          ? 'That record has nothing new for empty fields.'
+          : 'Review the details from ${sourceLabel(jsStr(row['provider']))} above, then save.');
+    }
+  }
+
+  Widget _metaNoMatches(BuildContext context, RecoveryJob job) {
+    final ids = [for (final id in job.noMatchIds) if (_title(id) != null) id];
+    if (ids.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('No match found (${ids.length})', style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text('Search another name and pick the right record yourself.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        for (final id in ids.take(100))
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(cleanTitle(_title(id)!['title'])),
+            subtitle: jsStr(_title(id)!['year']).isEmpty ? null : Text(jsStr(_title(id)!['year'])),
+            trailing: TextButton(onPressed: () => _manualDetails(context, id), child: const Text('Search manually')),
+          ),
+      ]),
+    );
   }
 }
 
 class _MetadataReviewCard extends StatefulWidget {
-  const _MetadataReviewCard({required this.account, required this.preview});
+  const _MetadataReviewCard({required this.account, required this.preview, required this.lookingFor, required this.onSearch});
   final AccountController account;
   final MetadataPreview preview;
+  final Widget lookingFor;
+  final VoidCallback onSearch;
 
   @override
   State<_MetadataReviewCard> createState() => _MetadataReviewCardState();
 }
 
+String _fullValue(Object? v) {
+  if (v is Map) return '${fmtNumber(jsNum(v['score']))} / ${fmtNumber(jsNum(v['scale']))}';
+  if (v is List) return v.join(', ');
+  return jsStr(v);
+}
+
+void _showValue(BuildContext context, String label, Object? value, List<FieldSource> sources) {
+  showDialog<void>(
+    context: context,
+    builder: (d) => AlertDialog(
+      title: Text(label),
+      content: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          SelectableText(_fullValue(value)),
+          const SizedBox(height: 12),
+          for (final s in sources)
+            Text('${sourceLabel(s.provider)} · ${s.recordTitle}${s.year > 0 ? ' (${s.year})' : ''} · ${s.evidence}',
+                style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ]),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('Close'))],
+    ),
+  );
+}
+
 class _MetadataReviewCardState extends State<_MetadataReviewCard> {
   String _show(Object? v) {
-    if (v is Map) return '${fmtNumber(jsNum(v['score']))} / ${fmtNumber(jsNum(v['scale']))}';
-    if (v is List) return v.join(', ');
-    final s = jsStr(v);
+    final s = _fullValue(v);
     return s.length > 160 ? '${s.substring(0, 160)}…' : s;
   }
 
@@ -326,12 +457,43 @@ class _MetadataReviewCardState extends State<_MetadataReviewCard> {
   Widget build(BuildContext context) {
     final p = widget.preview;
     final open = p.proposals.where((x) => !x.hasOriginal && !x.isProtected && !x.same).toList();
+    final kept = p.proposals.where((x) => x.hasOriginal || x.isProtected).length;
     return Container(
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(p.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        Row(children: [
+          Expanded(child: widget.lookingFor),
+          TextButton(onPressed: widget.onSearch, child: const Text('Search manually')),
+        ]),
+        for (final r in p.records)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(text: '${sourceLabel(r.provider)}: ', style: const TextStyle(fontWeight: FontWeight.w700)),
+                TextSpan(text: r.recordTitle),
+                TextSpan(
+                  text: [
+                    if (r.year > 0) '${r.year}',
+                    if (r.format.isNotEmpty) r.format,
+                    if (r.recordId.isNotEmpty) 'ID ${r.recordId}',
+                    if (r.matchedName.isNotEmpty) 'matched as “${r.matchedName}”',
+                    r.evidence,
+                  ].map((x) => ' · $x').join(),
+                  style: TextStyle(color: MF.textDim),
+                ),
+              ]),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        if (kept > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('$kept field${kept == 1 ? '' : 's'} already have a value or are locked and stay as they are.',
+                style: TextStyle(color: MF.textDim, fontSize: 11)),
+          ),
         for (final prop in open)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             CheckboxListTile(
@@ -340,12 +502,15 @@ class _MetadataReviewCardState extends State<_MetadataReviewCard> {
               value: prop.selected,
               onChanged: (v) => setState(() => prop.selected = v == true),
               title: Text(prop.label, style: const TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                '${_show(prop.options[prop.choice].value)}\n'
-                '${prop.options[prop.choice].sources.map((s) => '${sourceLabel(s.provider)} · ${s.evidence}').join('; ')}',
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: MF.textDim),
+              subtitle: InkWell(
+                onTap: () => _showValue(context, prop.label, prop.options[prop.choice].value, prop.options[prop.choice].sources),
+                child: Text(
+                  '${_show(prop.options[prop.choice].value)}\n'
+                  '${prop.options[prop.choice].sources.map((s) => '${sourceLabel(s.provider)} · ${s.evidence}').join('; ')} · tap to see it all',
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: MF.textDim),
+                ),
               ),
             ),
             if (prop.options.length > 1)
@@ -371,6 +536,113 @@ class _MetadataReviewCardState extends State<_MetadataReviewCard> {
           ),
         ]),
       ]),
+    );
+  }
+}
+
+/// "Search manually" for details: search any name in the enabled sources and
+/// pick the right record (returned as the source's row).
+class ManualDetailsSearch extends StatefulWidget {
+  const ManualDetailsSearch({super.key, required this.account, required this.item});
+  final AccountController account;
+  final Map<String, dynamic> item;
+
+  @override
+  State<ManualDetailsSearch> createState() => _ManualDetailsSearchState();
+}
+
+class _ManualDetailsSearchState extends State<ManualDetailsSearch> {
+  late final _q = TextEditingController(text: cleanTitle(widget.item['title']));
+  List<Map<String, dynamic>>? _rows;
+  final List<String> _errors = [];
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _search();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final q = _q.text.trim();
+    if (q.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _errors.clear();
+    });
+    final settings = asMap(widget.account.view?.state['settings']);
+    final ready = await RatingSources.instance.gatewayReady();
+    final sources = metadataSourcesFor(widget.item, settings, ready);
+    final rows = <String, Map<String, dynamic>>{};
+    for (final p in sources) {
+      try {
+        for (final row in await RatingSources.instance.lookup(p, {...widget.item, 'title': q})) {
+          if (jsTruthy(row['recordId'])) rows.putIfAbsent('${row['provider'] ?? p}:${row['recordId']}', () => {'provider': p, ...row});
+        }
+      } catch (e) {
+        _errors.add('${sourceLabel(p)}: $e');
+      }
+      if (!mounted) return;
+    }
+    setState(() {
+      _busy = false;
+      _rows = rows.values.toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = cleanTitle(widget.item['title']);
+    final year = jsStr(widget.item['year']);
+    return PresenceScope(
+      info: const PresenceInfo(situation: 'recovery', values: {'action': 'Searching for details'}),
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Search manually')),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          Text('Looking for: $title${year.isEmpty ? '' : ' ($year)'}', style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text('Pick the right record; only empty, unlocked fields are filled, after you review them.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+          const SizedBox(height: 10),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _q,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _search(),
+                decoration: const InputDecoration(labelText: 'Search for', prefixIcon: Icon(Icons.search_rounded)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(onPressed: _busy ? null : _search, child: const Text('Search')),
+          ]),
+          const SizedBox(height: 12),
+          if (_busy) const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator())),
+          for (final e in _errors.take(4)) Text(e, style: TextStyle(color: MF.bad, fontSize: 11)),
+          if (!_busy && _rows != null && _rows!.isEmpty) Text('Nothing found. Try another name.', style: TextStyle(color: MF.textDim)),
+          if (!_busy)
+            for (final r in _rows ?? const <Map<String, dynamic>>[])
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text(jsStr(r['title']), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text([
+                    sourceLabel(jsStr(r['provider'])),
+                    if (jsNum(r['year']) > 0) '${jsNum(r['year']).toInt()}',
+                    if (jsStr(asMap(r['legacy'])?['mediaFormat']).isNotEmpty) jsStr(asMap(r['legacy'])?['mediaFormat']),
+                    'ID ${jsStr(r['recordId'])}',
+                    if (asList(r['aliases']).isNotEmpty) 'also ${asList(r['aliases']).map(jsStr).take(3).join(', ')}',
+                  ].join(' · ')),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.pop(context, r),
+                ),
+              ),
+        ]),
+      ),
     );
   }
 }
