@@ -20,8 +20,9 @@ const NOW = 1762600000000;
 // every call. v153ApplyConsumption holds the old copy while it looks up the
 // rules (which calls Ensure again), so the rule costs and the transaction it
 // writes afterwards are lost: the category goes up, nothing is subtracted and
-// Undo has nothing to undo. The app does what the page means to do; this
-// variant keeps the same object so the fixture shows that. Every other action
+// Undo has nothing to undo. Website v563 fixes this by keeping the same
+// object (components/406-v563-fixes.js); this variant does the same, so the
+// fixture shows the fixed behaviour. Every other action
 // writes the same with or without it (checked below).
 const KEEP_IDENTITY = `{const base=v153EnsureOldSystem;v153EnsureOldSystem=function(){const cur=S.oldSystem;const out=base();if(cur&&typeof cur==='object'&&cur!==out){for(const k of Object.keys(cur))delete cur[k];Object.assign(cur,out);S.oldSystem=cur;}return S.oldSystem;};}`;
 
