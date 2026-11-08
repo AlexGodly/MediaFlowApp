@@ -91,4 +91,23 @@ void main() {
     expect(one.where((x) => x.kind == 'finished').single.libraryId, 'b');
     expect(groups.last.rows.single.kind, 'started');
   });
+
+  test('On This Day leaves out logs of titles deleted from the Library (website v563)', () {
+    final now = DateTime(2026, 10, 31, 12);
+    final state = <String, dynamic>{
+      'library': [
+        {'id': 'a', 'title': 'Alpha', 'categoryId': 'c'},
+      ],
+      'sessions': [
+        {'date': '2025-10-31', 'timestamp': 1, 'minutes': 60, 'titles': [
+          {'title': 'Alpha', 'libraryId': 'a', 'qty': 1},
+          {'title': 'Deleted one', 'libraryId': 'gone', 'qty': 3},
+        ]},
+        {'date': '2024-10-31', 'timestamp': 2, 'minutes': 30, 'titles': [{'title': 'Also deleted', 'libraryId': 'x', 'qty': 2}]},
+      ],
+    };
+    final groups = onThisDay(state, now);
+    expect(groups.map((g) => g.years), [1], reason: 'a year with only deleted titles disappears');
+    expect(groups.single.rows.map((r) => r.title), ['Alpha']);
+  });
 }
