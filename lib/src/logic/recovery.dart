@@ -846,6 +846,23 @@ Object? cleanUniversalField(Object? value, String type) {
   }
 }
 
+/// `mf437SetField` with source 'manual' (the title editor): replaces the
+/// value, records manual provenance and locks the field against recovery.
+bool setFieldManually(Map<String, dynamic> env, String key, Object? value, int updatedAt) {
+  final def = kUniversalFields[key];
+  if (def == null) return false;
+  final clean = cleanUniversalField(value, def.$2);
+  final fields = env['fields'] as Map;
+  if (jsonEncode(clean) == jsonEncode(fields[key])) return false;
+  final token = 'field.$key';
+  fields[key] = clean;
+  (env['provenance'] as Map)[token] = {'source': 'manual', 'verified': false, 'updatedAt': updatedAt};
+  (env['locks'] as Map)[token] = true;
+  final u = jsNum(env['updatedAt']);
+  env['updatedAt'] = u > updatedAt ? env['updatedAt'] : updatedAt;
+  return true;
+}
+
 /// `mf437SetField` for a verified provider value (never replaces a value
 /// that is there, never touches a locked field).
 bool setFieldInEnvelope(Map<String, dynamic> env, String key, Object? value, {required String source, required int updatedAt}) {

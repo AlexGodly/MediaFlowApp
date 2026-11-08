@@ -10,7 +10,11 @@ import '../data/account_controller.dart';
 import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
 import '../logic/custom_status.dart' show activePin;
+import '../logic/external_ids.dart';
 import '../logic/library_logic.dart';
+import '../logic/ratings_engine.dart' show kMediaTypes, normalizedEnvelope;
+import '../logic/recovery.dart' show kUniversalFields, setFieldManually, describeFieldValue;
+import '../logic/rich_fields.dart';
 import '../platform/discord_presence.dart' show DiscordPresence;
 import '../state/models.dart';
 import '../util/js.dart';
@@ -117,7 +121,7 @@ class TitleScreen extends StatelessWidget {
         final pct = total == null || total == 0 ? null : (t.progress / total).clamp(0, 1).toDouble();
         final tags = asList(raw['tags']).map(jsStr).where((x) => x.isNotEmpty).toList();
         final meta = asMap(raw['universalMetadata']);
-        final description = jsStr(raw['description']).isNotEmpty ? jsStr(raw['description']) : jsStr(meta?['description']);
+        final description = [raw['description'], raw['synopsis'], meta?['description']].map(jsStr).firstWhere((x) => x.isNotEmpty, orElse: () => '');
         final repeats = jsNum(raw['manualRepeatAmount']);
         return PresenceScope(info: titlePresence('title', raw, cat), child: Scaffold(
           appBar: AppBar(
@@ -226,6 +230,7 @@ class TitleScreen extends StatelessWidget {
                       ]),
                     ),
                 ],
+                ..._metadataDetails(raw),
                 const SizedBox(height: 16),
                 ExternalRatingsSection(account: account, item: raw),
                 if (description.isNotEmpty) ...[
@@ -251,6 +256,49 @@ class TitleScreen extends StatelessWidget {
         ));
       },
     );
+  }
+
+  /// Title metadata, More details and Dates & source (website v181 details).
+  List<Widget> _metadataDetails(Map<String, dynamic> raw) {
+    final manual = richManualMap(raw);
+    final rich = [
+      for (final k in kRichFields)
+        if (k != 'synopsis' && richFieldText(raw, k).isNotEmpty)
+          (k == 'durationMinutes' ? 'Runtime' : kRichLabels[k]!, k == 'durationMinutes' ? '${richFieldText(raw, k)} min' : richFieldText(raw, k), manual[k] == true),
+    ];
+    final env = normalizedEnvelope(raw['universalMetadata']);
+    final fields = asMap(env['fields']) ?? const {};
+    final locks = asMap(env['locks']) ?? const {};
+    final more = [
+      if (env['mediaType'] != 'unspecified') ('Media type', jsStr(env['mediaType']).replaceAll('_', ' '), false),
+      for (final e in kUniversalFields.entries)
+        if (describeFieldValue('field.${e.key}', fields[e.key]) != '—' && describeFieldValue('field.${e.key}', fields[e.key]).isNotEmpty)
+          (e.value.$1, describeFieldValue('field.${e.key}', fields[e.key]), locks['field.${e.key}'] == true),
+    ];
+    final ids = (asMap(raw['externalIds']) ?? const {}).entries.where((e) => jsStr(e.value).trim().isNotEmpty).map((e) => '${e.key.toUpperCase()} ${e.value}').join(' · ');
+    Widget row((String, String, bool) r) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(width: 120, child: Text(r.$1, style: TextStyle(color: MF.textDim))),
+            Expanded(child: SelectableText(r.$2, style: const TextStyle(fontWeight: FontWeight.w700))),
+            if (r.$3)
+              Tooltip(
+                message: 'You set this; imports and recovery will not overwrite it.',
+                child: Icon(Icons.lock_outline_rounded, size: 14, color: MF.textDim),
+              ),
+          ]),
+        );
+    Widget head(String t) => Padding(
+          padding: const EdgeInsets.only(top: 16, bottom: 4),
+          child: Text(t, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+        );
+    return [
+      if (rich.isNotEmpty) ...[head('Title metadata'), for (final r in rich) row(r)],
+      if (more.isNotEmpty) ...[head('More details'), for (final r in more) row(r)],
+      head('Dates & source'),
+      row(('Imported / created source', jsStr(raw['source']).isEmpty ? 'manual' : jsStr(raw['source']), false)),
+      row(('External IDs', ids.isEmpty ? '—' : ids, false)),
+    ];
   }
 
   Widget _info(String k, String v) => Padding(
@@ -449,6 +497,14 @@ class _TitleEditorState extends State<TitleEditor> {
   bool _seasonsTouched = false;
   String? _error;
 
+  // Title metadata (v178), External Media IDs (v377), universal fields (v437).
+  final Map<String, TextEditingController> _rich = {for (final k in kRichFields) k: TextEditingController()};
+  final Map<String, TextEditingController> _ids = {};
+  final Map<String, TextEditingController> _universal = {for (final k in kUniversalFields.keys) k: TextEditingController()};
+  final _idFilter = TextEditingController();
+  Map<String, dynamic> _before = const {};
+  String _mediaType = 'unspecified';
+
   AccountController get account => widget.account;
 
   static String _n(num? v) => v == null ? '' : (v == v.truncateToDouble() ? v.toInt().toString() : v.toString());
@@ -478,11 +534,25 @@ class _TitleEditorState extends State<TitleEditor> {
     _completedAt = _f.completedAt;
     _coverAuto = _f.coverAuto;
     _seasons = [for (final s in asList(item?['seasons'])) if (asMap(s) != null) Map<String, dynamic>.from(asMap(s)!)];
+    _before = item == null ? const {} : jsonClone(item) as Map<String, dynamic>;
+    for (final k in kRichFields) {
+      _rich[k]!.text = richFieldText(_before, k);
+    }
+    final ids = asMap(_before['externalIds']);
+    for (final row in externalIdRows(ids)) {
+      _ids[row.$1] = TextEditingController(text: jsStr(ids?[row.$1]));
+    }
+    final env = normalizedEnvelope(_before['universalMetadata']);
+    _mediaType = jsStr(env['mediaType']);
+    for (final e in kUniversalFields.entries) {
+      final v = (env['fields'] as Map)[e.key];
+      _universal[e.key]!.text = v == null ? '' : (v is List ? v.map(jsStr).join(', ') : jsStr(v));
+    }
   }
 
   @override
   void dispose() {
-    for (final c in [_title, _progress, _total, _rating, _cover, _est, _tags, _repeatFull, _repeatExtra]) {
+    for (final c in [_title, _progress, _total, _rating, _cover, _est, _tags, _repeatFull, _repeatExtra, _idFilter, ..._rich.values, ..._ids.values, ..._universal.values]) {
       c.dispose();
     }
     super.dispose();
@@ -551,6 +621,14 @@ class _TitleEditorState extends State<TitleEditor> {
       completedAt: _completedAt,
       seasons: _seasonsTouched ? _seasons : null,
     );
+    final idInputs = {for (final e in _ids.entries) e.key: e.value.text};
+    for (final e in idInputs.entries) {
+      if (!externalIdValid(e.key, e.value.trim())) {
+        setState(() => _error = 'Invalid ${e.key.toUpperCase()} ID. Please correct it before saving.');
+        return;
+      }
+    }
+    final captured = captureRich({for (final e in _rich.entries) e.key: e.value.text});
     setState(() {
       _busy = true;
       _error = null;
@@ -559,7 +637,38 @@ class _TitleEditorState extends State<TitleEditor> {
     var xp = 0.0;
     await account.edit((s, now) {
       var k = 0;
-      error = saveTitle(s, widget.id, fields, now, () => mediaFlowUid(now + k++), saved: (_, e) => xp = e);
+      String? savedId;
+      error = saveTitle(s, widget.id, fields, now, () => mediaFlowUid(now + k++), saved: (id, e) {
+        xp = e;
+        savedId = id;
+      });
+      if (error != null) return;
+      final item = findTitle(s, savedId ?? widget.id ?? '');
+      if (item == null) return;
+      // v178: the title metadata, marking what the person changed.
+      applyRichEditorValues(item, _before, captured, now);
+      // v377: External Media IDs.
+      applyExternalIdEdits(item, _before, idInputs, now);
+      // v437: universal fields and media type, saved as manual (locked).
+      final env = normalizedEnvelope(item['universalMetadata']);
+      var envChanged = false;
+      if (env['mediaType'] != _mediaType) {
+        env['mediaType'] = _mediaType;
+        env['updatedAt'] = now;
+        envChanged = true;
+      }
+      for (final e in _universal.entries) {
+        final type = kUniversalFields[e.key]!.$2;
+        final text = e.value.text;
+        final cur = (env['fields'] as Map)[e.key];
+        final shown = cur == null ? '' : (cur is List ? cur.map(jsStr).join(', ') : jsStr(cur));
+        if (text == shown) continue;
+        if (setFieldManually(env, e.key, type == 'list' ? text : text, now)) envChanged = true;
+      }
+      if (envChanged) {
+        item['universalMetadata'] = env;
+        item['modifiedAt'] = now;
+      }
     }, label: widget.id == null ? 'Add title' : 'Edit title');
     if (!mounted) return;
     setState(() => _busy = false);
@@ -577,6 +686,123 @@ class _TitleEditorState extends State<TitleEditor> {
         inputFormatters: [FilteringTextInputFormatter.allow(decimal ? RegExp(r'[0-9.,]') : RegExp(r'[0-9]'))],
         decoration: InputDecoration(labelText: label),
       );
+
+  Widget _manualBadge(bool on) => on
+      ? Container(
+          margin: const EdgeInsets.only(left: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(4)),
+          child: const Text('MANUAL', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
+        )
+      : const SizedBox.shrink();
+
+  Widget _richSection() {
+    final manual = richManualMap(_before);
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: const Text('Title metadata', style: TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text('Year, format, runtime, studios, genres, synopsis… Fields you change are kept from future imports.',
+          style: TextStyle(color: MF.textDim, fontSize: 12)),
+      children: [
+        for (final k in kRichFields)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextField(
+              controller: _rich[k],
+              minLines: k == 'synopsis' ? 3 : 1,
+              maxLines: k == 'synopsis' ? 10 : 1,
+              keyboardType: kRichNumberFields.contains(k)
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : (k == 'synopsis' ? TextInputType.multiline : TextInputType.text),
+              decoration: InputDecoration(
+                label: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(kRichLabels[k]!),
+                  _manualBadge(manual[k] == true),
+                ]),
+                hintText: k == 'releaseDate' ? 'YYYY-MM-DD' : (kRichListFields.contains(k) ? 'Comma separated' : null),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _universalSection() {
+    final env = normalizedEnvelope(_before['universalMetadata']);
+    final locks = asMap(env['locks']) ?? const {};
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: const Text('More details', style: TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text('Media type, original title, creators, keywords and other shared fields. Edited fields are locked from recovery.',
+          style: TextStyle(color: MF.textDim, fontSize: 12)),
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: kMediaTypes.contains(_mediaType) ? _mediaType : 'unspecified',
+          decoration: const InputDecoration(labelText: 'Media type'),
+          items: [for (final t in kMediaTypes) DropdownMenuItem(value: t, child: Text(t.replaceAll('_', ' ')))],
+          onChanged: (v) => setState(() => _mediaType = v ?? _mediaType),
+        ),
+        const SizedBox(height: 8),
+        for (final e in kUniversalFields.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextField(
+              controller: _universal[e.key],
+              minLines: e.value.$2 == 'multiline' ? 2 : 1,
+              maxLines: e.value.$2 == 'multiline' ? 8 : 1,
+              keyboardType: e.value.$2 == 'number' || e.value.$2 == 'decimal'
+                  ? const TextInputType.numberWithOptions(decimal: true)
+                  : (e.value.$2 == 'url' ? TextInputType.url : TextInputType.text),
+              decoration: InputDecoration(
+                label: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(e.value.$1),
+                  _manualBadge(locks['field.${e.key}'] == true),
+                ]),
+                hintText: e.value.$2 == 'list' ? 'Comma separated' : null,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _idsSection() {
+    final ids = asMap(_before['externalIds']);
+    final saved = (ids ?? const {}).values.where((v) => v != null && jsStr(v).trim().isNotEmpty).length;
+    final q = _idFilter.text.trim().toLowerCase();
+    final rows = [
+      for (final r in externalIdRows(ids))
+        if (q.isEmpty || r.$1.contains(q) || r.$2.toLowerCase().contains(q) || r.$3.toLowerCase().contains(q)) r,
+    ];
+    final manual = asMap(_before['v377ManualExternalIds']) ?? const {};
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      title: Text('External Media IDs · $saved saved', style: const TextStyle(fontWeight: FontWeight.w800)),
+      subtitle: Text('Edit service IDs without changing progress, ratings, History or Collections.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      children: [
+        TextField(
+          controller: _idFilter,
+          decoration: const InputDecoration(labelText: 'Find an ID field', prefixIcon: Icon(Icons.search_rounded), isDense: true),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        for (final r in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextField(
+              controller: _ids[r.$1],
+              decoration: InputDecoration(
+                label: Row(mainAxisSize: MainAxisSize.min, children: [Text(r.$2), _manualBadge(manual.containsKey(r.$1))]),
+                hintText: r.$3,
+                isDense: true,
+                errorText: externalIdValid(r.$1, _ids[r.$1]!.text.trim()) ? null : 'Not a valid ${r.$2} ID',
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -778,6 +1004,10 @@ class _TitleEditorState extends State<TitleEditor> {
                   ),
                 ]),
               ),
+            const SizedBox(height: 12),
+            _richSection(),
+            _universalSection(),
+            _idsSection(),
             if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: MF.bad))),
             const SizedBox(height: 16),
             FilledButton(
