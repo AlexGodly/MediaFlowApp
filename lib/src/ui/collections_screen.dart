@@ -473,9 +473,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
   Future<void> _addTitles(AccountView view, Map<String, dynamic> c) async {
     final ids = await pickLibraryTitles(context, view, exclude: collectionTitleIds(c).toSet(), title: 'Add titles to ${jsStr(c['title'])}');
-    if (ids == null || ids.isEmpty) return;
+    if (ids == null || ids.isEmpty || !mounted) return;
     var n = 0;
+    if (ids.length > 50) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Adding ${ids.length} titles…'), duration: const Duration(seconds: 2)));
+      await Future<void>.delayed(const Duration(milliseconds: 50)); // let it show before the save
+    }
     await _run('Add titles to collection', (s, now, uid) => n = addCollectionTitles(s, widget.id, ids, now, uid));
+    if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (mounted) _toast(context, '$n title${n == 1 ? '' : 's'} added ✓');
   }
 

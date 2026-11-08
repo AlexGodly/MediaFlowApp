@@ -73,7 +73,7 @@ void _touchCollection(Map<String, dynamic> state, Map<String, dynamic> c, List<S
   }
   // v348RaiseNewRewards
   if (enabled) {
-    final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now);
+    final mult = awardMultiplier(l, asList(readOnlyPart(state, 'sessions')), now, reuse: true);
     final meta = mapIn(ledger, 'v348EventMeta');
     for (final key in snap.keys) {
       final after = mapIn(ledger, key);
@@ -94,7 +94,7 @@ void _touchCollection(Map<String, dynamic> state, Map<String, dynamic> c, List<S
     final previous = before.toSet();
     final added = after.where((x) => !previous.contains(x)).toList();
     if (added.isNotEmpty) {
-      final names = {for (final i in asList(state['library'])) jsStr(asMap(i)?['id']): jsStr(asMap(i)?['title'])};
+      final names = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): jsStr(asMap(i)?['title'])};
       v348Award(state, 'collectionAddTitleXP', added.length, now, uid,
           subjectId: id, description: added.map((t) => names[t]?.isNotEmpty == true ? names[t]! : t).take(8).join(', '));
     }
@@ -147,7 +147,7 @@ int addCollectionTitles(Map<String, dynamic> state, String id, List<String> ids,
   if (c == null) return 0;
   final before = _collectionIds(c);
   final have = _ids(c['titleIds']).toSet();
-  final valid = asList(state['library']).map((i) => jsStr(asMap(i)?['id'])).toSet();
+  final valid = asList(readOnlyPart(state, 'library')).map((i) => jsStr(asMap(i)?['id'])).toSet();
   final list = _ids(c['titleIds']);
   var n = 0;
   for (final t in ids) {
@@ -197,7 +197,7 @@ bool moveCollectionTitle(Map<String, dynamic> state, String id, String titleId, 
 
 /// `v274CollectionProgress`.
 ({int pct, int done, int total}) collectionProgress(Map<String, dynamic> state, Map<String, dynamic> c) {
-  final byId = {for (final i in asList(state['library'])) jsStr(asMap(i)?['id']): asMap(i)};
+  final byId = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): asMap(i)};
   final items = [for (final id in _collectionIds(c)) if (byId[id] != null) byId[id]!];
   if (items.isEmpty) return (pct: 0, done: 0, total: 0);
   var done = 0.0, total = 0.0;
@@ -221,7 +221,7 @@ List<String> collectionTitleIds(Map<String, dynamic> c) => _collectionIds(c);
 /// `v138NormalizeOrderPlan` + v287 extensions (unknown fields are kept).
 Map<String, dynamic> ensureOrderPlan(Map<String, dynamic> state) {
   final raw = asMap(state['orderPlan']) ?? <String, dynamic>{};
-  final libIds = asList(state['library']).map((i) => jsStr(asMap(i)?['id'])).where((x) => x.isNotEmpty).toSet();
+  final libIds = asList(readOnlyPart(state, 'library')).map((i) => jsStr(asMap(i)?['id'])).where((x) => x.isNotEmpty).toSet();
   final cats = asList(state['categories']).map(asMap).whereType<Map<String, dynamic>>().toList();
   final catIds = cats.map((c) => jsStr(c['id'])).where((x) => x.isNotEmpty).toSet();
   List<String> unique(Object? v, Set<String> allowed) => [for (final x in _ids(v)) if (allowed.contains(x)) x];
@@ -282,7 +282,7 @@ void _touchOrder(Map<String, dynamic> state, ({List<String> titles, List<String>
   final p = asMap(state['orderPlan'])!;
   final next = _orderSnapshot(p);
   final titles = prev.titles.toSet(), nowTitles = next.titles.toSet();
-  final names = {for (final i in asList(state['library'])) jsStr(asMap(i)?['id']): jsStr(asMap(i)?['title'])};
+  final names = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): jsStr(asMap(i)?['title'])};
   final addedIds = next.titles.where((x) => !titles.contains(x)).toList();
   if (addedIds.isNotEmpty) {
     v348Award(state, 'orderAddTitleXP', addedIds.length, now, uid,
@@ -326,12 +326,12 @@ void orderEdit(Map<String, dynamic> state, int now, String Function() uid, void 
 }
 
 String? _categoryOf(Map<String, dynamic> state, String titleId) =>
-    asList(state['library']).map(asMap).where((i) => jsStr(i?['id']) == titleId).firstOrNull?['categoryId']?.toString();
+    asList(readOnlyPart(state, 'library')).map(asMap).where((i) => jsStr(i?['id']) == titleId).firstOrNull?['categoryId']?.toString();
 
 void orderAddTitles(Map<String, dynamic> p, Map<String, dynamic> state, List<String> ids) {
   final list = _ids(p['titleIds']);
   final have = list.toSet();
-  final valid = asList(state['library']).map((i) => jsStr(asMap(i)?['id'])).toSet();
+  final valid = asList(readOnlyPart(state, 'library')).map((i) => jsStr(asMap(i)?['id'])).toSet();
   for (final id in ids) {
     if (valid.contains(id) && have.add(id)) list.add(id);
   }
