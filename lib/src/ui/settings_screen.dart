@@ -12,6 +12,7 @@ import '../config.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/cover_cache.dart';
+import '../logic/categories.dart';
 import '../logic/extras.dart' show balancePanel, editPanel;
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
 import '../platform/desktop_tray.dart';
@@ -19,6 +20,7 @@ import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'app_nav.dart' show openNavigationSettings;
+import 'category_editor.dart';
 import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
@@ -513,125 +515,88 @@ class _CategoriesEditor extends StatelessWidget {
   final AccountController account;
   final AccountView view;
 
-  Future<void> _editCategory(BuildContext context, Category? cat) async {
-    final raw = cat?.raw ?? const <String, dynamic>{};
-    final name = TextEditingController(text: jsStr(raw['name']));
-    final icon = TextEditingController(text: jsStr(raw['icon']));
-    final color = TextEditingController(text: jsStr(raw['color']).isEmpty ? '#879cff' : jsStr(raw['color']));
-    final target = TextEditingController(text: raw['target'] == null ? '1' : '${raw['target']}');
-    final mpu = TextEditingController(text: raw['minutesPerUnit'] == null ? '24' : '${raw['minutesPerUnit']}');
-    final weight = TextEditingController(text: raw['weight'] == null ? '1' : '${raw['weight']}');
-    var unit = jsStr(raw['unit']).isEmpty ? 'episodes' : jsStr(raw['unit']);
-    var type = jsStr(raw['type']).isEmpty ? 'video' : jsStr(raw['type']);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => AlertDialog(
-          title: Text(cat == null ? 'New category' : 'Edit ${cat.name}'),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-              Row(children: [
-                Expanded(child: TextField(controller: icon, decoration: const InputDecoration(labelText: 'Icon (emoji)'))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: color, decoration: const InputDecoration(labelText: 'Color (#RRGGBB)'))),
-              ]),
-              DropdownButtonFormField<String>(
-                initialValue: kUnits.containsKey(unit) ? unit : 'episodes',
-                decoration: const InputDecoration(labelText: 'Unit'),
-                items: [for (final u in kUnits.keys) DropdownMenuItem(value: u, child: Text(u))],
-                onChanged: (v) => set(() => unit = v ?? unit),
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: const ['video', 'reading', 'playing', 'listening'].contains(type) ? type : 'video',
-                decoration: const InputDecoration(labelText: 'Media type'),
-                items: const [
-                  DropdownMenuItem(value: 'video', child: Text('Watching')),
-                  DropdownMenuItem(value: 'reading', child: Text('Reading')),
-                  DropdownMenuItem(value: 'playing', child: Text('Playing')),
-                  DropdownMenuItem(value: 'listening', child: Text('Listening')),
-                ],
-                onChanged: (v) => set(() => type = v ?? type),
-              ),
-              Row(children: [
-                Expanded(child: TextField(controller: target, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target per task'))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: mpu, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Minutes per unit'))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: weight, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Weight'))),
-              ]),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save')),
-          ],
-        ),
-      ),
-    );
-    final values = (name.text.trim(), icon.text.trim(), color.text.trim(), num.tryParse(target.text) ?? 1, num.tryParse(mpu.text) ?? 0, num.tryParse(weight.text) ?? 1);
-    for (final c in [name, icon, color, target, mpu, weight]) {
-      c.dispose();
-    }
-    if (ok != true || values.$1.isEmpty) return;
-    await account.edit((s, now) {
-      final cats = List<dynamic>.of(asList(s['categories']));
-      final id = cat?.id ?? 'cat_${mediaFlowUid(now)}';
-      final i = cats.indexWhere((c) => jsStr(asMap(c)?['id']) == id);
-      final next = <String, dynamic>{
-        ...?(i >= 0 ? asMap(cats[i]) : null),
-        'id': id,
-        'name': values.$1,
-        'icon': values.$2.isEmpty ? '📚' : values.$2,
-        'color': values.$3,
-        'unit': unit,
-        'type': type,
-        'target': values.$4,
-        'minutesPerUnit': values.$5,
-        'weight': values.$6,
-        if (i < 0) 'enabled': true,
-      };
-      if (i >= 0) {
-        cats[i] = next;
-      } else {
-        cats.add(next);
-        s['categoryOrder'] = [...asList(s['categoryOrder']).map(jsStr), id];
-      }
-      s['categories'] = cats;
-    }, label: cat == null ? 'Add category' : 'Edit category');
-  }
+  Future<void> _move(String id, int to) => account.edit((s, now) => moveCategory(s, id, to), label: 'Reorder categories');
 
   @override
   Widget build(BuildContext context) {
+    final cats = view.categories;
+    final deleted = lastDeletedCategory(view.state);
+    final missing = missingDefaultCategories(view.state).length;
+    void toast(String t) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      for (final c in view.categories)
-        Row(children: [
-          CategoryBadge(c, size: 30),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: () => _editCategory(context, c),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                Text('${fmtNumber(c.target ?? 1)} ${unitLabel(c.unit, c.target ?? 1)} per task · ${fmtNumber(c.minutesPerUnit)} min each',
-                    style: TextStyle(color: MF.textDim, fontSize: 12)),
-              ]),
+      Text('Drag ⠿ or use the arrows to change the order every page shows categories in.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: cats.length,
+        onReorderItem: (from, to) => _move(cats[from].id, to),
+        itemBuilder: (context, i) {
+          final c = cats[i];
+          return Row(key: ValueKey(c.id), children: [
+            ReorderableDragStartListener(index: i, child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim))),
+            CategoryBadge(c, size: 30),
+            const SizedBox(width: 10),
+            Expanded(
+              child: InkWell(
+                onTap: () => openCategoryEditor(context, account, c),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(c.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text('${fmtNumber(c.target ?? 1)} ${unitLabel(c.unit, c.target ?? 1)} per task · ${fmtNumber(c.minutesPerUnit)} min each',
+                        style: TextStyle(color: MF.textDim, fontSize: 12)),
+                  ]),
+                ),
+              ),
             ),
-          ),
-          Switch(
-            value: c.enabled,
-            onChanged: (v) => account.edit((s, now) {
-              for (final x in asList(s['categories'])) {
-                if (jsStr(asMap(x)?['id']) == c.id) asMap(x)!['enabled'] = v;
-              }
-            }, label: v ? 'Enable category' : 'Disable category'),
-          ),
-        ]),
-      const SizedBox(height: 8),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(onPressed: () => _editCategory(context, null), icon: const Icon(Icons.add_rounded), label: const Text('Add category')),
+            IconButton(
+              tooltip: 'Move up',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+              onPressed: i == 0 ? null : () => _move(c.id, i - 1),
+            ),
+            IconButton(
+              tooltip: 'Move down',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+              onPressed: i == cats.length - 1 ? null : () => _move(c.id, i + 1),
+            ),
+            Switch(
+              value: c.enabled,
+              onChanged: (v) => account.edit((s, now) {
+                for (final x in asList(s['categories'])) {
+                  if (jsStr(asMap(x)?['id']) == c.id) asMap(x)!['enabled'] = v;
+                }
+              }, label: v ? 'Enable category' : 'Disable category'),
+            ),
+          ]);
+        },
       ),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        OutlinedButton.icon(onPressed: () => openCategoryEditor(context, account, null), icon: const Icon(Icons.add_rounded), label: const Text('Add category')),
+        if (deleted != null)
+          OutlinedButton.icon(
+            onPressed: () async {
+              String msg = '';
+              await account.edit((s, now) => msg = restoreDeletedCategory(s, now), label: 'Restore category');
+              toast(msg);
+            },
+            icon: const Icon(Icons.restore_rounded),
+            label: Text('Restore ${jsStr(deleted['name']).isEmpty ? 'deleted category' : jsStr(deleted['name'])}'),
+          ),
+        if (missing > 0)
+          OutlinedButton.icon(
+            onPressed: () async {
+              String msg = '';
+              await account.edit((s, now) => msg = restoreDefaultCategories(s), label: 'Restore default categories');
+              toast(msg);
+            },
+            icon: const Icon(Icons.settings_backup_restore_rounded),
+            label: Text('Restore default categories ($missing missing)'),
+          ),
+      ]),
     ]);
   }
 }

@@ -45,9 +45,13 @@ class CoverCache {
         final dir = await _root();
         final f = File('${dir.path}${Platform.pathSeparator}${_key(url)}');
         if (await f.exists() && await f.length() > 0) return ready[url] = f;
-        final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
+        // A browser-like agent: some icon and image hosts refuse unknown clients.
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 12)
+          ..userAgent = 'Mozilla/5.0 (compatible; MediaFlowApp) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36';
         try {
           final req = await client.getUrl(Uri.parse(url));
+          req.headers.set(HttpHeaders.acceptHeader, 'image/avif,image/webp,image/svg+xml,image/*,*/*;q=0.8');
           final res = await req.close().timeout(const Duration(seconds: 20));
           if (res.statusCode != 200) return null;
           final bytes = <int>[];

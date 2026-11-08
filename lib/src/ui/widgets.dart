@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
@@ -83,15 +84,8 @@ class CategoryBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = MF.parseColor(category.color);
-    Widget child;
-    final iconUrl = category.iconUrl;
-    if (iconUrl.isNotEmpty) {
-      final url = iconUrl.startsWith('http') ? iconUrl : '$kWebsiteUrl${iconUrl.replaceFirst(RegExp(r'^\./'), '')}';
-      child = Image.network(url, width: size * 0.62, height: size * 0.62,
-          errorBuilder: (_, __, ___) => _emoji(color));
-    } else {
-      child = _emoji(color);
-    }
+    final url = categoryIconUrl(category.iconUrl);
+    final fallback = _fallback(color);
     return Container(
       width: size,
       height: size,
@@ -100,17 +94,106 @@ class CategoryBadge extends StatelessWidget {
         color: color.withAlpha(0x2E),
         borderRadius: BorderRadius.circular(size * 0.3),
       ),
-      child: child,
+      child: url.isEmpty ? fallback : NetIcon(url: url, size: size * 0.62, fallback: fallback),
     );
   }
 
-  Widget _emoji(Color color) {
+  /// The emoji, or the first letter in the category colour (never 🖼️, the
+  /// website's stand-in for a link icon).
+  Widget _fallback(Color color) {
     final icon = category.icon;
-    if (icon.isNotEmpty && icon.runes.length <= 3) {
+    if (icon.isNotEmpty && icon != '🖼️' && icon != '🖼' && icon.runes.length <= 3) {
       return Text(icon, style: TextStyle(fontSize: size * 0.48));
     }
-    return Text(category.name.isEmpty ? '?' : category.name[0],
+    return Text(category.name.isEmpty ? '?' : category.name.characters.first.toUpperCase(),
         style: TextStyle(fontSize: size * 0.45, fontWeight: FontWeight.w800, color: color));
+  }
+}
+
+/// `v144SafeIconUrl` (plus the website's own relative asset paths).
+String categoryIconUrl(String raw) {
+  final v = raw.trim();
+  if (v.isEmpty) return '';
+  if (v.startsWith('./') || v.startsWith('assets/')) return '$kWebsiteUrl${v.replaceFirst(RegExp(r'^\./'), '')}';
+  final u = Uri.tryParse(v);
+  return u != null && (u.scheme == 'http' || u.scheme == 'https') && u.host.isNotEmpty ? v : '';
+}
+
+/// A small image from a link, kept on this device (works offline after the
+/// first time); SVG and bitmap images. Shows [fallback] while loading or when
+/// the link doesn't work.
+class NetIcon extends StatefulWidget {
+  const NetIcon({super.key, required this.url, required this.size, required this.fallback});
+  final String url;
+  final double size;
+  final Widget fallback;
+
+  @override
+  State<NetIcon> createState() => _NetIconState();
+}
+
+class _NetIconState extends State<NetIcon> {
+  File? _file;
+  bool _svg = false, _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(NetIcon old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _file = null;
+      _failed = false;
+      _load();
+    }
+  }
+
+  static final Map<String, bool> _svgCache = {};
+
+  Future<void> _load() async {
+    final url = widget.url;
+    final ready = CoverCache.instance.ready[url];
+    if (ready != null && _svgCache.containsKey(url)) {
+      _file = ready;
+      _svg = _svgCache[url]!;
+      return;
+    }
+    final f = await CoverCache.instance.file(url);
+    var svg = false;
+    if (f != null) {
+      svg = _svgCache[url] ??= await _isSvg(f, url);
+    }
+    if (!mounted || url != widget.url) return;
+    setState(() {
+      _file = f;
+      _svg = svg;
+      _failed = f == null;
+    });
+  }
+
+  static Future<bool> _isSvg(File f, String url) async {
+    if (Uri.tryParse(url)?.path.toLowerCase().endsWith('.svg') ?? false) return true;
+    try {
+      final head = String.fromCharCodes((await f.openRead(0, 256).first).where((c) => c < 128)).trimLeft().toLowerCase();
+      return head.startsWith('<svg') || (head.startsWith('<?xml') && head.contains('<svg'));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = _file;
+    if (f == null) return _failed ? widget.fallback : Opacity(opacity: .35, child: widget.fallback);
+    final s = widget.size;
+    if (_svg) {
+      return SvgPicture.file(f, width: s, height: s, fit: BoxFit.contain, placeholderBuilder: (_) => widget.fallback);
+    }
+    return Image.file(f, width: s, height: s, fit: BoxFit.contain, errorBuilder: (_, __, ___) => widget.fallback);
   }
 }
 

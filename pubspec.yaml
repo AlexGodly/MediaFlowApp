@@ -27,6 +27,8 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   # Long-press shortcuts on the app icon (Android, iOS).
   quick_actions: ^1.0.7
+  # Category icons given as SVG links (website v144 icon URLs).
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
