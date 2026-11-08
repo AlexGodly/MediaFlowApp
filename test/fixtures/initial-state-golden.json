@@ -436,7 +436,7 @@
    },
    "dynamicCoverTheme": false,
    "theme": "dark",
-   "globalAppearanceEnabled": true,
+   "globalAppearanceEnabled": false,
    "appearanceMode": "",
    "backup": {
     "enabled": false,

@@ -11,6 +11,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../data/app_prefs.dart';
 import '../logic/task_progress.dart';
@@ -31,9 +33,12 @@ class TaskProgressCard extends StatefulWidget {
 class _TaskProgressCardState extends State<TaskProgressCard> with TickerProviderStateMixin {
   late final AnimationController _flash = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
 
-  // One slow loop drives the waves, aura and shimmer (13 s, like the website's
-  // slowest wave); each layer takes its own speed from it.
-  late final AnimationController _loop = AnimationController(vsync: this, duration: const Duration(seconds: 39));
+  // Seconds since the card appeared. Every layer takes its own period from it
+  // (waves 9 s / 13 s, aura 6 s, shimmer 3 s, streaks 2.8 s, dot 2.1 s), so
+  // nothing jumps when a loop restarts.
+  final _clock = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker((d) => _clock.value = d.inMicroseconds / 1e6);
+  ValueListenable<double> get _loop => _clock;
   String _previous = '';
 
   // Minimised or not is remembered on this device; phones start minimised so
@@ -52,9 +57,9 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
     super.didChangeDependencies();
     final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
     if (still) {
-      _loop.stop();
-    } else if (!_loop.isAnimating) {
-      _loop.repeat();
+      if (_ticker.isActive) _ticker.stop();
+    } else if (!_ticker.isActive) {
+      _ticker.start();
     }
   }
 
@@ -75,7 +80,8 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
   @override
   void dispose() {
     _flash.dispose();
-    _loop.dispose();
+    _ticker.dispose();
+    _clock.dispose();
     super.dispose();
   }
 
@@ -128,9 +134,9 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
       // Ambient layer: aura + two waves, tinted by the task.
       Positioned.fill(
         child: IgnorePointer(
-          child: AnimatedBuilder(
-            animation: _loop,
-            builder: (context, _) => CustomPaint(painter: _AmbientPainter(_loop.value, tint)),
+          child: ValueListenableBuilder<double>(
+            valueListenable: _loop,
+            builder: (context, t, _) => CustomPaint(painter: _AmbientPainter(t, tint, MF.surface)),
           ),
         ),
       ),
@@ -145,7 +151,7 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
                 'TASK PROGRESS · ${p.categoryName.toUpperCase()}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1, color: MF.textDim),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5, color: MF.textDim),
               ),
             ),
             IconButton(
@@ -162,18 +168,35 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                     Text('${fmtNumber(p.amount)} / ${fmtNumber(p.denominator)}',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, fontFeatures: [FontFeature.tabularFigures()])),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(_units(p), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim))),
+                    Expanded(
+                      child: Text(_units(p),
+                          maxLines: 1,
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: MF.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ),
                   ]),
                   const SizedBox(height: 8),
-                  _FlowBar(pct: p.pct / 100, marker: p.marker, tint: tint, loop: _loop),
+                  _FlowBar(pct: p.pct / 100, marker: p.marker, tint: tint, loop: _loop, height: MediaQuery.sizeOf(context).width <= 720 ? 20 : 25),
                 ]),
               ),
-              Container(width: 1, height: 52, margin: const EdgeInsets.symmetric(horizontal: 14), color: MF.border),
+              Container(width: 1, height: 58, margin: const EdgeInsets.only(left: 13, right: 12), color: MF.border),
               Column(mainAxisSize: MainAxisSize.min, children: [
-                _Count(value: p.pct, style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-                Text('COMPLETE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1, color: MF.textDim)),
+                _Count(
+                  value: p.pct,
+                  style: TextStyle(
+                    fontSize: 34,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.9,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    shadows: [Shadow(color: tint.withValues(alpha: 0.26), blurRadius: 20)],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('COMPLETE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.2, color: MF.textDim)),
               ]),
             ]),
           ),
@@ -242,13 +265,13 @@ class _Count extends StatelessWidget {
 class _Pulse extends StatelessWidget {
   const _Pulse({required this.color, required this.loop});
   final Color color;
-  final Animation<double> loop;
+  final ValueListenable<double> loop;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: loop,
-        builder: (context, _) {
-          final s = 0.5 + 0.5 * math.sin(loop.value * 2 * math.pi * 13); // ~3 s breathe
+  Widget build(BuildContext context) => ValueListenableBuilder<double>(
+        valueListenable: loop,
+        builder: (context, t, _) {
+          final s = 0.5 + 0.5 * math.sin(t / 2.1 * 2 * math.pi); // 2.1 s breathe (mf397-breathe)
           return Container(
             width: 8,
             height: 8,
@@ -262,143 +285,221 @@ class _Pulse extends StatelessWidget {
       );
 }
 
-/// The flowing progress bar: eased width, a moving shimmer gradient, light
-/// streaks sliding through, a glossy top and the goal marker.
+/// The flowing progress bar (website .mf397-track / .mf397-fill): a sunken
+/// track, the fill easing to its width with a glow, a sliding gradient (3 s),
+/// light streaks (2.8 s), a glossy top and the goal marker with its cap.
 class _FlowBar extends StatelessWidget {
-  const _FlowBar({required this.pct, required this.marker, required this.tint, required this.loop});
+  const _FlowBar({required this.pct, required this.marker, required this.tint, required this.loop, this.height = 25});
   final double pct;
   final double? marker;
   final Color tint;
-  final Animation<double> loop;
+  final ValueListenable<double> loop;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(height / 2);
     return SizedBox(
-      height: 16,
+      height: height,
       child: LayoutBuilder(builder: (context, c) {
-        return Stack(clipBehavior: Clip.none, children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(color: MF.background.withValues(alpha: 0.7), borderRadius: BorderRadius.circular(8)),
-            ),
+        final w = c.maxWidth;
+        return Container(
+          decoration: BoxDecoration(
+            color: Color.lerp(MF.surface, MF.background, 0.72),
+            borderRadius: radius,
+            border: Border.all(color: MF.border),
           ),
-          TweenAnimationBuilder<double>(
-            tween: Tween(end: pct.clamp(0, 1).toDouble()),
-            duration: const Duration(milliseconds: 850),
-            curve: const Cubic(.18, .7, .22, 1),
-            builder: (context, v, _) => SizedBox(
-              width: c.maxWidth * v,
-              child: AnimatedBuilder(
-                animation: loop,
-                builder: (context, _) => CustomPaint(painter: _FillPainter(loop.value, tint)),
-              ),
-            ),
-          ),
-          if (marker != null)
-            Positioned(
-              left: (c.maxWidth * marker! - 1).clamp(0.0, c.maxWidth - 2).toDouble(),
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 2,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.67),
-                  boxShadow: [BoxShadow(color: Colors.white.withValues(alpha: 0.5), blurRadius: 5)],
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(children: [
+              // Inset shadow at the top of the track.
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.black.withValues(alpha: 0.35), Colors.black.withValues(alpha: 0)],
+                      stops: const [0, 0.45],
+                    ),
+                  ),
                 ),
               ),
-            ),
-        ]);
+              TweenAnimationBuilder<double>(
+                tween: Tween(end: pct.clamp(0, 1).toDouble()),
+                duration: const Duration(milliseconds: 850),
+                curve: const Cubic(.18, .7, .22, 1),
+                builder: (context, v, _) => Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: w * v,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: loop,
+                    builder: (context, t, _) => CustomPaint(painter: _FillPainter(t, tint, height / 2)),
+                  ),
+                ),
+              ),
+              if (marker != null)
+                Positioned(
+                  left: (w * marker! - 1).clamp(0.0, w - 2).toDouble(),
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  child: Stack(clipBehavior: Clip.none, children: [
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.67),
+                          boxShadow: [BoxShadow(color: Colors.white.withValues(alpha: 0.53), blurRadius: 5)],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: -3,
+                      top: 0,
+                      child: Container(
+                        width: 8,
+                        height: 5,
+                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.53), borderRadius: BorderRadius.circular(3)),
+                      ),
+                    ),
+                  ]),
+                ),
+            ]),
+          ),
+        );
       }),
     );
   }
 }
 
 class _FillPainter extends CustomPainter {
-  _FillPainter(this.t, this.tint);
+  _FillPainter(this.t, this.tint, this.radius);
   final double t;
   final Color tint;
+  final double radius;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= 0) return;
-    final r = RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(8));
+    if (size.width <= 0.5) return;
+    final rect = Offset.zero & size;
+    final r = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+    // Glow around the fill.
+    canvas.drawRRect(r, Paint()..color = tint.withValues(alpha: 0.34)..maskFilter = const MaskFilter.blur(BlurStyle.outer, 9));
     canvas.save();
     canvas.clipRRect(r);
-    final light = Color.lerp(tint, Colors.white, 0.45)!;
-    // Shimmer: a 2.5× wide gradient sliding by (3 s loop).
-    final shift = (t * 13) % 1.0;
-    final w = size.width * 2.5;
-    final dx = -w * shift;
+    // Flowing gradient: 100°, 250 % wide, sliding one full width every 3 s.
+    final light1 = Color.lerp(tint, Colors.white, 0.45)!, light2 = Color.lerp(tint, Colors.white, 0.35)!;
+    final gw = size.width * 2.5;
+    final dx = -gw * ((t / 3) % 1);
+    final grad = LinearGradient(
+      begin: const Alignment(-1, -0.18),
+      end: const Alignment(1, 0.18),
+      colors: [tint, light1, tint, light2, tint],
+      stops: const [0, .4, .67, .95, 1],
+      tileMode: TileMode.repeated,
+    );
+    canvas.drawRect(rect, Paint()..shader = grad.createShader(Rect.fromLTWH(dx, 0, gw, size.height)));
+    // Light streaks (repeating 110° bands every 155 px, sliding over 2.8 s).
+    const period = 155.0;
+    final offset = ((t / 2.8) % 1) * period;
+    final slant = size.height * 0.36; // tan(20°)
+    final band = Paint()
+      ..shader = const LinearGradient(colors: [Color(0x00FFFFFF), Color(0x33FFFFFF), Color(0x00FFFFFF)]).createShader(const Rect.fromLTWH(0, 0, 20, 1));
+    for (var x = -period + offset; x < size.width + period; x += period) {
+      for (final start in const [23.0, 23.0 + 51.67, 23.0 + 103.33]) {
+        final x0 = x + start;
+        final path = Path()
+          ..moveTo(x0, size.height)
+          ..lineTo(x0 + 20, size.height)
+          ..lineTo(x0 + 20 + slant, 0)
+          ..lineTo(x0 + slant, 0)
+          ..close();
+        canvas.save();
+        canvas.translate(x0, 0);
+        canvas.drawPath(path.shift(Offset(-x0, 0)), band);
+        canvas.restore();
+      }
+    }
+    // Gloss on the top half, and the inner top highlight.
     canvas.drawRect(
-      Offset.zero & size,
+      Rect.fromLTWH(0, 0, size.width, size.height * 0.43),
       Paint()
         ..shader = LinearGradient(
-          colors: [tint, light, tint, Color.lerp(tint, Colors.white, 0.35)!, tint],
-          stops: const [0, .2, .4, .7, 1],
-          tileMode: TileMode.repeated,
-        ).createShader(Rect.fromLTWH(dx, 0, w, size.height)),
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white.withValues(alpha: 0.3 * 0.47), Colors.white.withValues(alpha: 0)],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.43)),
     );
-    // Light streaks (2.8 s loop).
-    final streak = Paint()..color = Colors.white.withValues(alpha: 0.18);
-    final period = 155.0, offset = ((t * 14) % 1.0) * period;
-    for (var x = -period + offset; x < size.width + period; x += period / 3) {
-      final path = Path()
-        ..moveTo(x, size.height)
-        ..lineTo(x + 6, size.height)
-        ..lineTo(x + 6 + size.height * 0.4, 0)
-        ..lineTo(x + size.height * 0.4, 0)
-        ..close();
-      canvas.drawPath(path, streak);
-    }
-    // Gloss.
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height * 0.45),
-      Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.white.withValues(alpha: 0.4), Colors.white.withValues(alpha: 0)]).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.45)),
-    );
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, 2), Paint()..color = Colors.white.withValues(alpha: 0.26));
     canvas.restore();
-    // Glow under the fill.
-    canvas.drawRRect(r, Paint()..color = tint.withValues(alpha: 0.25)..maskFilter = const MaskFilter.blur(BlurStyle.outer, 8));
   }
 
   @override
-  bool shouldRepaint(_FillPainter old) => old.t != t || old.tint != tint;
+  bool shouldRepaint(_FillPainter old) => old.t != t || old.tint != tint || old.radius != radius;
 }
 
-/// The aura and two waves drifting in opposite directions (9 s and 13 s).
+/// The ambient layer (website .mf397-ambient): a breathing aura (6 s,
+/// alternate) and two waves drifting in opposite directions (9 s left, 13 s
+/// right), faded from the left by the panel colour.
 class _AmbientPainter extends CustomPainter {
-  _AmbientPainter(this.t, this.tint);
+  _AmbientPainter(this.t, this.tint, this.panel);
   final double t;
-  final Color tint;
+  final Color tint, panel;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Aura breathing (6 s, alternate).
-    final a = 0.5 + 0.5 * math.sin(t * 2 * math.pi * 6.5);
-    final center = Offset(size.width * (0.22 + 0.05 * a), size.height * (1.0 + 0.02 * a));
+    final w = size.width, h = size.height;
+    // Aura: 6 s ease-in-out, alternating (0 → 1 → 0 over 12 s).
+    final phase = (t / 6) % 2;
+    final lin = phase < 1 ? phase : 2 - phase;
+    final a = lin < .5 ? 2 * lin * lin : 1 - math.pow(-2 * lin + 2, 2) / 2;
+    final box = Rect.fromLTRB(-0.1 * w, -0.3 * h, 1.1 * w, 1.1 * h);
+    final scale = 1 + 0.1 * a;
+    final center = Offset(box.left + box.width * 0.22 + 0.05 * box.width * a, box.bottom + 0.02 * box.height * a);
+    final radius = math.sqrt(math.pow(box.width * 0.78, 2) + math.pow(box.height, 2)) * 0.64 * scale;
     canvas.drawRect(
       Offset.zero & size,
       Paint()
-        ..shader = RadialGradient(
-          colors: [tint.withValues(alpha: 0.13 + 0.12 * a), tint.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: center, radius: size.width * (0.64 + 0.06 * a))),
+        ..shader = RadialGradient(colors: [
+          tint.withValues(alpha: 0.37 * (0.34 + 0.31 * a)),
+          tint.withValues(alpha: 0),
+        ]).createShader(Rect.fromCircle(center: center, radius: radius)),
     );
-    void wave(double baseline, double amp, double phase, double alpha) {
-      final p = Path()..moveTo(0, size.height);
-      final wl = size.width / 2;
-      for (double x = 0; x <= size.width; x += 4) {
-        final y = baseline + amp * math.sin((x / wl) * 2 * math.pi + phase);
+
+    // Waves: the website's SVG (8 crests over twice the card's width).
+    void wave({required double top, required double baseline, required double amp, required double shift, required Color color}) {
+      final period = w / 4;
+      final p = Path()..moveTo(0, h);
+      for (double x = 0; x <= w + 2; x += 3) {
+        final y = top + baseline - amp * math.cos(((x + shift) / period) * 2 * math.pi);
         p.lineTo(x, y);
       }
       p
-        ..lineTo(size.width, size.height)
+        ..lineTo(w, h)
         ..close();
-      canvas.drawPath(p, Paint()..color = tint.withValues(alpha: alpha));
+      canvas.drawPath(p, Paint()..color = color);
     }
 
-    wave(size.height * 0.80, 6, t * 2 * math.pi * 4.33, 0.10); // back, 9 s to the left
-    wave(size.height * 0.88, 5, -t * 2 * math.pi * 3.0, 0.08); // front, 13 s to the right
+    final waveH = 1.1 * h;
+    wave(top: h - (waveH - 0.24 * h), baseline: waveH * 62 / 180 + waveH * 15 / 180, amp: waveH * 15 / 180, shift: w * ((t / 9) % 1), color: tint.withValues(alpha: 0.16));
+    wave(
+      top: h - (waveH - 0.12 * h),
+      baseline: waveH * 78 / 180 + waveH * 14.5 / 180,
+      amp: waveH * 14.5 / 180,
+      shift: -w * ((t / 13) % 1),
+      color: Color.lerp(panel, tint, 0.74)!.withValues(alpha: 0.12),
+    );
+    // Fade from the left so the numbers stay readable.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = LinearGradient(colors: [panel.withValues(alpha: 0.75), panel.withValues(alpha: 0)], stops: const [0, 0.63])
+            .createShader(Offset.zero & size),
+    );
   }
 
   @override
-  bool shouldRepaint(_AmbientPainter old) => old.t != t || old.tint != tint;
+  bool shouldRepaint(_AmbientPainter old) => old.t != t || old.tint != tint || old.panel != panel;
 }

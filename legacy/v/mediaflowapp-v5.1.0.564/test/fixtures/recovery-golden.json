@@ -1,0 +1,906 @@
+{
+ "generatedFrom": "319-v439-metadata-recovery.js",
+ "now": 1762600000000,
+ "scenarios": [
+  {
+   "name": "missing fields filled automatically; existing and protected kept; conflicts left for review",
+   "mode": "automatic",
+   "item": {
+    "id": "m1",
+    "title": "Frieren",
+    "year": 2023,
+    "synopsis": "",
+    "genres": [
+     "Fantasy"
+    ],
+    "studios": [],
+    "mediaFormat": "",
+    "externalIds": {
+     "mal": "52991"
+    },
+    "richMetadataManual": {
+     "ageRating": true
+    },
+    "modifiedAt": 1,
+    "universalMetadata": {
+     "mediaType": "anime"
+    }
+   },
+   "rows": [
+    {
+     "provider": "jikan",
+     "recordId": "52991",
+     "title": "Sousou no Frieren",
+     "year": 2023,
+     "externalIds": {
+      "mal": "52991"
+     },
+     "fields": {},
+     "ratings": {
+      "mal": {
+       "score": 9.3,
+       "scale": 10,
+       "votes": 500000
+      }
+     },
+     "legacy": {
+      "synopsis": "<p>An elf mage &amp; her party</p>",
+      "year": 2023,
+      "mediaFormat": "TV",
+      "genres": [
+       "Adventure",
+       "Drama"
+      ],
+      "ageRating": "PG-13"
+     },
+     "aliases": [
+      "Frieren"
+     ]
+    },
+    {
+     "provider": "anilist",
+     "recordId": "154587",
+     "title": "Frieren",
+     "year": 2023,
+     "externalIds": {
+      "anilist": "154587",
+      "mal": "52991"
+     },
+     "fields": {},
+     "ratings": {
+      "anilist": {
+       "score": 91,
+       "scale": 100
+      }
+     },
+     "legacy": {
+      "year": 2023,
+      "mediaFormat": "TV_SHORT",
+      "durationMinutes": 24
+     }
+    },
+    {
+     "provider": "kitsu",
+     "recordId": "1",
+     "title": "Frieren",
+     "year": 2019,
+     "externalIds": {},
+     "fields": {},
+     "ratings": {},
+     "legacy": {
+      "synopsis": "Wrong year"
+     }
+    }
+   ],
+   "now": 1762600000000,
+   "expected": {
+    "proposals": [
+     {
+      "token": "legacy.synopsis",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "legacy.ageRating",
+      "status": "protected",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "legacy.durationMinutes",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "legacy.genres",
+      "status": "existing",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "legacy.mediaFormat",
+      "status": "conflict",
+      "selected": false,
+      "choice": 0,
+      "options": 2,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "legacy.year",
+      "status": "unchanged",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan",
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "rating.anilist",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "rating.mal",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     }
+    ],
+    "errors": [
+     "kitsu"
+    ],
+    "result": {
+     "changed": 4,
+     "legacy": 2,
+     "fields": 0,
+     "ratings": 2
+    },
+    "itemJson": "{\"id\":\"m1\",\"title\":\"Frieren\",\"year\":2023,\"synopsis\":\"An elf mage & her party\",\"genres\":[\"Fantasy\"],\"studios\":[],\"mediaFormat\":\"\",\"externalIds\":{\"mal\":\"52991\"},\"richMetadataManual\":{\"ageRating\":true},\"modifiedAt\":1762600000000,\"universalMetadata\":{\"mediaType\":\"anime\",\"schemaVersion\":1,\"fields\":{},\"externalRatings\":{\"anilist\":{\"score\":91,\"scale\":100,\"votes\":null,\"url\":\"\",\"updatedAt\":1762600000000,\"source\":\"anilist\"},\"mal\":{\"score\":9.3,\"scale\":10,\"votes\":500000,\"url\":\"\",\"updatedAt\":1762600000000,\"source\":\"jikan\"}},\"provenance\":{\"legacy.synopsis\":{\"source\":\"jikan\",\"verified\":true,\"recordId\":\"52991\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"legacy.durationMinutes\":{\"source\":\"anilist\",\"verified\":true,\"recordId\":\"154587\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"rating.anilist\":{\"source\":\"anilist\",\"verified\":true,\"recordId\":\"154587\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"rating.mal\":{\"source\":\"jikan\",\"verified\":true,\"recordId\":\"52991\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000}},\"locks\":{},\"updatedAt\":1762600000000},\"durationMinutes\":24,\"v439RecoveryHistory\":[{\"at\":1762600000000,\"legacy\":2,\"fields\":0,\"ratings\":2,\"providers\":[\"jikan\",\"anilist\"]}]}"
+   }
+  },
+  {
+   "name": "review: chosen option of a conflict is applied, exact-title-only results need review",
+   "mode": "review",
+   "select": {
+    "legacy.mediaFormat": 1,
+    "legacy.synopsis": 0
+   },
+   "item": {
+    "id": "m2",
+    "title": "Dune",
+    "releaseDate": "2021-10-22",
+    "modifiedAt": 5,
+    "universalMetadata": {
+     "externalRatings": {
+      "imdb": {
+       "score": 8,
+       "scale": 10,
+       "votes": 1,
+       "url": "",
+       "updatedAt": 1,
+       "source": "manual"
+      }
+     },
+     "provenance": {
+      "rating.imdb": {
+       "source": "manual",
+       "verified": false,
+       "updatedAt": 1
+      }
+     },
+     "locks": {
+      "rating.imdb": true
+     }
+    }
+   },
+   "rows": [
+    {
+     "provider": "tmdb",
+     "recordId": "438631",
+     "title": "Dune",
+     "year": 2021,
+     "externalIds": {
+      "tmdb": "438631"
+     },
+     "fields": {},
+     "ratings": {
+      "tmdb": {
+       "score": 7.8,
+       "scale": 10,
+       "votes": 12000
+      }
+     },
+     "legacy": {
+      "mediaFormat": "Movie",
+      "synopsis": "Paul Atreides…"
+     }
+    },
+    {
+     "provider": "omdb",
+     "recordId": "tt1160419",
+     "title": "Dune",
+     "year": 2021,
+     "externalIds": {
+      "imdb": "tt1160419"
+     },
+     "fields": {},
+     "ratings": {
+      "imdb": {
+       "score": 8,
+       "scale": 10,
+       "votes": 900000
+      }
+     },
+     "legacy": {
+      "mediaFormat": "movie (feature)"
+     }
+    }
+   ],
+   "now": 1762600000000,
+   "expected": {
+    "proposals": [
+     {
+      "token": "legacy.synopsis",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "tmdb"
+      ],
+      "confidence": 0.97
+     },
+     {
+      "token": "legacy.mediaFormat",
+      "status": "conflict",
+      "selected": true,
+      "choice": 1,
+      "options": 2,
+      "providers": [
+       "tmdb"
+      ],
+      "confidence": 0.97
+     },
+     {
+      "token": "rating.imdb",
+      "status": "protected",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "omdb"
+      ],
+      "confidence": 0.97
+     },
+     {
+      "token": "rating.tmdb",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "tmdb"
+      ],
+      "confidence": 0.97
+     }
+    ],
+    "errors": [],
+    "result": {
+     "changed": 3,
+     "legacy": 2,
+     "fields": 0,
+     "ratings": 1
+    },
+    "itemJson": "{\"id\":\"m2\",\"title\":\"Dune\",\"releaseDate\":\"2021-10-22\",\"modifiedAt\":1762600000000,\"universalMetadata\":{\"externalRatings\":{\"imdb\":{\"score\":8,\"scale\":10,\"votes\":1,\"url\":\"\",\"updatedAt\":1,\"source\":\"manual\"},\"tmdb\":{\"score\":7.8,\"scale\":10,\"votes\":12000,\"url\":\"\",\"updatedAt\":1762600000000,\"source\":\"tmdb\"}},\"provenance\":{\"rating.imdb\":{\"source\":\"manual\",\"verified\":false,\"updatedAt\":1},\"legacy.synopsis\":{\"source\":\"tmdb\",\"verified\":true,\"recordId\":\"438631\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000},\"legacy.mediaFormat\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt1160419\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000},\"rating.tmdb\":{\"source\":\"tmdb\",\"verified\":true,\"recordId\":\"438631\",\"evidence\":\"Exact title and release year\",\"updatedAt\":1762600000000}},\"locks\":{\"rating.imdb\":true},\"schemaVersion\":1,\"mediaType\":\"unspecified\",\"fields\":{},\"updatedAt\":1762600000000},\"synopsis\":\"Paul Atreides…\",\"mediaFormat\":\"movie (feature)\",\"v439RecoveryHistory\":[{\"at\":1762600000000,\"legacy\":2,\"fields\":0,\"ratings\":1,\"providers\":[\"tmdb\",\"omdb\"]}]}"
+   }
+  },
+  {
+   "name": "universal fields: missing ones filled, locked and existing kept, counts parsed",
+   "mode": "automatic",
+   "item": {
+    "id": "m3",
+    "title": "Frieren",
+    "year": 2023,
+    "modifiedAt": 9,
+    "externalIds": {
+     "mal": "52991"
+    },
+    "universalMetadata": {
+     "schemaVersion": 1,
+     "mediaType": "anime",
+     "fields": {
+      "creators": [
+       "Kanehito Yamada"
+      ]
+     },
+     "locks": {
+      "field.animeSeason": true
+     },
+     "updatedAt": 3
+    }
+   },
+   "rows": [
+    {
+     "provider": "jikan",
+     "recordId": "52991",
+     "title": "Sousou no Frieren",
+     "year": 2023,
+     "externalIds": {
+      "mal": "52991"
+     },
+     "fields": {
+      "originalTitle": "葬送のフリーレン",
+      "animeSeason": "fall",
+      "episodeCount": 28,
+      "chapterCount": null,
+      "mangaAuthors": [],
+      "creators": [
+       "Someone"
+      ]
+     },
+     "ratings": {},
+     "legacy": {},
+     "aliases": [
+      "Frieren"
+     ]
+    },
+    {
+     "provider": "anilist",
+     "recordId": "154587",
+     "title": "Frieren",
+     "year": 2023,
+     "externalIds": {
+      "anilist": "154587",
+      "mal": "52991"
+     },
+     "fields": {
+      "originalTitle": "葬送のフリーレン",
+      "alternateTitles": [
+       "Frieren: Beyond Journey's End",
+       "Frieren at the Funeral"
+      ],
+      "episodeCount": "28",
+      "officialWebsite": "https://frieren-anime.jp"
+     },
+     "ratings": {},
+     "legacy": {}
+    }
+   ],
+   "now": 1762600000000,
+   "expected": {
+    "proposals": [
+     {
+      "token": "field.alternateTitles",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "field.animeSeason",
+      "status": "protected",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "field.creators",
+      "status": "existing",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "field.episodeCount",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan",
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "field.officialWebsite",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "anilist"
+      ],
+      "confidence": 1
+     },
+     {
+      "token": "field.originalTitle",
+      "status": "ready",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "jikan",
+       "anilist"
+      ],
+      "confidence": 1
+     }
+    ],
+    "errors": [],
+    "result": {
+     "changed": 4,
+     "legacy": 0,
+     "fields": 4,
+     "ratings": 0
+    },
+    "itemJson": "{\"id\":\"m3\",\"title\":\"Frieren\",\"year\":2023,\"modifiedAt\":1762600000000,\"externalIds\":{\"mal\":\"52991\"},\"universalMetadata\":{\"schemaVersion\":1,\"mediaType\":\"anime\",\"fields\":{\"creators\":[\"Kanehito Yamada\"],\"alternateTitles\":[\"Frieren: Beyond Journey's End\",\"Frieren at the Funeral\"],\"episodeCount\":28,\"officialWebsite\":\"https://frieren-anime.jp/\",\"originalTitle\":\"葬送のフリーレン\"},\"locks\":{\"field.animeSeason\":true},\"updatedAt\":1762600000000,\"externalRatings\":{},\"provenance\":{\"field.alternateTitles\":{\"source\":\"anilist\",\"verified\":true,\"recordId\":\"154587\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"field.episodeCount\":{\"source\":\"jikan\",\"verified\":true,\"recordId\":\"52991\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"field.officialWebsite\":{\"source\":\"anilist\",\"verified\":true,\"recordId\":\"154587\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000},\"field.originalTitle\":{\"source\":\"jikan\",\"verified\":true,\"recordId\":\"52991\",\"evidence\":\"Exact title and confirmed external ID\",\"updatedAt\":1762600000000}}},\"v439RecoveryHistory\":[{\"at\":1762600000000,\"legacy\":0,\"fields\":4,\"ratings\":0,\"providers\":[\"anilist\",\"jikan\"]}]}"
+   }
+  },
+  {
+   "name": "universal fields in review: decimal hours and list values",
+   "mode": "review",
+   "select": {
+    "field.platforms": 0,
+    "field.mainStoryHours": 0
+   },
+   "item": {
+    "id": "m4",
+    "title": "Steins;Gate",
+    "modifiedAt": 2
+   },
+   "rows": [
+    {
+     "provider": "vndb",
+     "recordId": "v2002",
+     "title": "Steins;Gate",
+     "year": 0,
+     "externalIds": {
+      "vndb": "v2002"
+     },
+     "fields": {
+      "originalTitle": "シュタインズ・ゲート",
+      "platforms": [
+       "win",
+       "ps3",
+       "win"
+      ],
+      "mainStoryHours": 31.666,
+      "ifPlatforms": [
+       "win"
+      ]
+     },
+     "ratings": {},
+     "legacy": {}
+    }
+   ],
+   "now": 1762600000000,
+   "expected": {
+    "proposals": [
+     {
+      "token": "field.ifPlatforms",
+      "status": "review",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "vndb"
+      ],
+      "confidence": 0.89
+     },
+     {
+      "token": "field.mainStoryHours",
+      "status": "review",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "vndb"
+      ],
+      "confidence": 0.89
+     },
+     {
+      "token": "field.originalTitle",
+      "status": "review",
+      "selected": false,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "vndb"
+      ],
+      "confidence": 0.89
+     },
+     {
+      "token": "field.platforms",
+      "status": "review",
+      "selected": true,
+      "choice": 0,
+      "options": 1,
+      "providers": [
+       "vndb"
+      ],
+      "confidence": 0.89
+     }
+    ],
+    "errors": [],
+    "result": {
+     "changed": 2,
+     "legacy": 0,
+     "fields": 2,
+     "ratings": 0
+    },
+    "itemJson": "{\"id\":\"m4\",\"title\":\"Steins;Gate\",\"modifiedAt\":1762600000000,\"universalMetadata\":{\"schemaVersion\":1,\"mediaType\":\"unspecified\",\"fields\":{\"mainStoryHours\":31.67,\"platforms\":[\"win\",\"ps3\"]},\"externalRatings\":{},\"provenance\":{\"field.mainStoryHours\":{\"source\":\"vndb\",\"verified\":true,\"recordId\":\"v2002\",\"evidence\":\"Exact title only · manual review\",\"updatedAt\":1762600000000},\"field.platforms\":{\"source\":\"vndb\",\"verified\":true,\"recordId\":\"v2002\",\"evidence\":\"Exact title only · manual review\",\"updatedAt\":1762600000000}},\"locks\":{},\"updatedAt\":1762600000000},\"v439RecoveryHistory\":[{\"at\":1762600000000,\"legacy\":0,\"fields\":2,\"ratings\":0,\"providers\":[\"vndb\"]}]}"
+   }
+  }
+ ],
+ "coverLinks": [
+  {
+   "name": "AniList cover links AniList + the MAL ID AniList reports",
+   "manual": true,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
+    "changes": 2,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\",\"mal\":\"52991\"}}"
+   }
+  },
+  {
+   "name": "conflicting saved ID is kept; the rest link",
+   "manual": true,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {
+     "mal": "1"
+    }
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "1",
+      "conflict": true
+     }
+    ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
+    "changes": 1,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"mal\":\"1\",\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"anilist\":\"154587\"}}"
+   }
+  },
+  {
+   "name": "TVmaze cover links TVmaze + IMDb",
+   "manual": true,
+   "item": {
+    "title": "Severance",
+    "externalIds": {
+     "tvmaze": "44933"
+    }
+   },
+   "candidate": {
+    "provider": "tvmaze",
+    "recordId": "44933",
+    "externalIdKey": "tvmaze",
+    "externalIdValue": "44933",
+    "recordUrl": ""
+   },
+   "entry": {
+    "externals": {
+     "imdb": "tt11280740"
+    }
+   },
+   "expected": {
+    "ids": [
+     [
+      "tvmaze",
+      "44933"
+     ],
+     [
+      "imdb",
+      "tt11280740"
+     ]
+    ],
+    "links": [
+     {
+      "key": "tvmaze",
+      "value": "44933",
+      "existing": "44933",
+      "conflict": false
+     },
+     {
+      "key": "imdb",
+      "value": "tt11280740",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "quick": {
+     "key": "imdb",
+     "id": "tt11280740",
+     "canLink": true
+    },
+    "changes": 1,
+    "itemJson": "{\"title\":\"Severance\",\"externalIds\":{\"tvmaze\":\"44933\",\"imdb\":\"tt11280740\"},\"v377ManualExternalIds\":{\"imdb\":\"tt11280740\"}}"
+   }
+  },
+  {
+   "name": "Open Library work ID",
+   "manual": true,
+   "item": {
+    "title": "Dune",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "openlibrary",
+    "recordId": "OL893415W",
+    "externalIdKey": "openlibrary",
+    "externalIdValue": "OL893415W",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [
+     [
+      "openlibrary",
+      "OL893415W"
+     ]
+    ],
+    "links": [
+     {
+      "key": "openlibrary",
+      "value": "OL893415W",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "quick": {
+     "key": "openlibrary",
+     "id": "OL893415W",
+     "canLink": true
+    },
+    "changes": 1,
+    "itemJson": "{\"title\":\"Dune\",\"externalIds\":{\"openlibrary\":\"OL893415W\"},\"v377ManualExternalIds\":{\"openlibrary\":\"OL893415W\"}}"
+   }
+  },
+  {
+   "name": "TMDB TV from the gateway",
+   "manual": true,
+   "item": {
+    "title": "Arcane",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "tmdb",
+    "recordId": "94605",
+    "externalIdKey": "tmdb_tv",
+    "externalIdValue": "94605",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [
+     [
+      "tmdb_tv",
+      "94605"
+     ]
+    ],
+    "links": [
+     {
+      "key": "tmdb_tv",
+      "value": "94605",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "quick": {
+     "key": "tmdb_tv",
+     "id": "94605",
+     "canLink": true
+    },
+    "changes": 1,
+    "itemJson": "{\"title\":\"Arcane\",\"externalIds\":{\"tmdb_tv\":\"94605\"},\"v377ManualExternalIds\":{\"tmdb_tv\":\"94605\"}}"
+   }
+  },
+  {
+   "name": "automatic link skips IDs the person cleared or wrote",
+   "manual": false,
+   "item": {
+    "title": "Frieren",
+    "externalIds": {},
+    "v377ManualExternalIds": {
+     "mal": ""
+    }
+   },
+   "candidate": {
+    "provider": "anilist",
+    "recordId": "154587",
+    "externalIdKey": "anilist",
+    "externalIdValue": "154587",
+    "recordUrl": ""
+   },
+   "entry": {
+    "idMal": 52991
+   },
+   "expected": {
+    "ids": [
+     [
+      "anilist",
+      "154587"
+     ],
+     [
+      "mal",
+      "52991"
+     ]
+    ],
+    "links": [
+     {
+      "key": "anilist",
+      "value": "154587",
+      "existing": "",
+      "conflict": false
+     },
+     {
+      "key": "mal",
+      "value": "52991",
+      "existing": "",
+      "conflict": false
+     }
+    ],
+    "quick": {
+     "key": "anilist",
+     "id": "154587",
+     "canLink": true
+    },
+    "changes": 1,
+    "itemJson": "{\"title\":\"Frieren\",\"externalIds\":{\"anilist\":\"154587\"},\"v377ManualExternalIds\":{\"mal\":\"\"}}"
+   }
+  },
+  {
+   "name": "iTunes has no linkable ID",
+   "manual": true,
+   "item": {
+    "title": "Ants From Up There",
+    "externalIds": {}
+   },
+   "candidate": {
+    "provider": "itunes",
+    "recordId": "1590446045",
+    "externalIdKey": "",
+    "externalIdValue": "",
+    "recordUrl": ""
+   },
+   "entry": {},
+   "expected": {
+    "ids": [],
+    "links": [],
+    "quick": {
+     "key": "",
+     "id": "1590446045",
+     "canLink": false
+    },
+    "changes": 0,
+    "itemJson": "{\"title\":\"Ants From Up There\",\"externalIds\":{}}"
+   }
+  }
+ ]
+}
