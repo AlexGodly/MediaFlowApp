@@ -40,7 +40,7 @@ class ExtrasScreen extends StatelessWidget {
                 children: [
                   _BalanceCard(view: view),
                   if (balancePanel(view.state, 'libraryOverview')['enabled'] != false) LibraryOverviewCard(view: view),
-                  _OnThisDayCard(account: account, view: view),
+                  OnThisDayCard(account: account, view: view),
                   StopwatchCard(account: account),
                   RuntimeCalculatorCard(account: account),
                 ],
@@ -255,8 +255,8 @@ class _BalanceCard extends StatelessWidget {
 
 // ---- On This Day ----------------------------------------------------------------
 
-class _OnThisDayCard extends StatelessWidget {
-  const _OnThisDayCard({required this.account, required this.view});
+class OnThisDayCard extends StatelessWidget {
+  const OnThisDayCard({required this.account, required this.view});
   final AccountController account;
   final AccountView view;
 

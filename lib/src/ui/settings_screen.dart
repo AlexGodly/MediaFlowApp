@@ -149,6 +149,7 @@ final _sections = <(String, IconData, List<_S>)>[
     [
       _S(['v192Dashboard', 'showTodayBalance'], "Show Today's Balance", kind: 'bool', def: true),
       _S(['v192Dashboard', 'showOnThisDay'], 'Show On This Day', kind: 'bool', def: true),
+      _S(['mf565LogOnThisDay'], 'Show On This Day on the Log page', kind: 'bool', def: true, help: 'It stays in Extras either way.'),
       _S(['v192Dashboard', 'showRatingQueue'], 'Show Rate Your Library', kind: 'bool', def: true),
       _S(['v192Dashboard', 'showMissingCovers'], 'Show Missing Covers', kind: 'bool', def: true),
       _S(['v192Dashboard', 'showStopwatch'], 'Show Stopwatch', kind: 'bool', def: true),

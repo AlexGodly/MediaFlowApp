@@ -165,3 +165,88 @@ class _StreakCard extends StatelessWidget {
     );
   }
 }
+
+/// The website Dashboard's "Today" cards (v420): tasks completed, time
+/// invested and day streak, from today's History (`todaysSessions` +
+/// `totalsForSessions`, UTC date like the website's `todayISO`).
+class TodayCards extends StatelessWidget {
+  const TodayCards({super.key, required this.state});
+  final Map<String, dynamic> state;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final today = now.toUtc().toIso8601String().substring(0, 10);
+    var minutes = 0.0;
+    var tasks = 0;
+    for (final raw in asList(state['sessions'])) {
+      final s = asMap(raw);
+      if (s == null || jsStr(s['date']) != today || s['status'] == 'skipped') continue;
+      minutes += jsNum(s['minutes']);
+      tasks++;
+    }
+    final settings = asMap(state['settings']) ?? const <String, dynamic>{};
+    final tasksPerDay = jsNum(settings['tasksPerDay'] ?? 5);
+    final dailyMinutes = jsNum(settings['dailyMinutes'] ?? 180);
+    int pct(double v, double of) => of <= 0 ? 0 : (v / of * 100).round().clamp(0, 100).toInt();
+    final streak = computeDayStreak(asList(state['sessions']), now.millisecondsSinceEpoch);
+    Widget card(IconData icon, String badge, String big, String small, String label, String detail, int? progress, {Color? tint}) => Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 5),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(18), border: Border.all(color: MF.border)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(color: (tint ?? MF.accent).withValues(alpha: .16), borderRadius: BorderRadius.circular(10)),
+                  child: Icon(icon, size: 19, color: tint ?? MF.accent),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: MF.border)),
+                  child: Text(badge, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                ),
+              ]),
+              const SizedBox(height: 10),
+              Text.rich(TextSpan(children: [
+                TextSpan(text: big, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
+                TextSpan(text: ' $small', style: TextStyle(fontSize: 13, color: MF.textDim, fontWeight: FontWeight.w700)),
+              ])),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+              const SizedBox(height: 2),
+              Text(detail, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 11)),
+              if (progress != null) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(value: progress / 100, minHeight: 5, color: tint ?? MF.accent, backgroundColor: MF.raised),
+                ),
+              ],
+            ]),
+          ),
+        );
+    final tasksPct = pct(tasks.toDouble(), tasksPerDay), minutesPct = pct(minutes, dailyMinutes);
+    final remainingTasks = (tasksPerDay - tasks).clamp(0, double.infinity).round();
+    final remainingMinutes = (dailyMinutes - minutes).clamp(0, double.infinity).toDouble();
+    final cards = [
+      card(Icons.task_alt_rounded, '$tasksPct%', '$tasks', '/ ${tasksPerDay.round()} tasks', 'Tasks completed', '$remainingTasks tasks remaining today', tasksPct),
+      card(Icons.schedule_rounded, '$minutesPct%', fmtMinutes(minutes), '/ ${fmtMinutes(dailyMinutes)} target', 'Time invested', '${fmtMinutes(remainingMinutes)} remaining today', minutesPct),
+      card(Icons.local_fire_department_rounded, 'Consistency', '$streak', 'days', 'Day streak',
+          streak > 0 ? 'Keep your momentum going' : 'Complete your first activity to build a streak', null,
+          tint: MF.warn),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: LayoutBuilder(builder: (context, box) {
+        if (box.maxWidth >= 640) return IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: cards));
+        // Phones: one card per row.
+        return Column(children: [
+          for (final c in cards) Row(children: [c]),
+        ].expand((w) => [w, const SizedBox(height: 8)]).toList());
+      }),
+    );
+  }
+}

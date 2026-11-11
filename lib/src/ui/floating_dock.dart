@@ -33,8 +33,11 @@ class DockAction {
 
 /// What the + menu asks the app to do.
 class DockCommands {
-  DockCommands({required this.openLogging, required this.openCollections});
+  DockCommands({required this.openLogging, required this.openCollections, this.openBatchLog});
   final VoidCallback openLogging, openCollections;
+
+  /// v565: "Log any title" (Batch Log), with or without a session.
+  final VoidCallback? openBatchLog;
 }
 
 class FloatingDock {
@@ -104,6 +107,9 @@ class DockButton extends StatelessWidget {
     final shortcuts = recoveryShortcuts(settings);
     final shown = backgroundProcessesShown(settings);
     final actions = <(String, String, IconData, VoidCallback)>[
+      if (extras)
+        for (final x in FloatingDock.extras.value) (x.label, x.subtitle, x.icon, x.onTap),
+      if (commands.openBatchLog != null) ('Log any title', 'Batch Log · any title, any category', Icons.post_add_rounded, commands.openBatchLog!),
       ('Add to Logging', 'Open Logging Library', Icons.playlist_add_rounded, commands.openLogging),
       ('Add to Library', 'Create a new title', Icons.library_add_rounded, onAddTitle),
       ('Add Collection', 'Create & open collection', Icons.create_new_folder_rounded, () => onAddCollection()),
@@ -126,8 +132,6 @@ class DockButton extends StatelessWidget {
           }
         },
       ),
-      if (extras)
-        for (final x in FloatingDock.extras.value) (x.label, x.subtitle, x.icon, x.onTap),
     ];
     final picked = await Navigator.of(context).push<VoidCallback>(PageRouteBuilder(
       opaque: false,
