@@ -200,6 +200,8 @@ class _OrderScreenState extends State<OrderScreen> {
         final byCategory = p['viewMode'] == 'category';
         final canRestore = asList(asMap(p['lastClearedOrder'])?['titleIds']).isNotEmpty;
         final shown = _visible(view, titleIds, byId);
+        // Each title's place in the Order, computed once per change (was a scan per row).
+        final posOf = <String, int>{for (var i = 0; i < titleIds.length; i++) titleIds[i]: i};
         final filtered = shown.length != titleIds.length || _sort != 'order';
         final grid = _titleView == 'covers' || _titleView == 'covers-title' || _titleView == 'cards';
         final header = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -293,7 +295,13 @@ class _OrderScreenState extends State<OrderScreen> {
         ]);
         Widget titles;
         if (byCategory && !filtered) {
-          titles = ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [header, ..._byCategory(view, p, titleIds, byId)]);
+          // v565: only the rows on screen are built (a big Order lagged).
+          final rows = _byCategory(view, p, titleIds, byId);
+          titles = ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            itemCount: rows.length + 1,
+            itemBuilder: (context, i) => i == 0 ? header : rows[i - 1](),
+          );
         } else if (grid) {
           titles = CustomScrollView(slivers: [
             SliverPadding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), sliver: SliverToBoxAdapter(child: header)),
@@ -307,7 +315,7 @@ class _OrderScreenState extends State<OrderScreen> {
                   childAspectRatio: _titleView == 'cards' ? (_columns == 1 ? 4 : 1.6) : (_titleView == 'covers' ? .69 : .56),
                 ),
                 itemCount: shown.length,
-                itemBuilder: (context, i) => _tile(view, byId[shown[i]]!, titleIds.indexOf(shown[i])),
+                itemBuilder: (context, i) => _tile(view, byId[shown[i]]!, posOf[shown[i]] ?? 0),
               ),
             ),
           ]);
@@ -329,7 +337,7 @@ class _OrderScreenState extends State<OrderScreen> {
           titles = ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             itemCount: shown.length + 1,
-            itemBuilder: (context, i) => i == 0 ? header : _row(view, byId[shown[i - 1]]!, titleIds.indexOf(shown[i - 1]), titleIds.length, null),
+            itemBuilder: (context, i) => i == 0 ? header : _row(view, byId[shown[i - 1]]!, posOf[shown[i - 1]] ?? 0, titleIds.length, null),
           );
         }
         return DefaultTabController(
@@ -411,10 +419,10 @@ class _OrderScreenState extends State<OrderScreen> {
     );
   }
 
-  List<Widget> _byCategory(AccountView view, Map<String, dynamic> p, List<String> titleIds, Map<String, LibraryTitle> byId) {
+  List<Widget Function()> _byCategory(AccountView view, Map<String, dynamic> p, List<String> titleIds, Map<String, LibraryTitle> byId) {
     final hidden = asList(p['hiddenCategories']).map(jsStr).toSet();
-    final out = <Widget>[
-      Row(children: [
+    final out = <Widget Function()>[
+      () => Row(children: [
         const Text('Category order', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(width: 8),
         CompactDropdown<String>(
@@ -424,11 +432,16 @@ class _OrderScreenState extends State<OrderScreen> {
         ),
       ]),
     ];
+    // One pass to group the Order by category.
+    final byCat = <String, List<String>>{};
+    for (final id in titleIds) {
+      (byCat[byId[id]!.categoryId] ??= []).add(id);
+    }
     for (final cid in orderCategoryDisplay(p, view.state)) {
       final cat = view.category(cid);
-      final ids = titleIds.where((id) => byId[id]!.categoryId == cid).toList();
+      final ids = byCat[cid] ?? const <String>[];
       final isHidden = hidden.contains(cid);
-      out.add(Padding(
+      out.add(() => Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 4),
         child: Row(children: [
           CategoryBadge(cat, size: 24),
@@ -447,7 +460,8 @@ class _OrderScreenState extends State<OrderScreen> {
       ));
       if (!isHidden) {
         for (var i = 0; i < ids.length; i++) {
-          out.add(_row(view, byId[ids[i]]!, i, ids.length, cid));
+          final id = ids[i], index = i, count = ids.length;
+          out.add(() => _row(view, byId[id]!, index, count, cid));
         }
       }
     }

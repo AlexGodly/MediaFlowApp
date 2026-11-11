@@ -238,7 +238,7 @@ class ThemeSettings extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            child: Image.network(u, width: 28, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined)),
+            child: Image.network(u, width: 28, height: 40, cacheWidth: decodeWidth(context, 28), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_outlined)),
           ),
           title: Text(u, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: IconButton(

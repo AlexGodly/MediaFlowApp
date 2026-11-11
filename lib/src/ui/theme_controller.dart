@@ -43,7 +43,6 @@ class ThemeController extends ChangeNotifier {
   Timer? _rotation;
   int _rotationIndex = 0;
   int _seq = 0;
-  final Map<String, Future<Color?>> _accents = {};
 
   /// The palette last used on this device, so the app opens in it.
   void restore() {
@@ -148,17 +147,22 @@ class ThemeController extends ChangeNotifier {
       _apply(base);
       return;
     }
-    final light = appearanceMode(settings, base) == 'light';
-    // Try the sources in turn from the rotation position until one gives a colour.
+    // v159DynamicAppearanceMode: with Global appearance on, its Light / Dark;
+    // otherwise the cover's own nature. The whole palette comes from the
+    // cover's colours (v159CoverPalette), softened for the calmer collections
+    // (v162SoftPalette), exactly as on the website.
+    final global = settings['globalAppearanceEnabled'] == true;
+    final chosenLight = appearanceMode(settings, base) == 'light';
     for (var n = 0; n < sources.length; n++) {
       final source = sources[(_rotationIndex + n) % sources.length];
-      final accent = await _accent(source.url, darkBackground: !light);
+      final theme = await _coverTheme(source.url);
       if (seq != _seq) return;
-      if (accent == null) continue;
+      if (theme == null) continue;
       _rotationIndex = (_rotationIndex + n) % sources.length;
       status = source.label;
       _setVisual(_files[source.url]);
-      _apply(paletteFromAccent(accent, light: light));
+      final light = global ? chosenLight : theme.light;
+      _apply(paletteFromCover(theme.colors, light: light, soft: mode != 'dynamic'));
       break;
     }
     if (seq != _seq) return;
@@ -257,20 +261,35 @@ class ThemeController extends ChangeNotifier {
     return RegExp(r'^https?://', caseSensitive: false).hasMatch(s) ? s : '';
   }
 
-  /// `v145ExtractCoverAccent` on the cover's pixels (cached per cover).
-  Future<Color?> _accent(String url, {required bool darkBackground}) =>
-      _accents.putIfAbsent('$darkBackground|$url', () async {
+  final Map<String, Future<({List<Color> colors, bool light})?>> _themes = {};
+
+  /// `v159ExtractCoverTheme` on the cover's pixels (cached per cover); when
+  /// the pixels give nothing, `v159DerivedThemeDataFromAccent`.
+  Future<({List<Color> colors, bool light})?> _coverTheme(String url) => _themes.putIfAbsent(url, () async {
         try {
           final file = await CoverCache.instance.file(url);
           if (file == null) return null;
           _files[url] = file;
           final bytes = await file.readAsBytes();
-          final codec = await ui.instantiateImageCodec(Uint8List.fromList(bytes), targetWidth: 48, targetHeight: 64);
+          final codec = await ui.instantiateImageCodec(Uint8List.fromList(bytes), targetWidth: 54, targetHeight: 72);
           final frame = await codec.getNextFrame();
           final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
           frame.image.dispose();
           if (data == null) return null;
-          return accentFromPixels(data.buffer.asUint8List(), darkBackground: darkBackground);
+          final px = data.buffer.asUint8List();
+          final theme = coverThemeFromPixels(px);
+          if (theme != null) return theme;
+          final accent = accentFromPixels(px, darkBackground: true);
+          if (accent == null) return null;
+          final hsl = rgbToHsl(accent.r * 255, accent.g * 255, accent.b * 255);
+          return (
+            colors: [
+              hslColor(hsl.h, hsl.s < 52 ? 52.0 : hsl.s, hsl.l.clamp(42, 64).toDouble()),
+              hslColor(hsl.h + 48, (hsl.s * .88) < 46 ? 46.0 : hsl.s * .88, 55),
+              hslColor(hsl.h + 188, (hsl.s * .78) < 42 ? 42.0 : hsl.s * .78, 52),
+            ],
+            light: luminance(accent) > .52,
+          );
         } catch (_) {
           return null;
         }

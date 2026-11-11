@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'src/config.dart';
 import 'src/data/app_prefs.dart';
 import 'src/platform/desktop_tray.dart';
+import 'src/platform/diagnostics.dart';
 import 'src/platform/discord_presence.dart';
 import 'src/platform/notifications.dart';
 import 'src/ui/app.dart';
@@ -13,6 +14,8 @@ import 'src/ui/theme_controller.dart';
 
 Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // v565: crash and freeze log on this device, and a capped image cache.
+  unawaited(Diagnostics.instance.init());
   await AppPrefs.instance.load();
   // Open in the theme last used on this device.
   ThemeController.instance.restore();

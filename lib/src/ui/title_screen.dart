@@ -460,7 +460,7 @@ class _MetadataSheetState extends State<_MetadataSheet> {
                               height: 64,
                               child: r.coverUrl.isEmpty
                                   ? ColoredBox(color: MF.raised)
-                                  : Image.network(r.coverUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: MF.raised)),
+                                  : Image.network(r.coverUrl, cacheWidth: 600, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: MF.raised)),
                             ),
                           ),
                           title: Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis),

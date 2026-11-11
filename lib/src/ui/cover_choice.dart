@@ -142,7 +142,7 @@ class _CoverTile extends StatelessWidget {
             aspectRatio: 2 / 3,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.network(c.url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: MF.raised, child: const Icon(Icons.broken_image_outlined))),
+              child: Image.network(c.url, cacheWidth: 700, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: MF.raised, child: const Icon(Icons.broken_image_outlined))),
             ),
           ),
         ),

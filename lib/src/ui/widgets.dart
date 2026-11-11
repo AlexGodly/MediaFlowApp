@@ -197,6 +197,15 @@ class _NetIconState extends State<NetIcon> {
   }
 }
 
+/// The pixel width to decode an image at: its drawn width times the screen's
+/// pixel ratio, never more than [max]. Covers decoded at full size (often
+/// 1000×1500) used most of the app's memory on desktop (v565).
+int? decodeWidth(BuildContext context, double width, {int max = 900}) {
+  if (!width.isFinite || width <= 0) return null;
+  final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+  return (width * dpr).ceil().clamp(16, max).toInt();
+}
+
 /// Title cover with a category fallback.
 class Cover extends StatelessWidget {
   const Cover({super.key, required this.title, required this.category, this.width = 46});
@@ -268,7 +277,7 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
       width: widget.width,
       height: widget.height,
       fit: BoxFit.cover,
-      cacheWidth: (widget.width * 3).round(),
+      cacheWidth: decodeWidth(context, widget.width),
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => widget.fallback,
     );

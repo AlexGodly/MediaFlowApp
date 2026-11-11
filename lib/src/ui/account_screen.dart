@@ -99,7 +99,7 @@ class AccountScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.open_in_new_rounded),
                 title: const Text('Open the MediaFlow website'),
-                subtitle: const Text('Dashboard, Collections, Statistics and Settings are coming to the app next'),
+                subtitle: const Text('Same account, same data as the app'),
                 onTap: () => launchUrl(Uri.parse(kWebsiteUrl), mode: LaunchMode.externalApplication),
               ),
               const Divider(),

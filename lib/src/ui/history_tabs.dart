@@ -43,7 +43,7 @@ Widget _cover(Map<String, dynamic>? item, Category cat, double w) {
   if (!url.startsWith('http')) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(8),
-    child: Image.network(url, width: w, height: h, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
+    child: Image.network(url, width: w, height: h, cacheWidth: (w * 3).ceil(), fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
   );
 }
 

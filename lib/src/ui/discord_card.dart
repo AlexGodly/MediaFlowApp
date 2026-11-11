@@ -56,7 +56,7 @@ class _DiscordActivityCardState extends State<DiscordActivityCard> {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(size > 30 ? 8 : size / 2),
-      child: Image.network(src, width: size, height: size, fit: BoxFit.cover,
+      child: Image.network(src, width: size, height: size, cacheWidth: (size * 3).ceil(), fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => Container(width: size, height: size, color: MF.surface, child: const Icon(Icons.image_not_supported_outlined, size: 16))),
     );
   }

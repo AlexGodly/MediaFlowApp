@@ -389,13 +389,17 @@ class AppNotifications with WidgetsBindingObserver {
     if (level != stored) unawaited(_prefs.set('notif.seen.level', level));
 
     final completed = view.library.where((t) => t.isCompleted).length;
-    _milestone('streak', m.streak, const [7, 14, 30, 50, 100, 200, 365, 500, 1000], (n) => ('$n-day streak! 🔥', 'You have logged $n days in a row.'));
+    // The title always shows the real number; the milestone passed is the reason
+    // (v565: a late notification said "50-day streak" on day 56).
+    _milestone('streak', m.streak, const [7, 14, 30, 50, 100, 200, 365, 500, 1000],
+        (n, v) => ('$v-day streak! 🔥', v == n ? 'You have logged $v days in a row.' : 'You passed $n days in a row.'));
     _milestone('library', view.library.length, const [50, 100, 250, 500, 1000, 2500, 5000],
-        (n) => ('$n titles in your Library', 'Your Library just reached $n titles.'));
-    _milestone('completed', completed, const [10, 25, 50, 100, 250, 500, 1000], (n) => ('$n titles completed', "You've completed $n titles."));
+        (n, v) => ('$v titles in your Library', v == n ? 'Your Library just reached $v titles.' : 'Your Library passed $n titles.'));
+    _milestone('completed', completed, const [10, 25, 50, 100, 250, 500, 1000],
+        (n, v) => ('$v titles completed', v == n ? "You've completed $v titles." : "You've passed $n completed titles."));
   }
 
-  void _milestone(String key, int value, List<int> steps, (String, String) Function(int) text) {
+  void _milestone(String key, int value, List<int> steps, (String, String) Function(int milestone, int value) text) {
     final reached = steps.where((s) => value >= s).fold<int>(0, (a, b) => b);
     final pref = 'notif.seen.$key';
     final stored = _prefs.get<int>(pref, -1);
@@ -404,7 +408,7 @@ class AppNotifications with WidgetsBindingObserver {
       return;
     }
     if (reached > stored) {
-      final (title, body) = text(reached);
+      final (title, body) = text(reached, value);
       unawaited(show('milestone', title, body, id: 21 + steps.indexOf(reached)));
     }
     if (reached != stored) unawaited(_prefs.set(pref, reached));

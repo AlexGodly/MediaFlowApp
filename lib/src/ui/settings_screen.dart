@@ -16,6 +16,7 @@ import '../logic/categories.dart';
 import '../logic/extras.dart' show balancePanel, editPanel;
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
 import '../platform/desktop_tray.dart';
+import '../platform/diagnostics.dart';
 import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -842,6 +843,29 @@ class _AppSettingsState extends State<_AppSettings> {
                     label: const Text('Copy'),
                   ),
                 ),
+                const Divider(),
+                // v565: crashes and freezes recorded on this device.
+                Text('Crash and freeze log: ${Diagnostics.instance.entries.length} entr${Diagnostics.instance.entries.length == 1 ? 'y' : 'ies'}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                const Text('Kept on this device only. Copy it to send it if something keeps going wrong.', style: TextStyle(fontSize: 12)),
+                Wrap(spacing: 8, children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: Diagnostics.instance.asText()));
+                      _toast(context, 'Crash and freeze log copied');
+                    },
+                    icon: const Icon(Icons.content_copy_rounded, size: 18),
+                    label: const Text('Copy log'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await Diagnostics.instance.clear();
+                      if (context.mounted) _toast(context, 'Log cleared');
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Clear log'),
+                  ),
+                ]),
               ]);
             }),
           ),
