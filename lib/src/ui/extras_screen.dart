@@ -34,8 +34,8 @@ class ExtrasScreen extends StatelessWidget {
           if (view == null) return const SizedBox.shrink();
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 760, 
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   _BalanceCard(view: view),

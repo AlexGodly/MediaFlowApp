@@ -170,8 +170,8 @@ class TitleScreen extends StatelessWidget {
           ),
           body: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 760, padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Cover(title: t, category: cat, width: 110),
                   const SizedBox(width: 16),
@@ -844,8 +844,8 @@ class _TitleEditorState extends State<TitleEditor> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), children: [
+          constraints: const BoxConstraints(),
+          child: PageListView(maxWidth: 760, padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Cover(title: LibraryTitle(<String, dynamic>{'title': _title.text, 'categoryId': _category, 'coverUrl': _cover.text}), category: cat, width: 84),
               const SizedBox(width: 14),

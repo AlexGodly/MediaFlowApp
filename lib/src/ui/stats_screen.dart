@@ -82,8 +82,8 @@ class _StatsScreenState extends State<StatsScreen> {
           bool on(String k) => statsComponentVisible(view.state, k);
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: ListView(
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 900, 
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   if (on('profile')) _profile(view, m),

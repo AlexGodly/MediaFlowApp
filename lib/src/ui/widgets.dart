@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -583,4 +584,23 @@ T memoFor<T>(Object owner, String key, T Function() compute) {
   final v = compute();
   m[key] = v;
   return v;
+}
+
+/// A page's scrolling list that scrolls across the whole page width while its
+/// content stays [maxWidth] wide and centred (v565: with a centred narrow
+/// list, the mouse wheel did nothing over the empty sides on desktop).
+class PageListView extends StatelessWidget {
+  const PageListView({super.key, required this.maxWidth, this.padding = EdgeInsets.zero, required this.children});
+  final double maxWidth;
+  final EdgeInsets padding;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final extra = box.maxWidth.isFinite ? math.max(0.0, (box.maxWidth - maxWidth) / 2) : 0.0;
+        return ListView(
+          padding: padding.copyWith(left: padding.left + extra, right: padding.right + extra),
+          children: children,
+        );
+      });
 }

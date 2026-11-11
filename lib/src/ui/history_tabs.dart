@@ -467,7 +467,7 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
         if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('No matching recent activity. Adjust the filters; older category-only logs stay in Consumption history and Logs.',
+            child: Text('No matching recent activity. Adjust the filters; older category-only logs stay in Consumption history.',
                 textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
           ),
         for (final key in days.keys) ...[
