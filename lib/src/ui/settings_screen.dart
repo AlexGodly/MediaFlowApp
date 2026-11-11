@@ -72,6 +72,11 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v419LoggingCollapsed'], 'Start with the Logging Workspace collapsed', kind: 'bool', def: false),
       _S(['v405ShowFloatingAdd'], 'Show the floating + button', kind: 'bool', def: true),
       _S(['v405ShowFloatingTaskProgress'], 'Show Floating Task Progress', kind: 'bool', def: true),
+      // v565 (shared with the website).
+      _S(['mf565TaskFinish'], 'Task progress finishes at', kind: 'choice', def: 'minimum',
+          help: 'Where the card reaches 100% for a goal like 9–13.', choices: [('minimum', 'Minimum (9 of 9–13)'), ('maximum', 'Maximum (13 of 9–13)')]),
+      _S(['mf565TaskOver'], 'When you go over the maximum', kind: 'choice', def: 'count',
+          choices: [('count', 'Count past 100%'), ('warning', 'Warning colour'), ('status', 'Status only')]),
     ]
   ),
   (
@@ -87,6 +92,12 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v441RecoveryUI', 'visibility'], 'Background Processes widget', kind: 'choice', def: 'auto',
           choices: [('auto', 'While something runs'), ('always', 'Always'), ('hidden', 'Hidden')]),
       _S(['v441RecoveryUI', 'showFinished'], 'Keep finished jobs in the widget', kind: 'bool', def: false),
+      // v565 (shared with the website; the position itself stays on each device).
+      _S(['mf565Processes', 'position'], 'When it reopens', kind: 'choice', def: 'remember', choices: [('remember', 'Where I left it'), ('default', 'Always at the default spot')]),
+      _S(['mf565Processes', 'edges'], 'After moving it', kind: 'choice', def: 'stay', choices: [('stay', 'Stay where dropped'), ('snap', 'Snap to nearest edge')]),
+      _S(['mf565Processes', 'icon'], 'Minimised icon', kind: 'choice', def: 'both',
+          choices: [('both', 'Progress ring and count'), ('ring', 'Progress ring'), ('count', 'Count of running jobs'), ('plain', 'Plain icon')]),
+      _S(['mf565Processes', 'idle'], 'When nothing is running', kind: 'choice', def: 'hide', choices: [('hide', 'Hide the icon'), ('show', 'Always show it')]),
     ]
   ),
   (

@@ -101,7 +101,7 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
   Widget build(BuildContext context) {
     final p = widget.progress;
     final compact = _compact(context);
-    final tint = p.over ? MF.warn : p.reached ? MF.good : MF.accent;
+    final tint = p.warn ? MF.bad : p.reached ? MF.good : MF.accent;
 
     if (compact) {
       return Semantics(
