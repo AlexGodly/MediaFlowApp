@@ -9,6 +9,8 @@ keeps only the part one platform needs, under .discord-sdk/out/<platform>/:
   android  discord_partner_sdk.aar
   windows  discord_partner_sdk.dll
   ios      discord_partner_sdk.xcframework/
+  macos    libdiscord_partner_sdk.dylib   (7.1.0; optional: built without
+  linux    libdiscord_partner_sdk.so       Rich Presence when not in the SDK zip)
 
 tool/prepare_platforms.py then wires it into the generated project. Without
 the token (forks, local builds) nothing is fetched and the app is built
@@ -32,13 +34,18 @@ PARTS = {
     "android": ["discord_social_sdk/lib/release/discord_partner_sdk.aar"],
     "windows": ["discord_social_sdk/bin/release/discord_partner_sdk.dll"],
     "ios": ["discord_social_sdk/lib/release/discord_partner_sdk.xcframework/"],
+    "macos": ["discord_social_sdk/lib/release/libdiscord_partner_sdk.dylib"],
+    "linux": ["discord_social_sdk/lib/release/libdiscord_partner_sdk.so"],
 }
+# Desktop builds added in 7.1.0 still build when this SDK version has no
+# library for them (they say so and leave Rich Presence out).
+OPTIONAL = {"macos", "linux"}
 
 
 def main():
     platform = sys.argv[1] if len(sys.argv) > 1 else ""
     if platform not in PARTS:
-        sys.exit("usage: discord_sdk.py <android|windows|ios>")
+        sys.exit("usage: discord_sdk.py <android|windows|ios|macos|linux>")
     out = BASE / "out" / platform
     if out.exists() and any(out.iterdir()):
         print(f"Discord Social SDK {VERSION} for {platform}: cached")
@@ -56,7 +63,19 @@ def main():
         for part in PARTS[platform]:
             prefix = part.rstrip("/")
             members = [n for n in names if n == prefix or n.startswith(prefix + "/")]
+            if not members and platform in OPTIONAL:
+                # Some SDK zips keep desktop libraries elsewhere: find by name.
+                leaf = prefix.rsplit("/", 1)[-1]
+                members = [n for n in names if n.endswith("/" + leaf) and "/release/" in n] or [n for n in names if n.endswith("/" + leaf)]
+                if members:
+                    members = members[:1]
+                    prefix = members[0]
             if not members:
+                if platform in OPTIONAL:
+                    print(f"::warning title=Discord Rich Presence::{part} is not in {ZIP}; building {platform} without Rich Presence")
+                    zpath.unlink()
+                    shutil.rmtree(out, ignore_errors=True)
+                    return
                 sys.exit(f"{part} is missing from {ZIP}")
             strip = prefix.rsplit("/", 1)[0] + "/"
             for n in members:

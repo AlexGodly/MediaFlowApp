@@ -1,8 +1,8 @@
-# MediaFlow by Alex Godly — native app (Android, Windows, iOS)
+# MediaFlow by Alex Godly — native app (Android, Windows, iOS, Mac, Linux)
 
 A native **Flutter** app for your MediaFlow account. Same account, same data as the [MediaFlow website](https://alexgodly.github.io/MediaFlow/); logs you make in the app appear on the website and vice versa.
 
-Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **7.0.0.567** — [release notes](docs/releases/mediaflowapp-v7.0.0.567.md).
+Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **7.1.0.568** — [release notes](docs/releases/mediaflowapp-v7.1.0.568.md).
 
 | Platform | Release file |
 | :-- | :-- |
@@ -60,7 +60,7 @@ flutter build ios --release --no-codesign   # on macOS
 
 ## Releases
 
-Every push to `main` runs `.github/workflows/release.yml`: tests → Android, Windows and iOS builds in parallel → one stable GitHub release with all files and SHA-256 sums. Branches and pull requests run the same tests and builds via `ci.yml` without publishing. Each release needs a new version (see `CLAUDE.md`).
+Every push to `main` runs `.github/workflows/release.yml`: tests → Android, Windows, iOS, Mac and Linux builds in parallel → one stable GitHub release with all files and SHA-256 sums. Branches and pull requests run the same tests and builds via `ci.yml` without publishing. Each release needs a new version (see `CLAUDE.md`).
 
 ## Limitations
 

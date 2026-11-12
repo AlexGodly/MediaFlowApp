@@ -402,6 +402,45 @@ def ios_discord(podfile_only=False):
         print("Discord Social SDK added (iOS Podfile)")
 
 
+# ---- macOS and Linux (7.1.0) ----
+
+def macos_appinfo(text):
+    text, n = re.subn(r"^PRODUCT_NAME = .*$", f"PRODUCT_NAME = {NAME}", text, count=1, flags=re.M)
+    if n != 1:
+        sys.exit("macos AppInfo.xcconfig has no PRODUCT_NAME")
+    text = re.sub(r"^PRODUCT_COPYRIGHT = .*$", "PRODUCT_COPYRIGHT = Copyright © Alex Godly", text, flags=re.M)
+    return text
+
+
+def macos_entitlements(text):
+    """Not a Mac App Store app: no sandbox, so MediaFlow can reach the internet,
+    the backup folder and the Discord app (local connection). Network access is
+    also declared in case the sandbox is turned on later."""
+    text, n = re.subn(r"(<key>com\.apple\.security\.app-sandbox</key>\s*)<true/>", r"\1<false/>", text, count=1)
+    if n != 1 and "com.apple.security.app-sandbox" not in text:
+        text, n = re.subn(r"(<dict>\n)", "\\1\t<key>com.apple.security.app-sandbox</key>\n\t<false/>\n", text, count=1)
+    if "com.apple.security.network.client" not in text:
+        text, n = re.subn(r"(</dict>\s*</plist>)", "\t<key>com.apple.security.network.client</key>\n\t<true/>\n\\1", text, count=1)
+        if n != 1:
+            sys.exit("macos entitlements: no closing dict")
+    return text
+
+
+def linux_cmake(text):
+    text, n = re.subn(r'set\(BINARY_NAME "[^"]*"\)', 'set(BINARY_NAME "mediaflow")', text, count=1)
+    if n != 1:
+        sys.exit("linux/CMakeLists.txt has no BINARY_NAME")
+    text = re.sub(r'set\(APPLICATION_ID "[^"]*"\)', 'set(APPLICATION_ID "com.alexgodly.mediaflow")', text, count=1)
+    return text
+
+
+def linux_window(text):
+    text, n = re.subn(r'(gtk_(?:header_bar|window)_set_title\([^,]+,\s*)"[^"]*"', rf'\1"{NAME}"', text)
+    if n < 1:
+        sys.exit("linux my_application.cc has no window title")
+    return text
+
+
 def ios_plist(text):
     for key in ("CFBundleDisplayName", "CFBundleName"):
         text, n = re.subn(rf"(<key>{key}</key>\s*<string>)[^<]*(</string>)", rf"\g<1>{NAME}\g<2>", text, count=1)
@@ -489,6 +528,16 @@ def icons():
         for png in appicon.glob("*.png"):
             w, h = Image.open(png).size
             square.resize((w, h), Image.Resampling.LANCZOS).save(png)
+    # macOS: the rounded logo with transparent corners at every size.
+    macicon = ROOT / "macos/Runner/Assets.xcassets/AppIcon.appiconset"
+    if macicon.exists():
+        for png in macicon.glob("*.png"):
+            w, h = Image.open(png).size
+            logo.resize((w, h), Image.Resampling.LANCZOS).save(png)
+    # Linux: the window / AppImage icon.
+    if (ROOT / "linux").exists():
+        (ROOT / "linux/mediaflow.png").parent.mkdir(parents=True, exist_ok=True)
+        logo.resize((256, 256), Image.Resampling.LANCZOS).save(ROOT / "linux/mediaflow.png")
     # Windows: app icon with transparent corners.
     ico = ROOT / "windows/runner/resources/app_icon.ico"
     if ico.parent.exists():
@@ -514,6 +563,14 @@ def main():
         edit("windows/runner/main.cpp", windows_main)
         edit("windows/runner/Runner.rc", windows_rc, required=False)
         windows_discord()
+    if "macos" in platforms:
+        edit("macos/Runner/Configs/AppInfo.xcconfig", macos_appinfo)
+        edit("macos/Runner/DebugProfile.entitlements", macos_entitlements)
+        edit("macos/Runner/Release.entitlements", macos_entitlements)
+    if "linux" in platforms:
+        edit("linux/CMakeLists.txt", linux_cmake)
+        cc = "linux/runner/my_application.cc" if (ROOT / "linux/runner/my_application.cc").exists() else "linux/my_application.cc"
+        edit(cc, linux_window)
     icons()
     print("Platform folders branded as", NAME, "for", ", ".join(sorted(platforms)))
 

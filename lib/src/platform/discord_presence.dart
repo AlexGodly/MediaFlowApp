@@ -63,7 +63,7 @@ class DiscordPresence extends ChangeNotifier {
   static const String logoUrl = 'https://raw.githubusercontent.com/AlexGodly/MediaFlowApp/main/assets/branding/mediaflow-logo-rounded-512.png';
 
   static bool get mobile => Platform.isAndroid || Platform.isIOS;
-  static bool get supported => Platform.isWindows || Platform.isAndroid || Platform.isIOS;
+  static bool get supported => Platform.isWindows || Platform.isAndroid || Platform.isIOS || Platform.isMacOS || Platform.isLinux;
 
   DiscordFfi? _ffi;
   Pointer<DOpaque>? _client;
