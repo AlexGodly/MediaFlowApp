@@ -77,7 +77,12 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
 /// {before} it, and the season being logged.
 ({double progress, double before, String? season}) draftProgress(
     LogDraftEditor ed, Map<String, dynamic> item, Map<String, dynamic> entry) {
-  final before = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
+  // A missing start (null, as JS Number(null) would make it 0) means the
+  // title's saved progress.
+  final start = entry['v179StartProgress'];
+  final before = start == null || (start is String && start.trim().isEmpty)
+      ? LogDraftEditor.startProgress(item)
+      : jsNum(start);
   final double progress;
   if (ed.itemized) {
     progress = ed.projectedProgress(item, entry);

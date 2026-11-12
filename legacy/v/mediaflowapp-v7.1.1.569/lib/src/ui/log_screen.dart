@@ -1805,7 +1805,8 @@ class _LogScreenState extends State<LogScreen> {
   Widget _beforeAfter(LogDraftEditor ed, Map<String, dynamic> e, Map<String, dynamic>? item, Category cat) {
     if (item == null) return const SizedBox.shrink();
     final repeat = e['isRepeat'] == true;
-    final before = repeat ? 0.0 : (jsNumOrNull(e['v179StartProgress']) ?? LogDraftEditor.startProgress(item));
+    final start = e['v179StartProgress'];
+    final before = repeat ? 0.0 : (start == null || (start is String && start.trim().isEmpty) ? LogDraftEditor.startProgress(item) : jsNum(start));
     final double after;
     if (ed.itemized) {
       after = ed.projectedProgress(item, e);
