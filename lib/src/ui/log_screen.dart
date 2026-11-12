@@ -409,15 +409,18 @@ class _LogScreenState extends State<LogScreen> {
               TodayCards(state: state),
               if (settings['mf565LogOnThisDay'] != false) OnThisDayCard(account: account, view: view),
             ];
+            final narrow = box.maxWidth < 760;
             final main = <Widget>[
               ProgressCards(state: state),
-              _logAnyBar(),
+              // Phones: the task stays on the first screen, Log any title right under it.
+              if (!narrow) _logAnyBar(),
               if (formOpen)
                 ..._form(view)
               else if (!active || task == null)
                 _startCard(view)
               else
                 _taskCard(view, task),
+              if (narrow) _logAnyBar(),
             ];
             final wide = box.maxWidth >= 1100;
             if (wide && formOpen) {
@@ -448,7 +451,9 @@ class _LogScreenState extends State<LogScreen> {
             final side = math.max(16.0, (box.maxWidth - (wide ? 1100 : 760)) / 2);
             return ListView(
               padding: EdgeInsets.fromLTRB(side, 4, side, bottom),
-              children: [...top, ...today, ...main],
+              // Wider windows follow the website's Dashboard (Today on top);
+              // phones put the task first and Today / On This Day below it.
+              children: narrow ? [...top, ...main, ...today] : [...top, ...today, ...main],
             );
           }),
           if (progress != null)
