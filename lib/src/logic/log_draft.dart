@@ -210,7 +210,10 @@ class LogDraftEditor {
       amount += qty;
       final i = item(e['libraryId']);
       final cat = category(i != null ? jsStr(i['categoryId']) : jsStr(task['categoryId']));
-      minutes += jsRound(qty * jsNum(cat['minutesPerUnit']));
+      // Website v569: a title with its own unit and runtime counts its own
+      // runtime (3 matches of 20 min = 60 min), not the category's.
+      final own = ownRuntimeSeconds(i);
+      minutes += own > 0 ? jsRound(qty * own / 60) : jsRound(qty * jsNum(cat['minutesPerUnit']));
     }
     logDraft['amount'] = jsOut(amount);
     logDraft['minutes'] = jsOut(minutes);

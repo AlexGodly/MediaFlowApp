@@ -52,3 +52,10 @@ int titleSecondsPerUnit(Map<String, dynamic>? item, Map<String, dynamic>? cat) {
   final own = jsNum(item?['mf565SecondsPerUnit']).floor();
   return ownUnit(item).isNotEmpty && own > 0 ? own : categorySecondsPerUnit(cat);
 }
+
+/// `mf569OwnSeconds`: the runtime of one of this title's own units in seconds,
+/// or 0 when it has no own unit or no own runtime (the category's applies).
+int ownRuntimeSeconds(Map<String, dynamic>? item) {
+  final own = jsNum(item?['mf565SecondsPerUnit']).floor();
+  return ownUnit(item).isNotEmpty && own > 0 ? own : 0;
+}

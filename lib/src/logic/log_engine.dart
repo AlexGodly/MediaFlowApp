@@ -125,7 +125,9 @@ class LogOutcome {
   // Progress mode (v179): missing/zero minutes default to amount × minutes-per-unit.
   // Amount mode: only a missing value defaults.
   if ((progressMode && minutes <= 0) || (!progressMode && entry.minutes == null)) {
-    minutes = jsRound(qty * cat.minutesPerUnit);
+    // Website v569: a title with its own runtime uses it.
+    final own = ownRuntimeSeconds(item.raw);
+    minutes = own > 0 ? jsRound(qty * own / 60) : jsRound(qty * cat.minutesPerUnit);
   }
   return (qty: qty, minutes: minutes, start: start, end: end);
 }

@@ -12,8 +12,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../logic/consuming.dart';
+import '../logic/log_draft.dart' show LogDraftEditor;
 import '../logic/presence_templates.dart';
 import '../logic/resume.dart' show readLogging;
+import '../logic/title_units.dart' show titleUnit;
 import '../platform/discord_presence.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -71,6 +73,39 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
       PresenceKind.other => fallback,
     };
 
+/// Where [item] stands in an open log: {after} this log ([progress]),
+/// {before} it, and the season being logged.
+({double progress, double before, String? season}) draftProgress(
+    LogDraftEditor ed, Map<String, dynamic> item, Map<String, dynamic> entry) {
+  final before = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
+  final double progress;
+  if (ed.itemized) {
+    progress = ed.projectedProgress(item, entry);
+  } else if (entry['v179EndProgress'] != null) {
+    progress = jsNum(entry['v179EndProgress']);
+  } else {
+    progress = before + jsNum(entry['qty']);
+  }
+  final season = jsStr(ed.selectedSeason(entry, item)?['name']);
+  return (progress: progress, before: before, season: season.isEmpty ? null : season);
+}
+
+/// The draft entry for [titleId] in an open log (the last edited one when
+/// the title is in it more than once), or null.
+Map<String, dynamic>? draftEntryFor(LogDraftEditor ed, String titleId) {
+  Map<String, dynamic>? best;
+  var bestAt = -1.0;
+  for (final e in ed.entries) {
+    if (jsStr(e['libraryId']) != titleId) continue;
+    final at = jsNum(e['v369UpdatedAt']);
+    if (best == null || at >= bestAt) {
+      best = e;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
 /// A status about one title: its name, progress (from the log draft while
 /// logging) and cover.
 PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category cat,
@@ -87,7 +122,9 @@ PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category
   final total = jsNumOrNull(item['total']);
   final hasProgress = p != null && (p > 0 || (total ?? 0) > 0);
   String num(double v) => v == v.truncateToDouble() ? fmtCount(v.toInt()) : v.toStringAsFixed(1);
-  final unit = unitLabel(cat.unit, 1);
+  // 7.1.1: the title's own unit (website v565), else its category's.
+  final unitKey = titleUnit(item, cat.raw);
+  final unit = unitLabel(unitKey, 1);
   return PresenceInfo(
     situation: situation,
     values: {
@@ -101,7 +138,7 @@ PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category
       if (hasProgress && total != null && total > 0) 'total': num(total),
       if (hasProgress && total != null && total > 0) 'percent': '${(p / total * 100).clamp(0, 100).round()}%',
       if (hasProgress) 'unit': capFirst(unit),
-      'units': unitLabel(cat.unit, 2),
+      'units': unitLabel(unitKey, 2),
       if ((season ?? '').isNotEmpty) 'season': season!,
       if (more.isNotEmpty) 'more': more,
       if (count > 0) 'count': '$count',
@@ -132,19 +169,45 @@ class PresenceHub {
       DiscordPresence.instance.setConfig(PresenceConfig.of(asMap(view?.state['settings'])));
       DiscordPresence.instance.setAccountSettings(asMap(view?.state['settings']));
       DiscordPresence.instance.consumingTitle ??= (config, now) {
-        final v = _view;
-        final logging = v == null ? null : readLogging(v.state);
-        final open = logging != null && logging['active'] == true;
-        return consumingTitleId(config, open ? asMap(logging['currentTask']) : null, open ? asMap(logging['logDraft']) : null, now);
+        final log = _openLog();
+        return consumingTitleId(config, log?.task, log?.logDraft, now);
       };
       DiscordPresence.instance.pinnedInfo ??= (id) {
         final v = _view;
         final t = v?.library.where((x) => x.id == id).firstOrNull;
         if (v == null || t == null) return null;
+        // 7.1.1: while the title is in the open log, its progress comes from
+        // the draft ({progress} after or before it, as set in Settings), like
+        // the Log page's own status — not only what was saved.
+        final log = _openLog();
+        if (log != null) {
+          final ed = LogDraftEditor(state: log.state, task: log.task, logDraft: log.logDraft, entryDraft: <String, dynamic>{});
+          final entry = draftEntryFor(ed, id);
+          final item = ed.item(id) ?? t.raw;
+          if (entry != null) {
+            final d = draftProgress(ed, item, entry);
+            return titlePresence('pinned', item, v.category(t.categoryId), progress: d.progress, before: d.before, season: d.season);
+          }
+        }
         return titlePresence('pinned', t.raw, v.category(t.categoryId));
       };
     }
     _update();
+  }
+
+  /// The open log as the Log page has it right now (set while its form is
+  /// open), so Discord follows the draft as you type.
+  ({Map<String, dynamic> state, Map<String, dynamic> task, Map<String, dynamic> logDraft})? Function()? liveLog;
+
+  ({Map<String, dynamic> state, Map<String, dynamic> task, Map<String, dynamic> logDraft})? _openLog() {
+    final live = liveLog?.call();
+    if (live != null) return live;
+    final v = _view;
+    final logging = v == null ? null : readLogging(v.state);
+    if (logging == null || logging['active'] != true) return null;
+    final task = asMap(logging['currentTask']), draft = asMap(logging['logDraft']);
+    if (task == null || draft == null) return null;
+    return (state: v!.state, task: task, logDraft: draft);
   }
 
   /// Level, XP and streak worked out in the background with each sync
