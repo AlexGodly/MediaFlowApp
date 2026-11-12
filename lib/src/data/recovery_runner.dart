@@ -238,6 +238,7 @@ class RecoveryRunner extends ChangeNotifier {
           type: jsStr(cat.raw['type']),
           kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: ids),
           externalIds: ids,
+          enabled: enabledCoverSources(asMap(account.view!.state['settings'])),
         );
       } catch (_) {
         continue;

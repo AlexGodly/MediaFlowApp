@@ -20,6 +20,7 @@ import '../platform/diagnostics.dart';
 import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'api_providers.dart';
 import 'app_nav.dart' show openNavigationSettings;
 import '../logic/action_xp.dart' show kActionXpGroups;
 import '../logic/category_classes.dart';
@@ -361,6 +362,14 @@ class _AccountSettings extends StatelessWidget {
             title: 'Data & Cloud',
             subtitle: 'Backups, Settings Presets, imports and exports',
             child: DataCloudSection(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.apiProviders',
+            initiallyOpen: false,
+            icon: Icons.hub_rounded,
+            title: 'API Providers & Testing',
+            subtitle: 'Cover and metadata sources, and testing them',
+            child: ApiProvidersSection(account: account, view: view),
           ),
         ]);
       },

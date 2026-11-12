@@ -238,12 +238,18 @@ String coverProviderId(String source) => switch (source.toLowerCase()) {
       'open library' => 'openlibrary',
       'itunes' => 'itunes',
       'tmdb' => 'tmdb',
+      'myanimelist official' => 'malofficial',
+      'fanart.tv' => 'fanart',
       final s => s.replaceAll(' ', ''),
     };
 
 /// `mf424AsCandidate`'s externalIdKey for the app's sources.
 String coverExternalIdKey(String provider) =>
-    const {'anilist': 'anilist', 'tvmaze': 'tvmaze', 'openlibrary': 'openlibrary', 'jikan': 'mal', 'tenrai': 'mal', 'kitsu': 'kitsu'}[provider] ?? '';
+    const {
+      'anilist': 'anilist', 'tvmaze': 'tvmaze', 'openlibrary': 'openlibrary', 'jikan': 'mal', 'tenrai': 'mal', 'kitsu': 'kitsu',
+      'mangadex': 'mangadex', 'malofficial': 'mal',
+    }[provider] ??
+    '';
 
 const _nativeIdKeys = {
   'tenrai': 'mal', 'jikan': 'mal', 'anilist': 'anilist', 'kitsu': 'kitsu', 'tvmaze': 'tvmaze',
