@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show visibleChoices, choiceCategories, viewChoices;
 import '../logic/library_logic.dart';
 import '../logic/library_index.dart';
 import '../state/models.dart';
@@ -153,6 +154,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return shown.libraryRows(order, _shownKey, status: _status, priority: _priority, categories: _cats, query: _query);
   }
 
+  /// The category filter's choices (Choice & filter layout), keeping any already picked.
+  List<Category> _filterCats(AccountView view, Set<String> chosen) {
+    final ids = visibleChoices(asMap(view.state['settings']), 'categoryFilter', choiceCategories(view));
+    final byId = {for (final c in view.categories) c.id: c};
+    final out = [for (final id in ids) if (byId[id] != null) byId[id]!];
+    for (final c in view.categories) {
+      if (chosen.contains(c.id) && !out.contains(c)) out.add(c);
+    }
+    return out.isEmpty ? view.categories : out;
+  }
+
   Future<void> _pickCategories(AccountView view, LibraryIndex index) async {
     final chosen = {..._cats};
     final res = await showModalBottomSheet<Set<String>>(
@@ -170,7 +182,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
               Flexible(
                 child: ListView(shrinkWrap: true, children: [
-                  for (final cat in view.categories)
+                  for (final cat in _filterCats(view, chosen))
                     CheckboxListTile(
                       value: chosen.contains(cat.id),
                       onChanged: (v) => set(() => v == true ? chosen.add(cat.id) : chosen.remove(cat.id)),
@@ -340,7 +352,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                     CompactDropdown<String>(
                       value: _status,
-                      items: [('all', 'All statuses'), ...kStatusChoices],
+                      items: [('all', 'All statuses'), ...viewChoices(view, 'statusFilter', kStatusChoices, keep: _status)],
                       onChanged: (v) => setState(() {
                         _status = v;
                         _page = 0;
@@ -349,7 +361,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                     CompactDropdown<String>(
                       value: _priority,
-                      items: [('all', 'All priorities'), ...kPriorityChoices],
+                      items: [('all', 'All priorities'), ...viewChoices(view, 'priorityFilter', kPriorityChoices, keep: _priority)],
                       onChanged: (v) => setState(() {
                         _priority = v;
                         _page = 0;

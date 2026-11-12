@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
+import '../logic/choice_layout.dart' show viewChoices;
 import '../logic/collections_logic.dart' show orderEdit, orderAddTitles, orderRemoveTitle;
 import '../logic/custom_status.dart' show activePin;
 import '../logic/external_ids.dart';
@@ -1004,7 +1005,10 @@ class _TitleEditorState extends State<TitleEditor> {
               initialValue: view.categories.any((c) => c.id == _category) ? _category : null,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Category'),
-              items: [for (final c in view.categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
+              items: [
+                for (final c in viewChoices(view, 'setCategory', [for (final c in view.categories) (c.id, c.name)], keep: _category))
+                  DropdownMenuItem(value: c.$1, child: Text(c.$2))
+              ],
               onChanged: (v) => setState(() => _category = v ?? _category),
             ),
             const SizedBox(height: 10),
@@ -1013,7 +1017,7 @@ class _TitleEditorState extends State<TitleEditor> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _status,
                   decoration: const InputDecoration(labelText: 'Status'),
-                  items: [for (final s in kStatusChoices) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
+                  items: [for (final s in viewChoices(view, 'setStatus', kStatusChoices, keep: _status)) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
                   onChanged: (v) => setState(() => _status = v ?? _status),
                 ),
               ),
@@ -1022,7 +1026,7 @@ class _TitleEditorState extends State<TitleEditor> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _priority,
                   decoration: const InputDecoration(labelText: 'Priority'),
-                  items: [for (final s in kPriorityChoices) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
+                  items: [for (final s in viewChoices(view, 'setPriority', kPriorityChoices, keep: _priority)) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
                   onChanged: (v) => setState(() => _priority = v ?? _priority),
                 ),
               ),

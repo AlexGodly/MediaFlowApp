@@ -22,6 +22,8 @@ import '../state/models.dart';
 import '../util/js.dart';
 import 'app_nav.dart' show openNavigationSettings;
 import '../logic/action_xp.dart' show kActionXpGroups;
+import '../logic/category_classes.dart';
+import '../logic/choice_layout.dart';
 import '../logic/title_names.dart';
 import 'category_editor.dart';
 import 'discord_settings.dart';
@@ -63,6 +65,11 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['saturationWeight'], 'Saturation weight', def: 20),
       _S(['seasonalBonus'], 'Seasonal bonus', def: 15),
       _S(['randomness'], 'Randomness (0–1)', kind: 'double', def: 0.28, max: 1),
+      // Website Scheduler tuning: fresh Seasonal Anime episodes (checked by the website).
+      _S(['seasonalFreshAuto'], 'Find fresh Seasonal Anime episodes automatically', kind: 'bool', def: true,
+          help: 'From Jikan / MyAnimeList episode data.'),
+      _S(['seasonalFreshSyncMinutes'], 'Fresh-episode check every (minutes)', def: 60, min: 5, max: 1440),
+      _S(['seasonalFreshCount'], 'Fresh Seasonal Anime episodes (manual)', def: 0, max: 500),
     ]
   ),
   (
@@ -329,6 +336,22 @@ class _AccountSettings extends StatelessWidget {
               for (final k in const [('scheduler', 'MediaFlow System'), ('todayBalance', "Today's Balance (legacy)"), ('categoryBalance', 'Category balance (Statistics)'), ('saturation', 'Recent saturation (Statistics)')])
                 _ScopeEditor(account: account, view: view, keyName: k.$1, label: k.$2),
             ]),
+          ),
+          SectionCard(
+            prefKey: 'settings.categoryClasses',
+            initiallyOpen: false,
+            icon: Icons.account_tree_rounded,
+            title: 'Category Classes',
+            subtitle: 'Hierarchical recommendations: Class → Category → Title',
+            child: _ClassesEditor(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.choiceLayout',
+            initiallyOpen: false,
+            icon: Icons.swap_vert_rounded,
+            title: 'Choice & filter layout',
+            subtitle: 'Order and hide the choices in Set Category / Status / Priority and the Library filters',
+            child: _ChoiceLayoutEditor(account: account, view: view),
           ),
         ]);
       },
@@ -1052,6 +1075,266 @@ class _TitleNamesEditor extends StatelessWidget {
             onChanged: (v) => _set(c.id, v ?? ''),
           ),
         ),
+    ]);
+  }
+}
+
+/// v480 Category Classes (website mf480 panel): settings.v480CategoryClasses.
+class _ClassesEditor extends StatelessWidget {
+  const _ClassesEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  Map<String, dynamic> get _prefs =>
+      cleanCategoryClasses(asMap(view.state['settings'])?['v480CategoryClasses'], view.categories.map((c) => c.id));
+
+  Future<void> _write(Map<String, dynamic> next) =>
+      account.setSetting(['v480CategoryClasses'], cleanCategoryClasses(next, view.categories.map((c) => c.id)));
+
+  Future<void> _editClass(BuildContext context, Map<String, dynamic>? existing) async {
+    final name = TextEditingController(text: jsStr(existing?['name']));
+    final icon = TextEditingController(text: jsStr(existing?['icon']).isEmpty ? '✨' : jsStr(existing?['icon']));
+    final color = TextEditingController(text: jsStr(existing?['color']).isEmpty ? '#A78BFA' : jsStr(existing?['color']));
+    var weight = jsNum(existing?['weight']).clamp(1, 5).round();
+    if (weight < 1) weight = 1;
+    var enabled = existing?['enabled'] != false;
+    final members = {for (final c in asList(existing?['categoryIds'])) jsStr(c)};
+    final owners = <String, String>{};
+    for (final g in asList(_prefs['classes'])) {
+      for (final c in asList(asMap(g)!['categoryIds'])) {
+        owners[jsStr(c)] = jsStr(asMap(g)!['name']);
+      }
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => StatefulBuilder(
+        builder: (d, set) => AlertDialog(
+          title: Text(existing == null ? 'Add Category Class' : 'Edit Category Class'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                TextField(controller: name, maxLength: 80, autofocus: true, decoration: const InputDecoration(labelText: 'Class name', hintText: 'Anime', counterText: '')),
+                Row(children: [
+                  SizedBox(width: 90, child: TextField(controller: icon, maxLength: 32, decoration: const InputDecoration(labelText: 'Icon', counterText: ''))),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: color, decoration: const InputDecoration(labelText: 'Colour (#RRGGBB)'))),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  const Text('Class weight'),
+                  Expanded(
+                    child: Slider(value: weight.toDouble(), min: 1, max: 5, divisions: 4, label: '$weight', onChanged: (v) => set(() => weight = v.round())),
+                  ),
+                  Text('$weight'),
+                ]),
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: enabled, onChanged: (v) => set(() => enabled = v), title: const Text('Class enabled')),
+                const Text('Categories in this class', style: TextStyle(fontWeight: FontWeight.w700)),
+                Text('One primary class per category. Changing assignments does not modify the categories.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+                for (final c in view.categories)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: members.contains(c.id),
+                    onChanged: (v) => set(() => v == true ? members.add(c.id) : members.remove(c.id)),
+                    title: Text('${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}'),
+                    subtitle: owners[c.id] != null && owners[c.id] != jsStr(existing?['name'])
+                        ? Text('Currently in ${owners[c.id]} — selecting transfers it')
+                        : null,
+                  ),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save Class')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    if (name.text.trim().isEmpty) {
+      if (context.mounted) _toast(context, 'Enter a class name');
+      return;
+    }
+    final item = <String, dynamic>{
+      'id': jsStr(existing?['id']).isEmpty ? mediaFlowUid(DateTime.now().millisecondsSinceEpoch) : jsStr(existing?['id']),
+      'name': name.text.trim(),
+      'icon': icon.text.trim().isEmpty ? '✨' : icon.text.trim(),
+      'iconUrl': '',
+      'color': color.text.trim().toUpperCase(),
+      'weight': weight,
+      'enabled': enabled,
+      'categoryIds': [for (final c in view.categories) if (members.contains(c.id)) c.id],
+    };
+    await _write(saveCategoryClass(_prefs, item));
+    if (context.mounted) _toast(context, 'Category Class saved');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _prefs;
+    final on = p['enabled'] == true;
+    final classes = [for (final g in asList(p['classes'])) asMap(g)!];
+    final byId = {for (final c in view.categories) c.id: c};
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: on,
+        onChanged: (v) => _write({...p, 'enabled': v}),
+        title: const Text('Enable Category Classes'),
+        subtitle: const Text('Off by default. Class → Category → Title when enabled.'),
+      ),
+      DropdownButtonFormField<String>(
+        initialValue: jsStr(p['strength']),
+        decoration: const InputDecoration(labelText: 'Class balancing strength'),
+        items: [for (final x in kClassStrengths) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: on ? (v) => _write({...p, 'strength': v}) : null,
+      ),
+      for (final t in kClassToggles)
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: p[t.$1] == true,
+          onChanged: on ? (v) => _write({...p, t.$1: v == true}) : null,
+          title: Text(t.$2),
+          subtitle: Text(t.$3),
+        ),
+      const Divider(),
+      Row(children: [
+        Expanded(
+          child: Text('Manage Classes · ${classes.length} saved', style: const TextStyle(fontWeight: FontWeight.w800)),
+        ),
+        FilledButton.tonalIcon(onPressed: () => _editClass(context, null), icon: const Icon(Icons.add_rounded), label: const Text('New Class')),
+      ]),
+      if (classes.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text('No classes yet. Create an Anime, Television, Reading or other class and assign existing categories. '
+              'Categories not in a class remain eligible.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ),
+      for (final g in classes)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Text(jsStr(g['icon']), style: const TextStyle(fontSize: 22)),
+          title: Text(jsStr(g['name'])),
+          subtitle: Text('Weight ${jsNum(g['weight']).round()} · ${g['enabled'] == false ? 'Disabled' : 'Enabled'} · '
+              '${[for (final c in asList(g['categoryIds'])) byId[jsStr(c)]?.name ?? ''].where((n) => n.isNotEmpty).join(', ')}'),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit_rounded), onPressed: () => _editClass(context, g)),
+            IconButton(
+              tooltip: 'Delete',
+              icon: const Icon(Icons.delete_outline_rounded),
+              onPressed: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (d) => AlertDialog(
+                    title: const Text('Delete Category Class?'),
+                    content: Text('${jsStr(g['name'])} will be removed. Its ${asList(g['categoryIds']).length} categories stay as they are.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Delete')),
+                    ],
+                  ),
+                );
+                if (ok == true) await _write({...p, 'classes': [for (final x in classes) if (x['id'] != g['id']) x]});
+              },
+            ),
+          ]),
+        ),
+      Text('Each category belongs to at most one class. Disabled categories are never recommended. '
+          'No Library titles, History or XP data are rewritten.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+    ]);
+  }
+}
+
+/// v230 Choice & filter layout (website 164-v230-choice-filter-layout.js).
+class _ChoiceLayoutEditor extends StatefulWidget {
+  const _ChoiceLayoutEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  @override
+  State<_ChoiceLayoutEditor> createState() => _ChoiceLayoutEditorState();
+}
+
+class _ChoiceLayoutEditorState extends State<_ChoiceLayoutEditor> {
+  String _surface = 'setCategory';
+
+  static const _labels = {
+    'planned': 'Planned', 'active': 'In progress', 'paused': 'Paused', 'completed': 'Completed', 'dropped': 'Dropped',
+    'low': 'Low', 'medium': 'Medium', 'high': 'High',
+  };
+
+  List<String> get _cats => [for (final c in widget.view.categories) c.id];
+
+  String _label(String id) {
+    if (_labels[id] != null && !_cats.contains(id)) return _labels[id]!;
+    final c = widget.view.categories.where((c) => c.id == id).firstOrNull;
+    return c == null ? id : '${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}';
+  }
+
+  Future<void> _save(String source, List<String> order, List<String> hidden) => widget.account.setSetting(
+        ['v230ChoiceLayout'],
+        withSurface(asMap(widget.view.state['settings']), _surface, source, order, hidden, _cats, DateTime.now().millisecondsSinceEpoch),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = asMap(widget.view.state['settings']);
+    final cur = normalizeSurface(asMap(settings?['v230ChoiceLayout'])?[_surface], _surface, _cats);
+    final shown = visibleChoices(settings, _surface, choiceCategories(widget.view));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      DropdownButtonFormField<String>(
+        initialValue: _surface,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Choice list'),
+        items: [for (final x in kChoiceSurfaces) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: (v) => setState(() => _surface = v ?? _surface),
+      ),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        key: ValueKey('src-$_surface'),
+        initialValue: cur.source,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Follow'),
+        items: [for (final x in choiceSources(_surface)) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: (v) => _save(v ?? 'custom', cur.order, cur.hidden),
+      ),
+      const SizedBox(height: 8),
+      if (cur.source != 'custom') ...[
+        Text('Shown: ${shown.map(_label).join(' · ')}', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      ] else
+        for (var i = 0; i < cur.order.length; i++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: IconButton(
+              tooltip: cur.hidden.contains(cur.order[i]) ? 'Show' : 'Hide',
+              icon: Icon(cur.hidden.contains(cur.order[i]) ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+              onPressed: () {
+                final id = cur.order[i];
+                final hidden = [...cur.hidden];
+                hidden.contains(id) ? hidden.remove(id) : hidden.add(id);
+                _save('custom', cur.order, hidden);
+              },
+            ),
+            title: Text(_label(cur.order[i]),
+                style: TextStyle(color: cur.hidden.contains(cur.order[i]) ? MF.textDim : null)),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: 'Move up',
+                icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                onPressed: i == 0 ? null : () => _save('custom', [...cur.order]..insert(i - 1, cur.order[i])..removeAt(i + 1), cur.hidden),
+              ),
+              IconButton(
+                tooltip: 'Move down',
+                icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                onPressed: i == cur.order.length - 1
+                    ? null
+                    : () => _save('custom', [...cur.order]..insert(i + 2, cur.order[i])..removeAt(i), cur.hidden),
+              ),
+            ]),
+          ),
     ]);
   }
 }
