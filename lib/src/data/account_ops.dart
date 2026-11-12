@@ -369,6 +369,9 @@ class AppTimeOp extends AccountOp {
     platforms[platform] = jsOut(jsNum(platforms[platform]) + ms);
     row['platforms'] = platforms;
     days[day] = row;
+    // Website v565: MediaFlow was open until now, so this time is never
+    // credited again as away time (the newest last-seen wins, as on the website).
+    if (at > jsNum(ledger['mf565LastSeenAt'])) ledger['mf565LastSeenAt'] = at;
     return true;
   }
 

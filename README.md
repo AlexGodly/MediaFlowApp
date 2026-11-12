@@ -2,7 +2,7 @@
 
 A native **Flutter** app for your MediaFlow account. Same account, same data as the [MediaFlow website](https://alexgodly.github.io/MediaFlow/); logs you make in the app appear on the website and vice versa.
 
-Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **1.0.0 Beta 14** — [release notes](docs/releases/mediaflowapp-v1.0.0-beta.14.md).
+Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **6.0.0.565** — [release notes](docs/releases/mediaflowapp-v6.0.0.565.md).
 
 | Platform | Release file |
 | :-- | :-- |
@@ -60,8 +60,8 @@ flutter build ios --release --no-codesign   # on macOS
 
 ## Releases
 
-Every push to `main` runs `.github/workflows/release.yml`: tests → Android, Windows and iOS builds in parallel → one GitHub prerelease with all files and SHA-256 sums. Branches and pull requests run the same tests and builds via `ci.yml` without publishing. Each release needs a new version (see `CLAUDE.md`).
+Every push to `main` runs `.github/workflows/release.yml`: tests → Android, Windows and iOS builds in parallel → one stable GitHub release with all files and SHA-256 sums. Branches and pull requests run the same tests and builds via `ci.yml` without publishing. Each release needs a new version (see `CLAUDE.md`).
 
 ## Limitations
 
-The APK is signed with a CI debug key until the `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` secrets are set (then with the permanent MediaFlow key); Windows and iOS builds are unsigned. The website itself saves without a version check, so a stale website tab can still overwrite a newer app log; refresh the website after logging in the app.
+The APK is signed with the permanent MediaFlow key (the `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` secrets); Windows and iOS builds are unsigned. Since website v556 the website saves record by record and merges newer changes first, and since v565 an older website tab can't replace a newer safety copy, so logs made in the app are not overwritten by a stale tab.
