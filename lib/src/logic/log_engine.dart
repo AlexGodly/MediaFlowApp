@@ -52,15 +52,17 @@ class LogRequest {
     required this.eventId,
     this.note = '',
     this.date,
+    this.time,
   });
 
-  factory LogRequest.create(List<LogEntry> entries, {String note = '', String? date, int? now}) {
+  factory LogRequest.create(List<LogEntry> entries, {String note = '', String? date, String? time, int? now}) {
     final t = now ?? DateTime.now().millisecondsSinceEpoch;
     return LogRequest(
       entries: entries,
       createdAt: t,
       note: note,
       date: date,
+      time: time,
       sessionIds: [for (var i = 0; i < entries.length; i++) mediaFlowUid(t)],
       groupId: mediaFlowUid(t),
       eventId: mediaFlowUid(t),
@@ -71,6 +73,8 @@ class LogRequest {
   final int createdAt;
   final String note;
   final String? date; // YYYY-MM-DD; null = today
+  /// Website v573: the exact time ('HH:MM', local); null = now today, midday on other days.
+  final String? time;
   final List<String> sessionIds;
   final String groupId;
   final String eventId;
@@ -80,6 +84,7 @@ class LogRequest {
         'createdAt': createdAt,
         'note': note,
         'date': date,
+        if (time != null) 'time': time,
         'sessionIds': sessionIds,
         'groupId': groupId,
         'eventId': eventId,
@@ -90,6 +95,7 @@ class LogRequest {
         createdAt: jsNum(j['createdAt']).toInt(),
         note: jsStr(j['note']),
         date: j['date'] is String ? j['date'] as String : null,
+        time: j['time'] is String ? j['time'] as String : null,
         sessionIds: asList(j['sessionIds']).map(jsStr).toList(),
         groupId: jsStr(j['groupId']),
         eventId: jsStr(j['eventId']),
@@ -132,6 +138,19 @@ class LogOutcome {
   return (qty: qty, minutes: minutes, start: start, end: end);
 }
 
+/// Website v573 `mf573BatchTime`: [date] at [time] ('HH:MM', local), never
+/// later than [now]; null without a valid time.
+int? logTimeMs(String date, String? time, int now) {
+  final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch((time ?? '').trim());
+  final noon = localNoonMs(date);
+  if (m == null || noon == null) return null;
+  final h = int.parse(m[1]!), mi = int.parse(m[2]!);
+  if (h > 23 || mi > 59) return null;
+  final d = DateTime.fromMillisecondsSinceEpoch(noon);
+  final at = DateTime(d.year, d.month, d.day, h, mi).millisecondsSinceEpoch;
+  return at > now ? now : at;
+}
+
 /// `v179ClampEndProgress`.
 double clampEndProgress(LibraryTitle item, double value) {
   var end = value < 0 ? 0.0 : value;
@@ -166,7 +185,8 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
   // ---- base submitBatchLog ---------------------------------------------------
   final today = isoDateUtc(now);
   final date = req.date != null && isIsoDay(req.date) ? req.date! : today;
-  final timestamp = date == today ? now : (localNoonMs(date) ?? now);
+  final at = logTimeMs(date, req.time, now);
+  final timestamp = at ?? (date == today ? now : (localNoonMs(date) ?? now));
   final outcome = LogOutcome(applied: true);
   final newSessions = <Map<String, dynamic>>[];
 

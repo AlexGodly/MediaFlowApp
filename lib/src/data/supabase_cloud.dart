@@ -246,6 +246,20 @@ class SupabaseCloud implements RecordBackend {
   }
 
   @override
+  Future<bool> changedElsewhere(String userId, String since, String deviceId) async {
+    if (since.isEmpty) return true;
+    final data = await client
+        .from(kRecordTable)
+        .select('updated_at')
+        .eq('user_id', userId)
+        .gt('updated_at', since)
+        .or('device_id.is.null,device_id.neq.$deviceId')
+        .order('updated_at', ascending: true)
+        .limit(1);
+    return data.isNotEmpty;
+  }
+
+  @override
   Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since) async {
     var q = client.from(kRecordTable).select(_columns).eq('user_id', userId).eq('kind', 'doc').inFilter('record_id', recordIds);
     if (since.isNotEmpty) q = q.gt('updated_at', since);

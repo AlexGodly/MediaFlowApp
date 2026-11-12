@@ -144,7 +144,20 @@ class FakeRecordCloud extends FakeCloud implements RecordBackend {
     uploadedRows += upload.length;
     for (final r in upload) {
       _put(r.k, r.i, r.pos, r.deleted ? null : r.j, deleted: r.deleted);
+      final row = rows[recordKey(r.k, r.i)]!;
+      ownRows.add('${recordKey(r.k, r.i)}@${row.updatedAt}');
     }
+  }
+
+  /// Rows saved by this app (its uploads), so the probe can tell them apart.
+  final Set<String> ownRows = {};
+  int probeCalls = 0;
+
+  @override
+  Future<bool> changedElsewhere(String userId, String since, String deviceId) async {
+    probeCalls++;
+    return rows.values.any((r) =>
+        r.kind != 'meta' && (since.isEmpty || r.updatedAt.compareTo(since) > 0) && !ownRows.contains('${recordKey(r.kind, r.recordId)}@${r.updatedAt}'));
   }
 
   @override
