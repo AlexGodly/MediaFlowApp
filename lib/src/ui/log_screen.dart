@@ -22,6 +22,9 @@ import '../logic/task_progress.dart';
 import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/custom_status.dart' show activePin;
+import 'collections_screen.dart' show pickLibraryTitles;
+import 'discord_settings.dart' show showOnDiscord, stopShowingOnDiscord;
 import 'extras_screen.dart' show OnThisDayCard;
 import 'floating_dock.dart' show DockAction, FloatingDock;
 import 'log_sheet.dart';
@@ -414,6 +417,7 @@ class _LogScreenState extends State<LogScreen> {
               ProgressCards(state: state),
               // Phones: the task stays on the first screen, Log any title right under it.
               if (!narrow) _logAnyBar(),
+              if (!narrow) _consumingBar(view),
               if (formOpen)
                 ..._form(view)
               else if (!active || task == null)
@@ -421,6 +425,7 @@ class _LogScreenState extends State<LogScreen> {
               else
                 _taskCard(view, task),
               if (narrow) _logAnyBar(),
+              if (narrow) _consumingBar(view),
             ];
             final wide = box.maxWidth >= 1100;
             if (wide && formOpen) {
@@ -436,6 +441,7 @@ class _LogScreenState extends State<LogScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                         ProgressCards(state: state),
                         _logAnyBar(),
+                        _consumingBar(view),
                         ..._form(view, part: 'left'),
                       ]),
                     ),
@@ -502,6 +508,46 @@ class _LogScreenState extends State<LogScreen> {
           ),
         ),
       );
+
+  /// v6: "Consuming…" — show on Discord the title you're watching / reading
+  /// right now (the same as Settings → Discord → Show a title on Discord), on
+  /// every device until you stop it.
+  Widget _consumingBar(AccountView view) {
+    final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
+    final t = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: MF.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: t == null ? MF.border : MF.accent)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+          child: Row(children: [
+            Icon(Icons.play_circle_outline_rounded, color: t == null ? MF.textDim : MF.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(t == null ? 'Consuming…' : 'Consuming ${t.title}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(t == null ? 'Show on Discord what you\'re watching, reading or playing right now.' : 'Shown on Discord on all your devices.',
+                    style: const TextStyle(fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            t == null
+                ? OutlinedButton(
+                    onPressed: () async {
+                      final ids = await pickLibraryTitles(context, view, title: 'What are you consuming?', single: true);
+                      if (ids != null && ids.isNotEmpty && mounted) await showOnDiscord(context, account, ids.first);
+                    },
+                    child: const Text('Start'),
+                  )
+                : TextButton(onPressed: () => stopShowingOnDiscord(account), child: const Text('Stop')),
+          ]),
+        ),
+      ),
+    );
+  }
 
   /// The website's floating Task Progress (hidden by its "Show Floating Task
   /// Progress" setting, or until a title from the task's category is added).

@@ -133,7 +133,41 @@ class CustomStatusStore {
           },
       ];
 
+  /// v6: saved image links for the large / small image ({id, name, url, addedAt}).
+  List<Map<String, dynamic>> get images => [
+        for (final m in asList(raw['images']).map(asMap).whereType<Map<String, dynamic>>())
+          if (_imageUrl(m['url']).isNotEmpty)
+            {
+              ...m,
+              'id': jsStr(m['id']),
+              'name': jsStr(m['name']).trim().isEmpty ? 'Image' : jsStr(m['name']).trim(),
+              'url': _imageUrl(m['url']),
+            },
+      ];
+
+  /// The library with [url] added (or renamed if it is already there).
+  List<Map<String, dynamic>> withImage(String url, String name, String id, int now) {
+    final u = _imageUrl(url);
+    final list = images;
+    if (u.isEmpty) return list;
+    final i = list.indexWhere((m) => m['url'] == u);
+    final clean = name.trim().isEmpty ? 'Image' : (name.trim().length > 80 ? name.trim().substring(0, 80) : name.trim());
+    if (i >= 0) {
+      list[i] = {...list[i], 'name': clean};
+    } else {
+      list.insert(0, {'id': id, 'name': clean, 'url': u, 'addedAt': now});
+    }
+    return list.take(200).toList();
+  }
+
   Map<String, dynamic> withChanges(Map<String, dynamic> changes, int now) => {...raw, ...changes, 'modifiedAt': now};
+}
+
+/// An image link Discord can show (https only, or a custom application's
+/// asset name).
+String _imageUrl(Object? v) {
+  final s = jsStr(v).trim();
+  return s.isEmpty || s.length > 512 || !s.startsWith('https://') ? '' : s;
 }
 
 Map<String, dynamic> normalizeSchedule(Object? raw) {

@@ -181,6 +181,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     unawaited(AppShortcuts.instance.init());
     RatingsRefresh.instance.startAuto(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
+    DesktopTray.instance.onHiddenChanged = DiscordPresence.instance.appHidden;
+    if (DesktopTray.instance.hidden) DiscordPresence.instance.appHidden(true);
     if (mounted) {
       setState(() => _account = account);
     } else {
@@ -211,7 +213,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _account?.stopAutoPull();
       _account?.flushDraft();
       // Phones suspend apps in the background: don't leave a stale status.
-      if (DiscordPresence.mobile) DiscordPresence.instance.pause();
+      if (DiscordPresence.mobile) DiscordPresence.instance.appHidden(true);
     }
   }
 

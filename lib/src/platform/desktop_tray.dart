@@ -16,6 +16,12 @@ class DesktopTray with TrayListener, WindowListener {
 
   bool _ready = false;
 
+  /// The window was hidden to the tray (true) or shown again (false).
+  void Function(bool hidden)? onHiddenChanged;
+
+  /// Whether the window is hidden in the tray right now.
+  bool hidden = false;
+
   /// Called by the tray menu's "Sync now".
   void Function()? onSyncNow;
 
@@ -49,6 +55,8 @@ class DesktopTray with TrayListener, WindowListener {
       _ready = true;
       if (args.contains('--minimized') && startMinimized && closeToTray) {
         await windowManager.hide();
+        hidden = true;
+        onHiddenChanged?.call(true);
       }
     } catch (_) {
       _ready = false;
@@ -102,6 +110,8 @@ class DesktopTray with TrayListener, WindowListener {
   Future<void> _show() async {
     await windowManager.show();
     await windowManager.focus();
+    hidden = false;
+    onHiddenChanged?.call(false);
   }
 
   Future<void> _quit() async {
@@ -114,6 +124,8 @@ class DesktopTray with TrayListener, WindowListener {
   void onWindowClose() {
     if (closeToTray || _busy) {
       unawaited(windowManager.hide());
+      hidden = true;
+        onHiddenChanged?.call(true);
     } else {
       unawaited(_quit());
     }

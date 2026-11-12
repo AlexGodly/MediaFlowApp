@@ -181,6 +181,17 @@ class PresenceConfig {
   /// show | clear.
   String get idle => _pick('idle', const ['show', 'clear'], 'show');
 
+  /// v6: never switch to the Idle status (keep showing what was last shown).
+  bool get neverIdle => raw['neverIdle'] == true;
+
+  /// v6: the activity type: auto (MediaFlow decides from the category) or
+  /// always playing / watching / listening / competing.
+  String get activityType => _pick('activityType', const ['auto', 'playing', 'watching', 'listening', 'competing'], 'auto');
+
+  /// v6: Discord online status set while MediaFlow runs (linked account):
+  /// default (leave it) | online | idle | dnd | invisible.
+  String get onlineStatus => _pick('onlineStatus', const ['default', 'online', 'idle', 'dnd', 'invisible'], 'default');
+
   int get idleMinutes {
     final n = jsNum(raw['idleMinutes']).toInt();
     return n >= 1 && n <= 120 ? n : 5;

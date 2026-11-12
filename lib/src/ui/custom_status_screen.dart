@@ -18,6 +18,7 @@ import 'collections_screen.dart' show pickLibraryTitles;
 import 'discord_card.dart';
 import 'presence.dart';
 import 'theme.dart';
+import 'widgets.dart' show progressText;
 
 Future<void> openCustomStatus(BuildContext context, AccountController account) =>
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => CustomStatusScreen(account: account)));
@@ -237,6 +238,14 @@ class _CustomStatusScreenState extends State<CustomStatusScreen> {
           ('competing', 'Competing in'),
         ]),
         _field('name', 'Activity name', help: 'The main name of your activity (empty: MediaFlow). Placeholders like {title} work.'),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _fromTitle,
+            icon: const Icon(Icons.video_library_rounded, size: 18),
+            label: const Text('Use a Library title (name, progress and cover)'),
+          ),
+        ),
         _dropdown('display', 'Status display type', const [
           ('name', 'Name'),
           ('state', 'State'),
@@ -268,29 +277,207 @@ class _CustomStatusScreenState extends State<CustomStatusScreen> {
   Widget _images(DiscordPresence d) => _page([
         _field('largeImage', 'Large image (https:// link)', maxLength: 512, type: TextInputType.url,
             help: 'A direct image link, or an asset name if you use a custom application.'),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => _coverFromLibrary(large: true),
-            icon: const Icon(Icons.video_library_rounded, size: 18),
-            label: const Text('Use a Library title\'s cover'),
-          ),
-        ),
+        _imageTools(large: true),
         _field('largeText', 'Large image text', help: 'Shown when hovering over the large image.'),
         if (d.supportsLinks) _field('largeUrl', 'Large image link (https://)', maxLength: 512, type: TextInputType.url),
         const Divider(height: 32),
         _field('smallImage', 'Small image (https:// link)', maxLength: 512, type: TextInputType.url),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: () => _coverFromLibrary(large: false),
-            icon: const Icon(Icons.video_library_rounded, size: 18),
-            label: const Text('Use a Library title\'s cover'),
-          ),
-        ),
+        _imageTools(large: false),
         _field('smallText', 'Small image text'),
         if (d.supportsLinks) _field('smallUrl', 'Small image link (https://)', maxLength: 512, type: TextInputType.url),
+        const Divider(height: 32),
+        Row(children: [
+          const Expanded(child: Text('Image library', style: TextStyle(fontWeight: FontWeight.w800))),
+          TextButton.icon(onPressed: () => _openLibrary(), icon: const Icon(Icons.photo_library_rounded, size: 18), label: Text('${_store.images.length} saved')),
+        ]),
+        _note('Save image links once and pick them for any status. The library is saved in your account, on every device.'),
       ]);
+
+  Widget _imageTools({required bool large}) {
+    final key = large ? 'largeImage' : 'smallImage';
+    final url = jsStr(_draft[key]);
+    return Wrap(spacing: 4, runSpacing: 0, children: [
+      TextButton.icon(
+        onPressed: () => _setImage(key, DiscordPresence.logoUrl, text: 'MediaFlow'),
+        icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+        label: const Text('MediaFlow logo'),
+      ),
+      TextButton.icon(
+        onPressed: () => _coverFromLibrary(large: large),
+        icon: const Icon(Icons.video_library_rounded, size: 18),
+        label: const Text('A title\'s cover'),
+      ),
+      TextButton.icon(
+        onPressed: () => _openLibrary(pickFor: key),
+        icon: const Icon(Icons.photo_library_rounded, size: 18),
+        label: const Text('From my library'),
+      ),
+      if (url.startsWith('https://') && !_store.images.any((m) => m['url'] == url))
+        TextButton.icon(
+          onPressed: () => _saveImage(url),
+          icon: const Icon(Icons.bookmark_add_rounded, size: 18),
+          label: const Text('Save to library'),
+        ),
+      if (url.isNotEmpty)
+        TextButton.icon(onPressed: () => _setImage(key, ''), icon: const Icon(Icons.clear_rounded, size: 18), label: const Text('Remove')),
+    ]);
+  }
+
+  void _setImage(String key, String url, {String? text}) {
+    final textKey = key == 'largeImage' ? 'largeText' : 'smallText';
+    setState(() {
+      _draft = normalizeStatus({..._draft, key: url, if (text != null && jsStr(_draft[textKey]).isEmpty) textKey: text});
+      _rev++;
+    });
+    unawaited(_write({'draft': _draft}));
+  }
+
+  Future<String?> _askName(String title, String initial) async {
+    final c = TextEditingController(text: initial);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(title),
+        content: TextField(controller: c, autofocus: true, maxLength: 80, decoration: const InputDecoration(labelText: 'Name')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, c.text), child: const Text('Save')),
+        ],
+      ),
+    );
+    c.dispose();
+    return name;
+  }
+
+  Future<void> _saveImage(String url) async {
+    final name = await _askName('Save image', Uri.tryParse(url)?.pathSegments.lastOrNull ?? 'Image');
+    if (name == null) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await _write({'images': _store.withImage(url, name, mediaFlowUid(now), now)});
+    if (mounted) setState(() {});
+    _toast('Saved to your image library ✓');
+  }
+
+  /// The image library: search, pick (when [pickFor] is set), rename, delete, add.
+  Future<void> _openLibrary({String? pickFor}) async {
+    var query = '';
+    await showDialog<void>(
+      context: context,
+      builder: (d) => StatefulBuilder(builder: (d, set) {
+        final all = _store.images;
+        final q = query.toLowerCase();
+        final rows = [for (final m in all) if (q.isEmpty || jsStr(m['name']).toLowerCase().contains(q) || jsStr(m['url']).toLowerCase().contains(q)) m];
+        Future<void> save(List<Map<String, dynamic>> list) async {
+          await _write({'images': list});
+          set(() {});
+        }
+
+        return AlertDialog(
+          title: Text(pickFor == null ? 'Image library' : 'Pick an image'),
+          content: SizedBox(
+            width: 480,
+            height: 460,
+            child: Column(children: [
+              TextField(
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search saved images'),
+                onChanged: (v) => set(() => query = v.trim()),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: rows.isEmpty
+                    ? Center(child: Text(all.isEmpty ? 'No saved images yet.' : 'Nothing matches.', style: TextStyle(color: MF.textDim)))
+                    : ListView.builder(
+                        itemCount: rows.length,
+                        itemBuilder: (_, i) {
+                          final m = rows[i];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.network(jsStr(m['url']), width: 44, height: 44, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const SizedBox(width: 44, height: 44, child: Icon(Icons.broken_image_rounded))),
+                            ),
+                            title: Text(jsStr(m['name']), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text(jsStr(m['url']), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                            onTap: pickFor == null
+                                ? null
+                                : () {
+                                    Navigator.pop(d);
+                                    _setImage(pickFor, jsStr(m['url']), text: jsStr(m['name']));
+                                  },
+                            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                              IconButton(
+                                tooltip: 'Edit',
+                                icon: const Icon(Icons.edit_rounded, size: 18),
+                                onPressed: () async {
+                                  final name = await _askName('Rename image', jsStr(m['name']));
+                                  if (name == null) return;
+                                  await save([for (final x in all) x['url'] == m['url'] ? {...x, 'name': name.trim().isEmpty ? 'Image' : name.trim()} : x]);
+                                },
+                              ),
+                              IconButton(
+                                tooltip: 'Delete',
+                                icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                                onPressed: () => save([for (final x in all) if (x['url'] != m['url']) x]),
+                              ),
+                            ]),
+                          );
+                        },
+                      ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () async {
+                final c = TextEditingController();
+                final url = await showDialog<String>(
+                  context: d,
+                  builder: (x) => AlertDialog(
+                    title: const Text('Add an image link'),
+                    content: TextField(controller: c, autofocus: true, decoration: const InputDecoration(labelText: 'https:// link')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(x), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(x, c.text.trim()), child: const Text('Next')),
+                    ],
+                  ),
+                );
+                c.dispose();
+                if (url == null || !url.startsWith('https://')) return;
+                await _saveImage(url);
+                set(() {});
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Close')),
+          ],
+        );
+      }),
+    );
+    if (mounted) setState(() {});
+  }
+
+  /// Fills the status from a Library title: its name, progress, category and cover.
+  Future<void> _fromTitle() async {
+    final view = account.view;
+    if (view == null) return;
+    final ids = await pickLibraryTitles(context, view, title: 'Use a Library title', single: true);
+    if (ids == null || ids.isEmpty) return;
+    final t = view.library.where((x) => x.id == ids.first).firstOrNull;
+    if (t == null) return;
+    final cat = view.category(t.categoryId);
+    _load({
+      ..._draft,
+      'name': t.title,
+      'details': t.title,
+      'state': '${cat.name} · ${progressText(t, cat)}',
+      if (t.coverUrl.startsWith('https://')) 'largeImage': t.coverUrl,
+      'largeText': t.title,
+      'display': 'details',
+    });
+    _toast('Filled from ${t.title}');
+  }
 
   Future<void> _coverFromLibrary({required bool large}) async {
     final view = account.view;
@@ -303,15 +490,7 @@ class _CustomStatusScreenState extends State<CustomStatusScreen> {
       _toast('${t.title} has no cover link.');
       return;
     }
-    setState(() {
-      _draft = normalizeStatus({
-        ..._draft,
-        large ? 'largeImage' : 'smallImage': t.coverUrl,
-        if (jsStr(_draft[large ? 'largeText' : 'smallText']).isEmpty) large ? 'largeText' : 'smallText': t.title,
-      });
-      _rev++;
-    });
-    unawaited(_write({'draft': _draft}));
+    _setImage(large ? 'largeImage' : 'smallImage', t.coverUrl, text: t.title);
   }
 
   Widget _time(DiscordPresence d) {
