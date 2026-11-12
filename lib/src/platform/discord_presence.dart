@@ -456,6 +456,12 @@ class DiscordPresence extends ChangeNotifier {
       }
     }
     if (!c.showAction) values['action'] = '';
+    if (!c.showProgress) {
+      // Progress hidden: the unit goes with it ("Episode 12 / 28" disappears).
+      for (final k in const ['progress', 'before', 'after', 'total', 'percent', 'unit', 'units']) {
+        values[k] = '';
+      }
+    }
     final t = c.template(w.situation);
     final details = _clip(renderPresence(t.$1, values).isEmpty ? 'Using MediaFlow' : renderPresence(t.$1, values));
     final state = _opt(renderPresence(t.$2, values));
