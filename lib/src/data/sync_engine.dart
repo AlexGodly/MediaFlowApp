@@ -62,6 +62,10 @@ abstract class RecordBackend implements CloudBackend {
   /// The `doc` rows [recordIds] if changed after [since] (all of them when
   /// empty): the live logging draft is read this way every few seconds.
   Future<List<RecordRow>> fetchDocRecords(String userId, List<String> recordIds, String since);
+
+  /// 8.0.0 live sync: whether another device saved anything after [since]
+  /// (one tiny indexed read, every few seconds while the app is open).
+  Future<bool> changedElsewhere(String userId, String since, String deviceId);
 }
 
 class MissingCloudRow implements Exception {

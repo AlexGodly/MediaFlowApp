@@ -287,9 +287,9 @@ class AccountController extends ChangeNotifier {
   }
 
   /// Batch Log (outside recommendations). Saved on the device first, then uploaded.
-  Future<LogOutcome> log(List<LogEntry> entries, {String note = '', String? date}) async {
+  Future<LogOutcome> log(List<LogEntry> entries, {String note = '', String? date, String? time}) async {
     final display = await _working();
-    final req = LogRequest.create(entries, note: note, date: date);
+    final req = LogRequest.create(entries, note: note, date: date, time: time);
     final outcome = applyLog(display, req);
     if (!outcome.applied) return outcome;
     await _queue(BatchLogOp(req), display);
@@ -651,20 +651,48 @@ class AccountController extends ChangeNotifier {
     }
   }
 
-  /// While the app is open: pull other devices' changes every minute (the
-  /// website pulls every minute too). Cheap when nothing changed.
-  void startAutoPull([Duration every = const Duration(minutes: 1)]) {
+  /// While the app is open: other devices' changes arrive live (8.0.0).
+  /// Every [probeEvery] one tiny read asks whether another device saved
+  /// anything since the last sync, and syncs right away when it did; a full
+  /// sync still runs every [every] as a safety net. The website does the same.
+  void startAutoPull([Duration every = const Duration(minutes: 1), Duration probeEvery = const Duration(seconds: 5)]) {
     _backgrounded = false;
     _pullTimer?.cancel();
     _pullTimer = Timer.periodic(every, (_) {
       if (!_syncing && !_disposed) unawaited(sync());
     });
+    _probeTimer?.cancel();
+    _probeTimer = Timer.periodic(probeEvery, (_) => unawaited(probeNow()));
   }
 
   void stopAutoPull() {
     _backgrounded = true;
     _pullTimer?.cancel();
     _pullTimer = null;
+    _probeTimer?.cancel();
+    _probeTimer = null;
+  }
+
+  Timer? _probeTimer;
+  bool _probing = false;
+
+  /// Syncs now if another device saved something since the last sync.
+  /// Returns true when it did.
+  Future<bool> probeNow() async {
+    final cloud = this.cloud, index = _index;
+    if (cloud is! RecordBackend || index == null || index.cursor.isEmpty) return false;
+    if (_probing || _syncing || _disposed || _backgrounded) return false;
+    _probing = true;
+    try {
+      if (!await cloud.changedElsewhere(userId, recordsSince(index.cursor), deviceId)) return false;
+      if (_syncing || _disposed) return false;
+      await sync();
+      return true;
+    } catch (_) {
+      return false; // offline or a hiccup: the next probe or the minute sync tries again
+    } finally {
+      _probing = false;
+    }
   }
 
   /// Logs the recommended task from the open form.
@@ -710,6 +738,7 @@ class AccountController extends ChangeNotifier {
     _syncTimer?.cancel();
     _fallbackTimer?.cancel();
     _pullTimer?.cancel();
+    _probeTimer?.cancel();
     _draftPushTimer?.cancel();
     _livePoll?.cancel();
     syncStatus.dispose();

@@ -161,6 +161,7 @@ class _LogFormState extends State<LogForm> {
   final _search = TextEditingController();
   bool _minutesEdited = false;
   DateTime? _date; // null = today
+  TimeOfDay? _time; // null = now today, midday on other days (website v573)
   bool _saving = false;
   String? _error;
 
@@ -241,6 +242,14 @@ class _LogFormState extends State<LogForm> {
     }
   }
 
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time ?? TimeOfDay.now());
+    if (picked != null) setState(() => _time = picked);
+  }
+
+  String? get _timeText =>
+      _time == null ? null : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
+
   Future<void> _save() async {
     final e = _entry();
     final p = _preview();
@@ -260,6 +269,7 @@ class _LogFormState extends State<LogForm> {
         [_minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes)],
         note: _note.text,
         date: _date == null ? null : isoDay(_date!),
+        time: _timeText,
       );
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
@@ -371,14 +381,25 @@ class _LogFormState extends State<LogForm> {
           decoration: const InputDecoration(labelText: 'Note (optional)', hintText: 'What did you think?'),
         ),
         const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
+        Wrap(spacing: 4, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          TextButton.icon(
             onPressed: _pickDate,
             icon: const Icon(Icons.event_outlined, size: 18),
             label: Text(_date == null ? 'Today' : fmtDay(isoDay(_date!))),
           ),
-        ),
+          TextButton.icon(
+            onPressed: _pickTime,
+            icon: const Icon(Icons.schedule_rounded, size: 18),
+            label: Text(_timeText ?? (_date == null ? 'Now' : 'Set a time')),
+          ),
+          if (_time != null)
+            IconButton(
+              tooltip: 'Clear the time',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => setState(() => _time = null),
+              icon: const Icon(Icons.close_rounded, size: 16),
+            ),
+        ]),
         if (_error != null) ...[
           const SizedBox(height: 4),
           Text(_error!, style: const TextStyle(color: MF.bad)),
