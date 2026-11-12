@@ -515,6 +515,7 @@ class _LogScreenState extends State<LogScreen> {
       categoryName: cat.name,
       categoryType: jsStr(cat.raw['type']),
       unit: jsStr(task['unit']).isEmpty ? cat.unit : jsStr(task['unit']),
+      category: cat.raw,
       // v565 settings, shared with the website.
       finish: jsStr(asMap(view.state['settings'])?['mf565TaskFinish']),
       over: jsStr(asMap(view.state['settings'])?['mf565TaskOver']),

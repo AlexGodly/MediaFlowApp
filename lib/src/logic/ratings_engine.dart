@@ -14,6 +14,7 @@
 // so the writes can be compared with the website's (test/ratings_golden_test.dart).
 
 import '../util/js.dart';
+import 'title_names.dart' show titleNames;
 
 /// Thrown when a refresh is stopped.
 class RatingsStopped implements Exception {
@@ -197,6 +198,11 @@ List<String> titleVariants(Map<String, dynamic> item) {
   final out = <String>[];
   for (final x in [item['title'], item['originalTitle'], item['titleEnglish'], item['titleRomaji'], ...asList(fields?['alternateTitles'])]) {
     final v = plainText(x, 220);
+    if (v.isNotEmpty && !out.contains(v)) out.add(v);
+  }
+  // v565: recovery searches with every name of the title.
+  for (final n in titleNames(item)) {
+    final v = n.text.trim();
     if (v.isNotEmpty && !out.contains(v)) out.add(v);
   }
   return out;

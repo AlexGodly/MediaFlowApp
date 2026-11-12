@@ -9,6 +9,7 @@
 import 'dart:math' as math;
 
 import '../util/js.dart';
+import 'title_units.dart';
 import 'log_engine.dart' show normalizeSeasons;
 
 typedef Clock = int Function();
@@ -557,8 +558,10 @@ class LogDraftEditor {
     return math.max(0, jsRound(jsNum(u['minutes']) * 60));
   }
 
-  /// `v369DefaultSeconds`.
+  /// `v369DefaultSeconds` (v565: a title with its own unit and runtime uses that runtime).
   double defaultSeconds(Map<String, dynamic>? i) {
+    final own = jsNum(i?['mf565SecondsPerUnit']).floor();
+    if (ownUnit(i).isNotEmpty && own > 0) return own.toDouble();
     final cat = category(jsStr(i?['categoryId']));
     final sec = jsNumFromKey(cat, 'secondsPerUnit');
     if (sec != null) return math.max(0, sec.floorToDouble());

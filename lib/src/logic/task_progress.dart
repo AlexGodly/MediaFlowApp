@@ -4,6 +4,7 @@
 import 'dart:math' as math;
 
 import '../util/js.dart';
+import 'title_units.dart';
 
 class TaskProgress {
   TaskProgress({
@@ -56,7 +57,7 @@ TaskProgress? taskProgress({
   required String unit,
   String finish = 'minimum',
   String over = 'count',
-  double Function(Map<String, dynamic> entry, double amount)? toCategory,
+  Map<String, dynamic>? category,
 }) {
   final categoryId = jsStr(task['categoryId']);
   final itemized = logDraft['v369Interface'] == 'itemized';
@@ -70,8 +71,8 @@ TaskProgress? taskProgress({
   if (matching.isEmpty) return null;
   final amount = matching.fold<double>(0, (sum, e) {
     final raw = itemized ? (e['v369Units'] is List ? (e['v369Units'] as List).length.toDouble() : 0.0) : math.max(0, jsNum(e['qty'])).toDouble();
-    // v565: a title with its own unit counts in the category's unit.
-    return sum + (toCategory == null ? raw : toCategory(e, raw));
+    // v565: a title with its own unit counts in the category's unit (website mf397ReadState).
+    return sum + toCategoryAmount(libraryItem(jsStr(e['libraryId'])), category, raw);
   });
   double safe(Object? n) {
     final v = jsNumOrNull(n);

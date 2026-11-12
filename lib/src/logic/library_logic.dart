@@ -11,6 +11,7 @@ import '../util/js.dart';
 import 'activity.dart';
 import 'leveling.dart';
 import 'library_hooks.dart';
+import 'title_names.dart';
 
 List<Map<String, dynamic>> libraryOf(Map<String, dynamic> state) =>
     asList(state['library']).map(asMap).whereType<Map<String, dynamic>>().toList();
@@ -169,6 +170,7 @@ class TitleFields {
     this.startEdited = false,
     this.completedAt,
     this.seasons,
+    this.extras,
   });
 
   final String title, categoryId, status, priority, coverUrl;
@@ -181,6 +183,9 @@ class TitleFields {
 
   /// When set, the title's seasons (v252 editor rows: name, progress, total).
   final List<Map<String, dynamic>>? seasons;
+
+  /// v565: the editor's unit, runtime and names (null: not shown, nothing changes).
+  final TitleExtras? extras;
 
   static TitleFields of(Map<String, dynamic> item) {
     final total = jsNumOrNull(item['total']);
@@ -335,6 +340,8 @@ String? saveTitle(Map<String, dynamic> state, String? id, TitleFields f, int now
     earned += coverCredit(state, data, jsStr(old?['coverUrl']), cover, 'title editor', now, uid);
   }
   earned += tracker.save(state, Leveling(state), now, uid);
+  // v565 (mf565WriteEditor): unit, runtime and names are written after the save.
+  f.extras?.writeTo(data, asList(old?['mf565Names']), now);
   saved?.call(jsStr(data['id']), earned);
   return null;
 }

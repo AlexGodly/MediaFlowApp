@@ -13,6 +13,7 @@ import '../logic/resume.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
+import '../logic/title_units.dart';
 
 String fmtNumber(num v) {
   final whole = v == v.roundToDouble();
@@ -73,7 +74,8 @@ Color statusColor(String status) => switch (status) {
 String progressText(LibraryTitle t, Category c) {
   final p = fmtNumber(t.progress);
   final total = t.total;
-  return total == null ? '$p ${unitLabel(c.unit, t.progress)}' : '$p / ${fmtNumber(total)} ${unitLabel(c.unit, total)}';
+  final u = titleUnit(t.raw, c.raw); // v565: the title's own unit
+  return total == null ? '$p ${unitLabel(u, t.progress)}' : '$p / ${fmtNumber(total)} ${unitLabel(u, total)}';
 }
 
 /// Category icon: the category's emoji (or image) on a tinted square.

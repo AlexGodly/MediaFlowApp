@@ -23,6 +23,7 @@ import 'log_draft.dart';
 import 'log_engine.dart';
 import 'recommend.dart';
 import 'resume.dart';
+import 'title_units.dart';
 
 T _clone<T>(T value) => jsonDecode(jsonEncode(value)) as T;
 
@@ -305,7 +306,8 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
     for (final e in entries) {
       final item = editor.item(e['libraryId']);
       final actual = item != null ? r.getCategory(jsStr(item['categoryId'])) : assignedCat;
-      final qty = math.max(0.0, jsNum(e['qty']));
+      // v565: the title's own unit counts in its category's unit (website submitLog).
+      final qty = toCategoryAmount(item, actual, math.max(0.0, jsNum(e['qty'])));
       final g = groups.putIfAbsent(jsStr(actual['id']), () => (cat: actual, entries: <Map<String, dynamic>>[], sums: [0.0, 0.0]));
       g.entries.add(e);
       g.sums[0] += qty;

@@ -21,6 +21,7 @@ import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'app_nav.dart' show openNavigationSettings;
+import '../logic/title_names.dart';
 import 'category_editor.dart';
 import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
@@ -271,6 +272,14 @@ class _AccountSettings extends StatelessWidget {
             title: 'Categories',
             subtitle: 'Enable, rename, targets and units',
             child: _CategoriesEditor(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.titleNames',
+            initiallyOpen: false,
+            icon: Icons.translate_rounded,
+            title: 'Title names',
+            subtitle: 'Which language each title is shown in',
+            child: _TitleNamesEditor(account: account, view: view),
           ),
           SectionCard(
             prefKey: 'settings.stats',
@@ -983,4 +992,59 @@ Widget notificationsSection(BuildContext context, VoidCallback changed) {
       ),
     ]),
   );
+}
+
+/// v565 Title names (website mf565NamesSettingsHtml): settings.mf565TitleNames
+/// = {global, categories}. A title's own choice (in its editor) overrides both.
+class _TitleNamesEditor extends StatelessWidget {
+  const _TitleNamesEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  Future<void> _set(String categoryId, String value) async {
+    final p = namePrefs(asMap(view.state['settings']));
+    var global = p.global;
+    final cats = Map<String, String>.of(p.categories);
+    if (categoryId.isEmpty) {
+      if (kTitleLanguageCodes.contains(value)) global = value;
+    } else if (value.isNotEmpty && kTitleLanguageCodes.contains(value)) {
+      cats[categoryId] = value;
+    } else {
+      cats.remove(categoryId);
+    }
+    await account.setSetting(['mf565TitleNames'], <String, dynamic>{'global': global, 'categories': cats});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = namePrefs(asMap(view.state['settings']));
+    final items = [for (final l in kTitleLanguages) DropdownMenuItem(value: l.$1, child: Text(l.$2))];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Used everywhere a title name appears. If a title has no name in this language, its main title is shown. '
+          'Names come from Details Recovery or the title editor.',
+          style: TextStyle(color: MF.textDim, fontSize: 12)),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        initialValue: p.global,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Show titles in'),
+        items: items,
+        onChanged: (v) => v == null ? null : _set('', v),
+      ),
+      const SizedBox(height: 14),
+      const Text('Per category', style: TextStyle(fontWeight: FontWeight.w800)),
+      Text('Overrides the setting above for one category.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      for (final c in view.categories.where((c) => c.enabled))
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: DropdownButtonFormField<String>(
+            initialValue: p.categories[c.id] ?? '',
+            isExpanded: true,
+            decoration: InputDecoration(labelText: c.name, isDense: true),
+            items: [const DropdownMenuItem(value: '', child: Text('Same as above')), ...items],
+            onChanged: (v) => _set(c.id, v ?? ''),
+          ),
+        ),
+    ]);
+  }
 }

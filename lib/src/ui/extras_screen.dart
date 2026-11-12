@@ -320,7 +320,7 @@ class OnThisDayCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(x.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(item != null ? title.title : x.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
             Text([_verb(x.kind), ...bits].join(' · '), style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),

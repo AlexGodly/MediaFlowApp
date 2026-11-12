@@ -19,6 +19,7 @@ import 'history_screen.dart' show saveExportFile;
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
+import '../logic/title_names.dart' show nameMatches;
 
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
@@ -163,7 +164,7 @@ class _OrderScreenState extends State<OrderScreen> {
       for (final id in ids)
         if ((_cat == 'all' || byId[id]!.categoryId == _cat) &&
             (_status == 'all' || byId[id]!.status == _status) &&
-            (q.isEmpty || byId[id]!.title.toLowerCase().contains(q)))
+            (q.isEmpty || nameMatches(byId[id]!.raw, q)))
           id,
     ];
     if (_sort != 'order') {

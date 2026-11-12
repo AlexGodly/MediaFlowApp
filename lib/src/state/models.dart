@@ -1,3 +1,4 @@
+import '../logic/title_names.dart';
 import '../util/js.dart';
 
 /// Unit labels, identical to the website's UNITS table.
@@ -20,8 +21,18 @@ const Map<String, List<String>> kUnits = {
 };
 
 String unitLabel(String unit, num count) {
+  // Website v565: a title's own unit ("rounds") reads as typed; singular is a best guess.
+  if (unit.isNotEmpty && !kUnits.containsKey(unit)) return count == 1 ? unitSingular(unit) : unit;
   final u = kUnits[unit] ?? kUnits['episodes']!;
   return count == 1 ? u[0] : u[1];
+}
+
+/// Website v565 `mf565Singular`.
+String unitSingular(String word) {
+  if (RegExp(r'(ch|sh|ss|x|z)es$', caseSensitive: false).hasMatch(word)) return word.substring(0, word.length - 2);
+  if (RegExp(r'[^aeiou]ies$', caseSensitive: false).hasMatch(word)) return '${word.substring(0, word.length - 3)}y';
+  if (RegExp(r'[^s]s$', caseSensitive: false).hasMatch(word)) return word.substring(0, word.length - 1);
+  return word;
 }
 
 /// Read-only view of one category in the account state.
@@ -48,11 +59,19 @@ class Category {
 
 /// Read-only view of a Library title.
 class LibraryTitle {
-  LibraryTitle(this.raw);
+  LibraryTitle(this.raw, [this._shown]);
   final Map<String, dynamic> raw;
 
+  /// v565: the name chosen for display (title-language settings), when it differs.
+  final String? _shown;
+
   String get id => jsStr(raw['id']);
-  String get title => cleanTitle(raw['title']).isEmpty ? 'Untitled' : cleanTitle(raw['title']);
+
+  /// The name shown for this title (website v565 mf565DisplayTitle).
+  String get title => _shown ?? mainTitle;
+
+  /// The stored main title: matching, imports, recovery and History use it.
+  String get mainTitle => cleanTitle(raw['title']).isEmpty ? 'Untitled' : cleanTitle(raw['title']);
   String get categoryId => jsStr(raw['categoryId']);
   String get status => jsStr(raw['status']).isEmpty ? 'planned' : jsStr(raw['status']);
   double get progress => jsNum(raw['progress']);
@@ -107,6 +126,20 @@ class LogRecord {
   }
 }
 
+/// Library items as titles, each showing the name chosen by the title-language
+/// settings (website v565). The common case (no name settings) costs nothing.
+List<LibraryTitle> libraryTitlesFor(Map<String, dynamic>? settings, List<Map<String, dynamic>> items) {
+  if (!namesInUse(settings, items)) return [for (final i in items) LibraryTitle(i)];
+  final prefs = namePrefs(settings);
+  return [
+    for (final i in items)
+      LibraryTitle(i, () {
+        final shown = displayTitle(i, prefs);
+        return shown.isEmpty || shown == cleanTitle(i['title']) ? null : shown;
+      }()),
+  ];
+}
+
 /// Convenience accessors over the whole account state.
 class AccountView {
   AccountView(this.state) {
@@ -125,10 +158,30 @@ class AccountView {
 
   // Built on first use: a new view is made after every change, and most
   // screens never look at every log.
-  late final List<LibraryTitle> library = [
-    for (final i in asList(state['library']))
-      if (asMap(i) != null) LibraryTitle(asMap(i)!),
-  ];
+  late final List<LibraryTitle> library =
+      libraryTitlesFor(asMap(state['settings']), [for (final i in asList(state['library'])) if (asMap(i) != null) asMap(i)!]);
+
+  /// v565: main title → shown name, for text that stores a title by name
+  /// (History, On This Day). A main name shared by titles that show different
+  /// names is left as it is (website mf565RebuildNameMap).
+  late final Map<String, String> shownNames = () {
+    final map = <String, String>{}, clash = <String>{};
+    for (final t in library) {
+      final main = t.mainTitle;
+      if (clash.contains(main)) continue;
+      final shown = t.title;
+      if (map.containsKey(main) && map[main] != shown) {
+        map.remove(main);
+        clash.add(main);
+        continue;
+      }
+      if (shown != main) map[main] = shown;
+    }
+    return map;
+  }();
+
+  /// The name to show for a title stored by its main name.
+  String shownName(String main) => shownNames[main.trim()] ?? main;
   late final List<LogRecord> logs = [
     for (final s in asList(state['sessions']))
       if (asMap(s) != null) LogRecord(asMap(s)!),

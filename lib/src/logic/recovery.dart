@@ -14,6 +14,7 @@ import 'dart:convert';
 import '../util/js.dart';
 import 'library_logic.dart' show coverCredit, findTitle;
 import 'ratings_engine.dart';
+import 'title_names.dart';
 
 // ---------- shared ----------
 
@@ -600,8 +601,11 @@ class FieldProposal {
 }
 
 class MetadataPreview {
-  MetadataPreview(this.titleId, this.title, this.proposals, this.errors, this.providers, [this.records = const []]);
+  MetadataPreview(this.titleId, this.title, this.proposals, this.errors, this.providers, [this.records = const [], this.names = const []]);
   final String titleId, title;
+
+  /// v565: names in other languages from confident records (added on apply).
+  final List<TitleName> names;
   final List<FieldProposal> proposals;
   final List<(String, String)> errors;
   final List<String> providers;
@@ -627,8 +631,18 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
   final errors = <(String, String)>[];
   final records = <FieldSource>[];
   final wanted = titleVariants(item).map(normTitle).where((n) => n.isNotEmpty).toSet();
+  final names = <TitleName>[];
   for (final row in results) {
     final ev = picked ? (confidence: 1.0, reason: 'Picked by you') : metadataEvidence(item, row);
+    // v565 (mf439Discover): keep the names of records found with confidence.
+    if (!picked && ev.confidence >= minimumConfidence) {
+      for (final raw in asList(row['names'])) {
+        final n = asMap(raw);
+        final lang = jsStr(n?['lang']), text = cleanTitle(n?['text']);
+        if (text.isEmpty || !kTitleLanguageCodes.contains(lang)) continue;
+        names.add((lang: lang, text: text.length > 220 ? text.substring(0, 220) : text, source: jsStr(row['provider'])));
+      }
+    }
     if (ev.confidence < 0.7) {
       errors.add((jsStr(row['provider']), ev.reason));
       continue;
@@ -680,7 +694,7 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
     ));
   });
   proposals.sort((a, b) => a.token == 'legacy.synopsis' ? -1 : b.token == 'legacy.synopsis' ? 1 : localeCompare(a.token, b.token));
-  return MetadataPreview(jsStr(item['id']), cleanTitle(item['title']), proposals, errors, [...{...results.map((r) => jsStr(r['provider']))}], records);
+  return MetadataPreview(jsStr(item['id']), cleanTitle(item['title']), proposals, errors, [...{...results.map((r) => jsStr(r['provider']))}], records, names);
 }
 
 /// `mf439Discover`: asks each source with up to five names, stopping at the
@@ -789,7 +803,13 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
     kept.add({'at': now, 'legacy': legacy, 'fields': fields, 'ratings': ratings, 'providers': providers.take(20).toList()});
     item['v439RecoveryHistory'] = kept;
   }
-  return (changed: count, legacy: legacy, fields: fields, ratings: ratings);
+  // v565: add the names this title doesn't have yet (never removes or edits one).
+  final added = addTitleNames(item, preview.names);
+  if (added > 0) {
+    final m = jsNum(item['modifiedAt']);
+    item['modifiedAt'] = m > now ? jsOut(m) : now;
+  }
+  return (changed: count > 0 ? count : added, legacy: legacy, fields: fields, ratings: ratings);
 }
 
 /// `mf439DescribeValue`: a field value as text.

@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart' show SynchronousFuture;
 
 import '../state/models.dart';
 import '../util/js.dart';
+import 'title_names.dart' show nameSearchText;
 import 'log_arrange.dart' show lastTouchedIndex, remainingUnits, seedHash;
 
 /// Below this many titles everything runs straight away (a few milliseconds).
@@ -141,7 +142,7 @@ class LibraryIndex {
       final m = asMap(raw);
       if (m != null) items.add(m);
     }
-    final fresh = LibraryIndex._(state, items, [for (final m in items) LibraryTitle(m)]);
+    final fresh = LibraryIndex._(state, items, libraryTitlesFor(asMap(state['settings']), items));
     _latest = fresh;
     _latestKey = key;
     return fresh;
@@ -353,12 +354,13 @@ class LibraryIndex {
 
   /// The Library page searches the title and its tags.
   List<String> get librarySearch => _librarySearch ??= [
-        for (final t in titles) '${t.title} ${asList(t.raw['tags']).map(jsStr).join(' ')}'.toLowerCase(),
+        // v565: every name of the title (website mf565SearchText), then its tags.
+        for (final t in titles) '${nameSearchText(t.raw)} ${asList(t.raw['tags']).map(jsStr).join(' ')}'.toLowerCase(),
       ];
 
-  /// The Logging Library searches the title only.
+  /// The Logging Library searches the title's names.
   List<String> get titleSearch => _titleSearch ??= [
-        for (final it in items) cleanTitle(it['title']).trim().toLowerCase(),
+        for (final it in items) nameSearchText(it).trim(), // v565: every name of the title
       ];
 
   late final Map<String, int> categoryCounts = () {
