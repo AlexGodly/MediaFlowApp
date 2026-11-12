@@ -428,7 +428,9 @@ class AwayXpOp extends AccountOp {
 
   static double rate(Map<String, dynamic> state) {
     final l = Leveling(state);
-    final raw = jsNumOrNull(asMap(asMap(state['settings'])?['leveling'])?['mf565AwayXPPerMinute']);
+    final v = asMap(asMap(state['settings'])?['leveling'])?['mf565AwayXPPerMinute'];
+    // Missing means the default (Number(undefined) is NaN on the website, not 0).
+    final raw = v == null ? null : jsNumOrNull(v);
     if (raw != null && raw.isFinite && raw >= 0) return raw > 100000 ? 100000.0 : raw;
     final active = l.reward('activeTimeXPPerMinute');
     return active > 0 ? active / 4 : 0;

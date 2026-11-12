@@ -502,7 +502,8 @@ class AccountController extends ChangeNotifier {
   Future<void> backgroundXp(String kind, String key, String source, String details) async {
     final display = _display;
     if (display == null) return;
-    final raw = jsNumOrNull(asMap(asMap(display['settings'])?['leveling'])?[kind]);
+    final v = asMap(asMap(display['settings'])?['leveling'])?[kind];
+    final raw = v == null ? null : jsNumOrNull(v); // missing: the default
     final rate = raw != null && raw.isFinite ? raw.clamp(0, 100000).toDouble() : (kBackgroundXpDefaults[kind] ?? 0.0);
     if (!(rate > 0)) return;
     final now = DateTime.now().millisecondsSinceEpoch;

@@ -36,7 +36,8 @@ String actionGroupLabel(String group) => kActionXpGroups.firstWhere((g) => g.$1 
 double actionRate(Map<String, dynamic> state, String group) {
   final map = asMap(asMap(asMap(state['settings'])?['leveling'])?['mf565ActionXP']);
   final def = kActionXpGroups.firstWhere((g) => g.$1 == group, orElse: () => kActionXpGroups.last).$3;
-  final raw = jsNumOrNull(map?[group]) ?? def;
+  final v = map?[group];
+  final raw = v == null ? def : (jsNumOrNull(v) ?? def); // website: Number(map[group] ?? def)
   return raw.isFinite ? raw.clamp(0, 100000).toDouble() : def;
 }
 
@@ -148,8 +149,8 @@ class ActionRepeat {
 
   /// Whether [key] may earn now (and remembers it when it may).
   bool allow(String key, int now) {
-    final last = _recent[key] ?? 0;
-    if (now - last < kActionRepeat.inMilliseconds) return false;
+    final last = _recent[key];
+    if (last != null && now - last < kActionRepeat.inMilliseconds) return false;
     _recent[key] = now;
     if (_recent.length > 2000) _recent.removeWhere((_, t) => now - t > kActionRepeat.inMilliseconds);
     return true;
