@@ -684,7 +684,9 @@ class AccountController extends ChangeNotifier {
     if (_probing || _syncing || _disposed || _backgrounded) return false;
     _probing = true;
     try {
-      if (!await cloud.changedElsewhere(userId, recordsSince(index.cursor), deviceId)) return false;
+      // Strictly after the cursor: the full sync reads a few seconds back to
+      // catch late commits, but the probe must not keep finding the last row.
+      if (!await cloud.changedElsewhere(userId, index.cursor, deviceId)) return false;
       if (_syncing || _disposed) return false;
       await sync();
       return true;
