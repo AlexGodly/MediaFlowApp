@@ -1,0 +1,268 @@
+name: Build MediaFlow (Flutter)
+
+# Reusable: tests, then Android, Windows and iOS builds in parallel.
+# Called by ci.yml (branches / pull requests) and release.yml (main).
+on:
+  workflow_call:
+    inputs:
+      app_version:
+        description: Version label used in file names, e.g. 1.0.0
+        required: true
+        type: string
+    secrets:
+      ANDROID_KEYSTORE_BASE64:
+        description: Permanent MediaFlow Android signing key (base64 .jks). Optional.
+        required: false
+      ANDROID_KEYSTORE_PASSWORD:
+        description: Password of that key store and key. Optional.
+        required: false
+      DISCORD_SDK_TOKEN:
+        description: Read-only token for the private Discord Social SDK release (Rich Presence). Optional.
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Static analysis
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos > analyze.log 2>&1
+          code=$?
+          cat analyze.log
+          python tool/ci_annotate.py analyze analyze.log
+          exit $code
+      - name: Unit, golden (website parity) and widget tests
+        # Run even when analysis reports problems, so both show up in one run.
+        if: success() || failure()
+        env:
+          TZ: UTC
+        run: |
+          set +e
+          flutter test --reporter expanded > test.log 2>&1
+          code=$?
+          cat test.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py test test.log
+          exit $code
+      - name: Release contract
+        run: python tool/release_guard.py
+
+  android:
+    name: Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Current Android lint (via Flutter stable) needs Java 21: on 17 it
+          # crashes analysing plugins (List.removeLast).
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python tool/discord_sdk.py android
+      - name: Generate and brand the Android project
+        run: |
+          flutter create --platforms=android --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python -m pip install pillow
+          python tool/prepare_platforms.py android
+      - name: Use the permanent signing key (when the repository has it)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/mediaflow-release.jks
+            printf 'storeFile=mediaflow-release.jks\nstorePassword=%s\nkeyAlias=mediaflow\nkeyPassword=%s\n' "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+            echo "Signing with the permanent MediaFlow key"
+          else
+            echo "::warning title=Android signing::ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD are not set; this APK uses a temporary debug key and will not install over earlier builds."
+          fi
+      - name: Build release APK
+        run: |
+          set +e
+          flutter build apk --release > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build.log
+          [ $code -eq 0 ] || exit $code
+          # Universal APK staged before the per-ABI build reuses the folder.
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk "dist/MediaFlow-${{ inputs.app_version }}-Android.apk"
+      - name: Build per-ABI APKs
+        run: |
+          set +e
+          flutter build apk --release --split-per-abi > build-abi.log 2>&1
+          code=$?
+          cat build-abi.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build-abi.log
+          exit $code
+      - name: Stage APKs
+        run: |
+          v="${{ inputs.app_version }}"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "build/app/outputs/flutter-apk/app-${abi}-release.apk" "dist/MediaFlow-${v}-Android-${abi}.apk"
+          done
+          ls -la dist
+          # App info shows the full label (not pubspec's three numbers).
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          name=$("$aapt2" dump badging "dist/MediaFlow-${v}-Android.apk" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -1)
+          label=$(sed -n "s/.*kAppVersionLabel = '\([0-9.]*\)'.*/\1/p" lib/src/config.dart)
+          [ "$name" = "$label" ] || { echo "::error::APK versionName is '$name', expected $label"; exit 1; }
+          # Each phone type's APK holds only its own libraries.
+          unzip -l "dist/MediaFlow-${v}-Android-arm64-v8a.apk" | grep -q 'lib/armeabi-v7a/' && { echo "::error::arm64 APK is not split"; exit 1; } || true
+          if [ -d .discord-sdk/out/android ]; then
+            for f in "dist/MediaFlow-${v}-Android.apk" "dist/MediaFlow-${v}-Android-arm64-v8a.apk"; do
+              unzip -l "$f" | grep -E 'lib/arm64-v8a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from $f"; exit 1; }
+            done
+            unzip -l "dist/MediaFlow-${v}-Android-armeabi-v7a.apk" | grep -E 'lib/armeabi-v7a/libdiscord_partner_sdk.so' || { echo "::error::Discord SDK missing from the armeabi-v7a APK"; exit 1; }
+            unzip -l "dist/MediaFlow-${v}-Android.apk" | grep -c 'lib/x86/' && { echo "::error::32-bit x86 libraries should be excluded"; exit 1; } || true
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows app
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python tool/discord_sdk.py windows
+      - name: Check Discord bindings against the SDK header
+        run: python tool/discord_abi.py
+      - name: Generate and brand the Windows project
+        shell: bash
+        run: |
+          flutter create --platforms=windows --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python -m pip install pillow
+          python tool/prepare_platforms.py windows
+      - name: Build Windows release
+        shell: bash
+        run: |
+          set +e
+          flutter build windows --release > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python tool/ci_annotate.py build build.log
+          exit $code
+      - name: Portable zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $release = "build\windows\x64\runner\Release"
+          if (-not (Test-Path "$release\MediaFlow.exe")) { Get-ChildItem $release; throw "MediaFlow.exe not built" }
+          if ((Test-Path ".discord-sdk\out\windows") -and -not (Test-Path "$release\discord_partner_sdk.dll")) { Get-ChildItem $release; throw "Discord SDK missing next to MediaFlow.exe" }
+          $pv = (Get-Item "$release\MediaFlow.exe").VersionInfo.ProductVersion
+          $label = ([regex]::Match((Get-Content lib\src\config.dart -Raw), "kAppVersionLabel = '([0-9.]+)'")).Groups[1].Value
+          if ($pv -ne $label) { throw "MediaFlow.exe product version is '$pv', expected $label" }
+          Compress-Archive -Path "$release\*" -DestinationPath "dist\MediaFlow-${{ inputs.app_version }}-Windows-x64-portable.zip"
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y | Out-Null }
+          & $iscc /Qp "/DAppVersion=${{ inputs.app_version }}" "/DSourceDir=$PWD\build\windows\x64\runner\Release" "/DOutputDir=$PWD\dist" "/DIconFile=$PWD\windows\runner\resources\app_icon.ico" tool\windows_installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  ios:
+    name: iOS app (unsigned)
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Discord Social SDK (private, for Rich Presence)
+        shell: bash
+        # Not cached: caches of a public repository can be read by pull requests.
+        env:
+          GH_TOKEN: ${{ secrets.DISCORD_SDK_TOKEN }}
+        run: python3 tool/discord_sdk.py ios
+      - name: Generate and brand the iOS project
+        run: |
+          flutter create --platforms=ios --org com.alexgodly --project-name mediaflow .
+          git ls-files --error-unmatch test/widget_test.dart >/dev/null 2>&1 || rm -f test/widget_test.dart
+          python3 -m pip install --break-system-packages pillow || python3 -m pip install pillow
+          python3 tool/prepare_platforms.py ios
+          if [ -d ios/DiscordPartnerSdk ]; then
+            flutter build ios --config-only --release --no-codesign
+            python3 tool/prepare_platforms.py ios-podfile
+          fi
+      - name: Build (no code signing)
+        run: |
+          set +e
+          flutter build ios --release --no-codesign > build.log 2>&1
+          code=$?
+          cat build.log
+          [ $code -eq 0 ] || python3 tool/ci_annotate.py build build.log
+          exit $code
+      - name: Package IPA
+        run: |
+          APP=build/ios/iphoneos/Runner.app
+          test -d "$APP"
+          mkdir -p dist ipa/Payload
+          cp -R "$APP" ipa/Payload/
+          if [ -d ios/DiscordPartnerSdk ]; then
+            ls "$APP/Frameworks" | grep -q discord_partner_sdk.framework || { ls "$APP/Frameworks"; echo "::error::Discord SDK missing from the iOS app"; exit 1; }
+          fi
+          (cd ipa && zip -qry "../dist/MediaFlow-${{ inputs.app_version }}-iOS-unsigned.ipa" Payload)
+          ls -la dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: dist/*
+          if-no-files-found: error
