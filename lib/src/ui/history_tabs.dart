@@ -43,7 +43,7 @@ Widget _cover(Map<String, dynamic>? item, Category cat, double w) {
   if (!url.startsWith('http')) return fallback;
   return ClipRRect(
     borderRadius: BorderRadius.circular(8),
-    child: Image.network(url, width: w, height: h, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
+    child: Image.network(url, width: w, height: h, cacheWidth: (w * 3).ceil(), fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback),
   );
 }
 
@@ -323,7 +323,7 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
                       const SizedBox(width: 6),
                       Expanded(
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(t.event.title.isEmpty ? view.category(t.event.categoryId).name : t.event.title,
+                          Text(t.event.title.isEmpty ? view.category(t.event.categoryId).name : view.shownName(t.event.title),
                               maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
                           Text('${fmtNumber(t.units)} ${unitLabel(view.category(t.event.categoryId).unit, t.units)}',
                               style: TextStyle(color: MF.textDim, fontSize: 11)),
@@ -368,7 +368,7 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(ev.title.isEmpty ? cat.name : ev.title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      Text(ev.title.isEmpty ? cat.name : view.shownName(ev.title), style: const TextStyle(fontWeight: FontWeight.w700)),
                       Text(
                         [
                           cat.name,
@@ -467,7 +467,7 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
         if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('No matching recent activity. Adjust the filters; older category-only logs stay in Consumption history and Logs.',
+            child: Text('No matching recent activity. Adjust the filters; older category-only logs stay in Consumption history.',
                 textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
           ),
         for (final key in days.keys) ...[
@@ -512,7 +512,7 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${cat.name} · ${_time(t)}', style: TextStyle(color: MF.textDim, fontSize: 11)),
-              Text(ev.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text(widget.view.shownName(ev.title), style: const TextStyle(fontWeight: FontWeight.w800)),
               Text([if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(cat.unit, ev.qty)}', fmtMinutes(ev.minutes)].join(' · '),
                   style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),

@@ -10,6 +10,7 @@ import 'floating_dock.dart';
 import 'history_screen.dart';
 import 'library_screen.dart';
 import 'log_screen.dart';
+import 'log_sheet.dart' show showLogSheet;
 import 'order_screen.dart';
 import 'old_system_screen.dart';
 import 'presence.dart';
@@ -184,6 +185,7 @@ class _HomeShellState extends State<HomeShell> {
                     FloatingDock.openLoggingLibrary.value++;
                   },
                   openCollections: () => _go(Section.collections),
+                  openBatchLog: () => showLogSheet(context, account),
                 ),
                 onAddTitle: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: account))),
                 onAddCollection: () async {

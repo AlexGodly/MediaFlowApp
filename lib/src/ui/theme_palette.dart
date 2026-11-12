@@ -215,6 +215,122 @@ Palette paletteFromAccent(Color accent, {required bool light}) {
   );
 }
 
+// ---- v159 / v162 cover themes (the whole palette from the cover) ---------------------
+
+/// `v159ExtractCoverTheme`: up to four distinct cover colours and the cover's
+/// own light/dark nature, from a 54×72 RGBA sample.
+({List<Color> colors, bool light})? coverThemeFromPixels(List<int> rgba) {
+  final buckets = <String, List<double>>{}; // r, g, b, n, score
+  double lumSum = 0;
+  var lumN = 0;
+  for (var i = 0; i + 3 < rgba.length; i += 4) {
+    final a = rgba[i + 3];
+    if (a < 180) continue;
+    final r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+    final mx = math.max(r, math.max(g, b)), mn = math.min(r, math.min(g, b));
+    final sat = mx == 0 ? 0.0 : (mx - mn) / mx;
+    final lum = .2126 * r + .7152 * g + .0722 * b;
+    lumSum += lum;
+    lumN++;
+    int q(int v) => (v / 24).round() * 24;
+    final key = '${q(r)},${q(g)},${q(b)}';
+    final vivid = .35 + sat * 1.9;
+    final middle = .55 + (1 - (lum / 255 - .50).abs()) * .45;
+    final row = buckets[key] ??= [0, 0, 0, 0, 0];
+    row[0] += r;
+    row[1] += g;
+    row[2] += b;
+    row[3]++;
+    row[4] += vivid * middle;
+  }
+  final ranked = buckets.values
+      .where((x) => x[3] >= 2)
+      .map((x) => (r: x[0] / x[3], g: x[1] / x[3], b: x[2] / x[3], score: x[4] * math.pow(x[3], .62)))
+      .toList()
+    ..sort((a, b) => b.score.compareTo(a.score));
+  final picked = <({double r, double g, double b, num score})>[];
+  for (final row in ranked) {
+    final far = picked.every((x) => math.sqrt(math.pow(x.r - row.r, 2) + math.pow(x.g - row.g, 2) + math.pow(x.b - row.b, 2)) >= 76);
+    if (far) {
+      picked.add(row);
+      if (picked.length >= 4) break;
+    }
+  }
+  if (picked.isEmpty) return null;
+  final colors = picked.map((x) => Color.fromARGB(255, x.r.round(), x.g.round(), x.b.round())).toList();
+  while (colors.length < 3) {
+    final seed = colors.first;
+    final hsl = rgbToHsl(seed.r * 255, seed.g * 255, seed.b * 255);
+    final shift = colors.length == 1 ? 52 : 188;
+    colors.add(hslColor(hsl.h + shift, math.max(44, hsl.s * .86), 54));
+  }
+  final average = lumN > 0 ? lumSum / lumN / 255 : .35;
+  return (colors: colors.take(4).toList(), light: average > .58);
+}
+
+/// `v159TuneThemeColor`.
+Color _tuneThemeColor(Color c, {required bool light, required bool accent}) {
+  final hsl = rgbToHsl(c.r * 255, c.g * 255, c.b * 255);
+  if (accent) {
+    final s = (hsl.s == 0 ? 66.0 : hsl.s * 1.14).clamp(58, 92).toDouble();
+    final l = light ? hsl.l.clamp(34, 52).toDouble() : hsl.l.clamp(52, 68).toDouble();
+    return hslColor(hsl.h, s, l);
+  }
+  final s = (hsl.s == 0 ? 48.0 : hsl.s).clamp(32, 78).toDouble();
+  final l = light ? hsl.l.clamp(38, 62).toDouble() : hsl.l.clamp(42, 68).toDouble();
+  return hslColor(hsl.h, s, l);
+}
+
+Color _hex(int v) => Color(0xFF000000 | v);
+
+/// `v159CoverPalette`, softened like `v162SoftPalette` for the calmer cover
+/// collections ([soft]: every mode except Dynamic).
+Palette paletteFromCover(List<Color> colors, {required bool light, bool soft = false}) {
+  final raw1 = colors.first, raw2 = colors.length > 1 ? colors[1] : raw1, raw3 = colors.length > 2 ? colors[2] : raw2;
+  var primary = _tuneThemeColor(raw1, light: light, accent: true);
+  final secondary = _tuneThemeColor(raw2, light: light, accent: false);
+  Color bg, panel, raised, border;
+  Color text, dim, mute;
+  if (light) {
+    bg = mixColors(raw1, _hex(0xF5F7FB), .10);
+    panel = mixColors(raw2, _hex(0xFFFFFF), .07);
+    raised = mixColors(raw3, _hex(0xEDF1F7), .12);
+    border = mixColors(secondary, _hex(0xCBD3DF), .18);
+    text = _hex(0x121722);
+    dim = _hex(0x394354);
+    mute = _hex(0x667184);
+    if (soft) {
+      bg = mixColors(bg, _hex(0xF4F6FA), .38);
+      panel = mixColors(panel, _hex(0xFFFFFF), .32);
+      raised = mixColors(raised, _hex(0xEDF1F6), .38);
+      border = mixColors(border, _hex(0xCCD3DE), .48);
+      primary = mixColors(primary, _hex(0x53606F), .76);
+      text = _hex(0x151A22);
+      dim = _hex(0x3E4857);
+      mute = _hex(0x687486);
+    }
+  } else {
+    bg = mixColors(raw1, _hex(0x060912), .21);
+    panel = mixColors(raw2, _hex(0x0B1019), .17);
+    raised = mixColors(raw3, _hex(0x141B29), .20);
+    border = mixColors(secondary, _hex(0x2C3545), .22);
+    text = _hex(0xF4F7FB);
+    dim = _hex(0xC1CAD7);
+    mute = _hex(0x8793A5);
+    if (soft) {
+      bg = mixColors(bg, _hex(0x080C13), .42);
+      panel = mixColors(panel, _hex(0x0D121B), .40);
+      raised = mixColors(raised, _hex(0x151C28), .44);
+      border = mixColors(border, _hex(0x303947), .48);
+      primary = mixColors(primary, _hex(0xAAB5C4), .78);
+      text = _hex(0xF5F7FA);
+      dim = _hex(0xC5CDD8);
+      mute = _hex(0x8D98A8);
+    }
+  }
+  return Palette(bg: bg, panel: panel, raised: raised, border: border, text: text, dim: dim, mute: mute, flow: primary);
+}
+
 // ---- the global Light / Dark appearance layer (v106 / v132) ---------------------------
 
 const _lightSurfaces = Palette(

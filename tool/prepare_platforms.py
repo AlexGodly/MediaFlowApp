@@ -407,6 +407,12 @@ def ios_plist(text):
         text, n = re.subn(rf"(<key>{key}</key>\s*<string>)[^<]*(</string>)", rf"\g<1>{NAME}\g<2>", text, count=1)
         if n != 1:
             sys.exit(f"Info.plist has no {key}")
+    # Automatic backups and exports are kept in Documents; show it in Files.
+    for key in ("UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace"):
+        if f"<key>{key}</key>" not in text:
+            text, n = re.subn(r"(<dict>\n)", rf"\g<1>\t<key>{key}</key>\n\t<true/>\n", text, count=1)
+            if n != 1:
+                sys.exit("Info.plist has no top-level dict")
     return text
 
 

@@ -16,15 +16,23 @@ import '../logic/categories.dart';
 import '../logic/extras.dart' show balancePanel, editPanel;
 import '../logic/stats.dart' show kStatsComponents, statsComponentVisible;
 import '../platform/desktop_tray.dart';
+import '../platform/diagnostics.dart';
 import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'api_providers.dart';
 import 'app_nav.dart' show openNavigationSettings;
+import '../logic/action_xp.dart' show kActionXpGroups;
+import '../logic/category_classes.dart';
+import '../logic/choice_layout.dart';
+import '../logic/title_names.dart';
 import 'category_editor.dart';
+import 'data_cloud.dart';
 import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
 import 'theme.dart';
+import 'offline_covers_ui.dart';
 import 'theme_settings.dart';
 import 'widgets.dart';
 
@@ -60,6 +68,11 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['saturationWeight'], 'Saturation weight', def: 20),
       _S(['seasonalBonus'], 'Seasonal bonus', def: 15),
       _S(['randomness'], 'Randomness (0–1)', kind: 'double', def: 0.28, max: 1),
+      // Website Scheduler tuning: fresh Seasonal Anime episodes (checked by the website).
+      _S(['seasonalFreshAuto'], 'Find fresh Seasonal Anime episodes automatically', kind: 'bool', def: true,
+          help: 'From Jikan / MyAnimeList episode data.'),
+      _S(['seasonalFreshSyncMinutes'], 'Fresh-episode check every (minutes)', def: 60, min: 5, max: 1440),
+      _S(['seasonalFreshCount'], 'Fresh Seasonal Anime episodes (manual)', def: 0, max: 500),
     ]
   ),
   (
@@ -71,6 +84,11 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v419LoggingCollapsed'], 'Start with the Logging Workspace collapsed', kind: 'bool', def: false),
       _S(['v405ShowFloatingAdd'], 'Show the floating + button', kind: 'bool', def: true),
       _S(['v405ShowFloatingTaskProgress'], 'Show Floating Task Progress', kind: 'bool', def: true),
+      // v565 (shared with the website).
+      _S(['mf565TaskFinish'], 'Task progress finishes at', kind: 'choice', def: 'minimum',
+          help: 'Where the card reaches 100% for a goal like 9–13.', choices: [('minimum', 'Minimum (9 of 9–13)'), ('maximum', 'Maximum (13 of 9–13)')]),
+      _S(['mf565TaskOver'], 'When you go over the maximum', kind: 'choice', def: 'count',
+          choices: [('count', 'Count past 100%'), ('warning', 'Warning colour'), ('status', 'Status only')]),
     ]
   ),
   (
@@ -86,6 +104,12 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v441RecoveryUI', 'visibility'], 'Background Processes widget', kind: 'choice', def: 'auto',
           choices: [('auto', 'While something runs'), ('always', 'Always'), ('hidden', 'Hidden')]),
       _S(['v441RecoveryUI', 'showFinished'], 'Keep finished jobs in the widget', kind: 'bool', def: false),
+      // v565 (shared with the website; the position itself stays on each device).
+      _S(['mf565Processes', 'position'], 'When it reopens', kind: 'choice', def: 'remember', choices: [('remember', 'Where I left it'), ('default', 'Always at the default spot')]),
+      _S(['mf565Processes', 'edges'], 'After moving it', kind: 'choice', def: 'stay', choices: [('stay', 'Stay where dropped'), ('snap', 'Snap to nearest edge')]),
+      _S(['mf565Processes', 'icon'], 'Minimised icon', kind: 'choice', def: 'both',
+          choices: [('both', 'Progress ring and count'), ('ring', 'Progress ring'), ('count', 'Count of running jobs'), ('plain', 'Plain icon')]),
+      _S(['mf565Processes', 'idle'], 'When nothing is running', kind: 'choice', def: 'hide', choices: [('hide', 'Hide the icon'), ('show', 'Always show it')]),
     ]
   ),
   (
@@ -118,6 +142,12 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['leveling', 'rotationMultiplier', 'healthy'], 'Rotation ×: healthy', kind: 'double', def: 5),
       _S(['leveling', 'rotationMultiplier', 'overused'], 'Rotation ×: overused', kind: 'double', def: 2),
       for (final u in _unitKeys) _S(['leveling', 'unitXP', u], 'XP per ${kUnits[u]![0]}', kind: 'double', def: _unitDefaults[u]),
+      // v565: XP for every action, background work and time away (0 turns one off).
+      for (final g in kActionXpGroups) _S(['leveling', 'mf565ActionXP', g.$1], 'Action XP: ${g.$2}', kind: 'double', def: g.$3),
+      _S(['leveling', 'mf565BackupXP'], 'Automatic backup XP', kind: 'double', def: 5),
+      _S(['leveling', 'mf565RecoveryXP'], 'Finished recovery XP', kind: 'double', def: 10),
+      _S(['leveling', 'mf565FreshCheckXP'], 'Fresh-episode check XP', kind: 'double', def: 2),
+      _S(['leveling', 'mf565AwayXPPerMinute'], 'Away XP per minute (empty: a quarter of active time)', kind: 'double', def: 0.5),
     ]
   ),
   (
@@ -137,6 +167,7 @@ final _sections = <(String, IconData, List<_S>)>[
     [
       _S(['v192Dashboard', 'showTodayBalance'], "Show Today's Balance", kind: 'bool', def: true),
       _S(['v192Dashboard', 'showOnThisDay'], 'Show On This Day', kind: 'bool', def: true),
+      _S(['mf565LogOnThisDay'], 'Show On This Day on the Log page', kind: 'bool', def: true, help: 'It stays in Extras either way.'),
       _S(['v192Dashboard', 'showRatingQueue'], 'Show Rate Your Library', kind: 'bool', def: true),
       _S(['v192Dashboard', 'showMissingCovers'], 'Show Missing Covers', kind: 'bool', def: true),
       _S(['v192Dashboard', 'showStopwatch'], 'Show Stopwatch', kind: 'bool', def: true),
@@ -260,6 +291,14 @@ class _AccountSettings extends StatelessWidget {
             child: _CategoriesEditor(account: account, view: view),
           ),
           SectionCard(
+            prefKey: 'settings.titleNames',
+            initiallyOpen: false,
+            icon: Icons.translate_rounded,
+            title: 'Title names',
+            subtitle: 'Which language each title is shown in',
+            child: _TitleNamesEditor(account: account, view: view),
+          ),
+          SectionCard(
             prefKey: 'settings.stats',
             initiallyOpen: false,
             icon: Icons.insights_rounded,
@@ -300,6 +339,38 @@ class _AccountSettings extends StatelessWidget {
               for (final k in const [('scheduler', 'MediaFlow System'), ('todayBalance', "Today's Balance (legacy)"), ('categoryBalance', 'Category balance (Statistics)'), ('saturation', 'Recent saturation (Statistics)')])
                 _ScopeEditor(account: account, view: view, keyName: k.$1, label: k.$2),
             ]),
+          ),
+          SectionCard(
+            prefKey: 'settings.categoryClasses',
+            initiallyOpen: false,
+            icon: Icons.account_tree_rounded,
+            title: 'Category Classes',
+            subtitle: 'Hierarchical recommendations: Class → Category → Title',
+            child: _ClassesEditor(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.choiceLayout',
+            initiallyOpen: false,
+            icon: Icons.swap_vert_rounded,
+            title: 'Choice & filter layout',
+            subtitle: 'Order and hide the choices in Set Category / Status / Priority and the Library filters',
+            child: _ChoiceLayoutEditor(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.dataCloud',
+            initiallyOpen: false,
+            icon: Icons.cloud_sync_rounded,
+            title: 'Data & Cloud',
+            subtitle: 'Backups, Settings Presets, imports and exports',
+            child: DataCloudSection(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.apiProviders',
+            initiallyOpen: false,
+            icon: Icons.hub_rounded,
+            title: 'API Providers & Testing',
+            subtitle: 'Cover and metadata sources, and testing them',
+            child: ApiProvidersSection(account: account, view: view),
           ),
         ]);
       },
@@ -768,19 +839,22 @@ class _AppSettingsState extends State<_AppSettings> {
             prefKey: 'app.storage',
             icon: Icons.storage_rounded,
             title: 'Storage',
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Saved covers'),
-              subtitle: Text('${_bytes(_coverBytes)} kept on this device for offline use'),
-              trailing: TextButton(
-                onPressed: () async {
-                  await CoverCache.instance.clear();
-                  final b = await CoverCache.instance.sizeBytes();
-                  if (mounted) setState(() => _coverBytes = b);
-                },
-                child: const Text('Clear'),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Saved covers'),
+                subtitle: Text('${_bytes(_coverBytes)} kept on this device for offline use'),
+                trailing: TextButton(
+                  onPressed: () async {
+                    await CoverCache.instance.clear();
+                    final b = await CoverCache.instance.sizeBytes();
+                    if (mounted) setState(() => _coverBytes = b);
+                  },
+                  child: const Text('Clear'),
+                ),
               ),
-            ),
+              OfflineCoversEditor(account: account),
+            ]),
           ),
           SectionCard(
             prefKey: 'app.updates',
@@ -842,6 +916,29 @@ class _AppSettingsState extends State<_AppSettings> {
                     label: const Text('Copy'),
                   ),
                 ),
+                const Divider(),
+                // v565: crashes and freezes recorded on this device.
+                Text('Crash and freeze log: ${Diagnostics.instance.entries.length} entr${Diagnostics.instance.entries.length == 1 ? 'y' : 'ies'}',
+                    style: const TextStyle(fontWeight: FontWeight.w700)),
+                const Text('Kept on this device only. Copy it to send it if something keeps going wrong.', style: TextStyle(fontSize: 12)),
+                Wrap(spacing: 8, children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: Diagnostics.instance.asText()));
+                      _toast(context, 'Crash and freeze log copied');
+                    },
+                    icon: const Icon(Icons.content_copy_rounded, size: 18),
+                    label: const Text('Copy log'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await Diagnostics.instance.clear();
+                      if (context.mounted) _toast(context, 'Log cleared');
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    label: const Text('Clear log'),
+                  ),
+                ]),
               ]);
             }),
           ),
@@ -947,4 +1044,319 @@ Widget notificationsSection(BuildContext context, VoidCallback changed) {
       ),
     ]),
   );
+}
+
+/// v565 Title names (website mf565NamesSettingsHtml): settings.mf565TitleNames
+/// = {global, categories}. A title's own choice (in its editor) overrides both.
+class _TitleNamesEditor extends StatelessWidget {
+  const _TitleNamesEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  Future<void> _set(String categoryId, String value) async {
+    final p = namePrefs(asMap(view.state['settings']));
+    var global = p.global;
+    final cats = Map<String, String>.of(p.categories);
+    if (categoryId.isEmpty) {
+      if (kTitleLanguageCodes.contains(value)) global = value;
+    } else if (value.isNotEmpty && kTitleLanguageCodes.contains(value)) {
+      cats[categoryId] = value;
+    } else {
+      cats.remove(categoryId);
+    }
+    await account.setSetting(['mf565TitleNames'], <String, dynamic>{'global': global, 'categories': cats});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = namePrefs(asMap(view.state['settings']));
+    final items = [for (final l in kTitleLanguages) DropdownMenuItem(value: l.$1, child: Text(l.$2))];
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Used everywhere a title name appears. If a title has no name in this language, its main title is shown. '
+          'Names come from Details Recovery or the title editor.',
+          style: TextStyle(color: MF.textDim, fontSize: 12)),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        initialValue: p.global,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Show titles in'),
+        items: items,
+        onChanged: (v) => v == null ? null : _set('', v),
+      ),
+      const SizedBox(height: 14),
+      const Text('Per category', style: TextStyle(fontWeight: FontWeight.w800)),
+      Text('Overrides the setting above for one category.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      for (final c in view.categories.where((c) => c.enabled))
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: DropdownButtonFormField<String>(
+            initialValue: p.categories[c.id] ?? '',
+            isExpanded: true,
+            decoration: InputDecoration(labelText: c.name, isDense: true),
+            items: [const DropdownMenuItem(value: '', child: Text('Same as above')), ...items],
+            onChanged: (v) => _set(c.id, v ?? ''),
+          ),
+        ),
+    ]);
+  }
+}
+
+/// v480 Category Classes (website mf480 panel): settings.v480CategoryClasses.
+class _ClassesEditor extends StatelessWidget {
+  const _ClassesEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  Map<String, dynamic> get _prefs =>
+      cleanCategoryClasses(asMap(view.state['settings'])?['v480CategoryClasses'], view.categories.map((c) => c.id));
+
+  Future<void> _write(Map<String, dynamic> next) =>
+      account.setSetting(['v480CategoryClasses'], cleanCategoryClasses(next, view.categories.map((c) => c.id)));
+
+  Future<void> _editClass(BuildContext context, Map<String, dynamic>? existing) async {
+    final name = TextEditingController(text: jsStr(existing?['name']));
+    final icon = TextEditingController(text: jsStr(existing?['icon']).isEmpty ? '✨' : jsStr(existing?['icon']));
+    final color = TextEditingController(text: jsStr(existing?['color']).isEmpty ? '#A78BFA' : jsStr(existing?['color']));
+    var weight = jsNum(existing?['weight']).clamp(1, 5).round();
+    if (weight < 1) weight = 1;
+    var enabled = existing?['enabled'] != false;
+    final members = {for (final c in asList(existing?['categoryIds'])) jsStr(c)};
+    final owners = <String, String>{};
+    for (final g in asList(_prefs['classes'])) {
+      for (final c in asList(asMap(g)!['categoryIds'])) {
+        owners[jsStr(c)] = jsStr(asMap(g)!['name']);
+      }
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => StatefulBuilder(
+        builder: (d, set) => AlertDialog(
+          title: Text(existing == null ? 'Add Category Class' : 'Edit Category Class'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                TextField(controller: name, maxLength: 80, autofocus: true, decoration: const InputDecoration(labelText: 'Class name', hintText: 'Anime', counterText: '')),
+                Row(children: [
+                  SizedBox(width: 90, child: TextField(controller: icon, maxLength: 32, decoration: const InputDecoration(labelText: 'Icon', counterText: ''))),
+                  const SizedBox(width: 10),
+                  Expanded(child: TextField(controller: color, decoration: const InputDecoration(labelText: 'Colour (#RRGGBB)'))),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  const Text('Class weight'),
+                  Expanded(
+                    child: Slider(value: weight.toDouble(), min: 1, max: 5, divisions: 4, label: '$weight', onChanged: (v) => set(() => weight = v.round())),
+                  ),
+                  Text('$weight'),
+                ]),
+                SwitchListTile(contentPadding: EdgeInsets.zero, value: enabled, onChanged: (v) => set(() => enabled = v), title: const Text('Class enabled')),
+                const Text('Categories in this class', style: TextStyle(fontWeight: FontWeight.w700)),
+                Text('One primary class per category. Changing assignments does not modify the categories.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+                for (final c in view.categories)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    value: members.contains(c.id),
+                    onChanged: (v) => set(() => v == true ? members.add(c.id) : members.remove(c.id)),
+                    title: Text('${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}'),
+                    subtitle: owners[c.id] != null && owners[c.id] != jsStr(existing?['name'])
+                        ? Text('Currently in ${owners[c.id]} — selecting transfers it')
+                        : null,
+                  ),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save Class')),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
+    if (name.text.trim().isEmpty) {
+      if (context.mounted) _toast(context, 'Enter a class name');
+      return;
+    }
+    final item = <String, dynamic>{
+      'id': jsStr(existing?['id']).isEmpty ? mediaFlowUid(DateTime.now().millisecondsSinceEpoch) : jsStr(existing?['id']),
+      'name': name.text.trim(),
+      'icon': icon.text.trim().isEmpty ? '✨' : icon.text.trim(),
+      'iconUrl': '',
+      'color': color.text.trim().toUpperCase(),
+      'weight': weight,
+      'enabled': enabled,
+      'categoryIds': [for (final c in view.categories) if (members.contains(c.id)) c.id],
+    };
+    await _write(saveCategoryClass(_prefs, item));
+    if (context.mounted) _toast(context, 'Category Class saved');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _prefs;
+    final on = p['enabled'] == true;
+    final classes = [for (final g in asList(p['classes'])) asMap(g)!];
+    final byId = {for (final c in view.categories) c.id: c};
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: on,
+        onChanged: (v) => _write({...p, 'enabled': v}),
+        title: const Text('Enable Category Classes'),
+        subtitle: const Text('Off by default. Class → Category → Title when enabled.'),
+      ),
+      DropdownButtonFormField<String>(
+        initialValue: jsStr(p['strength']),
+        decoration: const InputDecoration(labelText: 'Class balancing strength'),
+        items: [for (final x in kClassStrengths) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: on ? (v) => _write({...p, 'strength': v}) : null,
+      ),
+      for (final t in kClassToggles)
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: p[t.$1] == true,
+          onChanged: on ? (v) => _write({...p, t.$1: v == true}) : null,
+          title: Text(t.$2),
+          subtitle: Text(t.$3),
+        ),
+      const Divider(),
+      Row(children: [
+        Expanded(
+          child: Text('Manage Classes · ${classes.length} saved', style: const TextStyle(fontWeight: FontWeight.w800)),
+        ),
+        FilledButton.tonalIcon(onPressed: () => _editClass(context, null), icon: const Icon(Icons.add_rounded), label: const Text('New Class')),
+      ]),
+      if (classes.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text('No classes yet. Create an Anime, Television, Reading or other class and assign existing categories. '
+              'Categories not in a class remain eligible.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ),
+      for (final g in classes)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Text(jsStr(g['icon']), style: const TextStyle(fontSize: 22)),
+          title: Text(jsStr(g['name'])),
+          subtitle: Text('Weight ${jsNum(g['weight']).round()} · ${g['enabled'] == false ? 'Disabled' : 'Enabled'} · '
+              '${[for (final c in asList(g['categoryIds'])) byId[jsStr(c)]?.name ?? ''].where((n) => n.isNotEmpty).join(', ')}'),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            IconButton(tooltip: 'Edit', icon: const Icon(Icons.edit_rounded), onPressed: () => _editClass(context, g)),
+            IconButton(
+              tooltip: 'Delete',
+              icon: const Icon(Icons.delete_outline_rounded),
+              onPressed: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (d) => AlertDialog(
+                    title: const Text('Delete Category Class?'),
+                    content: Text('${jsStr(g['name'])} will be removed. Its ${asList(g['categoryIds']).length} categories stay as they are.'),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Delete')),
+                    ],
+                  ),
+                );
+                if (ok == true) await _write({...p, 'classes': [for (final x in classes) if (x['id'] != g['id']) x]});
+              },
+            ),
+          ]),
+        ),
+      Text('Each category belongs to at most one class. Disabled categories are never recommended. '
+          'No Library titles, History or XP data are rewritten.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+    ]);
+  }
+}
+
+/// v230 Choice & filter layout (website 164-v230-choice-filter-layout.js).
+class _ChoiceLayoutEditor extends StatefulWidget {
+  const _ChoiceLayoutEditor({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  @override
+  State<_ChoiceLayoutEditor> createState() => _ChoiceLayoutEditorState();
+}
+
+class _ChoiceLayoutEditorState extends State<_ChoiceLayoutEditor> {
+  String _surface = 'setCategory';
+
+  static const _labels = {
+    'planned': 'Planned', 'active': 'In progress', 'paused': 'Paused', 'completed': 'Completed', 'dropped': 'Dropped',
+    'low': 'Low', 'medium': 'Medium', 'high': 'High',
+  };
+
+  List<String> get _cats => [for (final c in widget.view.categories) c.id];
+
+  String _label(String id) {
+    if (_labels[id] != null && !_cats.contains(id)) return _labels[id]!;
+    final c = widget.view.categories.where((c) => c.id == id).firstOrNull;
+    return c == null ? id : '${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}';
+  }
+
+  Future<void> _save(String source, List<String> order, List<String> hidden) => widget.account.setSetting(
+        ['v230ChoiceLayout'],
+        withSurface(asMap(widget.view.state['settings']), _surface, source, order, hidden, _cats, DateTime.now().millisecondsSinceEpoch),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = asMap(widget.view.state['settings']);
+    final cur = normalizeSurface(asMap(settings?['v230ChoiceLayout'])?[_surface], _surface, _cats);
+    final shown = visibleChoices(settings, _surface, choiceCategories(widget.view));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      DropdownButtonFormField<String>(
+        initialValue: _surface,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Choice list'),
+        items: [for (final x in kChoiceSurfaces) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: (v) => setState(() => _surface = v ?? _surface),
+      ),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        key: ValueKey('src-$_surface'),
+        initialValue: cur.source,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Follow'),
+        items: [for (final x in choiceSources(_surface)) DropdownMenuItem(value: x.$1, child: Text(x.$2))],
+        onChanged: (v) => _save(v ?? 'custom', cur.order, cur.hidden),
+      ),
+      const SizedBox(height: 8),
+      if (cur.source != 'custom') ...[
+        Text('Shown: ${shown.map(_label).join(' · ')}', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      ] else
+        for (var i = 0; i < cur.order.length; i++)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            leading: IconButton(
+              tooltip: cur.hidden.contains(cur.order[i]) ? 'Show' : 'Hide',
+              icon: Icon(cur.hidden.contains(cur.order[i]) ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+              onPressed: () {
+                final id = cur.order[i];
+                final hidden = [...cur.hidden];
+                hidden.contains(id) ? hidden.remove(id) : hidden.add(id);
+                _save('custom', cur.order, hidden);
+              },
+            ),
+            title: Text(_label(cur.order[i]),
+                style: TextStyle(color: cur.hidden.contains(cur.order[i]) ? MF.textDim : null)),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: 'Move up',
+                icon: const Icon(Icons.arrow_upward_rounded, size: 18),
+                onPressed: i == 0 ? null : () => _save('custom', [...cur.order]..insert(i - 1, cur.order[i])..removeAt(i + 1), cur.hidden),
+              ),
+              IconButton(
+                tooltip: 'Move down',
+                icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                onPressed: i == cur.order.length - 1
+                    ? null
+                    : () => _save('custom', [...cur.order]..insert(i + 2, cur.order[i])..removeAt(i), cur.hidden),
+              ),
+            ]),
+          ),
+    ]);
+  }
 }

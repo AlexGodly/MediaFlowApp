@@ -15,6 +15,7 @@ import '../state/models.dart';
 import '../util/js.dart';
 import 'leveling.dart';
 import 'library_hooks.dart';
+import 'title_units.dart';
 
 /// One title in a log. Give [reached] ("Episode reached", the website's default
 /// Progress mode) or [amount] (Amount mode).
@@ -176,16 +177,19 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
     final qty = p.qty;
     if (!(qty > 0)) continue;
     final minutes = p.minutes;
+    // v565: the title's own unit counts in its category's unit (website submitBatchLog);
+    // the title's own qty and progress stay in its unit.
+    final catQty = toCategoryAmount(item.raw, cat.raw, qty);
     final health = categoryStatus(cat, sessions, now);
-    final xp = l.consumptionXP(cat, qty, minutes, health);
+    final xp = l.consumptionXP(cat, catQty, minutes, health);
     final repeat = item.isCompleted;
     final session = <String, dynamic>{
       'id': i < req.sessionIds.length ? req.sessionIds[i] : mediaFlowUid(now),
       'timestamp': timestamp,
       'date': date,
       'categoryId': cat.id,
-      'targetAmount': jsOut(qty),
-      'actualAmount': jsOut(qty),
+      'targetAmount': jsOut(catQty),
+      'actualAmount': jsOut(catQty),
       'minutes': jsOut(minutes),
       'note': req.note.trim(),
       'status': 'logged',

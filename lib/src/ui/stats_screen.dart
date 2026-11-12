@@ -13,6 +13,7 @@ import 'home_shell.dart' show Section;
 import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import 'account_identity.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key, required this.account});
@@ -82,8 +83,8 @@ class _StatsScreenState extends State<StatsScreen> {
           bool on(String k) => statsComponentVisible(view.state, k);
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: ListView(
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 900, 
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   if (on('profile')) _profile(view, m),
@@ -258,20 +259,16 @@ class _StatsScreenState extends State<StatsScreen> {
   // ---- sections ----
 
   Widget _profile(AccountView view, StatsModel m) {
-    final name = view.profileName.isEmpty ? (account.email.split('@').first) : view.profileName;
+    final name = accountDisplayName(account); // v565: the name, not the email, when there is one
     return _card(
       'PROFILE',
       Row(children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: MF.accentSoft,
-          child: Text(name.isEmpty ? '?' : name[0].toUpperCase(), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-        ),
+        AccountAvatar(account: account, radius: 30),
         const SizedBox(width: 14),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            Text(account.email, style: TextStyle(color: MF.textDim, fontSize: 13)),
+            if (account.email.isNotEmpty && account.email != name) Text(account.email, style: TextStyle(color: MF.textDim, fontSize: 13)),
             const SizedBox(height: 8),
             Wrap(spacing: 6, runSpacing: 6, children: [
               _pill('${m.titles} titles'),

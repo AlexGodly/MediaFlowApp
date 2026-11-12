@@ -50,6 +50,13 @@ EXPECTED = {
     "Discord_ActivityAssets_SetSmallUrl": ["Discord_String*"],
 }
 
+# Checked by their leading parameters and parameter count only (the callback
+# typedef names are the SDK's own): name -> (leading types, total count).
+PREFIX = {
+    # v6.0.0: online status (Online / Idle / Do Not Disturb / Invisible).
+    "Discord_Client_SetOnlineStatus": (["Discord_StatusType"], 4),
+}
+
 # Optional: the app hides the option when the SDK lacks the function.
 OPTIONAL = {
     "Discord_ActivityTimestamps_SetEnd", "Discord_Activity_SetParty", "Discord_ActivityParty_Init",
@@ -58,6 +65,7 @@ OPTIONAL = {
     "Discord_ActivityButton_SetLabel", "Discord_ActivityButton_SetUrl", "Discord_Activity_AddButton",
     "Discord_Activity_SetDetailsUrl", "Discord_Activity_SetStateUrl",
     "Discord_ActivityAssets_SetLargeUrl", "Discord_ActivityAssets_SetSmallUrl",
+    "Discord_Client_SetOnlineStatus",
 }
 
 
@@ -82,6 +90,15 @@ def main():
         types = [t.replace("const", "") for t in types][1:]
         if types != params:
             failed.append(f"{name}: header has ({m.group(1).strip()}), app passes {params}")
+    for name, (lead, count) in PREFIX.items():
+        m = re.search(r"\b" + re.escape(name) + r"\s*\(([^)]*)\)\s*;", text)
+        if not m:
+            print(f"discord_abi: {name} not in this SDK (option hidden)")
+            continue
+        raw = [p.strip() for p in m.group(1).split(",") if p.strip()]
+        types = [re.sub(r"\s+", "", re.sub(r"\b\w+$", "", p).strip() or p).replace("const", "") for p in raw][1:]
+        if types[: len(lead)] != lead or len(types) != count:
+            failed.append(f"{name}: header has ({m.group(1).strip()}), app passes {lead} + callback (total {count})")
     if failed:
         print("::error::Discord bindings don't match cdiscord.h:\n  " + "\n  ".join(failed))
         sys.exit(1)

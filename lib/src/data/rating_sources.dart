@@ -10,6 +10,7 @@ import 'dart:io';
 
 import '../logic/ratings_engine.dart';
 import '../util/js.dart';
+import '../logic/title_names.dart' show scriptLang;
 import 'metadata_search.dart' show providerGateway;
 
 /// `x||null` for counts.
@@ -204,6 +205,8 @@ class RatingSources {
             pull(sourceEntry(provider, v['mal_id'], v['title'], {
               'year': y,
               'aliases': stringList([v['title_english'], v['title_japanese'], ...asList(v['title_synonyms'])]),
+              // v565: names in other languages (website mf439LookupPublic).
+              'names': _names([('ja-Latn', v['title']), ('en', v['title_english']), ('ja', v['title_japanese'])]),
               'externalIds': {'mal': jsStr(v['mal_id'])},
               'legacy': {
                 'synopsis': plainText(v['synopsis']),
@@ -239,6 +242,7 @@ class RatingSources {
           pull(sourceEntry(provider, v['id'], _first([t['romaji'], t['english'], t['native']]), {
             'year': y,
             'aliases': stringList([t['english'], t['native'], ...asList(v['synonyms'])]),
+            'names': _names([('ja-Latn', t['romaji']), ('en', t['english']), (scriptLang(t['native']).isEmpty ? 'ja' : scriptLang(t['native']), t['native'])]),
             'externalIds': {'anilist': jsStr(v['id']), if (jsTruthy(v['idMal'])) 'mal': jsStr(v['idMal'])},
             'legacy': {
               'synopsis': plainText(v['description']),
@@ -274,6 +278,7 @@ class RatingSources {
           pull(sourceEntry(provider, v['id'], _first([a['canonicalTitle'], titles['en'], titles['en_jp']]), {
             'year': y,
             'aliases': stringList(titles.values.toList()),
+            'names': _names([for (final e in titles.entries) (_kitsuLang[e.key] ?? '', e.value)]),
             'externalIds': {'kitsu': jsStr(v['id'])},
             'legacy': {'synopsis': plainText(a['synopsis']), 'year': y, 'mediaFormat': jsStr(a['subtype'])},
             'fields': {
@@ -624,3 +629,15 @@ class RatingSources {
     return null;
   }
 }
+
+/// v565: Kitsu's title keys as name languages (website mf439LookupPublic).
+const _kitsuLang = {
+  'en': 'en', 'en_us': 'en', 'en_jp': 'ja-Latn', 'ja_jp': 'ja', 'zh_cn': 'zh', 'zh_tw': 'zh',
+  'ko_kr': 'ko', 'en_kr': 'ko-Latn', 'en_cn': 'zh-Latn',
+};
+
+/// Names with a language and text (empty ones left out), as the website's adapters return them.
+List<Map<String, dynamic>> _names(List<(String, Object?)> pairs) => [
+      for (final (lang, text) in pairs)
+        if (lang.isNotEmpty && text is String && text.isNotEmpty) {'lang': lang, 'text': text},
+    ];

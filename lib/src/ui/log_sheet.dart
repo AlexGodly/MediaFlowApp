@@ -8,6 +8,8 @@ import '../util/js.dart';
 import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import '../logic/title_units.dart';
+import '../logic/title_names.dart' show nameMatches;
 
 Future<void> _openSheet(BuildContext context, Widget child) {
   final wide = MediaQuery.sizeOf(context).width >= 700;
@@ -265,7 +267,7 @@ class _LogFormState extends State<LogForm> {
       final cat = widget.account.view!.category(_title?.categoryId ?? '');
       final done = outcome.completed.isNotEmpty ? ' · Completed!' : '';
       messenger.showSnackBar(SnackBar(
-        content: Text('Logged ${fmtNumber(p.qty)} ${unitLabel(cat.unit, p.qty)} of ${outcome.titles.join(', ')}'
+        content: Text('Logged ${fmtNumber(p.qty)} ${unitLabel(titleUnit(_title?.raw, cat.raw), p.qty)} of ${outcome.titles.join(', ')}'
             ' · +${fmtNumber(outcome.xp)} XP$done'),
       ));
     } catch (err) {
@@ -283,7 +285,7 @@ class _LogFormState extends State<LogForm> {
     if (title == null) return _picker(view);
     final cat = view.category(title.categoryId);
     final p = _preview();
-    final unit = cat.unit;
+    final unit = titleUnit(title.raw, cat.raw); // v565: the title's own unit
     final rewatch = title.isCompleted;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -404,7 +406,7 @@ class _LogFormState extends State<LogForm> {
 
   Widget _picker(AccountView view) {
     final q = _search.text.trim().toLowerCase();
-    final matches = view.library.where((t) => t.status != 'dropped' && (q.isEmpty || t.title.toLowerCase().contains(q))).toList()
+    final matches = view.library.where((t) => t.status != 'dropped' && (q.isEmpty || nameMatches(t.raw, q))).toList()
       ..sort((a, b) {
         final ar = a.status == 'active' ? 0 : 1, br = b.status == 'active' ? 0 : 1;
         if (ar != br) return ar - br;

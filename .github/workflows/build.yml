@@ -72,7 +72,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # Current Android lint (via Flutter stable) needs Java 21: on 17 it
+          # crashes analysing plugins (List.removeLast).
+          java-version: '21'
       - uses: subosito/flutter-action@v2
         with:
           channel: stable

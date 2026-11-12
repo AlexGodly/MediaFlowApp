@@ -12,11 +12,13 @@
 // Screens can add their own action while it makes sense (Log: "Save & get
 // next task" while the form is open).
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../data/app_prefs.dart';
 import '../data/recovery_runner.dart';
 import '../util/js.dart';
 import 'theme.dart';
@@ -31,8 +33,11 @@ class DockAction {
 
 /// What the + menu asks the app to do.
 class DockCommands {
-  DockCommands({required this.openLogging, required this.openCollections});
+  DockCommands({required this.openLogging, required this.openCollections, this.openBatchLog});
   final VoidCallback openLogging, openCollections;
+
+  /// v565: "Log any title" (Batch Log), with or without a session.
+  final VoidCallback? openBatchLog;
 }
 
 class FloatingDock {
@@ -102,6 +107,9 @@ class DockButton extends StatelessWidget {
     final shortcuts = recoveryShortcuts(settings);
     final shown = backgroundProcessesShown(settings);
     final actions = <(String, String, IconData, VoidCallback)>[
+      if (extras)
+        for (final x in FloatingDock.extras.value) (x.label, x.subtitle, x.icon, x.onTap),
+      if (commands.openBatchLog != null) ('Log any title', 'Batch Log · any title, any category', Icons.post_add_rounded, commands.openBatchLog!),
       ('Add to Logging', 'Open Logging Library', Icons.playlist_add_rounded, commands.openLogging),
       ('Add to Library', 'Create a new title', Icons.library_add_rounded, onAddTitle),
       ('Add Collection', 'Create & open collection', Icons.create_new_folder_rounded, () => onAddCollection()),
@@ -124,8 +132,6 @@ class DockButton extends StatelessWidget {
           }
         },
       ),
-      if (extras)
-        for (final x in FloatingDock.extras.value) (x.label, x.subtitle, x.icon, x.onTap),
     ];
     final picked = await Navigator.of(context).push<VoidCallback>(PageRouteBuilder(
       opaque: false,
@@ -288,7 +294,13 @@ class BackgroundProcesses extends StatelessWidget {
         final width = math.min(340.0, MediaQuery.sizeOf(context).width - 24);
         final phone = MediaQuery.sizeOf(context).width < 900;
 
-        final bar = InkWell(
+        final procPrefs = processPrefs(settings);
+        final bar = GestureDetector(
+          // v565: drag the widget anywhere by its bar (website v555).
+          onPanStart: (_) => ProcessesUi.dragStart(),
+          onPanUpdate: (d) => ProcessesUi.dragBy(d.delta),
+          onPanEnd: (_) => ProcessesUi.dragEnd(procPrefs),
+          child: InkWell(
           borderRadius: BorderRadius.circular(18),
           onTap: () => _set(settings, {'expanded': !expanded}),
           child: Padding(
@@ -319,9 +331,15 @@ class BackgroundProcesses extends StatelessWidget {
                 duration: const Duration(milliseconds: 250),
                 child: Icon(Icons.keyboard_arrow_up_rounded, color: MF.textDim),
               ),
+              IconButton(
+                tooltip: 'Minimise to an icon',
+                visualDensity: VisualDensity.compact,
+                icon: Icon(Icons.remove_rounded, color: MF.textDim, size: 20),
+                onPressed: () => ProcessesUi.setMinimized(true),
+              ),
             ]),
           ),
-        );
+        ));
 
         final content = Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           _ProcessCard(
@@ -375,12 +393,27 @@ class BackgroundProcesses extends StatelessWidget {
           ]),
         ]);
 
-        return Align(
-          alignment: left ? Alignment.bottomLeft : Alignment.bottomRight,
-          child: Padding(
-            // Above the + (and the phone's bottom bar), never on top of them.
-            padding: EdgeInsets.fromLTRB(12, 12, 12, (phone ? 80 : 0) + 96 + MediaQuery.paddingOf(context).bottom),
-            child: Material(
+        final fabBottom = (phone ? 80.0 : 0.0) + 16 + MediaQuery.paddingOf(context).bottom;
+        return ValueListenableBuilder<bool>(
+          valueListenable: ProcessesUi.minimized,
+          builder: (context, minimized, _) {
+            if (minimized) {
+              // v565: a slightly smaller icon next to the +, with progress and count.
+              final idleHidden = procPrefs['idle'] == 'hide' && active == 0 && prefs['visibility'] != 'always';
+              if (idleHidden) return const SizedBox.shrink();
+              return Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: EdgeInsets.only(right: 16 + 56 + 12, bottom: fabBottom + 5),
+                  child: _MiniProcesses(icon: procPrefs['icon'] ?? 'both', active: active, pct: overall, onTap: () => ProcessesUi.setMinimized(false)),
+                ),
+              );
+            }
+            return LayoutBuilder(builder: (context, box) {
+              ProcessesUi.area = box.biggest;
+              final panel = KeyedSubtree(
+                key: ProcessesUi.panelKey,
+                child: Material(
               color: MF.surface,
               elevation: 10,
               shadowColor: Colors.black54,
@@ -403,7 +436,23 @@ class BackgroundProcesses extends StatelessWidget {
                 ),
               ),
             ),
-          ),
+              );
+              return ValueListenableBuilder<Offset?>(
+                valueListenable: ProcessesUi.pos,
+                builder: (context, pos, _) {
+                  if (pos == null) {
+                    return Align(
+                      alignment: left ? Alignment.bottomLeft : Alignment.bottomRight,
+                      // Above the + (and the phone's bottom bar), never on top of them.
+                      child: Padding(padding: EdgeInsets.fromLTRB(12, 12, 12, fabBottom + 80), child: panel),
+                    );
+                  }
+                  final c = ProcessesUi.clamp(pos);
+                  return Stack(children: [Positioned(left: c.dx, top: c.dy, child: panel)]);
+                },
+              );
+            });
+          },
         );
       },
     );
@@ -520,4 +569,144 @@ class _CountUp extends StatelessWidget {
         curve: Curves.easeOutCubic,
         builder: (context, v, _) => Text('${v.round()}%', style: style),
       );
+}
+
+
+/// v565 `mf565Processes` (account setting, shared with the website).
+Map<String, String> processPrefs(Map<String, dynamic>? settings) {
+  final raw = asMap(settings?['mf565Processes']) ?? const <String, dynamic>{};
+  String pick(String k, List<String> ok, String def) => ok.contains(raw[k]) ? raw[k] as String : def;
+  return {
+    'position': pick('position', const ['remember', 'default'], 'remember'),
+    'edges': pick('edges', const ['stay', 'snap'], 'stay'),
+    'icon': pick('icon', const ['both', 'ring', 'count', 'plain'], 'both'),
+    'idle': pick('idle', const ['hide', 'show'], 'hide'),
+  };
+}
+
+/// Where the Background Processes widget is and whether it is minimised —
+/// per device, like the website's localStorage (v555).
+class ProcessesUi {
+  ProcessesUi._();
+  static final ValueNotifier<bool> minimized = ValueNotifier(AppPrefs.instance.get<bool>('mf565ProcMin', false));
+  static final ValueNotifier<Offset?> pos = ValueNotifier(_load());
+  static final GlobalKey panelKey = GlobalKey();
+  static Size area = Size.zero;
+  static bool _remember = true;
+
+  static Offset? _load() {
+    final raw = AppPrefs.instance.get<String>('mf565ProcPos', '');
+    final parts = raw.split(',');
+    if (parts.length != 2) return null;
+    final x = double.tryParse(parts[0]), y = double.tryParse(parts[1]);
+    return x == null || y == null ? null : Offset(x, y);
+  }
+
+  static void setMinimized(bool v) {
+    minimized.value = v;
+    unawaited(AppPrefs.instance.set('mf565ProcMin', v));
+  }
+
+  static Size _panelSize() {
+    final box = panelKey.currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.size : const Size(340, 64);
+  }
+
+  /// Kept fully on screen, 8 px from every edge.
+  static Offset clamp(Offset p) {
+    final s = _panelSize();
+    final maxX = math.max(8.0, area.width - s.width - 8), maxY = math.max(8.0, area.height - s.height - 8);
+    return Offset(p.dx.clamp(8.0, maxX), p.dy.clamp(8.0, maxY));
+  }
+
+  static void dragStart() {
+    if (pos.value != null) return;
+    // Start from where the widget is drawn now.
+    final box = panelKey.currentContext?.findRenderObject();
+    final parent = box is RenderBox ? box.parent : null;
+    if (box is RenderBox && box.hasSize && parent is RenderBox) {
+      pos.value = box.localToGlobal(Offset.zero, ancestor: parent);
+    } else {
+      pos.value = Offset(area.width - 352, area.height - 200);
+    }
+  }
+
+  static void dragBy(Offset d) => pos.value = clamp((pos.value ?? Offset.zero) + d);
+
+  static void dragEnd(Map<String, String> prefs) {
+    var p = pos.value;
+    if (p == null) return;
+    if (prefs['edges'] == 'snap') {
+      final s = _panelSize();
+      p = Offset(p.dx + s.width / 2 < area.width / 2 ? 8 : math.max(8, area.width - s.width - 8), p.dy);
+      pos.value = clamp(p);
+    }
+    _remember = prefs['position'] != 'default';
+    unawaited(AppPrefs.instance.set('mf565ProcPos', _remember ? '${pos.value!.dx.round()},${pos.value!.dy.round()}' : ''));
+  }
+
+  /// "Always at the default spot": forget the position on the next start.
+  static void applyPrefs(Map<String, String> prefs) {
+    if (prefs['position'] == 'default' && AppPrefs.instance.get<String>('mf565ProcPos', '').isNotEmpty) {
+      unawaited(AppPrefs.instance.set('mf565ProcPos', ''));
+    }
+  }
+}
+
+/// The minimised Background Processes icon: progress ring and/or job count.
+class _MiniProcesses extends StatelessWidget {
+  const _MiniProcesses({required this.icon, required this.active, required this.pct, required this.onTap});
+  final String icon;
+  final int active;
+  final double pct;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ring = (icon == 'both' || icon == 'ring') && active > 0;
+    final count = (icon == 'both' || icon == 'count') && active > 0;
+    return Tooltip(
+      message: active == 0 ? 'Background Processes' : 'Background Processes · $active running · ${(pct * 100).round()}%',
+      child: SizedBox(
+        width: 54,
+        height: 54,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned.fill(
+            child: Material(
+              color: MF.surface,
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: MF.border)),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: onTap,
+                child: Icon(Icons.layers_rounded, color: MF.accent, size: 22),
+              ),
+            ),
+          ),
+          if (ring)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: CircularProgressIndicator(value: pct.clamp(0, 1).toDouble(), strokeWidth: 3, color: MF.accent, backgroundColor: MF.accentSoft),
+                ),
+              ),
+            ),
+          if (count)
+            Positioned(
+              top: -6,
+              right: -6,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 20),
+                height: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: MF.accent, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.background, width: 2)),
+                child: Text('$active', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+              ),
+            ),
+        ]),
+      ),
+    );
+  }
 }

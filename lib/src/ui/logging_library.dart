@@ -48,6 +48,7 @@ class LoggingLibrary extends StatefulWidget {
     this.onAddRecommended,
     this.onPageSize,
     this.scrollable = false,
+    this.onOpenTitle,
   });
 
   final AccountView view;
@@ -66,6 +67,9 @@ class LoggingLibrary extends StatefulWidget {
 
   /// True in the "+" sheet (the picker scrolls by itself).
   final bool scrollable;
+
+  /// v565: view or edit a title from the Logging Library.
+  final ValueChanged<String>? onOpenTitle;
 
   @override
   State<LoggingLibrary> createState() => _LoggingLibraryState();
@@ -523,6 +527,12 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
                         ],
                       ]),
                     ),
+                    if (widget.onOpenTitle != null)
+                      IconButton(
+                        tooltip: 'View or edit this title',
+                        icon: Icon(Icons.info_outline_rounded, color: MF.textDim, size: 20),
+                        onPressed: () => widget.onOpenTitle!(t.id),
+                      ),
                     check(t.id, isAdded),
                   ]),
                 ),
@@ -534,7 +544,16 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
             leading: Cover(title: t, category: cat, width: 34),
             title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 12)),
-            trailing: check(t.id, isAdded),
+            trailing: widget.onOpenTitle == null
+                ? check(t.id, isAdded)
+                : Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(
+                      tooltip: 'View or edit this title',
+                      icon: Icon(Icons.info_outline_rounded, color: MF.textDim, size: 20),
+                      onPressed: () => widget.onOpenTitle!(t.id),
+                    ),
+                    check(t.id, isAdded),
+                  ]),
             onTap: isAdded ? null : () => _add([t.id]),
           );
         }(),

@@ -21,6 +21,7 @@ import 'local_cache.dart';
 import 'records.dart';
 import 'supabase_cloud.dart' show SupabaseCloud;
 import 'sync_engine.dart';
+import '../logic/action_xp.dart';
 
 enum SyncState { loading, syncing, synced, offline, error }
 
@@ -137,11 +138,15 @@ class AccountController extends ChangeNotifier {
         _setDisplay(merged.state);
         status = SyncState.offline;
         _notify();
+        // v565: time away since MediaFlow was last open anywhere (checked again
+        // on the cloud copy when this uploads, so it is never counted twice).
+        unawaited(creditAway());
       } catch (_) {
         // An unreadable device copy: start from the cloud.
       }
     }
     await sync();
+    await creditAway();
   }
 
   void _setDisplay(Map<String, dynamic> state) {
@@ -441,9 +446,71 @@ class AccountController extends ChangeNotifier {
   }
 
   /// Changes one account setting (synced like the website's Settings).
-  Future<void> setSetting(List<String> path, Object? value) async {
+  /// [xp]: false for changes the app makes by itself and for view toggles
+  /// (website v565 earns XP only for real changes made by you).
+  Future<void> setSetting(List<String> path, Object? value, {bool xp = true}) async {
     final display = await _working();
     final op = SettingOp.create(display, path, value);
+    if (!op.apply(display)) return;
+    await _queue(op, display, delay: const Duration(seconds: 2));
+    if (xp && path.isNotEmpty) await _actionXp(settingGroup(path), path.first, 'Setting · ${path.first}');
+  }
+
+  // ---- v565: XP for every action ---------------------------------------------
+
+  final ActionRepeat _repeat = ActionRepeat();
+
+  /// Action XP for something that is not an account edit (exports…).
+  Future<void> actionXp(String group, String subject, String details) => _actionXp(group, subject, details);
+
+  /// Earns this kind of action's XP (website mf565AwardAction): once per
+  /// 5 minutes for the same thing, written as a replayable ledger event.
+  Future<void> _actionXp(String group, String subject, String details) async {
+    final display = _display;
+    if (display == null) return;
+    final rate = actionRate(display, group);
+    if (!(rate > 0)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!_repeat.allow('$group\u0001$subject', now)) return;
+    final op = XpEventOp(ActionXpOp(
+      key: 'mf565Action:${mediaFlowUid(now)}',
+      kind: 'mf565Action.$group',
+      base: rate,
+      source: actionGroupLabel(group),
+      details: details,
+      subjectId: subject,
+      at: now,
+    ));
+    if (!op.apply(display)) return;
+    await _queue(op, display, delay: const Duration(seconds: 2));
+  }
+
+  /// Credits time away from MediaFlow (website v565): on opening the app and
+  /// when it comes back after the system suspended it. Returns the XP earned.
+  Future<double> creditAway() async {
+    final display = _display;
+    if (display == null || needsSignIn) return 0;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final last = jsNum(asMap(display['xpLedger'])?['mf565LastSeenAt']).toInt();
+    if (last > 0 && now - last < AwayXpOp.minGap) return 0;
+    final op = AwayXpOp(from: last > 0 ? last : now, to: now);
+    final before = jsNum(asMap(asMap(display['xpLedger'])?['v348ActionEvents'])?[op.id]);
+    if (!op.apply(display)) return 0;
+    await _queue(op, display, delay: const Duration(seconds: 2));
+    return jsNum(asMap(asMap(display['xpLedger'])?['v348ActionEvents'])?[op.id]) - before;
+  }
+
+  /// Background work (backups, finished recoveries, fresh-episode checks) earns
+  /// XP once per [key] (website mf565BgAward).
+  Future<void> backgroundXp(String kind, String key, String source, String details) async {
+    final display = _display;
+    if (display == null) return;
+    final v = asMap(asMap(display['settings'])?['leveling'])?[kind];
+    final raw = v == null ? null : jsNumOrNull(v); // missing: the default
+    final rate = raw != null && raw.isFinite ? raw.clamp(0, 100000).toDouble() : (kBackgroundXpDefaults[kind] ?? 0.0);
+    if (!(rate > 0)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final op = XpEventOp(ActionXpOp(key: 'mf565Bg:$key', kind: kind, base: rate, source: source, details: details, at: now));
     if (!op.apply(display)) return;
     await _queue(op, display, delay: const Duration(seconds: 2));
   }
@@ -487,6 +554,9 @@ class AccountController extends ChangeNotifier {
       redoStack.clear();
     }
     await _queue(op, display, delay: delay);
+    // v565: XP for the change, unless it already earned its own XP.
+    final kind = editGroup([for (final c in op.changes) c.path]);
+    if (kind != null) await _actionXp(kind.group, kind.subject, label.isEmpty ? actionGroupLabel(kind.group) : label);
     return op;
   }
 
@@ -508,6 +578,7 @@ class AccountController extends ChangeNotifier {
     if (op == null) return null;
     op.apply(display);
     await _queue(op, display);
+    await _actionXp('history', 'undo-redo', '$verb · ${source.label}');
     return source.label;
   }
 

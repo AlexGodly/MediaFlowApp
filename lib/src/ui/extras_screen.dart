@@ -34,13 +34,13 @@ class ExtrasScreen extends StatelessWidget {
           if (view == null) return const SizedBox.shrink();
           return Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 760, 
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                 children: [
                   _BalanceCard(view: view),
                   if (balancePanel(view.state, 'libraryOverview')['enabled'] != false) LibraryOverviewCard(view: view),
-                  _OnThisDayCard(account: account, view: view),
+                  OnThisDayCard(account: account, view: view),
                   StopwatchCard(account: account),
                   RuntimeCalculatorCard(account: account),
                 ],
@@ -255,8 +255,8 @@ class _BalanceCard extends StatelessWidget {
 
 // ---- On This Day ----------------------------------------------------------------
 
-class _OnThisDayCard extends StatelessWidget {
-  const _OnThisDayCard({required this.account, required this.view});
+class OnThisDayCard extends StatelessWidget {
+  const OnThisDayCard({required this.account, required this.view});
   final AccountController account;
   final AccountView view;
 
@@ -320,7 +320,7 @@ class _OnThisDayCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(x.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(item != null ? title.title : x.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
             Text([_verb(x.kind), ...bits].join(' · '), style: TextStyle(color: MF.textDim, fontSize: 12)),
           ]),
         ),

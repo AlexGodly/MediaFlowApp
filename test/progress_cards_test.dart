@@ -43,7 +43,8 @@ void main() {
       'b': {'id': 'b', 'categoryId': 'anime'},
       'm': {'id': 'm', 'categoryId': 'manga'},
     };
-    TaskProgress? run(List<Map<String, dynamic>> entries, {bool itemized = false, int low = 12, int high = 16, String unit = 'episodes'}) =>
+    TaskProgress? run(List<Map<String, dynamic>> entries,
+            {bool itemized = false, int low = 12, int high = 16, String unit = 'episodes', String finish = 'maximum', String over = 'status'}) =>
         taskProgress(
           task: {'categoryId': 'anime', 'low': low, 'high': high},
           logDraft: {'entries': entries, if (itemized) 'v369Interface': 'itemized'},
@@ -51,7 +52,30 @@ void main() {
           categoryName: 'Finished Anime',
           categoryType: '',
           unit: unit,
+          finish: finish,
+          over: over,
         );
+
+    test('v565: finishes at the minimum and counts past 100% by default', () {
+      final at9 = run([{'libraryId': 'a', 'qty': 9}], low: 9, high: 13, finish: 'minimum', over: 'count')!;
+      expect(at9.pct, 100);
+      expect(at9.marker, isNull);
+      expect(at9.denominator, 9);
+      final at11 = run([{'libraryId': 'a', 'qty': 11}], low: 9, high: 13, finish: 'minimum', over: 'count')!;
+      expect(at11.pct.round(), 122);
+      expect(at11.warn, isFalse);
+      final at15 = run([{'libraryId': 'a', 'qty': 15}], low: 9, high: 13, finish: 'minimum', over: 'count')!;
+      expect(at15.pct.round(), 167);
+      expect(at15.warn, isTrue);
+      final warnOnly = run([{'libraryId': 'a', 'qty': 15}], low: 9, high: 13, finish: 'minimum', over: 'warning')!;
+      expect(warnOnly.pct, 100);
+      expect(warnOnly.warn, isTrue);
+      final statusOnly = run([{'libraryId': 'a', 'qty': 15}], low: 9, high: 13, finish: 'minimum', over: 'status')!;
+      expect(statusOnly.pct, 100);
+      expect(statusOnly.warn, isFalse);
+      final max15 = run([{'libraryId': 'a', 'qty': 15}], low: 9, high: 13, finish: 'maximum', over: 'count')!;
+      expect(max15.pct.round(), 115);
+    });
 
     test('hidden until a title from the task category is added', () {
       expect(run([]), isNull);

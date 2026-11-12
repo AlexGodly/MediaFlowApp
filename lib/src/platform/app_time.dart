@@ -1,8 +1,11 @@
 // Time spent in the MediaFlow app counts for XP like time on the website
-// (website v334 active time: foreground time, no idle timeout, no daily cap;
-// v561 stores the app's time apart from the website's). Counted while the app
-// is on screen (also when it is visible but not focused, like a visible
-// browser tab), saved every minute and when the app goes to the background.
+// (website v334 active time: no idle timeout, no daily cap; v561 stores the
+// app's time apart from the website's). Since 6.0.0 (website v565) it keeps
+// counting while the app is idle, minimised, in the tray or in the background,
+// and stops only when the app is closed. A gap longer than 3 minutes means the
+// system suspended the app (phones do this in the background): that gap is not
+// active time; it is credited as away time instead, like a frozen website tab.
+// Saved every minute and when the app goes to the background.
 
 import 'dart:async';
 import 'dart:io';
@@ -27,6 +30,7 @@ class AppTime with WidgetsBindingObserver {
 
   static const _tickEvery = Duration(seconds: 15);
   static const _saveEvery = Duration(minutes: 1);
+  static const frozenMs = 3 * 60 * 1000;
 
   String get platform => Platform.operatingSystem;
 
@@ -38,8 +42,7 @@ class AppTime with WidgetsBindingObserver {
       WidgetsBinding.instance.addObserver(this);
       _observing = true;
     }
-    final state = WidgetsBinding.instance.lifecycleState;
-    if (state == null || state == AppLifecycleState.resumed || state == AppLifecycleState.inactive) _start();
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.detached) _start();
   }
 
   void detach(AccountController account) {
@@ -54,9 +57,13 @@ class AppTime with WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
       case AppLifecycleState.inactive: // visible but not focused
+        _count();
         _start();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
+        // Still running: keep counting, but save now in case the system stops the app.
+        _count();
+        _flush();
       case AppLifecycleState.detached:
         _stop();
         _flush();
@@ -86,8 +93,8 @@ class AppTime with WidgetsBindingObserver {
     _day = day;
     final delta = now.difference(since).inMilliseconds;
     _since = now;
-    // A suspended timer (sleep) is not active time.
-    if (delta <= 0 || delta > 5 * 60 * 1000) return;
+    // Suspended by the system or asleep: not active time (website v565: 3 minutes).
+    if (delta <= 0 || delta > frozenMs) return;
     _unsaved += delta;
     if (now.difference(_lastSave) >= _saveEvery) _flush();
   }

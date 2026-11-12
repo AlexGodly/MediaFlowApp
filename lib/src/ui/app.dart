@@ -8,12 +8,15 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/metadata_search.dart' show providerGateway;
+import '../data/offline_covers.dart';
 import '../data/ratings_refresh.dart';
 import '../data/supabase_cloud.dart';
 import '../platform/app_time.dart';
 import '../platform/app_shortcuts.dart';
 import '../platform/background_work.dart';
 import '../platform/desktop_tray.dart';
+import '../platform/auto_backup.dart';
+import '../platform/device_report.dart';
 import '../platform/discord_presence.dart';
 import '../platform/notifications.dart';
 import 'home_shell.dart';
@@ -170,11 +173,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     ThemeController.instance.attach(account);
     AppNotifications.instance.attach(account);
     AppTime.instance.attach(account);
+    DeviceReport.instance.attach(account);
+    AutoBackup.instance.attach(account);
+    OfflineCovers.instance.attach(account);
     BackgroundWork.instance.attach(account);
     AppShortcuts.instance.attach(account);
     unawaited(AppShortcuts.instance.init());
     RatingsRefresh.instance.startAuto(account);
     DesktopTray.instance.onSyncNow = () => unawaited(account.sync());
+    DesktopTray.instance.onHiddenChanged = DiscordPresence.instance.appHidden;
+    if (DesktopTray.instance.hidden) DiscordPresence.instance.appHidden(true);
     if (mounted) {
       setState(() => _account = account);
     } else {
@@ -188,7 +196,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+      final account = _account;
+      if (account != null) {
+        // v565: after the sync, credit time the system kept the app suspended.
+        final synced = AppPrefs.instance.get<bool>('syncOnResume', true) ? account.sync() : Future<void>.value();
+        unawaited(synced.then((_) => account.creditAway()));
+      }
       _account?.startAutoPull();
       DiscordPresence.instance.resume();
     }
@@ -200,7 +213,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _account?.stopAutoPull();
       _account?.flushDraft();
       // Phones suspend apps in the background: don't leave a stale status.
-      if (DiscordPresence.mobile) DiscordPresence.instance.pause();
+      if (DiscordPresence.mobile) DiscordPresence.instance.appHidden(true);
     }
   }
 

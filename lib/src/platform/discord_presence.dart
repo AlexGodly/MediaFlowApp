@@ -102,6 +102,7 @@ class DiscordPresence extends ChangeNotifier {
     config = c;
     _sentKey = '';
     _schedule();
+    _applyOnlineStatus();
     notifyListeners();
   }
 
@@ -189,7 +190,9 @@ class DiscordPresence extends ChangeNotifier {
     };
     if (status == ClientStatus.ready) {
       _sentKey = '';
+      _sentOnline = 'default';
       _schedule();
+      _applyOnlineStatus();
     }
     notifyListeners();
   }
@@ -414,7 +417,7 @@ class DiscordPresence extends ChangeNotifier {
     final g = globals?.call() ?? const <String, String>{};
     final pin = activePin(c.raw, now.millisecondsSinceEpoch);
     final pinned = pin == null ? null : pinnedInfo?.call(pin.titleId);
-    if (_idle && pinned == null) {
+    if (_idle && pinned == null && !c.neverIdle) {
       if (c.idle == 'clear') return null;
       final t = c.template('idle');
       final d = renderPresence(t.$1, g);
@@ -426,7 +429,7 @@ class DiscordPresence extends ChangeNotifier {
         state: state,
         large: logoUrl,
         largeText: 'MediaFlow',
-        type: ActivityType.playing,
+        type: _fixedType(c) ?? ActivityType.playing,
         statusLine: statusLine,
       );
     }
@@ -438,7 +441,7 @@ class DiscordPresence extends ChangeNotifier {
         details: 'Using MediaFlow',
         large: logoUrl,
         largeText: 'MediaFlow',
-        type: ActivityType.playing,
+        type: _fixedType(c) ?? ActivityType.playing,
         statusLine: 0,
         start: c.timer != 'off' ? _startedAt : 0,
       );
@@ -464,11 +467,12 @@ class DiscordPresence extends ChangeNotifier {
       'playing' || 'reading' => PresenceKind.playing,
       _ => w.kind,
     };
-    final type = switch (kind) {
-      PresenceKind.watching => ActivityType.watching,
-      PresenceKind.listening => ActivityType.listening,
-      _ => ActivityType.playing,
-    };
+    final type = _fixedType(c) ??
+        switch (kind) {
+          PresenceKind.watching => ActivityType.watching,
+          PresenceKind.listening => ActivityType.listening,
+          _ => ActivityType.playing,
+        };
     final largeText = renderPresence(c.largeText, values);
     final smallText = renderPresence(c.smallText, values);
     return DiscordActivity(
@@ -484,6 +488,15 @@ class DiscordPresence extends ChangeNotifier {
       start: c.timer != 'off' ? _startedAt : 0,
     );
   }
+
+  /// The activity type chosen in Settings (null: MediaFlow decides).
+  static int? _fixedType(PresenceConfig c) => switch (c.activityType) {
+        'playing' => ActivityType.playing,
+        'watching' => ActivityType.watching,
+        'listening' => ActivityType.listening,
+        'competing' => ActivityType.competing,
+        _ => null,
+      };
 
   /// The activity name (profile card header): MediaFlow, the same text as
   /// the status line, or the custom template.
@@ -553,7 +566,7 @@ class DiscordPresence extends ChangeNotifier {
 
   void _send() {
     final ffi = _ffi, client = _client;
-    if (ffi == null || client == null || !enabled) return;
+    if (ffi == null || client == null || !enabled || _paused) return;
     final e = effective();
     final key = e?.key ?? 'clear';
     if (key == _sentKey) return;
@@ -664,9 +677,66 @@ class DiscordPresence extends ChangeNotifier {
   }
 
   /// Clears the status (app closing or going to the background on a phone).
-  void pause() => _clear();
+  void pause() {
+    _paused = true;
+    _clear();
+  }
+
+  bool _paused = false;
+
+  /// What happens when MediaFlow is closed but still running (phone in the
+  /// background, Windows window hidden to the tray): stop (clear the status,
+  /// the default) or keep showing it. This device only.
+  static String get onClose => AppPrefs.instance.get<String>('discordOnClose', 'stop') == 'keep' ? 'keep' : 'stop';
+  static Future<void> setOnClose(String v) => AppPrefs.instance.set('discordOnClose', v);
+
+  /// The app was closed (hidden) or opened again.
+  void appHidden(bool hidden) {
+    if (hidden) {
+      if (onClose == 'stop') pause();
+    } else {
+      resume();
+    }
+  }
+
+  // ---- online status (linked account) ----
+
+  bool get supportsOnlineStatus => (_ffi ?? DiscordFfi.load())?.clientSetOnlineStatus != null;
+  String _sentOnline = 'default';
+
+  void _applyOnlineStatus() {
+    final ffi = _ffi, client = _client;
+    final want = config.onlineStatus;
+    if (ffi == null || client == null || !connected || !linked || want == _sentOnline || want == 'default') return;
+    final set = ffi.clientSetOnlineStatus;
+    if (set == null) return;
+    final value = switch (want) {
+      'idle' => OnlineStatus.idle,
+      'dnd' => OnlineStatus.dnd,
+      'invisible' => OnlineStatus.invisible,
+      _ => OnlineStatus.online,
+    };
+    _sentOnline = want;
+    late final NativeCallable<ResultCb> cb;
+    cb = NativeCallable<ResultCb>.isolateLocal((Pointer<DOpaque> result, Pointer<Void> _) {
+      cb.close();
+      final (ok, error) = ffi.takeResult(result);
+      if (!ok) {
+        lastError = 'Online status: $error';
+        _sentOnline = 'default';
+        notifyListeners();
+      }
+    });
+    try {
+      set(client, value, cb.nativeFunction, nullptr, nullptr);
+    } catch (e) {
+      cb.close();
+      lastError = '$e';
+    }
+  }
 
   void resume() {
+    _paused = false;
     _sentKey = '';
     _schedule();
   }

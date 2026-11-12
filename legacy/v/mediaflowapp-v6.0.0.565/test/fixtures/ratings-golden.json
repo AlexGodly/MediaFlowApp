@@ -1,0 +1,945 @@
+{
+ "generatedFrom": "396-v555-ratings-engine.js",
+ "now": 1762500000000,
+ "scenarios": [
+  {
+   "name": "saved MAL ID, then names, then recheck with new IDs",
+   "category": {
+    "unit": "episodes",
+    "type": "video"
+   },
+   "providers": [
+    "jikan",
+    "anilist",
+    "kitsu",
+    "tvmaze",
+    "omdb",
+    "tmdb"
+   ],
+   "item": {
+    "id": "a1",
+    "title": "Shingeki no Kyojin",
+    "categoryId": "anime",
+    "year": 2013,
+    "externalIds": {
+     "mal": "16498"
+    },
+    "progress": 3,
+    "modifiedAt": 1700000000000,
+    "universalMetadata": {
+     "schemaVersion": 1,
+     "mediaType": "anime",
+     "fields": {
+      "alternateTitles": [
+       "進撃の巨人"
+      ]
+     },
+     "externalRatings": {},
+     "provenance": {},
+     "locks": {},
+     "updatedAt": 0
+    }
+   },
+   "answers": {
+    "jikan|Shingeki no Kyojin|{\"mal\":\"16498\"}": [
+     {
+      "provider": "jikan",
+      "recordId": "16498",
+      "title": "Shingeki no Kyojin",
+      "year": 2013,
+      "externalIds": {
+       "mal": "16498"
+      },
+      "fields": {},
+      "ratings": {
+       "mal": {
+        "score": 8.55,
+        "scale": 10,
+        "votes": 2900000
+       }
+      },
+      "legacy": {
+       "mediaFormat": "TV"
+      },
+      "aliases": [
+       "Attack on Titan",
+       "進撃の巨人"
+      ]
+     }
+    ],
+    "anilist|Shingeki no Kyojin|{\"mal\":\"16498\"}": [
+     {
+      "provider": "anilist",
+      "recordId": "16498",
+      "title": "Shingeki no Kyojin",
+      "year": 2013,
+      "externalIds": {
+       "anilist": "16498",
+       "mal": "16498"
+      },
+      "fields": {},
+      "ratings": {
+       "anilist": {
+        "score": 85,
+        "scale": 100,
+        "votes": null
+       }
+      },
+      "legacy": {},
+      "aliases": [
+       "Attack on Titan"
+      ]
+     }
+    ],
+    "kitsu|Attack on Titan|{\"imdb\":\"tt2560140\",\"mal\":\"16498\"}": [
+     {
+      "provider": "kitsu",
+      "recordId": "7442",
+      "title": "Attack on Titan",
+      "year": 2013,
+      "externalIds": {
+       "kitsu": "7442"
+      },
+      "fields": {},
+      "ratings": {
+       "kitsu": {
+        "score": 84.5,
+        "scale": 100,
+        "votes": 150000
+       }
+      },
+      "legacy": {
+       "mediaFormat": "TV"
+      }
+     },
+     {
+      "provider": "kitsu",
+      "recordId": "9999",
+      "title": "Attack on Titan: Junior High",
+      "year": 2015,
+      "externalIds": {
+       "kitsu": "9999"
+      },
+      "fields": {},
+      "ratings": {},
+      "legacy": {}
+     }
+    ],
+    "omdb|Shingeki no Kyojin|{\"imdb\":\"tt2560140\",\"mal\":\"16498\"}": [
+     {
+      "provider": "omdb",
+      "recordId": "tt2560140",
+      "title": "Attack on Titan",
+      "year": 2013,
+      "externalIds": {
+       "imdb": "tt2560140"
+      },
+      "fields": {},
+      "ratings": {
+       "imdb": {
+        "score": 9.1,
+        "scale": 10,
+        "votes": 600000
+       },
+       "metacritic": {
+        "score": 0,
+        "scale": 100
+       }
+      },
+      "legacy": {}
+     }
+    ],
+    "tmdb|Attack on Titan|{\"imdb\":\"tt2560140\",\"mal\":\"16498\"}": [
+     {
+      "provider": "tmdb",
+      "recordId": "1429",
+      "title": "Attack on Titan",
+      "year": 2013,
+      "externalIds": {
+       "tmdb_tv": "1429",
+       "imdb": "tt2560140"
+      },
+      "fields": {},
+      "ratings": {
+       "tmdb": {
+        "score": 8.7,
+        "scale": 10,
+        "votes": 7000
+       }
+      },
+      "legacy": {}
+     }
+    ]
+   },
+   "wiki": {
+    "qid": "Q482990",
+    "ids": {
+     "mal": "16498",
+     "imdb": "tt2560140"
+    },
+    "parent": null
+   },
+   "now": 1762500000000,
+   "expected": {
+    "calls": [
+     [
+      "jikan",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498"
+      }
+     ],
+     [
+      "anilist",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498"
+      }
+     ],
+     [
+      "wikidata",
+      "",
+      {
+       "mal": "16498"
+      }
+     ],
+     [
+      "kitsu",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140"
+      }
+     ],
+     [
+      "kitsu",
+      "Attack on Titan",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140"
+      }
+     ],
+     [
+      "tvmaze",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "tvmaze",
+      "Attack on Titan",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "tvmaze",
+      "進撃の巨人",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "tmdb",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "tmdb",
+      "Attack on Titan",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "tmdb",
+      "進撃の巨人",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "anilist",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ],
+     [
+      "omdb",
+      "Shingeki no Kyojin",
+      {
+       "mal": "16498",
+       "imdb": "tt2560140",
+       "kitsu": "7442"
+      }
+     ]
+    ],
+    "accepted": [
+     [
+      "jikan",
+      "16498",
+      "saved-id"
+     ],
+     [
+      "kitsu",
+      "7442",
+      "name"
+     ]
+    ],
+    "discovered": {
+     "imdb": {
+      "value": "tt2560140",
+      "via": "wikidata",
+      "conflict": false
+     },
+     "kitsu": {
+      "value": "7442",
+      "via": "name",
+      "conflict": false
+     }
+    },
+    "failures": [],
+    "written": [
+     2,
+     2
+    ],
+    "itemJson": "{\"id\":\"a1\",\"title\":\"Shingeki no Kyojin\",\"categoryId\":\"anime\",\"year\":2013,\"externalIds\":{\"mal\":\"16498\",\"imdb\":\"tt2560140\",\"kitsu\":\"7442\"},\"progress\":3,\"modifiedAt\":1762500000000,\"universalMetadata\":{\"schemaVersion\":1,\"mediaType\":\"anime\",\"fields\":{\"alternateTitles\":[\"進撃の巨人\"]},\"externalRatings\":{\"mal\":{\"score\":8.55,\"scale\":10,\"votes\":2900000,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"jikan\"},\"kitsu\":{\"score\":84.5,\"scale\":100,\"votes\":150000,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"kitsu\"}},\"provenance\":{\"rating.mal\":{\"source\":\"jikan\",\"verified\":true,\"recordId\":\"16498\",\"updatedAt\":1762500000000},\"rating.kitsu\":{\"source\":\"kitsu\",\"verified\":true,\"recordId\":\"7442\",\"updatedAt\":1762500000000}},\"locks\":{},\"updatedAt\":1762500000000}}"
+   }
+  },
+  {
+   "name": "season shares the whole show rating; ambiguous names skipped",
+   "category": {
+    "unit": "episodes",
+    "type": "video"
+   },
+   "providers": [
+    "tvmaze",
+    "omdb",
+    "tmdb"
+   ],
+   "item": {
+    "id": "b2",
+    "title": "The Expanse Season 3",
+    "categoryId": "tv",
+    "year": "2018",
+    "progress": 0
+   },
+   "answers": {
+    "tvmaze|The Expanse Season 3|{}": [
+     {
+      "provider": "tvmaze",
+      "recordId": "1825",
+      "title": "The Expanse",
+      "year": 2015,
+      "externalIds": {},
+      "fields": {},
+      "ratings": {},
+      "legacy": {}
+     }
+    ],
+    "omdb|The Expanse Season 3|{}": [],
+    "omdb|The Expanse|{}": [
+     {
+      "provider": "omdb",
+      "recordId": "tt3230854",
+      "title": "The Expanse",
+      "year": 2015,
+      "externalIds": {
+       "imdb": "tt3230854"
+      },
+      "fields": {},
+      "ratings": {
+       "imdb": {
+        "score": 8.5,
+        "scale": 10,
+        "votes": 190000
+       }
+      },
+      "legacy": {
+       "mediaFormat": "series"
+      }
+     }
+    ],
+    "tmdb|The Expanse Season 3|{}": {
+     "error": "TMDB: Please wait 1 second"
+    },
+    "tmdb|The Expanse|{}": [
+     {
+      "provider": "tmdb",
+      "recordId": "63639",
+      "title": "The Expanse",
+      "year": 2015,
+      "externalIds": {
+       "tmdb_tv": "63639"
+      },
+      "fields": {},
+      "ratings": {
+       "tmdb": {
+        "score": 8,
+        "scale": 10,
+        "votes": 3000
+       }
+      },
+      "legacy": {}
+     },
+     {
+      "provider": "tmdb",
+      "recordId": "70000",
+      "title": "The Expanse",
+      "year": 2010,
+      "externalIds": {
+       "tmdb_tv": "70000"
+      },
+      "fields": {},
+      "ratings": {
+       "tmdb": {
+        "score": 5,
+        "scale": 10
+       }
+      },
+      "legacy": {}
+     }
+    ]
+   },
+   "now": 1762500000000,
+   "expected": {
+    "calls": [
+     [
+      "tvmaze",
+      "The Expanse Season 3",
+      {}
+     ],
+     [
+      "omdb",
+      "The Expanse Season 3",
+      {}
+     ],
+     [
+      "tmdb",
+      "The Expanse Season 3",
+      {}
+     ],
+     [
+      "omdb",
+      "The Expanse",
+      {}
+     ],
+     [
+      "tmdb",
+      "The Expanse",
+      {}
+     ]
+    ],
+    "accepted": [
+     [
+      "omdb",
+      "tt3230854",
+      "whole-show"
+     ],
+     [
+      "tmdb",
+      "63639",
+      "whole-show"
+     ]
+    ],
+    "discovered": {},
+    "failures": [
+     "tmdb"
+    ],
+    "written": [
+     2,
+     0
+    ],
+    "itemJson": "{\"id\":\"b2\",\"title\":\"The Expanse Season 3\",\"categoryId\":\"tv\",\"year\":\"2018\",\"progress\":0,\"universalMetadata\":{\"schemaVersion\":1,\"mediaType\":\"unspecified\",\"fields\":{},\"externalRatings\":{\"imdb\":{\"score\":8.5,\"scale\":10,\"votes\":190000,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"omdb\"},\"tmdb\":{\"score\":8,\"scale\":10,\"votes\":3000,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"tmdb\"}},\"provenance\":{\"rating.imdb\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt3230854\",\"updatedAt\":1762500000000,\"scope\":\"whole-show\"},\"rating.tmdb\":{\"source\":\"tmdb\",\"verified\":true,\"recordId\":\"63639\",\"updatedAt\":1762500000000,\"scope\":\"whole-show\"}},\"locks\":{},\"updatedAt\":1762500000000},\"modifiedAt\":1762500000000}"
+   }
+  },
+  {
+   "name": "manual ratings and saved IDs are never replaced; same-source refresh",
+   "category": {
+    "unit": "movies",
+    "type": "video"
+   },
+   "providers": [
+    "omdb",
+    "tmdb",
+    "trakt"
+   ],
+   "item": {
+    "id": "c3",
+    "title": "Dune: Part Two",
+    "categoryId": "movie",
+    "releaseDate": "2024-03-01",
+    "externalIds": {
+     "imdb": "tt15239678",
+     "tmdb": "693134"
+    },
+    "modifiedAt": 1800000000000,
+    "universalMetadata": {
+     "mediaType": "movie",
+     "note": "kept",
+     "externalRatings": {
+      "imdb": {
+       "score": 8.6,
+       "scale": 10,
+       "votes": 500000,
+       "url": "",
+       "updatedAt": 1,
+       "source": "omdb"
+      },
+      "tmdb": {
+       "score": 9.9,
+       "scale": 10,
+       "votes": null,
+       "url": "",
+       "updatedAt": 1,
+       "source": "manual"
+      },
+      "trakt": {
+       "score": 8.1,
+       "scale": 10,
+       "votes": 10,
+       "url": "",
+       "updatedAt": 1,
+       "source": "trakt"
+      }
+     },
+     "provenance": {
+      "rating.imdb": {
+       "source": "omdb",
+       "verified": true,
+       "recordId": "tt15239678",
+       "updatedAt": 1
+      },
+      "rating.tmdb": {
+       "source": "manual",
+       "verified": false,
+       "updatedAt": 1
+      },
+      "rating.trakt": {
+       "source": "simkl",
+       "verified": true,
+       "updatedAt": 1
+      }
+     },
+     "locks": {
+      "rating.tmdb": true
+     },
+     "updatedAt": 5
+    }
+   },
+   "answers": {
+    "omdb|Dune: Part Two|{\"imdb\":\"tt15239678\",\"tmdb\":\"693134\"}": [
+     {
+      "provider": "omdb",
+      "recordId": "tt15239678",
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "externalIds": {
+       "imdb": "tt15239678"
+      },
+      "fields": {},
+      "ratings": {
+       "imdb": {
+        "score": 8.5,
+        "scale": 10,
+        "votes": 620000
+       },
+       "rottentomatoes_critics": {
+        "score": 92,
+        "scale": 100
+       },
+       "metacritic": {
+        "score": 79,
+        "scale": 100,
+        "votes": null
+       }
+      },
+      "legacy": {}
+     }
+    ],
+    "tmdb|Dune: Part Two|{\"imdb\":\"tt15239678\",\"tmdb\":\"693134\"}": [
+     {
+      "provider": "tmdb",
+      "recordId": "693134",
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "externalIds": {
+       "tmdb": "693134",
+       "imdb": "tt99999999"
+      },
+      "fields": {},
+      "ratings": {
+       "tmdb": {
+        "score": 8.2,
+        "scale": 10,
+        "votes": 5000
+       }
+      },
+      "legacy": {}
+     }
+    ],
+    "trakt|Dune: Part Two|{\"imdb\":\"tt15239678\",\"tmdb\":\"693134\"}": [
+     {
+      "provider": "trakt",
+      "recordId": "dune-part-two-2024",
+      "title": "Dune: Part Two",
+      "year": 2024,
+      "externalIds": {
+       "trakt": "dune-part-two-2024",
+       "imdb": "tt15239678"
+      },
+      "fields": {},
+      "ratings": {
+       "trakt": {
+        "score": 8.4,
+        "scale": 10,
+        "votes": 20
+       },
+       "imdb": {
+        "score": 1,
+        "scale": 10
+       }
+      },
+      "legacy": {}
+     }
+    ]
+   },
+   "now": 1762500000000,
+   "expected": {
+    "calls": [
+     [
+      "omdb",
+      "Dune: Part Two",
+      {
+       "imdb": "tt15239678",
+       "tmdb": "693134"
+      }
+     ],
+     [
+      "tmdb",
+      "Dune: Part Two",
+      {
+       "imdb": "tt15239678",
+       "tmdb": "693134"
+      }
+     ],
+     [
+      "wikidata",
+      "",
+      {
+       "imdb": "tt15239678",
+       "tmdb": "693134"
+      }
+     ],
+     [
+      "trakt",
+      "Dune: Part Two",
+      {
+       "imdb": "tt15239678",
+       "tmdb": "693134"
+      }
+     ],
+     [
+      "tmdb",
+      "Dune: Part Two",
+      {
+       "imdb": "tt15239678",
+       "tmdb": "693134",
+       "trakt": "dune-part-two-2024"
+      }
+     ]
+    ],
+    "accepted": [
+     [
+      "omdb",
+      "tt15239678",
+      "saved-id"
+     ],
+     [
+      "trakt",
+      "dune-part-two-2024",
+      "name"
+     ]
+    ],
+    "discovered": {
+     "trakt": {
+      "value": "dune-part-two-2024",
+      "via": "name",
+      "conflict": false
+     }
+    },
+    "failures": [],
+    "written": [
+     3,
+     1
+    ],
+    "itemJson": "{\"id\":\"c3\",\"title\":\"Dune: Part Two\",\"categoryId\":\"movie\",\"releaseDate\":\"2024-03-01\",\"externalIds\":{\"imdb\":\"tt15239678\",\"tmdb\":\"693134\",\"trakt\":\"dune-part-two-2024\"},\"modifiedAt\":1800000000000,\"universalMetadata\":{\"mediaType\":\"movie\",\"note\":\"kept\",\"externalRatings\":{\"imdb\":{\"score\":8.5,\"scale\":10,\"votes\":620000,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"omdb\"},\"tmdb\":{\"score\":9.9,\"scale\":10,\"votes\":null,\"url\":\"\",\"updatedAt\":1,\"source\":\"manual\"},\"trakt\":{\"score\":8.1,\"scale\":10,\"votes\":10,\"url\":\"\",\"updatedAt\":1,\"source\":\"trakt\"},\"rottentomatoes_critics\":{\"score\":92,\"scale\":100,\"votes\":null,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"omdb\"},\"metacritic\":{\"score\":79,\"scale\":100,\"votes\":null,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"omdb\"}},\"provenance\":{\"rating.imdb\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt15239678\",\"updatedAt\":1762500000000},\"rating.tmdb\":{\"source\":\"manual\",\"verified\":false,\"updatedAt\":1},\"rating.trakt\":{\"source\":\"simkl\",\"verified\":true,\"updatedAt\":1},\"rating.rottentomatoes_critics\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt15239678\",\"updatedAt\":1762500000000},\"rating.metacritic\":{\"source\":\"omdb\",\"verified\":true,\"recordId\":\"tt15239678\",\"updatedAt\":1762500000000}},\"locks\":{\"rating.tmdb\":true},\"updatedAt\":1762500000000,\"schemaVersion\":1,\"fields\":{}}}"
+   }
+  },
+  {
+   "name": "conflicting discoveries are not saved; wrong-year and wrong-type rows skipped",
+   "category": {
+    "unit": "chapters",
+    "type": "reading"
+   },
+   "providers": [
+    "jikan",
+    "anilist",
+    "kitsu",
+    "vndb"
+   ],
+   "item": {
+    "id": "d4",
+    "title": "Ｂｅｒｓｅｒｋ",
+    "titleEnglish": "Berserk",
+    "categoryId": "manga",
+    "year": 1989
+   },
+   "answers": {
+    "jikan|Ｂｅｒｓｅｒｋ|{}": [],
+    "jikan|Berserk|{}": [
+     {
+      "provider": "jikan",
+      "recordId": "2",
+      "title": "Berserk",
+      "year": 1989,
+      "externalIds": {
+       "mal": "2"
+      },
+      "fields": {},
+      "ratings": {
+       "mal": {
+        "score": 9.47,
+        "scale": 10,
+        "votes": 350000
+       }
+      },
+      "legacy": {}
+     }
+    ],
+    "anilist|Ｂｅｒｓｅｒｋ|{}": [
+     {
+      "provider": "anilist",
+      "recordId": "30002",
+      "title": "Berserk",
+      "year": 1989,
+      "externalIds": {
+       "anilist": "30002",
+       "mal": "3"
+      },
+      "fields": {},
+      "ratings": {
+       "anilist": {
+        "score": 93,
+        "scale": 100
+       }
+      },
+      "legacy": {}
+     }
+    ],
+    "kitsu|Ｂｅｒｓｅｒｋ|{}": [
+     {
+      "provider": "kitsu",
+      "recordId": "1",
+      "title": "Berserk",
+      "year": 1997,
+      "externalIds": {
+       "kitsu": "1"
+      },
+      "fields": {},
+      "ratings": {},
+      "legacy": {}
+     },
+     {
+      "provider": "kitsu",
+      "recordId": "2",
+      "title": "Berserk",
+      "year": 1990,
+      "externalIds": {
+       "kitsu": "2"
+      },
+      "fields": {},
+      "ratings": {},
+      "legacy": {
+       "mediaFormat": "movie"
+      }
+     }
+    ],
+    "vndb|Ｂｅｒｓｅｒｋ|{}": [],
+    "vndb|Berserk|{}": []
+   },
+   "now": 1762500000000,
+   "expected": {
+    "calls": [
+     [
+      "jikan",
+      "Ｂｅｒｓｅｒｋ",
+      {}
+     ],
+     [
+      "anilist",
+      "Ｂｅｒｓｅｒｋ",
+      {}
+     ],
+     [
+      "kitsu",
+      "Ｂｅｒｓｅｒｋ",
+      {
+       "anilist": "30002",
+       "mal": "3"
+      }
+     ],
+     [
+      "vndb",
+      "Ｂｅｒｓｅｒｋ",
+      {
+       "anilist": "30002",
+       "mal": "3"
+      }
+     ],
+     [
+      "jikan",
+      "Ｂｅｒｓｅｒｋ",
+      {
+       "anilist": "30002",
+       "mal": "3"
+      }
+     ]
+    ],
+    "accepted": [
+     [
+      "anilist",
+      "30002",
+      "name"
+     ]
+    ],
+    "discovered": {
+     "anilist": {
+      "value": "30002",
+      "via": "name",
+      "conflict": false
+     },
+     "mal": {
+      "value": "3",
+      "via": "name",
+      "conflict": false
+     }
+    },
+    "failures": [],
+    "written": [
+     1,
+     2
+    ],
+    "itemJson": "{\"id\":\"d4\",\"title\":\"Ｂｅｒｓｅｒｋ\",\"titleEnglish\":\"Berserk\",\"categoryId\":\"manga\",\"year\":1989,\"universalMetadata\":{\"schemaVersion\":1,\"mediaType\":\"unspecified\",\"fields\":{},\"externalRatings\":{\"anilist\":{\"score\":93,\"scale\":100,\"votes\":null,\"url\":\"\",\"updatedAt\":1762500000000,\"source\":\"anilist\"}},\"provenance\":{\"rating.anilist\":{\"source\":\"anilist\",\"verified\":true,\"recordId\":\"30002\",\"updatedAt\":1762500000000}},\"locks\":{},\"updatedAt\":1762500000000},\"externalIds\":{\"anilist\":\"30002\",\"mal\":\"3\"},\"modifiedAt\":1762500000000}"
+   }
+  }
+ ],
+ "baseShowNames": [
+  [
+   "Attack on Titan Season 3",
+   "Attack on Titan"
+  ],
+  [
+   "Attack on Titan: The Final Season Part 2",
+   "Attack on Titan"
+  ],
+  [
+   "Mob Psycho 100 II",
+   null
+  ],
+  [
+   "Re:Zero 2nd Season",
+   "Re:Zero"
+  ],
+  [
+   "Gintama S4",
+   "Gintama"
+  ],
+  [
+   "Kaguya-sama - Season 2",
+   "Kaguya-sama"
+  ],
+  [
+   "進撃の巨人 第3期",
+   "進撃の巨人"
+  ],
+  [
+   "Bleach",
+   null
+  ],
+  [
+   "Part 2",
+   null
+  ],
+  [
+   "Spy x Family Part 2",
+   "Spy x Family"
+  ]
+ ],
+ "norms": [
+  [
+   "Ｂｅｒｓｅｒｋ",
+   "berserk"
+  ],
+  [
+   "Re:Zero − Starting Life",
+   "re zero starting life"
+  ],
+  [
+   "<b>Fate</b> &amp; Zero",
+   "fate zero"
+  ],
+  [
+   "Kaguya‐sama: Love is War",
+   "kaguya sama love is war"
+  ],
+  [
+   "Ça va",
+   "ça va"
+  ],
+  [
+   "進撃の巨人",
+   "進撃の巨人"
+  ]
+ ],
+ "years": [
+  [
+   2013,
+   2013
+  ],
+  [
+   "2018-04-11",
+   2018
+  ],
+  [
+   "abc",
+   0
+  ],
+  [
+   1700,
+   0
+  ],
+  [
+   "",
+   0
+  ]
+ ]
+}

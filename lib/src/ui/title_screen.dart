@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/edit_op.dart';
 import '../data/metadata_search.dart';
+import '../logic/choice_layout.dart' show viewChoices;
 import '../logic/collections_logic.dart' show orderEdit, orderAddTitles, orderRemoveTitle;
 import '../logic/custom_status.dart' show activePin;
 import '../logic/external_ids.dart';
@@ -16,6 +17,8 @@ import '../logic/library_logic.dart';
 import '../logic/ratings_engine.dart' show kMediaTypes, normalizedEnvelope;
 import '../logic/recovery.dart' show kUniversalFields, setFieldManually, describeFieldValue;
 import '../logic/rich_fields.dart';
+import '../logic/title_names.dart';
+import '../logic/title_units.dart';
 import '../platform/discord_presence.dart' show DiscordPresence;
 import '../state/models.dart';
 import '../util/js.dart';
@@ -170,8 +173,8 @@ class TitleScreen extends StatelessWidget {
           ),
           body: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
+              constraints: const BoxConstraints(),
+              child: PageListView(maxWidth: 760, padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
                 Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Cover(title: t, category: cat, width: 110),
                   const SizedBox(width: 16),
@@ -190,7 +193,7 @@ class TitleScreen extends StatelessWidget {
                         const SizedBox(height: 6),
                         LinearProgressIndicator(value: pct, minHeight: 6, borderRadius: BorderRadius.circular(4)),
                         const SizedBox(height: 4),
-                        Text('${(pct * 100).round()}% · ${fmtNumber(math.max(0, total! - t.progress))} ${unitLabel(cat.unit, 2)} left',
+                        Text('${(pct * 100).round()}% · ${fmtNumber(math.max(0, total! - t.progress))} ${unitLabel(titleUnit(t.raw, cat.raw), 2)} left',
                             style: TextStyle(color: MF.textDim, fontSize: 12)),
                       ],
                       const SizedBox(height: 6),
@@ -224,7 +227,7 @@ class TitleScreen extends StatelessWidget {
                 if (jsNum(raw['completedAt']) > 0) _info('Finished', _date(jsNum(raw['completedAt']).toInt())),
                 if (jsNum(raw['createdAt']) > 0) _info('Added', _date(jsNum(raw['createdAt']).toInt())),
                 if (jsNum(raw['estimatedMinutes']) > 0) _info('Estimated time', fmtMinutes(jsNum(raw['estimatedMinutes']))),
-                if (repeats > 0) _info('Past repeats', '${fmtNumber(repeats)} ${unitLabel(cat.unit, repeats)}'),
+                if (repeats > 0) _info('Past repeats', '${fmtNumber(repeats)} ${unitLabel(titleUnit(raw, cat.raw), repeats)}'),
                 if (tags.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(spacing: 6, runSpacing: 6, children: [for (final x in tags) Chip(label: Text(x), visualDensity: VisualDensity.compact)]),
@@ -460,7 +463,7 @@ class _MetadataSheetState extends State<_MetadataSheet> {
                               height: 64,
                               child: r.coverUrl.isEmpty
                                   ? ColoredBox(color: MF.raised)
-                                  : Image.network(r.coverUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: MF.raised)),
+                                  : Image.network(r.coverUrl, cacheWidth: 600, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ColoredBox(color: MF.raised)),
                             ),
                           ),
                           title: Text(r.title, maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -509,6 +512,13 @@ class _TitleEditorState extends State<TitleEditor> {
   bool _seasonsTouched = false;
   String? _error;
 
+  // v565: the title's own unit and runtime, and its names in other languages.
+  final _unit = TextEditingController();
+  final _hms = [TextEditingController(), TextEditingController(), TextEditingController()];
+  final List<_NameRow> _names = [];
+  String _nameLang = '';
+  bool _nameExempt = false;
+
   // Title metadata (v178), External Media IDs (v377), universal fields (v437).
   final Map<String, TextEditingController> _rich = {for (final k in kRichFields) k: TextEditingController()};
   final Map<String, TextEditingController> _ids = {};
@@ -539,6 +549,18 @@ class _TitleEditorState extends State<TitleEditor> {
     _tags.text = _f.tags.join(', ');
     _repeatFull.text = _f.repeatFull == 0 ? '' : '${_f.repeatFull}';
     _repeatExtra.text = _f.repeatExtra == 0 ? '' : '${_f.repeatExtra}';
+    final extras = TitleExtras.of(item);
+    _unit.text = extras.unit;
+    if (extras.unit.isNotEmpty && extras.seconds > 0) {
+      _hms[0].text = '${extras.seconds ~/ 3600}';
+      _hms[1].text = '${extras.seconds % 3600 ~/ 60}';
+      _hms[2].text = '${extras.seconds % 60}';
+    }
+    for (final n in extras.names) {
+      _names.add(_NameRow(kTitleLanguageCodes.contains(n.lang) && n.lang != 'main' ? n.lang : 'other', n.text));
+    }
+    _nameLang = kTitleLanguageCodes.contains(extras.lang) ? extras.lang : '';
+    _nameExempt = extras.exempt;
     _category = _f.categoryId;
     _status = _f.status;
     _priority = _f.priority;
@@ -564,13 +586,14 @@ class _TitleEditorState extends State<TitleEditor> {
 
   @override
   void dispose() {
-    for (final c in [_title, _progress, _total, _rating, _cover, _est, _tags, _repeatFull, _repeatExtra, _idFilter, ..._rich.values, ..._ids.values, ..._universal.values]) {
+    for (final c in [_title, _progress, _total, _rating, _cover, _est, _tags, _repeatFull, _repeatExtra, _idFilter, ..._rich.values, ..._ids.values, ..._universal.values, _unit, ..._hms, for (final n in _names) n.text]) {
       c.dispose();
     }
     super.dispose();
   }
 
   double? _num(TextEditingController c) => c.text.trim().isEmpty ? null : double.tryParse(c.text.trim().replaceAll(',', '.'));
+  int _int(TextEditingController c) => math.max(0, (double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0).floor());
 
   Future<void> _pickDate(bool start) async {
     final current = start ? _startedAt : _completedAt;
@@ -632,6 +655,14 @@ class _TitleEditorState extends State<TitleEditor> {
       startEdited: _startEdited,
       completedAt: _completedAt,
       seasons: _seasonsTouched ? _seasons : null,
+      extras: TitleExtras(
+        unit: _unit.text,
+        // mf565ReadEditor: hours, then minutes and seconds capped at 59.
+        seconds: _int(_hms[0]) * 3600 + math.min(59, _int(_hms[1])) * 60 + math.min(59, _int(_hms[2])),
+        names: [for (final n in _names) (lang: n.lang, text: n.text.text, source: '')],
+        lang: _nameLang,
+        exempt: _nameExempt,
+      ),
     );
     final idInputs = {for (final e in _ids.entries) e.key: e.value.text};
     for (final e in idInputs.entries) {
@@ -698,6 +729,110 @@ class _TitleEditorState extends State<TitleEditor> {
         inputFormatters: [FilteringTextInputFormatter.allow(decimal ? RegExp(r'[0-9.,]') : RegExp(r'[0-9]'))],
         decoration: InputDecoration(labelText: label),
       );
+
+  /// v565 "Unit & names" (website mf565EditorSection).
+  List<Widget> _unitAndNames(Category cat) {
+    final dim = TextStyle(color: MF.textDim, fontSize: 12);
+    final langs = [for (final l in kTitleLanguages) if (l.$1 != 'main') l];
+    return [
+      const Text('Unit & names', style: TextStyle(fontWeight: FontWeight.w800)),
+      const SizedBox(height: 8),
+      Autocomplete<String>(
+        initialValue: TextEditingValue(text: _unit.text),
+        optionsBuilder: (v) => kUnits.keys.where((k) => k.startsWith(v.text.trim().toLowerCase())),
+        onSelected: (v) => setState(() => _unit.text = v),
+        fieldViewBuilder: (context, controller, focus, onSubmit) {
+          if (controller.text != _unit.text && !focus.hasFocus) controller.text = _unit.text;
+          return TextField(
+            controller: controller,
+            focusNode: focus,
+            maxLength: 40,
+            decoration: InputDecoration(
+              labelText: 'Unit for this title',
+              hintText: '${unitLabel(cat.unit, 2)} (category)',
+              counterText: '',
+              helperText: 'Empty uses the category\'s unit. Example: "matches" for a game counted in sessions.',
+              helperMaxLines: 2,
+            ),
+            onChanged: (v) => setState(() => _unit.text = v),
+          );
+        },
+      ),
+      const SizedBox(height: 10),
+      Row(children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(child: _numField(_hms[i], const ['Hours', 'Minutes', 'Seconds'][i], decimal: false)),
+        ],
+      ]),
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text('Runtime per unit. Used for time and for converting to the category\'s unit in tasks. Empty: the category\'s runtime.',
+            style: dim),
+      ),
+      const SizedBox(height: 12),
+      Row(children: [
+        const Expanded(child: Text('Names', style: TextStyle(fontWeight: FontWeight.w700))),
+        TextButton.icon(
+          onPressed: () => setState(() => _names.add(_NameRow('en', ''))),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: const Text('Add a name'),
+        ),
+      ]),
+      for (final n in _names)
+        Padding(
+          key: ObjectKey(n),
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(children: [
+            SizedBox(
+              width: 150,
+              child: DropdownButtonFormField<String>(
+                initialValue: n.lang,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Language', isDense: true),
+                items: [for (final l in langs) DropdownMenuItem(value: l.$1, child: Text(l.$2, overflow: TextOverflow.ellipsis))],
+                onChanged: (v) => setState(() => n.lang = v ?? n.lang),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: n.text,
+                maxLength: 220,
+                decoration: const InputDecoration(labelText: 'Name in this language', isDense: true, counterText: ''),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Remove name',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => setState(() {
+                _names.remove(n);
+                n.text.dispose();
+              }),
+            ),
+          ]),
+        ),
+      Text('Names found by Details Recovery are added here. Search finds this title by any of its names.', style: dim),
+      const SizedBox(height: 10),
+      DropdownButtonFormField<String>(
+        initialValue: _nameLang,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Name shown for this title'),
+        items: [
+          const DropdownMenuItem(value: '', child: Text('Follow settings')),
+          for (final l in kTitleLanguages) DropdownMenuItem(value: l.$1, child: Text(l.$2)),
+        ],
+        onChanged: (v) => setState(() => _nameLang = v ?? ''),
+      ),
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: _nameExempt,
+        onChanged: (v) => setState(() => _nameExempt = v),
+        title: const Text('Not affected by title-language settings'),
+        subtitle: const Text('Always show the main title.'),
+      ),
+    ];
+  }
 
   Widget _manualBadge(bool on) => on
       ? Container(
@@ -820,7 +955,7 @@ class _TitleEditorState extends State<TitleEditor> {
   Widget build(BuildContext context) {
     final view = account.view!;
     final cat = view.category(_category);
-    final unit = cat.unit;
+    final unit = _unit.text.trim().isEmpty ? cat.unit : _unit.text.trim(); // v565
     return PresenceScope(info: widget.id == null ? const PresenceInfo(situation: 'editing', values: {'title': 'a new title'}) : titlePresence('editing', <String, dynamic>{'title': _f.title, 'coverUrl': _f.coverUrl, 'categoryId': cat.id}, cat), child: Scaffold(
       appBar: AppBar(
         title: Text(widget.id == null ? 'Add title' : 'Edit title'),
@@ -844,8 +979,8 @@ class _TitleEditorState extends State<TitleEditor> {
       ),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 760),
-          child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), children: [
+          constraints: const BoxConstraints(),
+          child: PageListView(maxWidth: 760, padding: const EdgeInsets.fromLTRB(20, 8, 20, 40), children: [
             Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Cover(title: LibraryTitle(<String, dynamic>{'title': _title.text, 'categoryId': _category, 'coverUrl': _cover.text}), category: cat, width: 84),
               const SizedBox(width: 14),
@@ -870,7 +1005,10 @@ class _TitleEditorState extends State<TitleEditor> {
               initialValue: view.categories.any((c) => c.id == _category) ? _category : null,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Category'),
-              items: [for (final c in view.categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
+              items: [
+                for (final c in viewChoices(view, 'setCategory', [for (final c in view.categories) (c.id, c.name)], keep: _category))
+                  DropdownMenuItem(value: c.$1, child: Text(c.$2))
+              ],
               onChanged: (v) => setState(() => _category = v ?? _category),
             ),
             const SizedBox(height: 10),
@@ -879,7 +1017,7 @@ class _TitleEditorState extends State<TitleEditor> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _status,
                   decoration: const InputDecoration(labelText: 'Status'),
-                  items: [for (final s in kStatusChoices) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
+                  items: [for (final s in viewChoices(view, 'setStatus', kStatusChoices, keep: _status)) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
                   onChanged: (v) => setState(() => _status = v ?? _status),
                 ),
               ),
@@ -888,7 +1026,7 @@ class _TitleEditorState extends State<TitleEditor> {
                 child: DropdownButtonFormField<String>(
                   initialValue: _priority,
                   decoration: const InputDecoration(labelText: 'Priority'),
-                  items: [for (final s in kPriorityChoices) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
+                  items: [for (final s in viewChoices(view, 'setPriority', kPriorityChoices, keep: _priority)) DropdownMenuItem(value: s.$1, child: Text(s.$2))],
                   onChanged: (v) => setState(() => _priority = v ?? _priority),
                 ),
               ),
@@ -953,6 +1091,8 @@ class _TitleEditorState extends State<TitleEditor> {
               const SizedBox(width: 10),
               Expanded(child: _numField(_repeatExtra, 'Extra ${unitLabel(unit, 2)}', decimal: false)),
             ]),
+            const SizedBox(height: 14),
+            ..._unitAndNames(cat),
             const SizedBox(height: 14),
             Row(children: [
               const Expanded(child: Text('Seasons', style: TextStyle(fontWeight: FontWeight.w800))),
@@ -1032,4 +1172,11 @@ class _TitleEditorState extends State<TitleEditor> {
       ),
     ));
   }
+}
+
+/// One editable name in the title editor (v565).
+class _NameRow {
+  _NameRow(this.lang, String text) : text = TextEditingController(text: text);
+  String lang;
+  final TextEditingController text;
 }

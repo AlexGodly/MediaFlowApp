@@ -18,11 +18,15 @@ import '../logic/library_logic.dart' show batchEdit;
 import '../logic/log_arrange.dart' show compareTitlesNatural;
 import '../state/models.dart';
 import '../util/js.dart';
+import 'data_cloud.dart' show exportCollectionsFile, importCollectionsFile;
+import 'floating_dock.dart' show recoveryShortcuts;
 import 'library_screen.dart' show LibraryCoverTile, LibraryTitleRow;
+import 'recovery_screen.dart' show openRecovery;
 import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
+import '../logic/title_names.dart' show nameMatches;
 
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
@@ -34,9 +38,21 @@ class CollectionCover extends StatelessWidget {
   final Map<String, dynamic> collection;
   final double size;
 
+  /// Website v565 `mf565CollectionCoverUrl`: the chosen title's current cover,
+  /// else the saved link.
+  static String coverUrlOf(AccountView view, Map<String, dynamic> collection) {
+    final id = jsStr(collection['mf565CoverTitleId']);
+    if (id.isNotEmpty) {
+      final live = memoFor(view, 'libraryById', () => {for (final t in view.library) t.id: t.raw})[id];
+      final url = jsStr(live?['coverUrl']).trim();
+      if (url.isNotEmpty) return url;
+    }
+    return jsStr(collection['coverUrl']).trim();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final own = jsStr(collection['coverUrl']);
+    final own = coverUrlOf(view, collection);
     if (own.isNotEmpty) {
       return Cover(title: LibraryTitle(<String, dynamic>{'title': collection['title'], 'coverUrl': own}), category: Category.removed(''), width: size);
     }
@@ -106,7 +122,20 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 _ => jsNum(b['updatedAt']).compareTo(jsNum(a['updatedAt'])),
               });
         return Scaffold(
-          appBar: AppBar(title: const Text('Collections'), actions: [SyncIndicator(account: account)]),
+          appBar: AppBar(title: const Text('Collections'), actions: [
+            PopupMenuButton<String>(
+              tooltip: 'Collections tools',
+              onSelected: (v) {
+                if (v == 'export') exportCollectionsFile(context, account);
+                if (v == 'import') importCollectionsFile(context, account);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'export', child: Text('Export Collections')),
+                PopupMenuItem(value: 'import', child: Text('Import Collections…')),
+              ],
+            ),
+            SyncIndicator(account: account),
+          ]),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
             TextField(
               controller: _search,
@@ -177,6 +206,14 @@ Future<void> editCollection(BuildContext context, AccountController account, Str
   final desc = TextEditingController(text: jsStr(c?['description']));
   final bg = TextEditingController(text: jsStr(c?['backgroundUrl']));
   var custom = c?['backgroundMode'] == 'custom';
+  // v565: the cover can follow a title from this collection or the Library.
+  var coverTitle = jsStr(c?['mf565CoverTitleId']);
+  String coverNow() {
+    final t = coverTitle.isEmpty ? null : view.library.where((x) => x.id == coverTitle).firstOrNull;
+    if (t != null) return 'Cover of ${t.title}';
+    if (coverTitle.isNotEmpty) return 'Last cover of a deleted title';
+    return cover.text.trim().isNotEmpty ? 'Image link' : "Automatic: covers from the collection's titles";
+  }
   final ok = await showDialog<bool>(
     context: context,
     builder: (d) => StatefulBuilder(
@@ -186,7 +223,35 @@ Future<void> editCollection(BuildContext context, AccountController account, Str
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             TextField(controller: title, autofocus: id == null, decoration: const InputDecoration(labelText: 'Title')),
             TextField(controller: desc, minLines: 1, maxLines: 4, decoration: const InputDecoration(labelText: 'Description')),
-            TextField(controller: cover, keyboardType: TextInputType.url, decoration: const InputDecoration(labelText: 'Cover image URL (optional)')),
+            TextField(
+              controller: cover,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(labelText: 'Cover image URL (optional)'),
+              // Typing a link stops following a title (website mf565CoverLinkTyped).
+              onChanged: (_) => set(() => coverTitle = ''),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Align(alignment: Alignment.centerLeft, child: Text(coverNow(), style: TextStyle(color: MF.textDim, fontSize: 12))),
+            ),
+            Wrap(spacing: 6, children: [
+              if (id != null)
+                TextButton(
+                  onPressed: () async {
+                    final t = await _pickCover(d, view, collectionId: id);
+                    if (t != null) set(() => (coverTitle = t.id, cover.text = t.coverUrl));
+                  },
+                  child: const Text('From this collection'),
+                ),
+              TextButton(
+                onPressed: () async {
+                  final t = await _pickCover(d, view);
+                  if (t != null) set(() => (coverTitle = t.id, cover.text = t.coverUrl));
+                },
+                child: const Text('From the Library'),
+              ),
+              TextButton(onPressed: () => set(() => (coverTitle = '', cover.text = '')), child: const Text('Automatic')),
+            ]),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Custom background'),
@@ -216,9 +281,64 @@ Future<void> editCollection(BuildContext context, AccountController account, Str
   await account.edit((s, now) {
     var k = 0;
     saveCollection(s, id, now, () => mediaFlowUid(now + k++),
-        title: values.$1, coverUrl: values.$2, description: values.$3, backgroundUrl: values.$4, customBackground: custom);
+        title: values.$1, coverUrl: values.$2, description: values.$3, backgroundUrl: values.$4, customBackground: custom,
+        coverTitleId: coverTitle);
   }, label: id == null ? 'Create collection' : 'Edit collection');
   if (context.mounted) _toast(context, id == null ? 'Collection created ✓' : 'Collection updated ✓');
+}
+
+/// v565: choose a title's cover, from one collection or the whole Library
+/// (website mf565PaintPicker): only titles with a cover, searchable by any name.
+Future<LibraryTitle?> _pickCover(BuildContext context, AccountView view, {String? collectionId}) {
+  final all = collectionId == null
+      ? view.library
+      : () {
+          final byId = {for (final t in view.library) t.id: t};
+          final c = collectionById(view.state, collectionId);
+          return [for (final x in c == null ? const <String>[] : collectionTitleIds(c)) if (byId[x] != null) byId[x]!];
+        }();
+  final withCover = [for (final t in all) if (t.coverUrl.isNotEmpty) t];
+  final limit = collectionId == null ? 120 : 400;
+  var query = '';
+  return showDialog<LibraryTitle>(
+    context: context,
+    builder: (d) => StatefulBuilder(builder: (d, set) {
+      final shown = [for (final t in withCover) if (query.trim().isEmpty || nameMatches(t.raw, query)) t].take(limit).toList();
+      return AlertDialog(
+        title: Text(collectionId == null ? 'Cover from the Library' : 'Cover from this collection'),
+        content: SizedBox(
+          width: 520,
+          height: 460,
+          child: Column(children: [
+            TextField(
+              autofocus: true,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search titles (any name)…'),
+              onChanged: (v) => set(() => query = v),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: shown.isEmpty
+                  ? Center(child: Text(query.isEmpty ? 'No titles with a cover.' : 'No titles with a cover match this search.'))
+                  : GridView.builder(
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 110, childAspectRatio: 0.58, mainAxisSpacing: 8, crossAxisSpacing: 8),
+                      itemCount: shown.length,
+                      itemBuilder: (_, i) => InkWell(
+                        onTap: () => Navigator.pop(d, shown[i]),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Column(children: [
+                          Cover(title: shown[i], category: view.category(shown[i].categoryId), width: 96),
+                          const SizedBox(height: 4),
+                          Text(shown[i].title, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11)),
+                        ]),
+                      ),
+                    ),
+            ),
+          ]),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel'))],
+      );
+    }),
+  );
 }
 
 // ---- a collection: the website's mini Library (v274) ---------------------------
@@ -593,9 +713,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
                 onSelected: (v) {
                   if (v == 'delete') _delete(c);
                   if (v == 'tools') _setSetting('toolsVisible', !_toolsVisible(view));
+                  if (v == 'recover') openRecovery(context, account, ids: ids, label: jsStr(c['title']));
                 },
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'tools', child: Text(_toolsVisible(view) ? 'Hide Collection Tools' : 'Show Collection Tools')),
+                  if (ids.isNotEmpty && recoveryShortcuts(asMap(view.state['settings']))['collections'] == true)
+                    const PopupMenuItem(value: 'recover', child: Text('Recover covers & details…')),
                   const PopupMenuItem(value: 'delete', child: Text('Delete collection', style: TextStyle(color: MF.bad))),
                 ],
               ),

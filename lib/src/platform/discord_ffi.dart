@@ -62,6 +62,11 @@ T? _optional<T>(T Function() lookup) {
   }
 }
 
+/// `Discord_StatusType`.
+abstract final class OnlineStatus {
+  static const online = 0, idle = 3, dnd = 4, invisible = 5;
+}
+
 /// `Discord_Client_Status`.
 abstract final class ClientStatus {
   static const disconnected = 0, connecting = 1, connected = 2, ready = 3, reconnecting = 4;
@@ -157,7 +162,12 @@ class DiscordFfi {
         activitySetDetailsUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetDetailsUrl')),
         activitySetStateUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_Activity_SetStateUrl')),
         assetsSetLargeUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetLargeUrl')),
-        assetsSetSmallUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetSmallUrl'));
+        assetsSetSmallUrl = _optional(() => l.lookupFunction<_SetStrPtr, _SetStrPtrD>('Discord_ActivityAssets_SetSmallUrl')),
+        clientSetOnlineStatus = _optional(() => l.lookupFunction<
+                Void Function(Pointer<DOpaque>, Int32, Pointer<NativeFunction<ResultCb>>, Pointer<Void>, Pointer<Void>),
+                void Function(Pointer<DOpaque>, int, Pointer<NativeFunction<ResultCb>>, Pointer<Void>, Pointer<Void>)>(
+              'Discord_Client_SetOnlineStatus',
+            ));
 
   static DiscordFfi? _instance;
   static bool _tried = false;
@@ -224,6 +234,9 @@ class DiscordFfi {
   bool get hasParty => activitySetParty != null && partyInit != null && partyDrop != null && partySetId != null && partySetCurrentSize != null && partySetMaxSize != null;
   bool get hasButtons => activityAddButton != null && buttonInit != null && buttonDrop != null && buttonSetLabel != null && buttonSetUrl != null;
   bool get hasLinks => activitySetDetailsUrl != null && assetsSetLargeUrl != null;
+
+  /// `Discord_Client_SetOnlineStatus` (linked accounts); null when missing.
+  final void Function(Pointer<DOpaque>, int, Pointer<NativeFunction<ResultCb>>, Pointer<Void>, Pointer<Void>)? clientSetOnlineStatus;
 
   /// Links on text and images; null when this SDK version has none.
   final _SetStrPtrD? activitySetDetailsUrl, activitySetStateUrl, assetsSetLargeUrl, assetsSetSmallUrl;

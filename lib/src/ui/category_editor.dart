@@ -424,7 +424,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
               const SizedBox(width: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(cover, width: 44, height: 64, fit: BoxFit.cover,
+                child: Image.network(cover, width: 44, height: 64, cacheWidth: decodeWidth(context, 44), fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(width: 44, height: 64, color: MF.raised, child: const Icon(Icons.broken_image_outlined, size: 18))),
               ),
             ],

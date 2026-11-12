@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -12,6 +13,7 @@ import '../logic/resume.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
+import '../logic/title_units.dart';
 
 String fmtNumber(num v) {
   final whole = v == v.roundToDouble();
@@ -72,7 +74,8 @@ Color statusColor(String status) => switch (status) {
 String progressText(LibraryTitle t, Category c) {
   final p = fmtNumber(t.progress);
   final total = t.total;
-  return total == null ? '$p ${unitLabel(c.unit, t.progress)}' : '$p / ${fmtNumber(total)} ${unitLabel(c.unit, total)}';
+  final u = titleUnit(t.raw, c.raw); // v565: the title's own unit
+  return total == null ? '$p ${unitLabel(u, t.progress)}' : '$p / ${fmtNumber(total)} ${unitLabel(u, total)}';
 }
 
 /// Category icon: the category's emoji (or image) on a tinted square.
@@ -197,6 +200,15 @@ class _NetIconState extends State<NetIcon> {
   }
 }
 
+/// The pixel width to decode an image at: its drawn width times the screen's
+/// pixel ratio, never more than [max]. Covers decoded at full size (often
+/// 1000×1500) used most of the app's memory on desktop (v565).
+int? decodeWidth(BuildContext context, double width, {int max = 900}) {
+  if (!width.isFinite || width <= 0) return null;
+  final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2.0;
+  return (width * dpr).ceil().clamp(16, max).toInt();
+}
+
 /// Title cover with a category fallback.
 class Cover extends StatelessWidget {
   const Cover({super.key, required this.title, required this.category, this.width = 46});
@@ -268,7 +280,7 @@ class _CachedCoverImageState extends State<CachedCoverImage> {
       width: widget.width,
       height: widget.height,
       fit: BoxFit.cover,
-      cacheWidth: (widget.width * 3).round(),
+      cacheWidth: decodeWidth(context, widget.width),
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => widget.fallback,
     );
@@ -574,4 +586,23 @@ T memoFor<T>(Object owner, String key, T Function() compute) {
   final v = compute();
   m[key] = v;
   return v;
+}
+
+/// A page's scrolling list that scrolls across the whole page width while its
+/// content stays [maxWidth] wide and centred (v565: with a centred narrow
+/// list, the mouse wheel did nothing over the empty sides on desktop).
+class PageListView extends StatelessWidget {
+  const PageListView({super.key, required this.maxWidth, this.padding = EdgeInsets.zero, required this.children});
+  final double maxWidth;
+  final EdgeInsets padding;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final extra = box.maxWidth.isFinite ? math.max(0.0, (box.maxWidth - maxWidth) / 2) : 0.0;
+        return ListView(
+          padding: padding.copyWith(left: padding.left + extra, right: padding.right + extra),
+          children: children,
+        );
+      });
 }

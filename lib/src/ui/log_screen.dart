@@ -22,6 +22,10 @@ import '../logic/task_progress.dart';
 import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/custom_status.dart' show activePin;
+import 'collections_screen.dart' show pickLibraryTitles;
+import 'discord_settings.dart' show showOnDiscord, stopShowingOnDiscord;
+import 'extras_screen.dart' show OnThisDayCard;
 import 'floating_dock.dart' show DockAction, FloatingDock;
 import 'log_sheet.dart';
 import 'home_shell.dart' show Section;
@@ -32,6 +36,7 @@ import 'progress_cards.dart';
 import 'reroll_history.dart';
 import 'task_progress_card.dart';
 import 'theme.dart';
+import 'title_screen.dart' show TitleEditor, openTitle;
 import 'widgets.dart';
 
 String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
@@ -379,62 +384,167 @@ class _LogScreenState extends State<LogScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Log'),
-        actions: [
-          IconButton(
-            tooltip: 'Log any title (Batch Log)',
-            icon: const Icon(Icons.playlist_add_rounded),
-            onPressed: () => showLogSheet(context, account),
-          ),
-          SyncIndicator(account: account),
-        ],
+        actions: [SyncIndicator(account: account)],
       ),
       body: SafeArea(
         child: Stack(children: [
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: ListView(
-              // Room for the + button (and the Task Progress card over the form).
-              padding: EdgeInsets.fromLTRB(16, 4, 16, progress == null ? 104 : 250),
-              children: [
-                if (account.lastRejection != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Material(
-                      color: MF.bad.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                      child: ListTile(
-                        leading: const Icon(Icons.error_outline_rounded, color: MF.bad),
-                        title: Text(account.lastRejection!, style: const TextStyle(fontSize: 13)),
-                        trailing: IconButton(icon: const Icon(Icons.close_rounded), onPressed: account.dismissRejection),
-                      ),
+          // v565: the scroll area is the whole page (scrolling works anywhere),
+          // and wide windows use two columns like the website's Dashboard.
+          LayoutBuilder(builder: (context, box) {
+            final bottom = progress == null ? 104.0 : 250.0;
+            final settings = asMap(state['settings']) ?? const <String, dynamic>{};
+            final top = <Widget>[
+              if (account.lastRejection != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Material(
+                    color: MF.bad.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                    child: ListTile(
+                      leading: const Icon(Icons.error_outline_rounded, color: MF.bad),
+                      title: Text(account.lastRejection!, style: const TextStyle(fontSize: 13)),
+                      trailing: IconButton(icon: const Icon(Icons.close_rounded), onPressed: account.dismissRejection),
                     ),
                   ),
-                ProgressCards(state: state),
-                if (formOpen)
-                  ..._form(view)
-                else if (!active || task == null)
-                  _startCard(view)
-                else
-                  _taskCard(view, task),
-              ],
-            ),
-          ),
-        ),
-        if (progress != null)
-          Positioned(
-            left: 16,
-            right: 88, // clear of the + button
-            bottom: 16,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: TaskProgressCard(progress: progress, taskKey: jsStr(_task!['id'])),
+                ),
+            ];
+            final today = <Widget>[
+              TodayCards(state: state),
+              if (settings['mf565LogOnThisDay'] != false) OnThisDayCard(account: account, view: view),
+            ];
+            final narrow = box.maxWidth < 760;
+            final main = <Widget>[
+              ProgressCards(state: state),
+              // Phones: the task stays on the first screen, Log any title right under it.
+              if (!narrow) _logAnyBar(),
+              if (!narrow) _consumingBar(view),
+              if (formOpen)
+                ..._form(view)
+              else if (!active || task == null)
+                _startCard(view)
+              else
+                _taskCard(view, task),
+              if (narrow) _logAnyBar(),
+              if (narrow) _consumingBar(view),
+            ];
+            final wide = box.maxWidth >= 1100;
+            if (wide && formOpen) {
+              return SingleChildScrollView(
+                key: const ValueKey('log-form-wide'),
+                padding: EdgeInsets.fromLTRB(24, 4, 24, bottom),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  ...top,
+                  ...today,
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      flex: 5,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        ProgressCards(state: state),
+                        _logAnyBar(),
+                        _consumingBar(view),
+                        ..._form(view, part: 'left'),
+                      ]),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      flex: 6,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _form(view, part: 'right')),
+                    ),
+                  ]),
+                ]),
+              );
+            }
+            // One column, as wide as reads well, but scrollable across the whole page.
+            final side = math.max(16.0, (box.maxWidth - (wide ? 1100 : 760)) / 2);
+            return ListView(
+              // Opening or closing a log starts at the top of the page.
+              key: ValueKey('log-$formOpen'),
+              padding: EdgeInsets.fromLTRB(side, 4, side, bottom),
+              // Wider windows follow the website's Dashboard (Today on top);
+              // phones put the task first and Today / On This Day below it.
+              children: narrow ? [...top, ...main, ...today] : [...top, ...today, ...main],
+            );
+          }),
+          if (progress != null)
+            Positioned(
+              left: 16,
+              right: 88, // clear of the + button
+              bottom: 16,
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: TaskProgressCard(progress: progress, taskKey: jsStr(_task!['id'])),
+                ),
               ),
             ),
-          ),
         ]),
+      ),
+    );
+  }
+
+  /// v565: an always-visible way to log any title (Batch Log), during a session too.
+  Widget _logAnyBar() => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Material(
+          color: MF.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: MF.border)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
+            child: Row(children: [
+              const Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text('Log any title', style: TextStyle(fontWeight: FontWeight.w900)),
+                  Text('Any title from your Library, any category, without changing your task.', style: TextStyle(fontSize: 12)),
+                ]),
+              ),
+              const SizedBox(width: 10),
+              FilledButton.icon(
+                onPressed: () => showLogSheet(context, account),
+                icon: const Icon(Icons.post_add_rounded),
+                label: const Text('Log any title'),
+              ),
+            ]),
+          ),
+        ),
+      );
+
+  /// v6: "Consuming…" — show on Discord the title you're watching / reading
+  /// right now (the same as Settings → Discord → Show a title on Discord), on
+  /// every device until you stop it.
+  Widget _consumingBar(AccountView view) {
+    final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
+    final t = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: MF.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: t == null ? MF.border : MF.accent)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
+          child: Row(children: [
+            Icon(Icons.play_circle_outline_rounded, color: t == null ? MF.textDim : MF.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(t == null ? 'Consuming…' : 'Consuming ${t.title}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(t == null ? 'Show on Discord what you\'re watching, reading or playing right now.' : 'Shown on Discord on all your devices.',
+                    style: const TextStyle(fontSize: 12)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            t == null
+                ? OutlinedButton(
+                    onPressed: () async {
+                      final ids = await pickLibraryTitles(context, view, title: 'What are you consuming?', single: true);
+                      if (ids != null && ids.isNotEmpty && mounted) await showOnDiscord(context, account, ids.first);
+                    },
+                    child: const Text('Start'),
+                  )
+                : TextButton(onPressed: () => stopShowingOnDiscord(account), child: const Text('Stop')),
+          ]),
+        ),
       ),
     );
   }
@@ -454,6 +564,10 @@ class _LogScreenState extends State<LogScreen> {
       categoryName: cat.name,
       categoryType: jsStr(cat.raw['type']),
       unit: jsStr(task['unit']).isEmpty ? cat.unit : jsStr(task['unit']),
+      category: cat.raw,
+      // v565 settings, shared with the website.
+      finish: jsStr(asMap(view.state['settings'])?['mf565TaskFinish']),
+      over: jsStr(asMap(view.state['settings'])?['mf565TaskOver']),
     );
   }
 
@@ -624,7 +738,7 @@ class _LogScreenState extends State<LogScreen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
           child: Row(children: [
-            Cover(title: title, category: cat, width: 44),
+            _openable(title.id, Cover(title: title, category: cat, width: 44)),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -742,7 +856,9 @@ class _LogScreenState extends State<LogScreen> {
 
   bool get _workspaceCollapsed => asMap(account.view?.state['settings'])?['v419LoggingCollapsed'] == true;
 
-  List<Widget> _form(AccountView view) {
+  /// [part]: 'all', or for two columns 'left' (task, notes, XP, save) and
+  /// 'right' (Logging Library and Workspace).
+  List<Widget> _form(AccountView view, {String part = 'all'}) {
     final ed = _editor(view)!;
     final task = _task!;
     final cat = view.category(jsStr(task['categoryId']));
@@ -752,13 +868,34 @@ class _LogScreenState extends State<LogScreen> {
     // The website's count: Advanced units, or each Quick title's amount.
     final staged = entries.fold<double>(
         0, (n, e) => n + (e['v369Units'] is List ? (e['v369Units'] as List).length.toDouble() : (jsNum(e['qty']) > 0 ? jsNum(e['qty']).floorToDouble() : 0.0)));
+    if (part == 'right') {
+      return [
+        _libraryPanel(view, ed),
+        _workspaceBar(entries.length, staged, collapsed),
+        if (!collapsed) _titlesPanel(view, ed, unit),
+      ];
+    }
+    if (part == 'left') {
+      return [
+        _formHeader(view, ed, task, cat, unit),
+        if (!collapsed) ...[_notesPanel(view, ed, unit), _xpCard()],
+        _savePanel(collapsed),
+      ];
+    }
     return [
       _formHeader(view, ed, task, cat, unit),
       _libraryPanel(view, ed),
       _workspaceBar(entries.length, staged, collapsed),
       if (!collapsed) ...[
         _titlesPanel(view, ed, unit),
-        _panel(children: [
+        _notesPanel(view, ed, unit),
+        _xpCard(),
+      ],
+      _savePanel(collapsed),
+    ];
+  }
+
+  Widget _notesPanel(AccountView view, LogDraftEditor ed, String unit) => _panel(children: [
           _summary(view, ed, unit),
           const SizedBox(height: 12),
           TextField(
@@ -771,12 +908,7 @@ class _LogScreenState extends State<LogScreen> {
               _noteTimer = Timer(const Duration(milliseconds: 700), _saveDraft);
             },
           ),
-        ]),
-        _xpCard(),
-      ],
-      _savePanel(collapsed),
-    ];
-  }
+        ]);
 
   /// The recommendation (its own cover), the Quick / Advanced switch and the Quick mode.
   Widget _formHeader(AccountView view, LogDraftEditor ed, Map<String, dynamic> task, Category cat, String unit) {
@@ -786,7 +918,7 @@ class _LogScreenState extends State<LogScreen> {
     final added = title != null && ed.addedIds.contains(title.id);
     return _panel(padding: const EdgeInsets.fromLTRB(16, 14, 16, 14), children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (title != null) Cover(title: title, category: cat, width: 52) else CategoryBadge(cat, size: 44),
+        if (title != null) _openable(title.id, Cover(title: title, category: cat, width: 52)) else CategoryBadge(cat, size: 44),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -877,12 +1009,13 @@ class _LogScreenState extends State<LogScreen> {
               _addNewTitle(t);
               changed?.call();
             },
+      onOpenTitle: (id) => openTitle(context, account, id),
       recommendedId: jsStr(_task?['libraryId']).isEmpty ? null : jsStr(_task!['libraryId']),
       onAddRecommended: () {
         _addRecommended();
         changed?.call();
       },
-      onPageSize: (n) => account.setSetting(['v175PageSizes', 'loggingLibrary'], n),
+      onPageSize: (n) => account.setSetting(['v175PageSizes', 'loggingLibrary'], n, xp: false),
     );
   }
 
@@ -956,10 +1089,13 @@ class _LogScreenState extends State<LogScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: MF.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed),
+          onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed, xp: false),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-            child: Row(children: [
+            // Phones: shorter labels so the title keeps its room.
+            child: LayoutBuilder(builder: (context, box) {
+              final compact = box.maxWidth < 420;
+              return Row(children: [
               Icon(Icons.space_dashboard_rounded, color: MF.accent),
               const SizedBox(width: 12),
               Expanded(
@@ -971,9 +1107,29 @@ class _LogScreenState extends State<LogScreen> {
                   ),
                 ]),
               ),
-              Text(collapsed ? 'Expand' : 'Collapse', style: TextStyle(color: MF.textDim, fontSize: 13)),
+              // v565: a clear way to add titles to this log.
+              PopupMenuButton<String>(
+                tooltip: 'Add a title to this log',
+                onSelected: (v) => v == 'library' ? _openLibrarySheet() : _createAndAdd(),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'library', child: ListTile(leading: Icon(Icons.video_library_rounded), title: Text('From your Library'))),
+                  PopupMenuItem(value: 'new', child: ListTile(leading: Icon(Icons.library_add_rounded), title: Text('Create a new title'))),
+                ],
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(color: MF.accent, borderRadius: BorderRadius.circular(999)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.add_rounded, size: 18, color: Colors.black87),
+                    const SizedBox(width: 4),
+                    Text(compact ? 'Add' : 'Add title', style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87)),
+                  ]),
+                ),
+              ),
+              if (!compact) Text(collapsed ? 'Expand' : 'Collapse', style: TextStyle(color: MF.textDim, fontSize: 13)),
               Icon(collapsed ? Icons.expand_more_rounded : Icons.expand_less_rounded, color: MF.textDim),
-            ]),
+            ]);
+            }),
           ),
         ),
       ),
@@ -1132,9 +1288,32 @@ class _LogScreenState extends State<LogScreen> {
   }
 
   /// A cover for an added title (a stand-in tile for a typed new title).
+  /// v565: tapping it opens the title's details (with Edit).
   Widget _entryCover(AccountView view, Map<String, dynamic>? item, Map<String, dynamic> e, Category cat, double width) {
     final title = item != null ? LibraryTitle(item) : LibraryTitle(<String, dynamic>{'title': e['title'], 'categoryId': cat.id});
-    return Cover(title: title, category: cat, width: width);
+    final cover = Cover(title: title, category: cat, width: width);
+    return item == null ? cover : _openable(jsStr(item['id']), cover);
+  }
+
+  /// Opens Title Details over the Log page; the unsaved log stays as it is.
+  Widget _openable(String id, Widget child) => id.isEmpty
+      ? child
+      : Tooltip(
+          message: 'View or edit this title',
+          child: InkWell(borderRadius: BorderRadius.circular(8), onTap: () => openTitle(context, account, id), child: child),
+        );
+
+  /// "+ Add title → Create a new title": the title editor, then into this log.
+  Future<void> _createAndAdd() async {
+    final before = {for (final t in account.view?.library ?? const <LibraryTitle>[]) t.id};
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => TitleEditor(account: account, initialCategory: jsStr(_task?['categoryId']).isEmpty ? null : jsStr(_task!['categoryId'])),
+    ));
+    if (!mounted) return;
+    final created = (account.view?.library ?? const <LibraryTitle>[]).where((t) => !before.contains(t.id)).map((t) => t.id).toList();
+    if (created.isEmpty) return;
+    final n = _quickAdd(created);
+    if (n > 0 && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New title added to this log')));
   }
 
   Widget _collapseButton(bool collapsed, VoidCallback onTap) => IconButton(

@@ -101,7 +101,7 @@ class _TaskProgressCardState extends State<TaskProgressCard> with TickerProvider
   Widget build(BuildContext context) {
     final p = widget.progress;
     final compact = _compact(context);
-    final tint = p.over ? MF.warn : p.reached ? MF.good : MF.accent;
+    final tint = p.warn ? MF.bad : p.reached ? MF.good : MF.accent;
 
     if (compact) {
       return Semantics(
@@ -468,27 +468,34 @@ class _AmbientPainter extends CustomPainter {
         ]).createShader(Rect.fromCircle(center: center, radius: radius)),
     );
 
-    // Waves: the website's SVG (8 crests over twice the card's width).
-    void wave({required double top, required double baseline, required double amp, required double shift, required Color color}) {
-      final period = w / 4;
-      final p = Path()..moveTo(0, h);
-      for (double x = 0; x <= w + 2; x += 3) {
-        final y = top + baseline - amp * math.cos(((x + shift) / period) * 2 * math.pi);
-        p.lineTo(x, y);
+    // The website's exact SVG (v565): viewBox 800×180 stretched over a box
+    // twice the card's width and 110% of its height, bottom −24% (back) or
+    // −12% (front). Each 100-unit segment is a quadratic curve whose control
+    // point alternates up/down (`Q50 32 100 62 T200 62 …`). The back wave
+    // moves left by half its box in 9 s, the front one right in 13 s.
+    void svgWave({required double bottomPct, required double base, required double up, required double offsetX, required Color color}) {
+      final boxW = 2 * w, boxH = 1.1 * h;
+      final top = h + bottomPct * h - boxH;
+      final sx = boxW / 800, sy = boxH / 180;
+      final p = Path()..moveTo(offsetX, top + base * sy);
+      for (var i = 0; i < 8; i++) {
+        final x0 = i * 100.0;
+        final cy = i.isEven ? up : 2 * base - up;
+        p.quadraticBezierTo(offsetX + (x0 + 50) * sx, top + cy * sy, offsetX + (x0 + 100) * sx, top + base * sy);
       }
       p
-        ..lineTo(w, h)
+        ..lineTo(offsetX + 800 * sx, top + 180 * sy)
+        ..lineTo(offsetX, top + 180 * sy)
         ..close();
       canvas.drawPath(p, Paint()..color = color);
     }
 
-    final waveH = 1.1 * h;
-    wave(top: h - (waveH - 0.24 * h), baseline: waveH * 62 / 180 + waveH * 15 / 180, amp: waveH * 15 / 180, shift: w * ((t / 9) % 1), color: tint.withValues(alpha: 0.16));
-    wave(
-      top: h - (waveH - 0.12 * h),
-      baseline: waveH * 78 / 180 + waveH * 14.5 / 180,
-      amp: waveH * 14.5 / 180,
-      shift: -w * ((t / 13) % 1),
+    svgWave(bottomPct: 0.24, base: 62, up: 32, offsetX: -w * ((t / 9) % 1), color: tint.withValues(alpha: 0.16));
+    svgWave(
+      bottomPct: 0.12,
+      base: 78,
+      up: 49,
+      offsetX: -w + w * ((t / 13) % 1),
       color: Color.lerp(panel, tint, 0.74)!.withValues(alpha: 0.12),
     );
     // Fade from the left so the numbers stay readable.

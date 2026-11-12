@@ -127,6 +127,10 @@ void main() {
     // "Log another episode": the number box shows the next episode (4), and
     // Log Episode logs exactly that number.
     final next = find.widgetWithText(TextField, 'Episode number');
+    // The entry sits below the task on a phone ("Added · show it" scrolls there).
+    await tester.scrollUntilVisible(next, 200,
+        scrollable: find.descendant(of: find.byType(LogScreen), matching: find.byType(Scrollable)).first);
+    await tester.pump();
     expect(next, findsOneWidget);
     expect(tester.widget<TextField>(next).controller!.text, '4');
     // Press it directly: depending on layout the "+" button can sit on top of it.

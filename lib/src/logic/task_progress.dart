@@ -4,6 +4,7 @@
 import 'dart:math' as math;
 
 import '../util/js.dart';
+import 'title_units.dart';
 
 class TaskProgress {
   TaskProgress({
@@ -15,6 +16,8 @@ class TaskProgress {
     required this.status,
     required this.pct,
     this.unit = '',
+    this.warn = false,
+    this.finish = 'minimum',
   });
   final String categoryName;
 
@@ -25,14 +28,22 @@ class TaskProgress {
   final double denominator;
   final String status;
 
-  /// 0–100, measured against the top of the goal ([high]).
+  /// The percentage shown: against the goal's minimum or maximum ([finish],
+  /// website v565 `mf565TaskFinish`); past 100% only with "Count past 100%".
   final double pct;
+
+  /// Past the goal's maximum and the setting shows it (warning colour).
+  final bool warn;
+
+  /// 'minimum' (default) or 'maximum'.
+  final String finish;
 
   bool get reached => amount >= low && amount <= high;
   bool get over => amount > high;
 
-  /// Where the goal's minimum sits on the bar (0–1); null when min == max.
-  double? get marker => low == high ? null : low / high;
+  /// Where the goal's minimum sits on the bar (0–1): only when the bar
+  /// finishes at the maximum and the goal is a range.
+  double? get marker => finish != 'maximum' || low == high ? null : low / high;
 }
 
 /// Null when the card is hidden: no open log for the current task, or no added
@@ -44,6 +55,9 @@ TaskProgress? taskProgress({
   required String categoryName,
   required String categoryType,
   required String unit,
+  String finish = 'minimum',
+  String over = 'count',
+  Map<String, dynamic>? category,
 }) {
   final categoryId = jsStr(task['categoryId']);
   final itemized = logDraft['v369Interface'] == 'itemized';
@@ -56,8 +70,9 @@ TaskProgress? taskProgress({
   }
   if (matching.isEmpty) return null;
   final amount = matching.fold<double>(0, (sum, e) {
-    if (itemized) return sum + (e['v369Units'] is List ? (e['v369Units'] as List).length : 0);
-    return sum + math.max(0, jsNum(e['qty']));
+    final raw = itemized ? (e['v369Units'] is List ? (e['v369Units'] as List).length.toDouble() : 0.0) : math.max(0, jsNum(e['qty'])).toDouble();
+    // v565: a title with its own unit counts in the category's unit (website mf397ReadState).
+    return sum + toCategoryAmount(libraryItem(jsStr(e['libraryId'])), category, raw);
   });
   double safe(Object? n) {
     final v = jsNumOrNull(n);
@@ -68,11 +83,15 @@ TaskProgress? taskProgress({
   final low = math.max(1, jsRound(safe(lowRaw)).toInt());
   final highRaw = task['high'] ?? task['targetMid'] ?? low;
   final high = math.max(low, jsRound(safe(highRaw)).toInt());
-  final double denominator = high == low
+  final finishAt = finish == 'maximum' ? 'maximum' : 'minimum';
+  final overMode = over == 'warning' || over == 'status' ? over : 'count';
+  final double denominator = finishAt == 'minimum'
       ? low.toDouble()
-      : amount <= low
+      : high == low
           ? low.toDouble()
-          : math.min(amount, high.toDouble());
+          : amount <= low
+              ? low.toDouble()
+              : math.min(amount, high.toDouble());
   final words = [categoryType, categoryName, unit].join(' ');
   final reading = RegExp(r'read|chapter|page|book|novel|comic|manga|manhwa|manhua|issue|volume', caseSensitive: false).hasMatch(words);
   final watching = RegExp(r'watch|episode|movie|anime|video|tv|film', caseSensitive: false).hasMatch(words);
@@ -95,7 +114,13 @@ TaskProgress? taskProgress({
     high: high,
     denominator: denominator,
     status: status,
-    pct: math.max(0, math.min(100, amount / high * 100)).toDouble(),
+    pct: () {
+      final end = finishAt == 'maximum' ? high : low;
+      final raw = end > 0 ? amount / end * 100 : 0.0;
+      return math.max(0, overMode == 'count' ? raw : math.min(100, raw)).toDouble();
+    }(),
+    warn: overMode != 'status' && amount > high,
+    finish: finishAt,
     unit: unit,
   );
 }

@@ -10,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../data/account_controller.dart';
-import '../data/app_prefs.dart';
 import '../logic/history_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -38,7 +37,6 @@ Future<String?> saveExportFile(String name, String content) async {
 }
 
 const _statusLabels = {'complete': 'Complete', 'partial': 'Partial', 'over': 'Over', 'skipped': 'Skipped', 'logged': 'Logged'};
-const _mediaTypes = [('all', 'All media types'), ('video', 'Watching'), ('reading', 'Reading'), ('playing', 'Playing'), ('listening', 'Listening'), ('other', 'Other')];
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key, required this.account});
@@ -52,16 +50,47 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   AccountController get account => widget.account;
   late final TabController _tabs = TabController(length: _tabNames.length, vsync: this)..addListener(_onTab);
 
-  static const _tabNames = ['Logs', 'Consumption history', 'Recently viewed', 'Ratings', 'XP History', 'Library History'];
+  // v565: the website's order (v260 + v348); Consumption history opens first.
+  // The old Logs tab's Undo / Redo / Undo last entry are in the History bar.
+  static const _tabNames = ['Consumption history', 'Recently viewed', 'Ratings', 'Library History', 'XP History'];
 
-  /// Each tab's Discord status (Logs keeps the History default).
+  /// Each tab's Discord status.
   static const _tabPresence = <int, PresenceInfo>{
-    1: PresenceInfo(situation: 'consumption', values: {'action': 'Looking back at consumption history'}),
-    2: PresenceInfo(situation: 'recent', values: {'action': 'Browsing recently viewed titles'}),
-    3: PresenceInfo(situation: 'ratings', values: {'action': 'Looking through ratings'}),
+    0: PresenceInfo(situation: 'consumption', values: {'action': 'Looking back at consumption history'}),
+    1: PresenceInfo(situation: 'recent', values: {'action': 'Browsing recently viewed titles'}),
+    2: PresenceInfo(situation: 'ratings', values: {'action': 'Looking through ratings'}),
+    3: PresenceInfo(situation: 'history', values: {'action': 'Reviewing Library History'}),
     4: PresenceInfo(situation: 'history', values: {'action': 'Reading XP History'}),
-    5: PresenceInfo(situation: 'history', values: {'action': 'Reviewing Library History'}),
   };
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) PresenceHub.instance.section(Section.history, _tabPresence[0]);
+    });
+  }
+
+  Future<void> _undoLast(AccountView view) async {
+    final logs = view.logs;
+    if (logs.isEmpty) return;
+    final latest = logs.reduce((a, b) => a.timestamp > b.timestamp ? a : b);
+    final cat = view.category(latest.categoryId);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Undo last entry?'),
+        content: Text('Undo your last logged entry (${cat.name}, ${fmtNumber(latest.amount)} ${latest.unit})? '
+            'It will be removed from history and given back to you as the next task.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Undo entry')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await account.edit((s, now) => undoLastEntry(s, now), label: 'Undo last entry', annotateStreaks: true);
+  }
 
   void _onTab() {
     if (_tabs.indexIsChanging) return;
@@ -80,7 +109,36 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text('History'),
-        actions: [SyncIndicator(account: account)],
+        actions: [
+          ListenableBuilder(
+            listenable: account,
+            builder: (context, _) => Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(
+                tooltip: account.undoStack.isEmpty ? 'Nothing to undo' : 'Undo (${account.undoStack.length})',
+                icon: const Icon(Icons.undo_rounded),
+                onPressed: account.undoStack.isEmpty
+                    ? null
+                    : () async {
+                        final label = await account.undo();
+                        if (label != null && context.mounted) _toast(context, 'Undid $label');
+                      },
+              ),
+              IconButton(
+                tooltip: 'Redo',
+                icon: const Icon(Icons.redo_rounded),
+                onPressed: account.redoStack.isEmpty
+                    ? null
+                    : () async {
+                        final label = await account.redo();
+                        if (label != null && context.mounted) _toast(context, 'Redid $label');
+                      },
+              ),
+              if (account.view?.logs.isNotEmpty == true)
+                IconButton(tooltip: 'Undo last entry', icon: const Icon(Icons.replay_rounded), onPressed: () => _undoLast(account.view!)),
+            ]),
+          ),
+          SyncIndicator(account: account),
+        ],
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
@@ -94,7 +152,6 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           final view = account.view;
           if (view == null) return const SizedBox.shrink();
           return TabBarView(controller: _tabs, children: [
-            _LogsTab(account: account, view: view),
             ConsumptionHistoryTab(
               account: account,
               view: view,
@@ -104,8 +161,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             ),
             RecentlyViewedTab(account: account, view: view),
             RatingsHistoryTab(account: account, view: view),
-            _XpTab(view: view),
             _LibraryHistoryTab(account: account, view: view),
+            _XpTab(view: view),
           ]);
         },
       ),
@@ -170,369 +227,6 @@ Future<void> editHistoryEntry(BuildContext context, AccountController account, A
 }
 
 // ---- Logs --------------------------------------------------------------------------
-
-class _LogsTab extends StatefulWidget {
-  const _LogsTab({required this.account, required this.view});
-  final AccountController account;
-  final AccountView view;
-
-  @override
-  State<_LogsTab> createState() => _LogsTabState();
-}
-
-class _LogsTabState extends State<_LogsTab> with AutomaticKeepAliveClientMixin {
-  final _search = TextEditingController();
-  final Set<String> _cats = {};
-  final Set<String> _selected = {};
-  String _media = 'all';
-  bool _showSkipped = true;
-  int _page = 0;
-
-  AccountController get account => widget.account;
-  AccountView get view => widget.view;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  int get _pageSize => AppPrefs.instance.get<int>('historyPageSize', 50);
-
-  List<LogRecord> _filtered() {
-    final q = _search.text.trim().toLowerCase();
-    final types = {for (final c in view.categories) c.id: jsStr(c.raw['type'])};
-    final byTime = memoFor(view, 'logsByTime', () => List<LogRecord>.of(view.logs)..sort((a, b) => b.timestamp.compareTo(a.timestamp)));
-    final out = byTime.where((l) {
-      if (l.skipped && !_showSkipped) return false;
-      if (_cats.isNotEmpty && !_cats.contains(l.categoryId)) return false;
-      if (_media != 'all') {
-        final t = types[l.categoryId] ?? '';
-        final known = const ['video', 'reading', 'playing', 'listening'].contains(t);
-        if ((_media == 'other' && known) || (_media != 'other' && t != _media)) return false;
-      }
-      if (q.isNotEmpty) {
-        final hay = '${l.titleSummary} ${l.note} ${view.category(l.categoryId).name}'.toLowerCase();
-        if (!hay.contains(q)) return false;
-      }
-      return true;
-    }).toList();
-    return out;
-  }
-
-  Future<void> _delete(List<String> ids, String what) async {
-    final removed = await deleteHistoryEntries(context, account, ids, what);
-    if (removed == null || !mounted) return;
-    setState(() {
-      _selected.removeAll(ids);
-      _page = 0;
-    });
-  }
-
-  Future<void> _undoLast() async {
-    final logs = view.logs;
-    if (logs.isEmpty) return;
-    final latest = logs.reduce((a, b) => a.timestamp > b.timestamp ? a : b);
-    final cat = view.category(latest.categoryId);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Undo last entry?'),
-        content: Text('Undo your last logged entry (${cat.name}, ${fmtNumber(latest.amount)} ${latest.unit})? '
-            'It will be removed from history and given back to you as the next task.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Undo entry')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    await account.edit((s, now) => undoLastEntry(s, now), label: 'Undo last entry', annotateStreaks: true);
-  }
-
-  Future<void> _edit(LogRecord log) => editHistoryEntry(context, account, view, log);
-
-  Future<void> _pickCategories() async {
-    final chosen = {..._cats};
-    final res = await showModalBottomSheet<Set<String>>(
-      context: context,
-      backgroundColor: MF.surface,
-      isScrollControlled: true,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => SafeArea(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.8),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              ListTile(
-                title: const Text('Categories', style: TextStyle(fontWeight: FontWeight.w800)),
-                trailing: TextButton(onPressed: () => set(chosen.clear), child: const Text('All')),
-              ),
-              Flexible(
-                child: ListView(shrinkWrap: true, children: [
-                  for (final cat in view.categories)
-                    CheckboxListTile(
-                      value: chosen.contains(cat.id),
-                      onChanged: (v) => set(() => v == true ? chosen.add(cat.id) : chosen.remove(cat.id)),
-                      secondary: CategoryBadge(cat, size: 26),
-                      title: Text(cat.name),
-                    ),
-                ]),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(c, chosen),
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
-                  child: const Text('Done'),
-                ),
-              ),
-            ]),
-          ),
-        ),
-      ),
-    );
-    if (res != null) {
-      setState(() {
-        _cats
-          ..clear()
-          ..addAll(res);
-        _page = 0;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final list = _filtered();
-    final size = _pageSize;
-    final pages = (list.length / size).ceil().clamp(1, 1 << 30).toInt();
-    if (_page > pages - 1) _page = pages - 1;
-    final pageItems = list.skip(_page * size).take(size).toList();
-    final todayIso = isoDay(DateTime.now());
-    var todayMinutes = 0.0, todayXP = 0.0;
-    for (final l in view.logs) {
-      if (!l.skipped && l.date == todayIso) {
-        todayMinutes += l.minutes;
-        todayXP += l.xp;
-      }
-    }
-    final rows = <Object>[];
-    String? day;
-    for (final l in pageItems) {
-      final d = l.date.isNotEmpty ? l.date : isoDay(DateTime.fromMillisecondsSinceEpoch(l.timestamp));
-      if (d != day) {
-        rows.add(d);
-        day = d;
-      }
-      rows.add(l);
-    }
-    final header = <Widget>[
-      Row(children: [
-        Expanded(
-          child: TextField(
-            controller: _search,
-            onChanged: (_) => setState(() => _page = 0),
-            decoration: const InputDecoration(hintText: 'Search logs, notes, categories', prefixIcon: Icon(Icons.search_rounded)),
-          ),
-        ),
-      ]),
-      const SizedBox(height: 8),
-      Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        ActionChip(
-          avatar: const Icon(Icons.category_outlined, size: 16),
-          label: Text(_cats.isEmpty ? 'All categories' : '${_cats.length} categories'),
-          onPressed: _pickCategories,
-        ),
-        CompactDropdown<String>(value: _media, items: _mediaTypes, onChanged: (v) => setState(() => _media = v), maxWidth: 180),
-        FilterChip(label: const Text('Skipped'), selected: _showSkipped, onSelected: (v) => setState(() => _showSkipped = v)),
-        CompactDropdown<int>(
-          value: size,
-          items: const [(25, '25 per page'), (50, '50 per page'), (100, '100 per page'), (250, '250 per page')],
-          onChanged: (v) => setState(() {
-            AppPrefs.instance.set('historyPageSize', v);
-            _page = 0;
-          }),
-          maxWidth: 150,
-        ),
-      ]),
-      const SizedBox(height: 8),
-      Row(children: [
-        _Stat(label: 'Today', value: fmtMinutes(todayMinutes)),
-        const SizedBox(width: 8),
-        _Stat(label: 'XP today', value: '+${fmtNumber(todayXP)}'),
-        const SizedBox(width: 8),
-        _Stat(label: 'Shown logs', value: fmtNumber(list.length)),
-      ]),
-      const SizedBox(height: 6),
-      Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        OutlinedButton.icon(
-          onPressed: account.undoStack.isEmpty
-              ? null
-              : () async {
-                  final label = await account.undo();
-                  if (label != null && context.mounted) _toast(context, 'Undid $label');
-                },
-          icon: const Icon(Icons.undo_rounded, size: 18),
-          label: Text('Undo${account.undoStack.isEmpty ? '' : ' (${account.undoStack.length})'}'),
-        ),
-        OutlinedButton.icon(
-          onPressed: account.redoStack.isEmpty
-              ? null
-              : () async {
-                  final label = await account.redo();
-                  if (label != null && context.mounted) _toast(context, 'Redid $label');
-                },
-          icon: const Icon(Icons.redo_rounded, size: 18),
-          label: const Text('Redo'),
-        ),
-        if (view.logs.isNotEmpty)
-          TextButton.icon(onPressed: _undoLast, icon: const Icon(Icons.replay_rounded, size: 18), label: const Text('Undo last entry')),
-      ]),
-      Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        TextButton(
-          onPressed: pageItems.isEmpty ? null : () => setState(() => _selected.addAll(pageItems.map((l) => l.id))),
-          child: const Text('Select visible'),
-        ),
-        if (_selected.isNotEmpty) TextButton(onPressed: () => setState(_selected.clear), child: const Text('Deselect all')),
-        if (_selected.isNotEmpty)
-          FilledButton.tonalIcon(
-            onPressed: () => _delete(_selected.toList(), 'selected'),
-            icon: const Icon(Icons.delete_outline_rounded, size: 18),
-            label: Text('Delete selected (${_selected.length})'),
-          ),
-        TextButton(
-          onPressed: pageItems.isEmpty ? null : () => _delete(pageItems.map((l) => l.id).toList(), 'visible'),
-          child: const Text('Delete visible', style: TextStyle(color: MF.bad)),
-        ),
-      ]),
-    ];
-    return RefreshIndicator(
-      onRefresh: account.sync,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
-        itemCount: header.length + (rows.isEmpty ? 1 : rows.length) + 1,
-        itemBuilder: (context, i) {
-          if (i < header.length) return Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: header[i]);
-          final k = i - header.length;
-          if (rows.isEmpty && k == 0) {
-            return Padding(
-              padding: EdgeInsets.all(32),
-              child: Text('No logs match these filters.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
-            );
-          }
-          if (k >= (rows.isEmpty ? 1 : rows.length)) {
-            return pages <= 1
-                ? const SizedBox.shrink()
-                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    IconButton(icon: const Icon(Icons.chevron_left_rounded), onPressed: _page == 0 ? null : () => setState(() => _page--)),
-                    Text('Page ${_page + 1} of $pages'),
-                    IconButton(icon: const Icon(Icons.chevron_right_rounded), onPressed: _page >= pages - 1 ? null : () => setState(() => _page++)),
-                  ]);
-          }
-          final row = rows[k];
-          if (row is String) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-              child: Text(fmtDay(row), style: TextStyle(color: MF.accent, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
-            );
-          }
-          final log = row as LogRecord;
-          return _LogRow(
-            log: log,
-            view: view,
-            selected: _selected.contains(log.id),
-            onSelect: (v) => setState(() => v ? _selected.add(log.id) : _selected.remove(log.id)),
-            onTap: () => _edit(log),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: MF.border)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-          Text(label, style: TextStyle(color: MF.textDim, fontSize: 12)),
-        ]),
-      ),
-    );
-  }
-}
-
-class _LogRow extends StatelessWidget {
-  const _LogRow({required this.log, required this.view, required this.selected, required this.onSelect, required this.onTap});
-  final LogRecord log;
-  final AccountView view;
-  final bool selected;
-  final ValueChanged<bool> onSelect;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final category = view.category(log.categoryId);
-    final unit = log.unit.isEmpty ? category.unit : log.unit;
-    final status = _statusLabels[log.status] ?? (log.status.isEmpty ? 'Logged' : log.status);
-    final detail = log.skipped
-        ? 'Skipped'
-        : '${fmtNumber(log.amount)} ${unitLabel(unit, log.amount)} · ${fmtMinutes(log.minutes)} · +${fmtNumber(log.xp)} XP · $status';
-    final repeat = log.titles.any((t) => t['repeat'] == true);
-    final firstTitle = log.titles.isEmpty ? null : log.titles.first;
-    final item = firstTitle == null ? null : view.library.where((t) => t.id == jsStr(firstTitle['libraryId'])).firstOrNull;
-    final time = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
-    return Opacity(
-      opacity: log.skipped ? 0.55 : 1,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        onLongPress: () => onSelect(!selected),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Checkbox(value: selected, onChanged: (v) => onSelect(v == true), visualDensity: VisualDensity.compact),
-            if (item != null) Cover(title: item, category: category, width: 34) else CategoryBadge(category, size: 34),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(log.titleSummary.isEmpty ? category.name : log.titleSummary,
-                    maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(detail, style: TextStyle(color: MF.textDim, fontSize: 12.5)),
-                Text('${category.name} · ${TimeOfDay.fromDateTime(time).format(context)}${log.source == 'batch' ? ' · Batch Log' : ''}',
-                    style: TextStyle(color: MF.textDim, fontSize: 11.5)),
-                if (log.note.isNotEmpty && log.note != log.titleSummary)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(log.note, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: MF.textDim, fontSize: 12.5, fontStyle: FontStyle.italic)),
-                  ),
-              ]),
-            ),
-            if (repeat)
-              Padding(
-                padding: EdgeInsets.only(left: 6),
-                child: Tooltip(message: 'Rewatch / reread', child: Icon(Icons.replay_rounded, size: 18, color: MF.accent)),
-              ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
 
 class _SessionEdit {
   _SessionEdit({this.delete = false, this.categoryId = '', this.date = '', this.status = '', this.target = 0, this.actual = 0, this.minutes = 0, this.note = ''});

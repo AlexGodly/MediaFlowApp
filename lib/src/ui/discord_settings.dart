@@ -66,7 +66,7 @@ class DiscordSettings extends StatelessWidget {
             title: const Text('Show what I\'m doing in MediaFlow on Discord'),
             subtitle: Text(DiscordPresence.mobile
                 ? 'On this device. Link your Discord account once (Discord\'s own sign-in).'
-                : 'On this PC, while the Discord app is open. Nothing to link.'),
+                : 'On this PC, through the Discord app. Or link your Discord account to show it even when the Discord app is closed.'),
             value: d.enabled,
             onChanged: (v) => d.setEnabled(v),
           ),
@@ -75,11 +75,11 @@ class DiscordSettings extends StatelessWidget {
               Icon(Icons.circle, size: 10, color: d.connected ? MF.good : MF.textMute),
               const SizedBox(width: 8),
               Expanded(child: Text(d.statusText, style: const TextStyle(fontWeight: FontWeight.w700))),
-              if (DiscordPresence.mobile && !d.linked)
+              if (!d.linked)
                 FilledButton.icon(
                   onPressed: d.linking ? null : d.link,
                   icon: const Icon(Icons.link_rounded),
-                  label: Text(d.linking ? 'Waiting…' : 'Link Discord'),
+                  label: Text(d.linking ? 'Waiting…' : DiscordPresence.mobile ? 'Link Discord' : 'Link account'),
                 )
               else if (d.linked)
                 TextButton(onPressed: d.unlink, child: const Text('Unlink')),
@@ -174,7 +174,42 @@ class DiscordSettings extends StatelessWidget {
             value: c.showAction,
             onChanged: (v) => _save({'showAction': v}),
           ),
-          _choice<String>('When idle', c.idle, const [('show', 'Show the Idle status'), ('clear', 'Clear my status')], (v) => _save({'idle': v})),
+          _choice<String>('When MediaFlow is closed', DiscordPresence.onClose, const [
+            ('stop', 'Stop showing my status'),
+            ('keep', 'Keep showing it while MediaFlow still runs'),
+          ], (v) async {
+            await DiscordPresence.setOnClose(v);
+            DiscordPresence.instance.resume();
+          }, help: 'Phones: when MediaFlow goes to the background. Windows: when the window is closed to the tray. This device only.'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Never appear idle'),
+            subtitle: const Text('Keep showing what I was doing instead of switching to the Idle status.'),
+            value: c.neverIdle,
+            onChanged: (v) => _save({'neverIdle': v}),
+          ),
+          if (!c.neverIdle)
+            _choice<String>('When idle', c.idle, const [('show', 'Keep my status (show Idle)'), ('clear', 'Clear my status')], (v) => _save({'idle': v})),
+          _choice<String>('Activity type', c.activityType, const [
+            ('auto', 'MediaFlow decides (Watching / Listening / Playing by category)'),
+            ('playing', 'Always Playing'),
+            ('watching', 'Always Watching'),
+            ('listening', 'Always Listening to'),
+            ('competing', 'Always Competing in'),
+          ], (v) => _save({'activityType': v}), help: 'Custom Status keeps its own type.'),
+          if (d.supportsOnlineStatus)
+            _choice<String>('Online status while MediaFlow runs', c.onlineStatus, const [
+              ('default', 'Leave it as it is'),
+              ('online', 'Online'),
+              ('idle', 'Idle'),
+              ('dnd', 'Do Not Disturb'),
+              ('invisible', 'Invisible'),
+            ], (v) => _save({'onlineStatus': v}), help: 'Needs a linked Discord account.'),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Platform (desktop or phone) is shown by Discord itself; its SDK has no setting to change it.',
+                style: TextStyle(color: MF.textMute, fontSize: 11)),
+          ),
           _choice<int>('Idle after', c.idleMinutes, const [(2, '2 minutes'), (5, '5 minutes'), (10, '10 minutes'), (15, '15 minutes'), (30, '30 minutes')],
               (v) => _save({'idleMinutes': v})),
           const SizedBox(height: 14),
@@ -376,8 +411,8 @@ class _PinnedTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.push_pin_rounded),
-      title: Text(t == null ? 'Show a title on Discord' : 'Showing on Discord: ${t.title}'),
-      subtitle: Text(t == null ? 'Pick any Library title to show as if you\'re on it' : 'Shown on all your devices until you stop it'),
+      title: Text(t == null ? 'Consuming… (show a title on Discord)' : 'Consuming: ${t.title}'),
+      subtitle: Text(t == null ? 'Pick any Library title to show as if you\'re on it (also on the Log page)' : 'Shown on all your devices until you stop it'),
       trailing: t == null
           ? const Icon(Icons.chevron_right_rounded)
           : TextButton(onPressed: () => stopShowingOnDiscord(a), child: const Text('Stop')),

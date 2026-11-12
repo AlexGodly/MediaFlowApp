@@ -38,6 +38,9 @@ void main() {
     expect(m['appActiveMs'], 15 * 60000);
     expect(m['appMs.android'], 600000);
     expect(asMap(asMap(s['xpLedger'])!['v334ActiveTimeDays'])?[day], isNull, reason: 'website time untouched');
+    expect(asMap(s['xpLedger'])!['mf565LastSeenAt'], now + 1, reason: 'website v565: app time is never counted again as away time');
+    AppTimeOp(id: 'c', day: day, ms: 60000, platform: 'android', at: now - 50).apply(s);
+    expect(asMap(s['xpLedger'])!['mf565LastSeenAt'], now + 1, reason: 'the newest last-seen wins');
   });
 
   test('app time from two devices adds up after sync', () async {
