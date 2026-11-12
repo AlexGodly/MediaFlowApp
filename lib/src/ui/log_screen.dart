@@ -24,6 +24,7 @@ import '../state/models.dart';
 import '../util/js.dart';
 import '../logic/custom_status.dart' show activePin;
 import 'collections_screen.dart' show pickLibraryTitles;
+import 'discord_card.dart' show DiscordActivityCard;
 import 'discord_settings.dart' show showOnDiscord, stopShowingOnDiscord;
 import 'extras_screen.dart' show OnThisDayCard;
 import 'floating_dock.dart' show DockAction, FloatingDock;
@@ -514,35 +515,64 @@ class _LogScreenState extends State<LogScreen> {
   /// every device until you stop it.
   Widget _consumingBar(AccountView view) {
     final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
-    final t = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
+    final pinned = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
+    // The title being logged (the last one added to the log), when nothing is pinned.
+    LibraryTitle? logging;
+    if (pinned == null && _task != null && _logDraft != null) {
+      final id = jsStr(_editor(view)?.entries.lastOrNull?['libraryId']);
+      if (id.isNotEmpty) logging = view.library.where((x) => x.id == id).firstOrNull;
+    }
+    final t = pinned ?? logging;
+    final showPreview = DiscordPresence.supported && DiscordPresence.instance.enabled;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
         color: MF.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: t == null ? MF.border : MF.accent)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: pinned == null ? MF.border : MF.accent)),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 10, 8),
-          child: Row(children: [
-            Icon(Icons.play_circle_outline_rounded, color: t == null ? MF.textDim : MF.accent),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text(t == null ? 'Consuming…' : 'Consuming ${t.title}',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
-                Text(t == null ? 'Show on Discord what you\'re watching, reading or playing right now.' : 'Shown on Discord on all your devices.',
-                    style: const TextStyle(fontSize: 12)),
-              ]),
-            ),
-            const SizedBox(width: 8),
-            t == null
-                ? OutlinedButton(
-                    onPressed: () async {
-                      final ids = await pickLibraryTitles(context, view, title: 'What are you consuming?', single: true);
-                      if (ids != null && ids.isNotEmpty && mounted) await showOnDiscord(context, account, ids.first);
-                    },
-                    child: const Text('Start'),
-                  )
-                : TextButton(onPressed: () => stopShowingOnDiscord(account), child: const Text('Stop')),
+          padding: const EdgeInsets.fromLTRB(16, 8, 10, 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              Icon(Icons.play_circle_outline_rounded, color: t == null ? MF.textDim : MF.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(t == null ? 'Consuming…' : 'Consuming ${t.title}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Text(
+                    pinned != null
+                        ? 'Shown on Discord on all your devices.'
+                        : logging != null
+                            ? 'The title you\'re logging. Pin it to keep showing it on Discord.'
+                            : 'Show on Discord what you\'re watching, reading or playing right now.',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              if (pinned != null)
+                TextButton(onPressed: () => stopShowingOnDiscord(account), child: const Text('Stop'))
+              else ...[
+                if (logging != null)
+                  OutlinedButton(onPressed: () => showOnDiscord(context, account, logging!.id), child: const Text('Pin')),
+                IconButton(
+                  tooltip: logging == null ? 'Start' : 'Choose another title',
+                  icon: Icon(logging == null ? Icons.play_arrow_rounded : Icons.swap_horiz_rounded),
+                  onPressed: () async {
+                    final ids = await pickLibraryTitles(context, view, title: 'What are you consuming?', single: true);
+                    if (ids != null && ids.isNotEmpty && mounted) await showOnDiscord(context, account, ids.first);
+                  },
+                ),
+              ],
+            ]),
+            // What Discord shows right now (the same preview as Settings → Discord).
+            if (showPreview) ...[
+              const SizedBox(height: 8),
+              ListenableBuilder(
+                listenable: DiscordPresence.instance,
+                builder: (context, _) => DiscordActivityCard(activity: DiscordPresence.instance.effective(), empty: 'Nothing shown on Discord right now'),
+              ),
+            ],
           ]),
         ),
       ),
