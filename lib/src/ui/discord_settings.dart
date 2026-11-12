@@ -15,6 +15,7 @@ import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles;
 import 'custom_status_screen.dart' show openCustomStatus;
 import 'discord_card.dart';
+import 'rpc_modify_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -98,6 +99,14 @@ class DiscordSettings extends StatelessWidget {
               label: Text(currentCustomStatus(asMap(account?.view?.state['settings']), DateTime.now()) == null
                   ? 'Custom Status…'
                   : 'Custom Status… (active)'),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: account == null ? null : () => openRpcModify(context, account!),
+              icon: const Icon(Icons.edit_note_rounded),
+              label: Text(c.advanced ? 'Modify MediaFlow\'s status… (Advanced RPC mode on)' : 'Modify MediaFlow\'s status… (Advanced RPC mode)'),
             ),
           ),
           const SizedBox(height: 6),
