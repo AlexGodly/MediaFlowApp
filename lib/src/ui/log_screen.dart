@@ -15,6 +15,7 @@ import '../data/account_ops.dart';
 import '../data/app_prefs.dart';
 import '../logic/log_arrange.dart';
 import '../logic/log_draft.dart';
+import '../logic/title_units.dart' show titleUnit;
 import '../logic/rec_submit.dart';
 import '../logic/recommend.dart';
 import '../logic/resume.dart';
@@ -116,6 +117,7 @@ class _LogScreenState extends State<LogScreen> {
 
   @override
   void dispose() {
+    PresenceHub.instance.liveLog = null;
     account.removeListener(_onAccount);
     account.stopLiveDraft();
     FloatingDock.openLoggingLibrary.removeListener(_onDockOpen);
@@ -1646,6 +1648,11 @@ class _LogScreenState extends State<LogScreen> {
   /// draft (the entry edited last, the first, or all of them — Settings), so
   /// typing "13" shows 13 right away; "Up next" while a recommendation waits.
   void _reportPresence(AccountView view, Map<String, dynamic>? task, bool formOpen) {
+    // 7.1.1: Consuming… reads the draft as it is on this page right now.
+    final liveTask = _task, liveDraft = _logDraft;
+    PresenceHub.instance.liveLog = formOpen && liveTask != null && liveDraft != null
+        ? () => (state: view.state, task: liveTask, logDraft: liveDraft)
+        : null;
     PresenceInfo? info;
     final t = formOpen ? _task : task;
     if (t != null && (formOpen || view.state['sessionActive'] == true)) {
@@ -1677,15 +1684,10 @@ class _LogScreenState extends State<LogScreen> {
       double? progress, before;
       String? season;
       if (ed != null && entry != null && item != null) {
-        before = jsNumOrNull(entry['v179StartProgress']) ?? LogDraftEditor.startProgress(item);
-        if (ed.itemized) {
-          progress = ed.projectedProgress(item, entry);
-        } else if (entry['v179EndProgress'] != null) {
-          progress = jsNum(entry['v179EndProgress']);
-        } else {
-          progress = before + jsNum(entry['qty']);
-        }
-        season = jsStr(ed.selectedSeason(entry, item)?['name']);
+        final d = draftProgress(ed, item, entry);
+        progress = d.progress;
+        before = d.before;
+        season = d.season;
       }
       final others = entries.length > 1 ? entries.length - 1 : 0;
       final allMode = DiscordPresence.instance.config.draftEntry == 'all' && others > 0;
@@ -1735,7 +1737,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                collapsed ? '+${fmtNumber(qty)} ${_word(cat.unit, qty)}' : parts.join(' · '),
+                collapsed ? '+${fmtNumber(qty)} ${_word(titleUnit(item, cat.raw), qty)}' : parts.join(' · '),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: MF.textDim, fontSize: 12),
@@ -1755,7 +1757,7 @@ class _LogScreenState extends State<LogScreen> {
                     ? CommitField(
                         key: ValueKey('end-${entryKey(e)}'),
                         value: _plain(e['v179EndProgress']),
-                        label: _progressLabel(cat),
+                        label: _progressLabel(item, cat),
                         min: start.floor(),
                         max: total > 0 ? math.max(start, total).floor() : _stepLimit,
                         helper: item == null ? null : 'Saved at ${_num(start)}${jsTruthy(item['total']) ? ' of ${_num(item['total'])}' : ''}',
@@ -1784,7 +1786,7 @@ class _LogScreenState extends State<LogScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                '+${fmtNumber(qty)} ${_word(cat.unit, qty)}',
+                '+${fmtNumber(qty)} ${_word(titleUnit(item, cat.raw), qty)}',
                 style: TextStyle(fontWeight: FontWeight.w800, color: qty > 0 ? MF.accent : MF.textDim),
               ),
             ]),
@@ -1795,7 +1797,7 @@ class _LogScreenState extends State<LogScreen> {
     );
   }
 
-  String _progressLabel(Category cat) => '${_cap(_word(cat.unit, 1))} reached';
+  String _progressLabel(Map<String, dynamic>? item, Category cat) => '${_cap(_word(titleUnit(item, cat.raw), 1))} reached';
 
   /// "Episode 12 → 15 / 28" for an entry: where the title stands before this
   /// log and where it will be after it (website v179 start / end progress,
@@ -1803,7 +1805,8 @@ class _LogScreenState extends State<LogScreen> {
   Widget _beforeAfter(LogDraftEditor ed, Map<String, dynamic> e, Map<String, dynamic>? item, Category cat) {
     if (item == null) return const SizedBox.shrink();
     final repeat = e['isRepeat'] == true;
-    final before = repeat ? 0.0 : (jsNumOrNull(e['v179StartProgress']) ?? LogDraftEditor.startProgress(item));
+    final start = e['v179StartProgress'];
+    final before = repeat ? 0.0 : (start == null || (start is String && start.trim().isEmpty) ? LogDraftEditor.startProgress(item) : jsNum(start));
     final double after;
     if (ed.itemized) {
       after = ed.projectedProgress(item, e);
@@ -1815,7 +1818,7 @@ class _LogScreenState extends State<LogScreen> {
     final total = jsNum(item['total']);
     final season = jsStr(ed.selectedSeason(e, item)?['name']);
     final done = total > 0 && after >= total;
-    final noun = _cap(_word(cat.unit, 1));
+    final noun = _cap(_word(titleUnit(item, cat.raw), 1));
     return Padding(
       padding: const EdgeInsets.only(top: 6, right: 8),
       child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 4, children: [
@@ -1848,7 +1851,7 @@ class _LogScreenState extends State<LogScreen> {
     final method = LogDraftEditor.method(e);
     final seasons = LogDraftEditor.seasonsOf(item);
     final selected = item == null ? null : ed.selectedSeason(e, item);
-    final noun = _cap(_word(cat.unit, 1));
+    final noun = _cap(_word(titleUnit(item, cat.raw), 1));
     final collapsed = e['v369Collapsed'] == true;
     final showAll = e['v369ShowAll'] == true;
     final title = cleanTitle(e['title']);
@@ -1865,7 +1868,7 @@ class _LogScreenState extends State<LogScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
               Text(
-                '${units.length} ${_word(cat.unit, units.length)} · ${_hms(ed.runtimeSeconds(e))}'
+                '${units.length} ${_word(titleUnit(item, cat.raw), units.length)} · ${_hms(ed.runtimeSeconds(e))}'
                 '${item != null ? ' · saved ${_num(item['progress'])}${jsTruthy(item['total']) ? '/${_num(item['total'])}' : ''}' : ''}'
                 '${e['isRepeat'] == true ? ' · rewatch' : ''}',
                 style: TextStyle(color: MF.textDim, fontSize: 12),
@@ -1957,7 +1960,7 @@ class _LogScreenState extends State<LogScreen> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Log another ${_word(cat.unit, 1)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text('Log another ${_word(titleUnit(item, cat.raw), 1)}', style: const TextStyle(fontWeight: FontWeight.w800)),
         const SizedBox(height: 8),
         CommitField(
           key: ValueKey('next-${entryKey(e)}-${jsStr(season?['id'])}'),
@@ -2143,7 +2146,7 @@ class _LogScreenState extends State<LogScreen> {
     final base = LogDraftEditor.bulkBase(e, item, season);
     final highest = rel.units.isEmpty ? base : rel.units.map((u) => jsNum(u['number']).toInt()).reduce((a, b) => a > b ? a : b);
     final value = method == 'last' ? highest : rel.units.length;
-    final label = method == 'last' ? '${_cap(_word(cat.unit, 1))} reached' : 'Amount consumed';
+    final label = method == 'last' ? '${_cap(_word(titleUnit(item, cat.raw), 1))} reached' : 'Amount consumed';
     // `mf504AdvancedBounds`.
     final limit = jsNum(season != null ? season['total'] : item['total']).floor();
     final countMax = math.min(2000, limit > 0 ? math.max(0, limit - base) : 2000);
@@ -2157,7 +2160,7 @@ class _LogScreenState extends State<LogScreen> {
         decimal: false,
         min: method == 'last' ? base : 0,
         max: method == 'last' ? base + countMax : countMax,
-        helper: 'Saved progress: $base · draft: ${rel.units.length} ${_word(cat.unit, rel.units.length)}',
+        helper: 'Saved progress: $base · draft: ${rel.units.length} ${_word(titleUnit(item, cat.raw), rel.units.length)}',
         onCommit: (t) => _setQuantity(index, t),
       ),
       const SizedBox(height: 8),
