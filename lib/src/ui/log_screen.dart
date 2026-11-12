@@ -425,6 +425,7 @@ class _LogScreenState extends State<LogScreen> {
             final wide = box.maxWidth >= 1100;
             if (wide && formOpen) {
               return SingleChildScrollView(
+                key: const ValueKey('log-form-wide'),
                 padding: EdgeInsets.fromLTRB(24, 4, 24, bottom),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                   ...top,
@@ -450,6 +451,8 @@ class _LogScreenState extends State<LogScreen> {
             // One column, as wide as reads well, but scrollable across the whole page.
             final side = math.max(16.0, (box.maxWidth - (wide ? 1100 : 760)) / 2);
             return ListView(
+              // Opening or closing a log starts at the top of the page.
+              key: ValueKey('log-$formOpen'),
               padding: EdgeInsets.fromLTRB(side, 4, side, bottom),
               // Wider windows follow the website's Dashboard (Today on top);
               // phones put the task first and Today / On This Day below it.
