@@ -2,6 +2,7 @@
 // Undo / Redo, Undo last entry), the XP History journal with CSV/JSON export, and
 // Library History with restore for deleted titles — the website's History page.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
