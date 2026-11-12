@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow/src/data/account_controller.dart';
+import 'package:mediaflow/src/data/sync_engine.dart';
 import 'package:mediaflow/src/state/state_codec.dart';
 import 'package:mediaflow/src/util/js.dart';
 
