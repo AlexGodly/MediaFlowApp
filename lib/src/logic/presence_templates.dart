@@ -60,6 +60,8 @@ const kPresencePlaceholders = <(String, String)>[
   ('{level}', 'Your level · 24'),
   ('{streak}', 'Day streak · 7'),
   ('{xp}', 'Total XP · 12,345'),
+  ('{cover}', 'Image: the title\'s cover (Advanced RPC mode)'),
+  ('{logo}', 'Image: the MediaFlow logo (Advanced RPC mode)'),
   ('{library}', 'Library size · 1,240'),
   ('{rerolls}', 'Rerolls of the current task · 3'),
 ];
@@ -180,6 +182,39 @@ class PresenceConfig {
 
   /// show | clear.
   String get idle => _pick('idle', const ['show', 'clear'], 'show');
+
+  /// v6 Advanced RPC mode: the automatic status can be modified field by
+  /// field, like a Custom Status (per situation, or 'all' for every one).
+  bool get advanced => raw['advanced'] == true;
+
+  /// The modified fields for [situation] (or every situation's), when set.
+  Map<String, dynamic>? modified(String situation) {
+    final m = asMap(raw['modified']);
+    return asMap(m?[situation]) ?? asMap(m?['all']);
+  }
+
+  /// Which situations have their own modifications.
+  List<String> get modifiedSituations => [...?asMap(raw['modified'])?.keys];
+
+  /// The automatic status of [situation] as editable fields (what "Modify"
+  /// starts from). Placeholders keep it live; {cover} and {logo} are images.
+  Map<String, dynamic> modifyFields(String situation) {
+    final t = template(situation);
+    final cover = picture == 'cover';
+    return {
+      'name': switch (activityName) { 'custom' => nameTemplate, 'status' => '', _ => 'MediaFlow' },
+      'details': t.$1,
+      'state': t.$2,
+      'display': switch (statusLine) { 'details' => 'details', 'state' => 'state', _ => 'name' },
+      'type': activityType,
+      'largeImage': cover ? '{cover}' : '{logo}',
+      'largeText': largeText,
+      'smallImage': cover && smallPicture == 'logo' ? '{logo}' : '',
+      'smallText': cover && smallPicture == 'logo' ? smallText : '',
+      'detailsUrl': '', 'stateUrl': '', 'largeUrl': '', 'smallUrl': '',
+      'buttons': <dynamic>[],
+    };
+  }
 
   /// v6: whether progress (episode, chapter, total, percent) is shown at all.
   bool get showProgress => raw['showProgress'] != false;

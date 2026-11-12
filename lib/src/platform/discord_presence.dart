@@ -408,35 +408,54 @@ class DiscordPresence extends ChangeNotifier {
   /// What is actually shown: Custom Status when one applies, else a title
   /// pinned with "Show on Discord", else the situation's templates — after
   /// the privacy settings.
-  DiscordActivity? effective() {
+  ///
+  /// [using] and [situation] preview a modified config (Advanced RPC mode).
+  DiscordActivity? effective({PresenceConfig? using, String? situation}) {
     final now = DateTime.now();
-    final custom = currentCustomStatus(accountSettings, now);
+    final custom = using != null ? null : currentCustomStatus(accountSettings, now);
     if (custom != null) return customActivity(custom.status, custom.appliedAt);
-    final c = config;
+    final c = using ?? config;
+    final auto = _automatic(c, now, situation);
+    if (auto == null || !c.advanced) return auto;
+    final sit = situation ?? auto.$2;
+    final m = c.modified(sit);
+    return m == null ? auto.$1 : _modified(auto.$1, m, auto.$3);
+  }
+
+  /// The situation on screen now (what "Modify" opens first).
+  String get currentSituation => _idle ? 'idle' : (_wanted?.situation ?? 'other');
+
+  /// The automatic status, its situation and its placeholder values.
+  (DiscordActivity, String, Map<String, String>)? _automatic(PresenceConfig c, DateTime now, String? forced) {
     final statusLine = switch (c.statusLine) { 'details' => 2, 'state' => 1, _ => 0 };
     final g = globals?.call() ?? const <String, String>{};
     final pin = activePin(c.raw, now.millisecondsSinceEpoch);
     final pinned = pin == null ? null : pinnedInfo?.call(pin.titleId);
-    if (_idle && pinned == null && !c.neverIdle) {
-      if (c.idle == 'clear') return null;
+    if ((forced == 'idle') || (forced == null && _idle && pinned == null && !c.neverIdle)) {
+      if (c.idle == 'clear' && forced == null) return null;
       final t = c.template('idle');
       final d = renderPresence(t.$1, g);
       final details = _clip(d.isEmpty ? 'Idle in MediaFlow' : d);
       final state = _opt(renderPresence(t.$2, g));
-      return DiscordActivity(
-        name: _activityName(c, statusLine, details, state, g),
-        details: details,
-        state: state,
-        large: logoUrl,
-        largeText: 'MediaFlow',
-        type: _fixedType(c) ?? ActivityType.playing,
-        statusLine: statusLine,
+      return (
+        DiscordActivity(
+          name: _activityName(c, statusLine, details, state, g),
+          details: details,
+          state: state,
+          large: logoUrl,
+          largeText: 'MediaFlow',
+          type: _fixedType(c) ?? ActivityType.playing,
+          statusLine: statusLine,
+        ),
+        'idle',
+        {...g, 'logo': logoUrl, 'cover': ''},
       );
     }
     final w = pinned ?? _wanted ?? const PresenceInfo(situation: 'other');
     final hidden = w.categoryId != null && c.hiddenCategories.contains(w.categoryId);
     if (c.privacy == 'minimal' || hidden) {
-      return DiscordActivity(
+      // Minimal privacy (or a hidden category) is never modified.
+      final a = DiscordActivity(
         name: 'MediaFlow',
         details: 'Using MediaFlow',
         large: logoUrl,
@@ -445,6 +464,7 @@ class DiscordPresence extends ChangeNotifier {
         statusLine: 0,
         start: c.timer != 'off' ? _startedAt : 0,
       );
+      return (a, '__minimal', const <String, String>{});
     }
     final full = c.privacy == 'full';
     final values = <String, String>{...g, ...w.values};
@@ -462,7 +482,7 @@ class DiscordPresence extends ChangeNotifier {
         values[k] = '';
       }
     }
-    final t = c.template(w.situation);
+    final t = c.template(forced ?? w.situation);
     final details = _clip(renderPresence(t.$1, values).isEmpty ? 'Using MediaFlow' : renderPresence(t.$1, values));
     final state = _opt(renderPresence(t.$2, values));
     final cover = full && c.picture == 'cover' && (w.cover ?? '').startsWith('https://') ? w.cover! : null;
@@ -481,7 +501,7 @@ class DiscordPresence extends ChangeNotifier {
         };
     final largeText = renderPresence(c.largeText, values);
     final smallText = renderPresence(c.smallText, values);
-    return DiscordActivity(
+    final a = DiscordActivity(
       name: _activityName(c, statusLine, details, state, values),
       details: details,
       state: state,
@@ -492,6 +512,55 @@ class DiscordPresence extends ChangeNotifier {
       type: type,
       statusLine: statusLine,
       start: c.timer != 'off' ? _startedAt : 0,
+    );
+    // Images for modified fields: the cover only when privacy shows covers.
+    final coverValue = full && (w.cover ?? '').startsWith('https://') ? w.cover! : '';
+    return (a, forced ?? w.situation, {...values, 'cover': coverValue, 'logo': logoUrl});
+  }
+
+  /// The automatic status with the Advanced RPC mode fields on top. Every
+  /// field takes placeholders; an empty field is left out (an empty Details
+  /// keeps the automatic one).
+  DiscordActivity _modified(DiscordActivity auto, Map<String, dynamic> m, Map<String, String> values) {
+    if (values.isEmpty) return auto; // minimal privacy
+    String fill(String k) => renderPresence(jsStr(m[k]), values).trim();
+    String image(String k) {
+      final v = fill(k);
+      return v.startsWith('https://') || RegExp(r'^[a-z0-9_-]{1,64}$').hasMatch(v) ? v : '';
+    }
+
+    String link(String k) {
+      final v = fill(k);
+      return v.startsWith('https://') ? v : '';
+    }
+
+    final name = fill('name'), details = fill('details'), large = image('largeImage'), small = image('smallImage');
+    return DiscordActivity(
+      name: _clip(name.isEmpty ? auto.name : name),
+      details: details.isEmpty ? auto.details : _clip(details),
+      state: _opt(fill('state')),
+      large: large.isEmpty ? (jsStr(m['largeImage']).trim().isEmpty ? auto.large : logoUrl) : large,
+      largeText: _opt(fill('largeText')),
+      small: small.isEmpty ? null : small,
+      smallText: small.isEmpty ? null : _opt(fill('smallText')),
+      type: switch (m['type']) {
+        'playing' => ActivityType.playing,
+        'watching' => ActivityType.watching,
+        'listening' => ActivityType.listening,
+        'competing' => ActivityType.competing,
+        _ => auto.type,
+      },
+      statusLine: switch (m['display']) { 'details' => 2, 'state' => 1, 'name' => 0, _ => auto.statusLine },
+      start: auto.start,
+      detailsUrl: link('detailsUrl'),
+      stateUrl: link('stateUrl'),
+      largeUrl: link('largeUrl'),
+      smallUrl: link('smallUrl'),
+      buttons: [
+        for (final b in asList(m['buttons']).map(asMap).whereType<Map<String, dynamic>>())
+          if (jsStr(b['label']).trim().isNotEmpty && jsStr(b['url']).startsWith('https://'))
+            (_clip(renderPresence(jsStr(b['label']), values)), jsStr(b['url'])),
+      ],
     );
   }
 
