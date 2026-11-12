@@ -460,6 +460,9 @@ class AccountController extends ChangeNotifier {
 
   final ActionRepeat _repeat = ActionRepeat();
 
+  /// Action XP for something that is not an account edit (exports…).
+  Future<void> actionXp(String group, String subject, String details) => _actionXp(group, subject, details);
+
   /// Earns this kind of action's XP (website mf565AwardAction): once per
   /// 5 minutes for the same thing, written as a replayable ledger event.
   Future<void> _actionXp(String group, String subject, String details) async {

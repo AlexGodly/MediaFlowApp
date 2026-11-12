@@ -26,6 +26,7 @@ import '../logic/category_classes.dart';
 import '../logic/choice_layout.dart';
 import '../logic/title_names.dart';
 import 'category_editor.dart';
+import 'data_cloud.dart';
 import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
@@ -352,6 +353,14 @@ class _AccountSettings extends StatelessWidget {
             title: 'Choice & filter layout',
             subtitle: 'Order and hide the choices in Set Category / Status / Priority and the Library filters',
             child: _ChoiceLayoutEditor(account: account, view: view),
+          ),
+          SectionCard(
+            prefKey: 'settings.dataCloud',
+            initiallyOpen: false,
+            icon: Icons.cloud_sync_rounded,
+            title: 'Data & Cloud',
+            subtitle: 'Backups, Settings Presets, imports and exports',
+            child: DataCloudSection(account: account, view: view),
           ),
         ]);
       },

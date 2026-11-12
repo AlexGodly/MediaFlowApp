@@ -14,6 +14,7 @@ import '../platform/app_time.dart';
 import '../platform/app_shortcuts.dart';
 import '../platform/background_work.dart';
 import '../platform/desktop_tray.dart';
+import '../platform/auto_backup.dart';
 import '../platform/device_report.dart';
 import '../platform/discord_presence.dart';
 import '../platform/notifications.dart';
@@ -172,6 +173,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     AppNotifications.instance.attach(account);
     AppTime.instance.attach(account);
     DeviceReport.instance.attach(account);
+    AutoBackup.instance.attach(account);
     BackgroundWork.instance.attach(account);
     AppShortcuts.instance.attach(account);
     unawaited(AppShortcuts.instance.init());
