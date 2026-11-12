@@ -14,6 +14,7 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../logic/collections_logic.dart' show orderExport, orderImport;
 import '../logic/data_transfer.dart';
+import '../logic/exchange_import.dart';
 import '../platform/auto_backup.dart';
 import '../platform/file_io.dart';
 import '../state/models.dart';
@@ -228,6 +229,7 @@ class DataCloudSection extends StatelessWidget {
         ),
         OutlinedButton.icon(onPressed: () => _importOrder(context), icon: const Icon(Icons.upload_rounded, size: 18), label: const Text('Import')),
       ]),
+      _ExchangeTools(account: account, view: view),
       const Divider(height: 24),
       _AutoBackupEditor(account: account, view: view),
     ]);
@@ -361,5 +363,107 @@ class _AutoBackupEditorState extends State<_AutoBackupEditor> {
           child: Text('Find backups in the Files app → On My iPhone → MediaFlow → MediaFlow Backups.', style: TextStyle(color: MF.textDim, fontSize: 12)),
         ),
     ]);
+  }
+}
+
+/// Import from / export for other services (website Exchange Hub + Advanced
+/// Import's "one category" mode).
+class _ExchangeTools extends StatefulWidget {
+  const _ExchangeTools({required this.account, required this.view});
+  final AccountController account;
+  final AccountView view;
+
+  @override
+  State<_ExchangeTools> createState() => _ExchangeToolsState();
+}
+
+class _ExchangeToolsState extends State<_ExchangeTools> {
+  String _service = 'malxml';
+  String _into = ''; // '' = MediaFlow decides the category
+  bool _busy = false;
+
+  Future<void> _import() async {
+    final f = await pickTextFile(extensions: const ['json', 'xml', 'csv', 'txt']);
+    if (f == null || !mounted) return;
+    List<dynamic> records;
+    Object? json;
+    try {
+      final isXml = f.name.toLowerCase().endsWith('.xml') || RegExp(r'^\s*<').hasMatch(f.text);
+      final isCsv = !isXml && (f.name.toLowerCase().endsWith('.csv') || (!f.name.toLowerCase().endsWith('.json') && f.text.contains(',') && !RegExp(r'^\s*[\[{]').hasMatch(f.text)));
+      if (!isXml && !isCsv) json = jsonDecode(f.text);
+      records = isXml ? xmlRecords(f.text) : (isCsv ? csvRecords(f.text) : flattenJson(json));
+    } catch (_) {
+      return _toast(context, 'MediaFlow could not understand ${f.name}.');
+    }
+    final simkl = _service == 'simkl' && isSimklBackup(json);
+    if (_service == 'simkl' && json != null && !simkl) return _toast(context, 'This does not look like a Simkl JSON backup.');
+    if (records.isEmpty) return _toast(context, 'No recognizable media records were found.');
+    final into = _into.isEmpty ? null : _into;
+    final ok = await _confirm(
+      context,
+      'Import ${f.name}?',
+      '${fmtNumber(records.length)} records from ${serviceName(_service)}. Recognized titles are merged into your Library: matching entries are '
+          'updated before new titles are created, and missing fields are not made up.'
+          '${into == null ? '' : ' Every title goes to ${widget.view.category(into).name}.'}'
+          '${simkl ? ' Simkl\'s watched dates are added to History too.' : ''}',
+      'Import data',
+    );
+    if (!ok || !mounted) return;
+    setState(() => _busy = true);
+    ImportResult? r;
+    await widget.account.edit((copy, now) {
+      var k = 0;
+      String uid() => mediaFlowUid(now + k++);
+      r = mergeImportRecords(copy, records, _service, now: now, uid: uid, intoCategory: into);
+      if (simkl) r!.historyAdded = addSimklHistory(copy, asMap(json)!, uid: uid);
+    }, label: '${serviceName(_service)} import', undoable: false);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    _toast(context, '${serviceName(_service)} import complete · ${r?.summary ?? ''}');
+  }
+
+  Future<void> _export() async {
+    final out = exchangeExport(widget.view.state, _service, DateTime.now());
+    final path = await saveTextFile(out.name, out.content);
+    if (path != null && mounted) {
+      _toast(context, 'Exported for ${serviceName(_service)} ✓');
+      await widget.account.actionXp('data', 'export', 'Export · ${serviceName(_service)}');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(Icons.swap_horiz_rounded, size: 20, color: MF.accent),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Other services', style: TextStyle(fontWeight: FontWeight.w800))),
+        ]),
+        const SizedBox(height: 2),
+        Text('MyAnimeList XML, Simkl (with watched History), AniList, Letterboxd, Trakt, TV Time and more, or any CSV / JSON. '
+            'Dates, covers, IDs, seasons and details are kept when the file has them.',
+            style: TextStyle(color: MF.textDim, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+          CompactDropdown<String>(value: _service, items: kExchangeServices, onChanged: (v) => setState(() => _service = v), maxWidth: 200),
+          CompactDropdown<String>(
+            value: widget.view.categories.any((c) => c.id == _into) ? _into : '',
+            items: [('', 'Category: MediaFlow decides'), for (final c in widget.view.categories) (c.id, 'Into ${c.name}')],
+            onChanged: (v) => setState(() => _into = v),
+            maxWidth: 230,
+          ),
+          FilledButton.tonalIcon(
+            onPressed: _busy ? null : _import,
+            icon: _busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.upload_rounded, size: 18),
+            label: const Text('Import'),
+          ),
+          OutlinedButton.icon(onPressed: _export, icon: const Icon(Icons.download_rounded, size: 18), label: const Text('Export')),
+        ]),
+      ]),
+    );
   }
 }
