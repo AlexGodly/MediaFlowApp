@@ -184,7 +184,13 @@ class DiscordFfi {
               ? DynamicLibrary.open('libdiscord_partner_sdk.so')
               : Platform.isIOS
                   ? DynamicLibrary.open('discord_partner_sdk.framework/discord_partner_sdk')
-                  : throw UnsupportedError('Discord Rich Presence is not available on this platform');
+                  // 7.1.0: next to the app (macOS: MediaFlow.app/Contents/Frameworks,
+                  // Linux: the bundle's lib folder).
+                  : Platform.isMacOS
+                      ? DynamicLibrary.open('${File(Platform.resolvedExecutable).parent.parent.path}/Frameworks/libdiscord_partner_sdk.dylib')
+                      : Platform.isLinux
+                          ? DynamicLibrary.open('${File(Platform.resolvedExecutable).parent.path}/lib/libdiscord_partner_sdk.so')
+                          : throw UnsupportedError('Discord Rich Presence is not available on this platform');
       _instance = DiscordFfi._(lib);
     } catch (e) {
       loadError = '$e';

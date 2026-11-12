@@ -28,19 +28,27 @@ class DeviceReport {
     _check();
   }
 
-  /// 'android' | 'windows' | 'ios' — the names the website uses.
+  /// 'android' | 'windows' | 'ios' | 'macos' | 'linux' — the names the website uses.
   static String get platform => Platform.isAndroid
       ? 'android'
       : Platform.isIOS
           ? 'ios'
           : Platform.isWindows
               ? 'windows'
-              : Platform.operatingSystem;
+              : Platform.isMacOS
+                  ? 'macos'
+                  : Platform.isLinux
+                      ? 'linux'
+                      : Platform.operatingSystem;
 
   static String get label {
     if (Platform.isWindows) {
       final host = Platform.localHostname.trim();
       return host.isEmpty ? 'Windows PC' : host;
+    }
+    if (Platform.isMacOS || Platform.isLinux) {
+      final host = Platform.localHostname.trim().replaceAll(RegExp(r'\.local$'), '');
+      return host.isEmpty ? (Platform.isMacOS ? 'Mac' : 'Linux PC') : host;
     }
     if (Platform.isIOS) return 'iPhone / iPad';
     if (Platform.isAndroid) return 'Android phone';

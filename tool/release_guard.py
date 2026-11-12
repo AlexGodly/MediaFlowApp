@@ -43,10 +43,14 @@ checks = {
     "Android per-ABI build": "flutter build apk --release --split-per-abi" in build,
     "Windows build": "flutter build windows --release" in build,
     "iOS build": "flutter build ios --release --no-codesign" in build,
+    # 7.1.0 (owner's decision): Mac and Linux in every release too.
+    "Mac build": "flutter build macos --release" in build,
+    "Linux build": "flutter build linux --release" in build,
 }
-for name in ("-Android.apk", "-Android-arm64-v8a.apk", "-Android-armeabi-v7a.apk", "-Android-x86_64.apk", "-Windows-x64-Setup.exe", "-Windows-x64-portable.zip", "-iOS-unsigned.ipa", "gh release create"):
+for name in ("-Android.apk", "-Android-arm64-v8a.apk", "-Android-armeabi-v7a.apk", "-Android-x86_64.apk", "-Windows-x64-Setup.exe", "-Windows-x64-portable.zip", "-iOS-unsigned.ipa",
+             "-macOS.dmg", "-macOS.zip", "-Linux-x86_64.AppImage", "-Linux-x86_64.tar.gz", "artifacts/macos/*", "artifacts/linux/*", "gh release create"):
     checks[f"release asset {name}"] = name in workflow
 failed = [k for k, ok in checks.items() if not ok]
 if failed:
     sys.exit("Release contract failed: " + ", ".join(failed))
-print(f"Release contract verified: {tag} (stable; Android, Windows, iOS)")
+print(f"Release contract verified: {tag} (stable; Android, Windows, iOS, Mac, Linux)")
