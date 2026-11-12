@@ -181,6 +181,9 @@ class PresenceConfig {
   /// show | clear.
   String get idle => _pick('idle', const ['show', 'clear'], 'show');
 
+  /// v6: whether progress (episode, chapter, total, percent) is shown at all.
+  bool get showProgress => raw['showProgress'] != false;
+
   /// v6: never switch to the Idle status (keep showing what was last shown).
   bool get neverIdle => raw['neverIdle'] == true;
 

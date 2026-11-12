@@ -163,6 +163,14 @@ class DiscordSettings extends StatelessWidget {
             ('first', 'The first title'),
             ('all', 'The first title + how many more'),
           ], (v) => _save({'draftEntry': v}), help: 'Title and progress come from your log draft, so they change as you type.'),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show progress'),
+            subtitle: const Text('Episode, chapter or page, the total and the percent. Off: only the title and what you\'re doing.'),
+            value: c.showProgress,
+            onChanged: (v) => _save({'showProgress': v}),
+          ),
+          if (c.showProgress)
           _choice<String>('While logging, progress shows', c.progressMode, const [
             ('after', 'After this log (what I\'ve filled in)'),
             ('before', 'Before this log (where the title is now)'),
