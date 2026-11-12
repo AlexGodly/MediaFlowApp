@@ -416,7 +416,7 @@ class DiscordPresence extends ChangeNotifier {
     if (custom != null) return customActivity(custom.status, custom.appliedAt);
     final c = using ?? config;
     final auto = _automatic(c, now, situation);
-    if (auto == null || !c.advanced) return auto;
+    if (auto == null || !c.advanced) return auto?.$1;
     final sit = situation ?? auto.$2;
     final m = c.modified(sit);
     return m == null ? auto.$1 : _modified(auto.$1, m, auto.$3);
