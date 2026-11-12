@@ -554,6 +554,8 @@ class LibraryTitleRow extends StatelessWidget {
         Text('${category.name} · ${progressText(title, category)}$rating', maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: MF.textDim, fontSize: 12.5)),
         Text(statusLabel(title.status), style: TextStyle(color: statusColor(title.status), fontSize: 12, fontWeight: FontWeight.w700)),
+        if (externalRatingsLine(title.raw) case final ext when ext.isNotEmpty)
+          Text(ext, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 11.5)),
         if (layout == 'cards' && pct != null) ...[
           const SizedBox(height: 6),
           LinearProgressIndicator(value: pct, minHeight: 4, borderRadius: BorderRadius.circular(4)),

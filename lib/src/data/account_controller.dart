@@ -27,6 +27,9 @@ enum SyncState { loading, syncing, synced, offline, error }
 
 /// The signed-in account as the UI sees it: the last cloud copy plus any
 /// changes still waiting to upload, applied locally so they show up immediately.
+/// 7.0.0: quiet background writes upload together, at most this often.
+const Duration kQuietSyncDelay = Duration(seconds: 10);
+
 class AccountController extends ChangeNotifier {
   AccountController({
     required this.userId,
@@ -120,6 +123,10 @@ class AccountController extends ChangeNotifier {
   /// Changes that matter to the user (logs and task actions); drafts excluded.
   int get pendingCount => _pending.where((op) => op is! DraftOp).length;
 
+  /// Level, XP, streak and Library size, worked out in the background with
+  /// each sync (7.0.0, for Discord). Null until the first one.
+  Map<String, num>? presenceStats;
+
   /// Changes waiting to upload (read only).
   List<AccountOp> get pendingOps => List.unmodifiable(_pending);
 
@@ -129,6 +136,7 @@ class AccountController extends ChangeNotifier {
       try {
         // Decoded and brought up to date in the background.
         final merged = await mergeInBackground(_bg, cached.raw, cached.pending, encode: false);
+        presenceStats = merged.stats ?? presenceStats;
         _baseRaw = cached.raw;
         _baseUpdatedAt = cached.baseUpdatedAt;
         _index = cached.records;
@@ -165,7 +173,9 @@ class AccountController extends ChangeNotifier {
     _syncing = true;
     status = SyncState.syncing;
     message = null;
-    _notify();
+    // 7.0.0: only the status changed, so only the status listeners hear it
+    // (it used to rebuild every open screen at the start of every sync).
+    syncStatus.value++;
     final batch = List<AccountOp>.of(_pending);
     try {
       final result = await syncOnce(
@@ -187,6 +197,7 @@ class AccountController extends ChangeNotifier {
       }
       _pending.removeWhere((op) => batch.any((b) => identical(b, op)));
       final fresh = result.state;
+      presenceStats = result.stats ?? presenceStats;
       if (fresh != null) {
         // The new cloud copy plus whatever was changed here while syncing.
         for (final op in _pending) {
@@ -245,14 +256,19 @@ class AccountController extends ChangeNotifier {
     return display;
   }
 
-  Future<void> _queue(AccountOp op, Map<String, dynamic> display, {Duration? delay}) async {
+  Future<void> _queue(AccountOp op, Map<String, dynamic> display, {Duration? delay, bool quiet = false}) async {
     // A sync may have replaced the working copy while this change was being
     // prepared; it was made on the old one, so carry it over.
     final current = _display;
     if (current != null && !identical(current, display)) op.apply(current);
     _pending.add(op);
-    _view = AccountView(current ?? display);
-    _notify();
+    if (quiet) {
+      // Same data for every reader; the screens pick it up with the next change.
+      if (!_disposed) syncStatus.value++;
+    } else {
+      _view = AccountView(current ?? display);
+      _notify();
+    }
     await _save();
     if (delay == null) {
       unawaited(sync());
@@ -465,7 +481,7 @@ class AccountController extends ChangeNotifier {
 
   /// Earns this kind of action's XP (website mf565AwardAction): once per
   /// 5 minutes for the same thing, written as a replayable ledger event.
-  Future<void> _actionXp(String group, String subject, String details) async {
+  Future<void> _actionXp(String group, String subject, String details, {bool quiet = false}) async {
     final display = _display;
     if (display == null) return;
     final rate = actionRate(display, group);
@@ -482,7 +498,7 @@ class AccountController extends ChangeNotifier {
       at: now,
     ));
     if (!op.apply(display)) return;
-    await _queue(op, display, delay: const Duration(seconds: 2));
+    await _queue(op, display, delay: quiet ? kQuietSyncDelay : const Duration(seconds: 2), quiet: quiet);
   }
 
   /// Credits time away from MediaFlow (website v565): on opening the app and
@@ -517,11 +533,13 @@ class AccountController extends ChangeNotifier {
 
   /// Saves a change made on this device (applied now, uploaded shortly after).
   /// [supersedes] removes older pending changes the new one fully replaces.
-  Future<bool> perform(AccountOp op, {Duration? delay, bool Function(AccountOp pending)? supersedes}) async {
+  /// [quiet]: background bookkeeping (app time) that no screen shows right
+  /// away: saved and synced as usual, without rebuilding every open screen.
+  Future<bool> perform(AccountOp op, {Duration? delay, bool Function(AccountOp pending)? supersedes, bool quiet = false}) async {
     final display = await _working();
     if (!op.apply(display)) return false;
     if (supersedes != null) _pending.removeWhere(supersedes);
-    await _queue(op, display, delay: delay);
+    await _queue(op, display, delay: delay, quiet: quiet);
     return true;
   }
 
@@ -539,6 +557,7 @@ class AccountController extends ChangeNotifier {
     bool annotateStreaks = false,
     bool undoable = true,
     Duration? delay,
+    bool quiet = false,
   }) async {
     final display = await _working();
     // Only the parts of the account the edit touches are copied and compared.
@@ -553,10 +572,10 @@ class AccountController extends ChangeNotifier {
       if (undoStack.length > 40) undoStack.removeAt(0);
       redoStack.clear();
     }
-    await _queue(op, display, delay: delay);
+    await _queue(op, display, delay: delay, quiet: quiet);
     // v565: XP for the change, unless it already earned its own XP.
     final kind = editGroup([for (final c in op.changes) c.path]);
-    if (kind != null) await _actionXp(kind.group, kind.subject, label.isEmpty ? actionGroupLabel(kind.group) : label);
+    if (kind != null) await _actionXp(kind.group, kind.subject, label.isEmpty ? actionGroupLabel(kind.group) : label, quiet: quiet);
     return op;
   }
 
@@ -676,8 +695,14 @@ class AccountController extends ChangeNotifier {
   }
 
   void _notify() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    syncStatus.value++;
+    notifyListeners();
   }
+
+  /// Ticks whenever the sync status (or anything else) changes. The status
+  /// pill listens to this, so a sync starting doesn't rebuild every screen.
+  final ValueNotifier<int> syncStatus = ValueNotifier<int>(0);
 
   @override
   void dispose() {
@@ -687,6 +712,7 @@ class AccountController extends ChangeNotifier {
     _pullTimer?.cancel();
     _draftPushTimer?.cancel();
     _livePoll?.cancel();
+    syncStatus.dispose();
     super.dispose();
   }
 }

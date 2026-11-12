@@ -17,7 +17,7 @@ import 'cover_choice.dart';
 import 'presence.dart';
 import 'ratings_ui.dart' show sourceLabel;
 import 'theme.dart';
-import 'widgets.dart' show fmtNumber;
+import 'widgets.dart' show ThrottledListenable, fmtNumber, memoFor;
 
 /// `mf555OnThisDayIds`: today's On This Day titles that are in the Library.
 List<String> onThisDayLibraryIds(AccountView view, List<({int years, List<OtdEvent> rows})> groups) {
@@ -85,9 +85,12 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
     _tabs.animateTo(r.tab.clamp(0, 2).toInt());
   }
 
+  late final ThrottledListenable _changes = ThrottledListenable(Listenable.merge([RecoveryRunner.instance, widget.account]));
+
   @override
   void dispose() {
     RecoveryScreen.request.removeListener(_onRequest);
+    _changes.dispose();
     _tabs.dispose();
     super.dispose();
   }
@@ -110,6 +113,10 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
     final v = view;
     if (v == null) return const [];
     if (_scope == 'given' && widget.ids != null) return widget.ids!;
+    return memoFor(v, 'recovery.ids.$covers.$_scope', () => _scanIds(v, covers));
+  }
+
+  List<String> _scanIds(AccountView v, bool covers) {
     final out = <String>[];
     for (final t in v.library) {
       if (_scope != 'all' && t.categoryId != _scope) continue;
@@ -158,7 +165,8 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
           bottom: TabBar(controller: _tabs, tabs: const [Tab(text: 'Covers'), Tab(text: 'Details'), Tab(text: 'Sources')]),
         ),
         body: ListenableBuilder(
-          listenable: Listenable.merge([RecoveryRunner.instance, widget.account]),
+          // 7.0.0: at most ~4 repaints a second while a recovery reports progress.
+          listenable: _changes,
           builder: (context, _) => TabBarView(controller: _tabs, children: [
             _coverTab(context),
             _metadataTab(context),
@@ -244,12 +252,19 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
       );
 
   Map<String, dynamic>? _title(String id) {
-    final lib = view?.state['library'];
-    for (final x in asList(lib)) {
-      final m = asMap(x);
-      if (m != null && jsStr(m['id']) == id) return m;
-    }
-    return null;
+    // 7.0.0: one index per account version (was a scan of the whole Library
+    // per lookup, hundreds of times per repaint while a recovery ran).
+    final v = view;
+    if (v == null) return null;
+    final byId = memoFor(v, 'recovery.byId', () {
+      final out = <String, Map<String, dynamic>>{};
+      for (final x in asList(v.state['library'])) {
+        final m = asMap(x);
+        if (m != null) out[jsStr(m['id'])] = m;
+      }
+      return out;
+    });
+    return byId[id];
   }
 
   Future<void> _manual(BuildContext context, String id) async {
@@ -493,6 +508,33 @@ class _MetadataReviewCardState extends State<_MetadataReviewCard> {
             padding: const EdgeInsets.only(top: 4),
             child: Text('$kept field${kept == 1 ? '' : 's'} already have a value or are locked and stay as they are.',
                 style: TextStyle(color: MF.textDim, fontSize: 11)),
+          ),
+        // 7.0.0 (website v566): Select all / Deselect all.
+        if (open.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(children: [
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  for (final x in open) {
+                    x.selected = true;
+                  }
+                }),
+                icon: const Icon(Icons.done_all_rounded, size: 18),
+                label: const Text('Select all'),
+              ),
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  for (final x in open) {
+                    x.selected = false;
+                  }
+                }),
+                icon: const Icon(Icons.remove_done_rounded, size: 18),
+                label: const Text('Deselect all'),
+              ),
+              const Spacer(),
+              Text('${open.where((x) => x.selected).length} of ${open.length} selected', style: TextStyle(color: MF.textDim, fontSize: 11)),
+            ]),
           ),
         for (final prop in open)
           Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

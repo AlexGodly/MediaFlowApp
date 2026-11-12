@@ -108,6 +108,7 @@ class AppTime with WidgetsBindingObserver {
     unawaited(account.perform(
       AppTimeOp(id: mediaFlowUid(now), day: _day, ms: ms, platform: platform, at: now),
       delay: const Duration(minutes: 2),
+      quiet: true, // 7.0.0: once a minute, without rebuilding every open screen
     ));
   }
 }

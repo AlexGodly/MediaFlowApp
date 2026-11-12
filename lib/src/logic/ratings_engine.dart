@@ -698,7 +698,10 @@ RatingsWritten applyRatings(Map<String, dynamic> item, RatingsFound result, int 
         prov['verified'] == true &&
         prov['source'] == row['provider'] &&
         (!jsTruthy(prov['recordId']) || jsStr(prov['recordId']) == jsStr(row['recordId']));
-    if (has && !sameSource) continue;
+    // Website v566: a rating saved by Details Recovery takes a newer value
+    // from any verified source; other ratings refresh only from their own.
+    final fromRecovery = has && prov?['via'] == 'recovery';
+    if (has && !sameSource && !fromRecovery) continue;
     if (has &&
         jsNum(existing['score']) == jsNum(value['score']) &&
         jsNum(existing['scale']) == jsNum(value['scale']) &&
@@ -706,13 +709,24 @@ RatingsWritten applyRatings(Map<String, dynamic> item, RatingsFound result, int 
       continue;
     }
     if (_setRating(env, key, value, source: jsStr(row['provider']), force: has, updatedAt: now)) {
-      provenance[token] = {
-        'source': jsStr(row['provider']),
-        'verified': true,
-        'recordId': jsStr(row['recordId']),
-        'updatedAt': now,
-        if (row['mf555Via'] == 'whole-show') 'scope': 'whole-show',
-      };
+      final wholeShow = row['mf555Via'] == 'whole-show';
+      provenance[token] = !has || sameSource
+          ? {
+              'source': jsStr(row['provider']),
+              'verified': true,
+              'recordId': jsStr(row['recordId']),
+              'updatedAt': now,
+              if (wholeShow) 'scope': 'whole-show',
+              if (fromRecovery) 'via': 'recovery',
+            }
+          : {
+              'source': jsStr(row['provider']),
+              'verified': true,
+              'recordId': jsStr(row['recordId']),
+              'updatedAt': now,
+              'via': 'recovery',
+              if (wholeShow) 'scope': 'whole-show',
+            };
       ratings++;
     }
   }

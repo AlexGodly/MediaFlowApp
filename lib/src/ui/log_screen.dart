@@ -22,10 +22,11 @@ import '../logic/task_progress.dart';
 import '../logic/xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/consuming.dart';
 import '../logic/custom_status.dart' show activePin;
 import 'collections_screen.dart' show pickLibraryTitles;
 import 'discord_card.dart' show DiscordActivityCard;
-import 'discord_settings.dart' show showOnDiscord, stopShowingOnDiscord;
+import 'discord_settings.dart' show clearConsuming, pickDiscordName, setConsumingSource, showOnDiscord, stopShowingOnDiscord;
 import 'extras_screen.dart' show OnThisDayCard;
 import 'floating_dock.dart' show DockAction, FloatingDock;
 import 'log_sheet.dart';
@@ -510,61 +511,101 @@ class _LogScreenState extends State<LogScreen> {
         ),
       );
 
-  /// v6: "Consuming…" — show on Discord the title you're watching / reading
-  /// right now (the same as Settings → Discord → Show a title on Discord), on
-  /// every device until you stop it.
+  /// "Consuming…" — the title MediaFlow shows on Discord as the one you're
+  /// watching, reading or playing now (7.0.0: from the source chosen in its
+  /// menu, or one you choose; Clear goes back to Discord's normal status).
   Widget _consumingBar(AccountView view) {
-    final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
-    final pinned = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
-    // The title being logged (the last one added to the log), when nothing is pinned.
-    LibraryTitle? logging;
-    if (pinned == null && _task != null && _logDraft != null) {
-      final id = jsStr(_editor(view)?.entries.lastOrNull?['libraryId']);
-      if (id.isNotEmpty) logging = view.library.where((x) => x.id == id).firstOrNull;
-    }
-    final t = pinned ?? logging;
-    final showPreview = DiscordPresence.supported && DiscordPresence.instance.enabled;
+    final config = DiscordPresence.instance.config.raw;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final pin = activePin(config, now);
+    final id = consumingTitleId(config, _task, _logDraft, now);
+    final t = id == null ? null : view.library.where((x) => x.id == id).firstOrNull;
+    final chosen = t != null && pin?.titleId == t.id;
+    final source = consumingSource(config);
+    final sourceLabel = kConsumingSources.firstWhere((x) => x.$1 == source).$2;
+    final discordOn = DiscordPresence.instance.enabled;
+    final showPreview = DiscordPresence.supported && discordOn;
+    final name = t == null
+        ? ''
+        : discordTitleName(t.raw, settings: asMap(view.state['settings']), config: config, consuming: true);
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
         color: MF.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: pinned == null ? MF.border : MF.accent)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: t == null ? MF.border : MF.accent)),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 10, 10),
+          padding: const EdgeInsets.fromLTRB(16, 8, 6, 10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
             Row(children: [
               Icon(Icons.play_circle_outline_rounded, color: t == null ? MF.textDim : MF.accent),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                  Text(t == null ? 'Consuming…' : 'Consuming ${t.title}',
+                  Text(t == null ? 'Consuming…' : 'Consuming $name',
                       maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w900)),
                   Text(
-                    pinned != null
-                        ? 'Shown on Discord on all your devices.'
-                        : logging != null
-                            ? 'The title you\'re logging. Pin it to keep showing it on Discord.'
-                            : 'Show on Discord what you\'re watching, reading or playing right now.',
+                    t == null
+                        ? (source == 'assigned' ? 'Choose a title to show on Discord.' : 'Nothing to show · source: ${sourceLabel.toLowerCase()}')
+                        : chosen
+                            ? 'Chosen by you · shown on Discord on all your devices.'
+                            : 'Source: ${sourceLabel.toLowerCase()}',
                     style: const TextStyle(fontSize: 12),
                   ),
                 ]),
               ),
-              const SizedBox(width: 8),
-              if (pinned != null)
-                TextButton(onPressed: () => stopShowingOnDiscord(account), child: const Text('Stop'))
-              else ...[
-                if (logging != null)
-                  OutlinedButton(onPressed: () => showOnDiscord(context, account, logging!.id), child: const Text('Pin')),
-                IconButton(
-                  tooltip: logging == null ? 'Start' : 'Choose another title',
-                  icon: Icon(logging == null ? Icons.play_arrow_rounded : Icons.swap_horiz_rounded),
-                  onPressed: () async {
+              // Discord on / off, right here.
+              if (DiscordPresence.supported)
+                ListenableBuilder(
+                  listenable: DiscordPresence.instance,
+                  builder: (context, _) => Tooltip(
+                    message: DiscordPresence.instance.enabled ? 'Discord status on' : 'Discord status off',
+                    child: Switch(
+                      value: DiscordPresence.instance.enabled,
+                      onChanged: (v) async {
+                        await DiscordPresence.instance.setEnabled(v);
+                        if (mounted) setState(() {});
+                      },
+                    ),
+                  ),
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'Consuming options',
+                icon: const Icon(Icons.more_vert_rounded),
+                onSelected: (v) async {
+                  if (v.startsWith('source:')) {
+                    await setConsumingSource(account, v.substring(7));
+                  } else if (v == 'pick') {
                     final ids = await pickLibraryTitles(context, view, title: 'What are you consuming?', single: true);
                     if (ids != null && ids.isNotEmpty && mounted) await showOnDiscord(context, account, ids.first);
-                  },
-                ),
-              ],
+                  } else if (v == 'pin' && t != null) {
+                    await showOnDiscord(context, account, t.id);
+                  } else if (v == 'name' && t != null) {
+                    await pickDiscordName(context, account, t.raw);
+                  } else if (v == 'clear') {
+                    await clearConsuming(account, t?.id);
+                  }
+                  if (mounted) setState(() {});
+                },
+                itemBuilder: (c) => [
+                  const PopupMenuItem(value: 'pick', child: Text('Choose a title…')),
+                  if (t != null && !chosen) const PopupMenuItem(value: 'pin', child: Text('Pin this title')),
+                  if (t != null) const PopupMenuItem(value: 'name', child: Text('Name on Discord…')),
+                  if (t != null) const PopupMenuItem(value: 'clear', child: Text('Clear')),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(enabled: false, child: Text('Consuming shows', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800))),
+                  for (final s in kConsumingSources)
+                    CheckedPopupMenuItem(value: 'source:${s.$1}', checked: source == s.$1, child: Text(s.$2)),
+                ],
+              ),
             ]),
+            if (t != null)
+              Wrap(spacing: 8, children: [
+                if (chosen)
+                  TextButton.icon(onPressed: () => stopShowingOnDiscord(account), icon: const Icon(Icons.stop_rounded, size: 18), label: const Text('Stop'))
+                else
+                  TextButton.icon(onPressed: () => clearConsuming(account, t.id), icon: const Icon(Icons.clear_rounded, size: 18), label: const Text('Clear')),
+                TextButton.icon(onPressed: () => pickDiscordName(context, account, t.raw), icon: const Icon(Icons.translate_rounded, size: 18), label: const Text('Name')),
+              ]),
             // What Discord shows right now (the same preview as Settings → Discord).
             if (showPreview) ...[
               const SizedBox(height: 8),
@@ -776,6 +817,8 @@ class _LogScreenState extends State<LogScreen> {
                 Text(title.title,
                     maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
                 if (inLibrary) Text(progressText(title, cat), style: TextStyle(color: MF.textDim, fontSize: 12)),
+                if (externalRatingsLine(title.raw) case final ext when ext.isNotEmpty)
+                  Text(ext, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 11.5)),
               ]),
             ),
           ]),

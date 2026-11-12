@@ -2,7 +2,7 @@
 
 A native **Flutter** app for your MediaFlow account. Same account, same data as the [MediaFlow website](https://alexgodly.github.io/MediaFlow/); logs you make in the app appear on the website and vice versa.
 
-Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **6.0.0.565** — [release notes](docs/releases/mediaflowapp-v6.0.0.565.md).
+Download from [Releases](https://github.com/AlexGodly/MediaFlowApp/releases). Latest: **7.0.0.567** — [release notes](docs/releases/mediaflowapp-v7.0.0.567.md).
 
 | Platform | Release file |
 | :-- | :-- |

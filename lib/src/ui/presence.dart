@@ -11,13 +11,13 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import '../logic/consuming.dart';
 import '../logic/presence_templates.dart';
-import '../logic/stats.dart' show StatsModel;
+import '../logic/resume.dart' show readLogging;
 import '../platform/discord_presence.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'home_shell.dart' show Section;
-import 'widgets.dart' show memoFor;
 
 export '../platform/discord_presence.dart' show PresenceInfo, PresenceKind;
 
@@ -75,7 +75,9 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
 /// logging) and cover.
 PresenceInfo titlePresence(String situation, Map<String, dynamic> item, Category cat,
     {double? progress, double? before, String? season, String more = '', int count = 0, String action = ''}) {
-  final title = cleanTitle(item['title']);
+  // 7.0.0: the name MediaFlow shows for the title (or Discord's own choice).
+  final title = discordTitleName(item,
+      settings: DiscordPresence.instance.accountSettings, config: DiscordPresence.instance.config.raw, consuming: situation == 'pinned');
   final cover = jsStr(item['coverUrl']).trim();
   // While logging, {progress} follows Settings → Discord: after the draft
   // (default) or before it; {before} and {after} are both always there.
@@ -129,6 +131,12 @@ class PresenceHub {
       DiscordPresence.instance.globals ??= () => _globals ??= _computeGlobals();
       DiscordPresence.instance.setConfig(PresenceConfig.of(asMap(view?.state['settings'])));
       DiscordPresence.instance.setAccountSettings(asMap(view?.state['settings']));
+      DiscordPresence.instance.consumingTitle ??= (config, now) {
+        final v = _view;
+        final logging = v == null ? null : readLogging(v.state);
+        final open = logging != null && logging['active'] == true;
+        return consumingTitleId(config, open ? asMap(logging['currentTask']) : null, open ? asMap(logging['logDraft']) : null, now);
+      };
       DiscordPresence.instance.pinnedInfo ??= (id) {
         final v = _view;
         final t = v?.library.where((x) => x.id == id).firstOrNull;
@@ -139,21 +147,26 @@ class PresenceHub {
     _update();
   }
 
+  /// Level, XP and streak worked out in the background with each sync
+  /// (AccountController.presenceStats), set by the home screen.
+  Map<String, num>? Function()? statsSource;
+
   Map<String, String>? _globals;
   Map<String, String> _computeGlobals() {
     final v = _view;
     if (v == null) return const {};
-    try {
-      final m = memoFor(v, 'stats', () => StatsModel(v.state, DateTime.now()));
-      return {
-        'level': '${m.level.level}',
-        'xp': fmtCount(m.xp.total.round()),
-        'streak': '${m.streak}',
-        'library': fmtCount(v.library.length),
-      };
-    } catch (_) {
-      return {'library': fmtCount(v.library.length)};
-    }
+    // 7.0.0: never work out Statistics on the screen's thread here. It ran
+    // after every change to the account (slow frames every 20–30 s while
+    // logging on big accounts); the numbers now come with each sync.
+    final s = statsSource?.call();
+    return {
+      if (s != null) ...{
+        'level': '${s['level']?.toInt() ?? 1}',
+        'xp': fmtCount((s['xp'] ?? 0).round()),
+        'streak': '${s['streak']?.toInt() ?? 0}',
+      },
+      'library': fmtCount(v.library.length),
+    };
   }
 
   /// A section's own, more precise status (null: back to its default).

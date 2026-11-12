@@ -162,6 +162,7 @@ class _HomeShellState extends State<HomeShell> {
         final dock = nav.dock;
         final showMore = !wide && _moreOpen;
         // Discord Rich Presence follows the section on screen.
+        PresenceHub.instance.statsSource = () => account.presenceStats;
         PresenceHub.instance.setSection(_section, account.view);
         final visible = Section.values;
         if (!showMore) _visited.add(_section);
