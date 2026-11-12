@@ -8,6 +8,7 @@ import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/local_cache.dart';
 import '../data/metadata_search.dart' show providerGateway;
+import '../data/offline_covers.dart';
 import '../data/ratings_refresh.dart';
 import '../data/supabase_cloud.dart';
 import '../platform/app_time.dart';
@@ -174,6 +175,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     AppTime.instance.attach(account);
     DeviceReport.instance.attach(account);
     AutoBackup.instance.attach(account);
+    OfflineCovers.instance.attach(account);
     BackgroundWork.instance.attach(account);
     AppShortcuts.instance.attach(account);
     unawaited(AppShortcuts.instance.init());

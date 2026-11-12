@@ -32,6 +32,7 @@ import 'discord_settings.dart';
 import 'home_shell.dart' show Section;
 import 'ratings_ui.dart';
 import 'theme.dart';
+import 'offline_covers_ui.dart';
 import 'theme_settings.dart';
 import 'widgets.dart';
 
@@ -838,19 +839,22 @@ class _AppSettingsState extends State<_AppSettings> {
             prefKey: 'app.storage',
             icon: Icons.storage_rounded,
             title: 'Storage',
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Saved covers'),
-              subtitle: Text('${_bytes(_coverBytes)} kept on this device for offline use'),
-              trailing: TextButton(
-                onPressed: () async {
-                  await CoverCache.instance.clear();
-                  final b = await CoverCache.instance.sizeBytes();
-                  if (mounted) setState(() => _coverBytes = b);
-                },
-                child: const Text('Clear'),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Saved covers'),
+                subtitle: Text('${_bytes(_coverBytes)} kept on this device for offline use'),
+                trailing: TextButton(
+                  onPressed: () async {
+                    await CoverCache.instance.clear();
+                    final b = await CoverCache.instance.sizeBytes();
+                    if (mounted) setState(() => _coverBytes = b);
+                  },
+                  child: const Text('Clear'),
+                ),
               ),
-            ),
+              OfflineCoversEditor(account: account),
+            ]),
           ),
           SectionCard(
             prefKey: 'app.updates',
