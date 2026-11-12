@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow/src/data/account_controller.dart';
+import 'package:mediaflow/src/data/sync_engine.dart' show runInline;
 import 'package:mediaflow/src/state/state_codec.dart';
 import 'package:mediaflow/src/ui/floating_dock.dart';
 import 'package:mediaflow/src/ui/theme.dart';
