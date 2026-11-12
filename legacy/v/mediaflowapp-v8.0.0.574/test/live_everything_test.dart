@@ -1,4 +1,4 @@
-// 8.0.0.573: every change from another device (the website, another phone or
+// 8.0.0.574: every change from another device (the website, another phone or
 // PC) arrives live, not only the logging draft.
 
 import 'dart:convert';

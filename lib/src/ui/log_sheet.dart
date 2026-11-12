@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
+import '../data/background_worker.dart';
 import '../logic/log_engine.dart';
+import '../logic/log_xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'presence.dart';
@@ -164,6 +168,11 @@ class _LogFormState extends State<LogForm> {
   TimeOfDay? _time; // null = now today, midday on other days (website v573)
   bool _saving = false;
   String? _error;
+  // XP preview (website v574): worked out on a copy of the account.
+  Timer? _xpTimer;
+  int _xpGen = 0;
+  String _xpKey = '';
+  double? _xp;
 
   @override
   void initState() {
@@ -177,6 +186,7 @@ class _LogFormState extends State<LogForm> {
     for (final c in [_reached, _amount, _minutes, _note, _search]) {
       c.dispose();
     }
+    _xpTimer?.cancel();
     super.dispose();
   }
 
@@ -242,6 +252,39 @@ class _LogFormState extends State<LogForm> {
     }
   }
 
+  /// Recomputes the XP preview a moment after the form stops changing.
+  void _scheduleXp() {
+    final view = widget.account.view;
+    final e = _entry();
+    final p = _preview();
+    if (view == null || e == null || p == null || !(p.qty > 0)) {
+      if (_xp != null || _xpKey.isNotEmpty) {
+        _xpKey = '';
+        _xp = null;
+      }
+      return;
+    }
+    final entry = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes);
+    final date = _date == null ? null : isoDay(_date!);
+    final key = '${identityHashCode(view.state)}|${entry.toJson()}|$date|$_timeText';
+    if (key == _xpKey) return;
+    _xpKey = key;
+    _xpTimer?.cancel();
+    final gen = ++_xpGen;
+    _xpTimer = Timer(const Duration(milliseconds: 350), () async {
+      final req = LogRequest.create([entry], date: date, time: _timeText);
+      final state = view.state;
+      double? xp;
+      try {
+        xp = await runOnWorker(() => previewLogXp(state, req));
+      } catch (_) {
+        xp = null;
+      }
+      if (!mounted || gen != _xpGen) return;
+      setState(() => _xp = xp);
+    });
+  }
+
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _time ?? TimeOfDay.now());
     if (picked != null) setState(() => _time = picked);
@@ -295,6 +338,7 @@ class _LogFormState extends State<LogForm> {
     if (title == null) return _picker(view);
     final cat = view.category(title.categoryId);
     final p = _preview();
+    _scheduleXp();
     final unit = titleUnit(title.raw, cat.raw); // v565: the title's own unit
     final rewatch = title.isCompleted;
     return SingleChildScrollView(
@@ -403,6 +447,17 @@ class _LogFormState extends State<LogForm> {
         if (_error != null) ...[
           const SizedBox(height: 4),
           Text(_error!, style: const TextStyle(color: MF.bad)),
+        ],
+        if (_xp != null && _xp! > 0) ...[
+          const SizedBox(height: 10),
+          Row(children: [
+            Icon(Icons.auto_awesome_rounded, size: 18, color: MF.accent),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('This log earns +${fmtNumber(_xp!.round())} XP',
+                  style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ]),
         ],
         const SizedBox(height: 14),
         FilledButton(

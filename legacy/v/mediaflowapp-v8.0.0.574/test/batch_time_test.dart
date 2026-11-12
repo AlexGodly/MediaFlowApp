@@ -1,10 +1,12 @@
-// 8.0.0.573: Batch Log can set the exact time of a log (website v573).
+// 8.0.0.574: Batch Log can set the exact time of a log (website v573).
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mediaflow/src/logic/log_engine.dart';
+import 'package:mediaflow/src/logic/log_xp_preview.dart';
+import 'package:mediaflow/src/logic/stats.dart' show xpMetrics;
 import 'package:mediaflow/src/state/state_codec.dart';
 import 'package:mediaflow/src/util/js.dart';
 
@@ -44,5 +46,25 @@ void main() {
     expect(session['timestamp'], at);
     expect(session['date'], '2026-11-10');
     expect(asMap(asList(session['titles']).first)!['loggedAt'], at);
+  });
+
+  test('the XP preview is exactly what saving earns, and changes nothing', () {
+    final s = _account();
+    final title = asList(s['library']).map(asMap).firstWhere((i) => jsStr(i!['status']) != 'completed' && (jsNum(i['total']) == 0 || jsNum(i['progress']) < jsNum(i['total'])))!;
+    final req = LogRequest(
+      entries: [LogEntry(libraryId: jsStr(title['id']), amount: 2, minutes: 45)],
+      createdAt: now,
+      sessionIds: const ['s_xp'],
+      groupId: 'g_xp',
+      eventId: 'e_xp',
+    );
+    final before = jsonEncode(s);
+    final preview = previewLogXp(s, req);
+    expect(jsonEncode(s), before, reason: 'the account is not touched');
+    final xp0 = xpMetrics(s).total;
+    applyLog(s, req);
+    expect(preview, isNotNull);
+    expect(preview, xpMetrics(s).total - xp0);
+    expect(preview! > 0, isTrue);
   });
 }
