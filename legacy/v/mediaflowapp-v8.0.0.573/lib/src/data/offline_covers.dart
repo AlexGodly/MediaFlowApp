@@ -1,0 +1,95 @@
+// Covers for offline use: every cover is kept once it has been shown; on top
+// of that the user can keep the covers of all titles, chosen categories or
+// chosen titles on this device ahead of time, kept up to date after each sync.
+// AppPrefs (this device): offlineCoverMode 'shown' | 'all' | 'categories' |
+// 'titles', offlineCoverCategories, offlineCoverTitles.
+
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
+import '../state/models.dart';
+import 'account_controller.dart';
+import 'app_prefs.dart';
+import 'cover_cache.dart';
+
+class OfflineCovers extends ChangeNotifier {
+  OfflineCovers._();
+  static final OfflineCovers instance = OfflineCovers._();
+
+  AccountController? _account;
+  bool running = false;
+  bool _cancel = false;
+  int done = 0, total = 0, failed = 0;
+  DateTime? _lastRun;
+
+  static String get mode => AppPrefs.instance.get<String>('offlineCoverMode', 'shown');
+  static Set<String> get categories => {for (final x in AppPrefs.instance.get<List>('offlineCoverCategories', const [])) '$x'};
+  static Set<String> get titles => {for (final x in AppPrefs.instance.get<List>('offlineCoverTitles', const [])) '$x'};
+
+  void attach(AccountController account) {
+    if (identical(_account, account)) return;
+    _account?.removeListener(_changed);
+    _account = account;
+    account.addListener(_changed);
+  }
+
+  // After a sync brings new titles, top up (at most every 10 minutes).
+  void _changed() {
+    if (mode == 'shown' || running) return;
+    if (_lastRun != null && DateTime.now().difference(_lastRun!) < const Duration(minutes: 10)) return;
+    unawaited(run());
+  }
+
+  /// The cover links the chosen scope covers.
+  static List<String> urlsFor(AccountView view, {String? scope, Set<String>? cats, Set<String>? ids}) {
+    final m = scope ?? mode;
+    final c = cats ?? categories, t = ids ?? titles;
+    final out = <String>{};
+    for (final title in view.library) {
+      final keep = switch (m) {
+        'all' => true,
+        'categories' => c.contains(title.categoryId),
+        'titles' => t.contains(title.id),
+        _ => false,
+      };
+      final url = title.coverUrl;
+      if (keep && url.startsWith('http')) out.add(url);
+    }
+    return out.toList();
+  }
+
+  /// Downloads the covers of the chosen scope that are not on the device yet.
+  Future<void> run({String? scope, Set<String>? cats, Set<String>? ids}) async {
+    final view = _account?.view;
+    if (view == null || running) return;
+    final urls = urlsFor(view, scope: scope, cats: cats, ids: ids);
+    running = true;
+    _cancel = false;
+    done = 0;
+    failed = 0;
+    total = urls.length;
+    _lastRun = DateTime.now();
+    notifyListeners();
+    try {
+      // A few at a time: fast, without flooding the image hosts or memory.
+      var next = 0;
+      Future<void> worker() async {
+        while (!_cancel && next < urls.length) {
+          final url = urls[next++];
+          final f = await CoverCache.instance.file(url);
+          if (f == null) failed++;
+          done++;
+          if (done % 10 == 0 || done == total) notifyListeners();
+        }
+      }
+
+      await Future.wait([for (var i = 0; i < 4; i++) worker()]);
+    } finally {
+      running = false;
+      notifyListeners();
+    }
+  }
+
+  void cancel() => _cancel = true;
+}
