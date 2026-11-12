@@ -5,7 +5,7 @@ import 'package:mediaflow/src/platform/discord_presence.dart';
 
 void main() {
   final modified = {
-    'all': {'details': 'Hello {level}', 'state': 'Fixed', 'type': 'watching', 'largeImage': '{logo}'},
+    'all': {'details': 'Hello there', 'state': 'Fixed', 'type': 'watching', 'largeImage': '{logo}'},
     'library': {'details': 'Shelving', 'name': 'My Shelf'},
   };
 
@@ -13,7 +13,7 @@ void main() {
     final d = DiscordPresence.instance;
     final on = PresenceConfig({'advanced': true, 'modified': modified});
     final logging = d.effective(using: on, situation: 'logging')!;
-    expect(logging.details, 'Hello');
+    expect(logging.details, 'Hello there');
     expect(logging.state, 'Fixed');
     expect(logging.type, ActivityType.watching);
     final library = d.effective(using: on, situation: 'library')!;
