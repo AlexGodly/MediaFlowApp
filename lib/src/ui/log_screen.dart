@@ -1046,7 +1046,10 @@ class _LogScreenState extends State<LogScreen> {
           onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed, xp: false),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-            child: Row(children: [
+            // Phones: shorter labels so the title keeps its room.
+            child: LayoutBuilder(builder: (context, box) {
+              final compact = box.maxWidth < 420;
+              return Row(children: [
               Icon(Icons.space_dashboard_rounded, color: MF.accent),
               const SizedBox(width: 12),
               Expanded(
@@ -1070,16 +1073,17 @@ class _LogScreenState extends State<LogScreen> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(color: MF.accent, borderRadius: BorderRadius.circular(999)),
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.add_rounded, size: 18, color: Colors.black87),
-                    SizedBox(width: 4),
-                    Text('Add title', style: TextStyle(fontWeight: FontWeight.w800, color: Colors.black87)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.add_rounded, size: 18, color: Colors.black87),
+                    const SizedBox(width: 4),
+                    Text(compact ? 'Add' : 'Add title', style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87)),
                   ]),
                 ),
               ),
-              Text(collapsed ? 'Expand' : 'Collapse', style: TextStyle(color: MF.textDim, fontSize: 13)),
+              if (!compact) Text(collapsed ? 'Expand' : 'Collapse', style: TextStyle(color: MF.textDim, fontSize: 13)),
               Icon(collapsed ? Icons.expand_more_rounded : Icons.expand_less_rounded, color: MF.textDim),
-            ]),
+            ]);
+            }),
           ),
         ),
       ),
