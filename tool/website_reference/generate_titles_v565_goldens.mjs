@@ -9,6 +9,9 @@ import vm from 'node:vm';
 
 const site = process.argv[2] || '../MediaFlow';
 const src = fs.readFileSync(path.join(site, 'src/js/components/411-v565-titles.js'), 'utf8');
+const util = fs.readFileSync(path.join(site, 'src/js/utils/006-util.js'), 'utf8');
+const ct = util.indexOf('function cleanTitle(');
+const cleanTitleSrc = util.slice(ct, util.indexOf('\n}', ct) + 2);
 
 const UNITS = {
   episodes: { label: 'episodes', singular: 'episode' }, chapters: { label: 'chapters', singular: 'chapter' },
@@ -29,8 +32,8 @@ const ctx = {
 vm.createContext(ctx);
 vm.runInContext(`
 function unitLabel(k,c){const u=UNITS[k]||UNITS.episodes;return c===1?u.singular:u.label;}
-// The website's cleanTitle collapses spaces and trims.
-function cleanTitle(v){return String(v??'').replace(/\\s+/g,' ').trim();}
+// The website's own cleanTitle (utils/006-util.js).
+${cleanTitleSrc}
 function v369DefaultSeconds(){return 3600;}
 function batchTitleCandidates(){return [];}
 function mf439TitleVariants(i){return [i.title];}

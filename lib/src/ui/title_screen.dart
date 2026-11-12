@@ -17,6 +17,7 @@ import '../logic/ratings_engine.dart' show kMediaTypes, normalizedEnvelope;
 import '../logic/recovery.dart' show kUniversalFields, setFieldManually, describeFieldValue;
 import '../logic/rich_fields.dart';
 import '../logic/title_names.dart';
+import '../logic/title_units.dart';
 import '../platform/discord_presence.dart' show DiscordPresence;
 import '../state/models.dart';
 import '../util/js.dart';

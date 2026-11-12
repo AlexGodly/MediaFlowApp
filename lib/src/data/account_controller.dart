@@ -503,7 +503,7 @@ class AccountController extends ChangeNotifier {
     final display = _display;
     if (display == null) return;
     final raw = jsNumOrNull(asMap(asMap(display['settings'])?['leveling'])?[kind]);
-    final rate = raw != null && raw.isFinite ? raw.clamp(0, 100000).toDouble() : (kBackgroundXpDefaults[kind] ?? 0);
+    final rate = raw != null && raw.isFinite ? raw.clamp(0, 100000).toDouble() : (kBackgroundXpDefaults[kind] ?? 0.0);
     if (!(rate > 0)) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final op = XpEventOp(ActionXpOp(key: 'mf565Bg:$key', kind: kind, base: rate, source: source, details: details, at: now));
