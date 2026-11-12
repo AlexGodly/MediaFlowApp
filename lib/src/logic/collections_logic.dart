@@ -107,7 +107,12 @@ void _touchCollection(Map<String, dynamic> state, Map<String, dynamic> c, List<S
 
 /// `v274SaveCollection` (+ v334 "identical save earns nothing"). Returns the id.
 String saveCollection(Map<String, dynamic> state, String? id, int now, String Function() uid,
-    {required String title, String coverUrl = '', String description = '', String backgroundUrl = '', bool customBackground = false}) {
+    {required String title,
+    String coverUrl = '',
+    String description = '',
+    String backgroundUrl = '',
+    bool customBackground = false,
+    String? coverTitleId}) {
   final t = title.trim();
   final list = List<dynamic>.of(asList(state['collections']));
   var c = id == null ? null : collectionById(state, id);
@@ -129,6 +134,16 @@ String saveCollection(Map<String, dynamic> state, String? id, int now, String Fu
   c['backgroundMode'] = customBackground && backgroundUrl.trim().isNotEmpty ? 'custom' : 'auto';
   c['autoBackground'] = c['backgroundMode'] == 'auto';
   _touchCollection(state, c, before, now, uid, suppressEdit: identical);
+  // v565: the cover can follow a title (website App.v274SaveCollection wrapper:
+  // set or cleared after the save, then the collection is touched again).
+  if (coverTitleId != null && jsStr(c['mf565CoverTitleId']) != coverTitleId) {
+    if (coverTitleId.isEmpty) {
+      c.remove('mf565CoverTitleId');
+    } else {
+      c['mf565CoverTitleId'] = coverTitleId;
+    }
+    _touchCollection(state, c, _collectionIds(c), now, uid);
+  }
   return jsStr(c['id']);
 }
 
