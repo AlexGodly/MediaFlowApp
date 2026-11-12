@@ -682,6 +682,11 @@ List<Map<String, dynamic>> _normalizeSeasons(Object? raw, String source, String 
   return (progress: progress, total: total > 0 ? total : null);
 }
 
+String _tail5(String id) {
+  final t = id.replaceAll(RegExp('[^a-z0-9]'), '').padLeft(5, '0');
+  return t.substring(t.length - 5);
+}
+
 List<Map<String, dynamic>> _reconcile(List<Map<String, dynamic>> seasons, Object? progress, Object? total, String source, String Function() seasonId, int now) {
   final rows = _normalizeSeasons(seasons, source, seasonId);
   final a = _aggregate(rows, seasonId);
@@ -692,7 +697,7 @@ List<Map<String, dynamic>> _reconcile(List<Map<String, dynamic>> seasons, Object
   if (missingProgress > 0 || missingTotal > 0) {
     final t = math.max(missingTotal, missingProgress);
     rows.add(_normalizeSeason({
-      'id': 'v252-unassigned-$now-${seasonId().replaceAll(RegExp('[^a-z0-9]'), '').padRight(5, '0').substring(0, 5)}',
+      'id': 'v252-unassigned-$now-${_tail5(seasonId())}',
       'number': null, 'name': 'Unassigned', 'progress': missingProgress, 'total': t == 0 ? null : t,
       'source': source, 'synthetic': true, 'manual': false,
     }, rows.length, source, seasonId));
@@ -943,7 +948,7 @@ String _startSource(String service) => service == 'mal' || service == 'malxml' ?
 ImportResult mergeImportRecords(Map<String, dynamic> state, List<dynamic> records, String service,
     {required int now, required String Function() uid, Map<String, Map<String, dynamic>>? touchedOut, String? intoCategory}) {
   final result = ImportResult();
-  final library = state['library'] is List ? (state['library'] as List) : (state['library'] = <dynamic>[]) as List;
+  final library = state['library'] is List ? (state['library'] as List) : (state['library'] = <dynamic>[]);
   final categories = [for (final c in asList(state['categories'])) asMap(c)].whereType<Map<String, dynamic>>().toList();
   final categoryIds = {for (final c in categories) jsStr(c['id'])};
   final index = _Index();
@@ -1202,7 +1207,7 @@ bool isSimklBackup(Object? data) {
 
 /// Adds Simkl's genuine watched_at History (one log per title per day).
 int addSimklHistory(Map<String, dynamic> state, Map<String, dynamic> data, {required String Function() uid}) {
-  final sessions = state['sessions'] is List ? state['sessions'] as List : (state['sessions'] = <dynamic>[]) as List;
+  final sessions = state['sessions'] is List ? state['sessions'] as List : (state['sessions'] = <dynamic>[]);
   final seen = {for (final s in sessions) if (jsTruthy(asMap(s)?['importKey'])) jsStr(asMap(s)!['importKey'])};
   final categories = [for (final c in asList(state['categories'])) asMap(c)].whereType<Map<String, dynamic>>().toList();
   final categoryIds = {for (final c in categories) jsStr(c['id'])};

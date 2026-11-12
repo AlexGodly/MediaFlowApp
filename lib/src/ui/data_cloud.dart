@@ -322,7 +322,7 @@ class _AutoBackupEditorState extends State<_AutoBackupEditor> {
               : () async {
                   setState(() => _busy = true);
                   final path = await AutoBackup.instance.saveNow(manual: true);
-                  if (!mounted) return;
+                  if (!mounted || !context.mounted) return;
                   setState(() => _busy = false);
                   _toast(context, path == null ? 'Backup could not be written. Choose another folder if needed.' : 'Backup saved ✓');
                 },
