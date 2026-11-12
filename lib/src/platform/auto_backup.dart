@@ -116,7 +116,7 @@ class AutoBackup {
       if (!manual) {
         await account.backgroundXp('mf565BackupXP', 'backup:$at', 'Automatic backup', 'Backup written to your folder');
       }
-      return file.path;
+      return path;
     } catch (e) {
       lastError = '$e';
       return null;
