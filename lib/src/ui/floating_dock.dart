@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
@@ -280,7 +281,7 @@ class BackgroundProcesses extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([RecoveryRunner.instance, account]),
+      listenable: Listenable.merge([RecoveryRunner.instance, account, ProcessesUi.onHome]),
       builder: (context, _) {
         final settings = asMap(account.view?.state['settings']);
         if (!backgroundProcessesShown(settings)) return const SizedBox.shrink();
@@ -393,7 +394,9 @@ class BackgroundProcesses extends StatelessWidget {
           ]),
         ]);
 
-        final fabBottom = (phone ? 80.0 : 0.0) + 16 + MediaQuery.paddingOf(context).bottom;
+        // Drawn over every screen (app builder): on the main screens of a phone
+        // the + sits above the bottom bar, elsewhere at the bottom.
+        final fabBottom = (phone && ProcessesUi.onHome.value ? kBottomBarHeight : 0.0) + 16 + MediaQuery.paddingOf(context).bottom;
         return ValueListenableBuilder<bool>(
           valueListenable: ProcessesUi.minimized,
           builder: (context, minimized, _) {
@@ -401,13 +404,33 @@ class BackgroundProcesses extends StatelessWidget {
               // v565: a slightly smaller icon next to the +, with progress and count.
               final idleHidden = procPrefs['idle'] == 'hide' && active == 0 && prefs['visibility'] != 'always';
               if (idleHidden) return const SizedBox.shrink();
-              return Align(
-                alignment: Alignment.bottomRight,
-                child: Padding(
-                  padding: EdgeInsets.only(right: 16 + 56 + 12, bottom: fabBottom + 5),
+              final mini = KeyedSubtree(
+                key: ProcessesUi.miniKey,
+                child: GestureDetector(
+                  // v6: the icon can be dragged anywhere too.
+                  onPanStart: (_) => ProcessesUi.dragStart(mini: true),
+                  onPanUpdate: (d) => ProcessesUi.dragBy(d.delta, mini: true),
+                  onPanEnd: (_) => ProcessesUi.dragEnd(procPrefs, mini: true),
                   child: _MiniProcesses(icon: procPrefs['icon'] ?? 'both', active: active, pct: overall, onTap: () => ProcessesUi.setMinimized(false)),
                 ),
               );
+              return LayoutBuilder(builder: (context, box) {
+                ProcessesUi.area = box.biggest;
+                return ValueListenableBuilder<Offset?>(
+                  valueListenable: ProcessesUi.miniPos,
+                  builder: (context, pos, _) {
+                    if (pos == null) {
+                      // Next to the +, centred on it.
+                      return Align(
+                        alignment: Alignment.bottomRight,
+                        child: Padding(padding: EdgeInsets.only(right: 16 + 56 + 10, bottom: fabBottom + 1), child: mini),
+                      );
+                    }
+                    final c = ProcessesUi.clamp(pos, mini: true);
+                    return Stack(children: [Positioned(left: c.dx, top: c.dy, child: mini)]);
+                  },
+                );
+              });
             }
             return LayoutBuilder(builder: (context, box) {
               ProcessesUi.area = box.biggest;
@@ -589,13 +612,24 @@ Map<String, String> processPrefs(Map<String, dynamic>? settings) {
 class ProcessesUi {
   ProcessesUi._();
   static final ValueNotifier<bool> minimized = ValueNotifier(AppPrefs.instance.get<bool>('mf565ProcMin', false));
-  static final ValueNotifier<Offset?> pos = ValueNotifier(_load());
-  static final GlobalKey panelKey = GlobalKey();
+  static final ValueNotifier<Offset?> pos = ValueNotifier(_load('mf565ProcPos'));
+  static final ValueNotifier<Offset?> miniPos = ValueNotifier(_load('mf565ProcMiniPos'));
+  static final GlobalKey panelKey = GlobalKey(), miniKey = GlobalKey();
   static Size area = Size.zero;
   static bool _remember = true;
 
-  static Offset? _load() {
-    final raw = AppPrefs.instance.get<String>('mf565ProcPos', '');
+  /// The signed-in account (set by the main screen): the widget is drawn over
+  /// every screen from the app's builder.
+  static final ValueNotifier<AccountController?> host = ValueNotifier(null);
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  /// Whether the main screens are on top (not a pushed page), and whether a
+  /// dialog, sheet or menu is open (the widget steps aside for it).
+  static final ValueNotifier<bool> onHome = ValueNotifier(true), popupOpen = ValueNotifier(false);
+  static final NavigatorObserver observer = _ProcessesObserver();
+
+  static Offset? _load(String key) {
+    final raw = AppPrefs.instance.get<String>(key, '');
     final parts = raw.split(',');
     if (parts.length != 2) return null;
     final x = double.tryParse(parts[0]), y = double.tryParse(parts[1]);
@@ -607,42 +641,50 @@ class ProcessesUi {
     unawaited(AppPrefs.instance.set('mf565ProcMin', v));
   }
 
-  static Size _panelSize() {
-    final box = panelKey.currentContext?.findRenderObject();
-    return box is RenderBox && box.hasSize ? box.size : const Size(340, 64);
+  static Size _panelSize({bool mini = false}) {
+    final box = (mini ? miniKey : panelKey).currentContext?.findRenderObject();
+    return box is RenderBox && box.hasSize ? box.size : (mini ? const Size(54, 54) : const Size(340, 64));
   }
 
   /// Kept fully on screen, 8 px from every edge.
-  static Offset clamp(Offset p) {
-    final s = _panelSize();
+  static Offset clamp(Offset p, {bool mini = false}) {
+    final s = _panelSize(mini: mini);
     final maxX = math.max(8.0, area.width - s.width - 8), maxY = math.max(8.0, area.height - s.height - 8);
     return Offset(p.dx.clamp(8.0, maxX), p.dy.clamp(8.0, maxY));
   }
 
-  static void dragStart() {
-    if (pos.value != null) return;
-    // Start from where the widget is drawn now.
-    final box = panelKey.currentContext?.findRenderObject();
-    final parent = box is RenderBox ? box.parent : null;
+  static void dragStart({bool mini = false}) {
+    final n = mini ? miniPos : pos;
+    if (n.value != null) return;
+    // Start from where it is drawn now.
+    final box = (mini ? miniKey : panelKey).currentContext?.findRenderObject();
+    RenderObject? parent = box?.parent;
+    while (parent != null && parent is! RenderStack && parent is! RenderPositionedBox) {
+      parent = parent.parent;
+    }
     if (box is RenderBox && box.hasSize && parent is RenderBox) {
-      pos.value = box.localToGlobal(Offset.zero, ancestor: parent);
+      n.value = box.localToGlobal(Offset.zero, ancestor: parent);
     } else {
-      pos.value = Offset(area.width - 352, area.height - 200);
+      n.value = mini ? Offset(area.width - 140, area.height - 160) : Offset(area.width - 352, area.height - 200);
     }
   }
 
-  static void dragBy(Offset d) => pos.value = clamp((pos.value ?? Offset.zero) + d);
+  static void dragBy(Offset d, {bool mini = false}) {
+    final n = mini ? miniPos : pos;
+    n.value = clamp((n.value ?? Offset.zero) + d, mini: mini);
+  }
 
-  static void dragEnd(Map<String, String> prefs) {
-    var p = pos.value;
+  static void dragEnd(Map<String, String> prefs, {bool mini = false}) {
+    final n = mini ? miniPos : pos;
+    var p = n.value;
     if (p == null) return;
     if (prefs['edges'] == 'snap') {
-      final s = _panelSize();
+      final s = _panelSize(mini: mini);
       p = Offset(p.dx + s.width / 2 < area.width / 2 ? 8 : math.max(8, area.width - s.width - 8), p.dy);
-      pos.value = clamp(p);
+      n.value = clamp(p, mini: mini);
     }
     _remember = prefs['position'] != 'default';
-    unawaited(AppPrefs.instance.set('mf565ProcPos', _remember ? '${pos.value!.dx.round()},${pos.value!.dy.round()}' : ''));
+    unawaited(AppPrefs.instance.set(mini ? 'mf565ProcMiniPos' : 'mf565ProcPos', _remember ? '${n.value!.dx.round()},${n.value!.dy.round()}' : ''));
   }
 
   /// "Always at the default spot": forget the position on the next start.
@@ -650,6 +692,96 @@ class ProcessesUi {
     if (prefs['position'] == 'default' && AppPrefs.instance.get<String>('mf565ProcPos', '').isNotEmpty) {
       unawaited(AppPrefs.instance.set('mf565ProcPos', ''));
     }
+    if (prefs['position'] == 'default' && AppPrefs.instance.get<String>('mf565ProcMiniPos', '').isNotEmpty) {
+      unawaited(AppPrefs.instance.set('mf565ProcMiniPos', ''));
+    }
+  }
+}
+
+/// The phone's bottom bar (NavigationBar) height.
+const double kBottomBarHeight = 80;
+
+/// Tracks pushed pages and open dialogs for [ProcessesUi].
+class _ProcessesObserver extends NavigatorObserver {
+  final List<Route<dynamic>> _stack = [];
+
+  void _update() {
+    final pages = _stack.whereType<PageRoute<dynamic>>().length;
+    final popup = _stack.isNotEmpty && _stack.last is PopupRoute;
+    // Called during navigation: update after the frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ProcessesUi.onHome.value = pages <= 1;
+      ProcessesUi.popupOpen.value = popup;
+    });
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.add(route);
+    _update();
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.remove(route);
+    _update();
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stack.remove(route);
+    _update();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final i = oldRoute == null ? -1 : _stack.indexOf(oldRoute);
+    if (i >= 0 && newRoute != null) {
+      _stack[i] = newRoute;
+    } else if (newRoute != null) {
+      _stack.add(newRoute);
+    }
+    _update();
+  }
+}
+
+/// The Background Processes widget over every screen of the app (put in
+/// MaterialApp.builder). Its own Overlay lets tooltips work above the pages.
+class GlobalBackgroundProcesses extends StatelessWidget {
+  const GlobalBackgroundProcesses({super.key, required this.openRecovery});
+
+  /// Opens the Recovery screen (0 cover, 1 metadata, 2 settings).
+  final void Function(BuildContext context, AccountController account, int tab) openRecovery;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AccountController?>(
+      valueListenable: ProcessesUi.host,
+      builder: (context, account, _) {
+        if (account == null) return const SizedBox.shrink();
+        return ListenableBuilder(
+          listenable: ProcessesUi.popupOpen,
+          builder: (context, _) => Offstage(
+            offstage: ProcessesUi.popupOpen.value,
+            child: Overlay(key: ObjectKey(account), initialEntries: [
+              OverlayEntry(
+                builder: (_) => BackgroundProcesses(
+                  account: account,
+                  onOpen: (mode) {
+                    final c = ProcessesUi.navigatorKey.currentContext;
+                    if (c != null) openRecovery(c, account, mode == 'metadata' ? 1 : 0);
+                  },
+                  onSettings: () {
+                    final c = ProcessesUi.navigatorKey.currentContext;
+                    if (c != null) openRecovery(c, account, 2);
+                  },
+                ),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
   }
 }
 

@@ -19,8 +19,10 @@ import '../platform/auto_backup.dart';
 import '../platform/device_report.dart';
 import '../platform/discord_presence.dart';
 import '../platform/notifications.dart';
+import 'floating_dock.dart' show GlobalBackgroundProcesses, ProcessesUi;
 import 'home_shell.dart';
 import 'presence.dart';
+import 'recovery_screen.dart' show openRecovery;
 import 'sign_in_screen.dart';
 import 'theme.dart';
 import 'theme_controller.dart';
@@ -42,7 +44,17 @@ class MediaFlowApp extends StatelessWidget {
           theme: theme,
           darkTheme: theme,
           themeMode: MF.light ? ThemeMode.light : ThemeMode.dark,
-          builder: (context, child) => PresenceIdleWatcher(child: ThemeRebuilder(child: child ?? const SizedBox.shrink())),
+          navigatorKey: ProcessesUi.navigatorKey,
+          navigatorObservers: [ProcessesUi.observer],
+          builder: (context, child) => PresenceIdleWatcher(
+            child: ThemeRebuilder(
+              child: Stack(fit: StackFit.expand, children: [
+                child ?? const SizedBox.shrink(),
+                // Background Processes on every screen, minimised or open.
+                GlobalBackgroundProcesses(openRecovery: (c, account, tab) => openRecovery(c, account, tab: tab)),
+              ]),
+            ),
+          ),
           home: const AuthGate(),
         );
       },
