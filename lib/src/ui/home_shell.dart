@@ -97,6 +97,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   void dispose() {
+    if (identical(ProcessesUi.host.value, widget.account)) ProcessesUi.host.value = null;
     AppShortcuts.instance.request.removeListener(_onShortcut);
     if (RecoveryScreen.goToPage == _goRecovery) RecoveryScreen.goToPage = null;
     LibraryScreen.showCategory.removeListener(_goLibrary);
@@ -197,16 +198,14 @@ class _HomeShellState extends State<HomeShell> {
                 onRecovery: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0, combined: mode == 'both'),
               )
             : null;
-        final withWidget = account.hasData
-            ? Stack(fit: StackFit.expand, children: [
-                body,
-                BackgroundProcesses(
-                  account: account,
-                  onOpen: (mode) => openRecovery(context, account, tab: mode == 'metadata' ? 1 : 0),
-                  onSettings: () => openRecovery(context, account, tab: 2),
-                ),
-              ])
-            : body;
+        // Background Processes is drawn over every screen (app.dart builder).
+        if (ProcessesUi.host.value != (account.hasData ? account : null)) {
+          final host = account.hasData ? account : null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) ProcessesUi.host.value = host;
+          });
+        }
+        final withWidget = body;
         if (wide) {
           return Scaffold(
             floatingActionButton: fab,
