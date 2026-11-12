@@ -21,6 +21,7 @@ import '../platform/notifications.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'app_nav.dart' show openNavigationSettings;
+import '../logic/action_xp.dart' show kActionXpGroups;
 import '../logic/title_names.dart';
 import 'category_editor.dart';
 import 'discord_settings.dart';
@@ -131,6 +132,12 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['leveling', 'rotationMultiplier', 'healthy'], 'Rotation ×: healthy', kind: 'double', def: 5),
       _S(['leveling', 'rotationMultiplier', 'overused'], 'Rotation ×: overused', kind: 'double', def: 2),
       for (final u in _unitKeys) _S(['leveling', 'unitXP', u], 'XP per ${kUnits[u]![0]}', kind: 'double', def: _unitDefaults[u]),
+      // v565: XP for every action, background work and time away (0 turns one off).
+      for (final g in kActionXpGroups) _S(['leveling', 'mf565ActionXP', g.$1], 'Action XP: ${g.$2}', kind: 'double', def: g.$3),
+      _S(['leveling', 'mf565BackupXP'], 'Automatic backup XP', kind: 'double', def: 5),
+      _S(['leveling', 'mf565RecoveryXP'], 'Finished recovery XP', kind: 'double', def: 10),
+      _S(['leveling', 'mf565FreshCheckXP'], 'Fresh-episode check XP', kind: 'double', def: 2),
+      _S(['leveling', 'mf565AwayXPPerMinute'], 'Away XP per minute (empty: a quarter of active time)', kind: 'double', def: 0.5),
     ]
   ),
   (

@@ -969,7 +969,7 @@ class _LogScreenState extends State<LogScreen> {
         _addRecommended();
         changed?.call();
       },
-      onPageSize: (n) => account.setSetting(['v175PageSizes', 'loggingLibrary'], n),
+      onPageSize: (n) => account.setSetting(['v175PageSizes', 'loggingLibrary'], n, xp: false),
     );
   }
 
@@ -1043,7 +1043,7 @@ class _LogScreenState extends State<LogScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: MF.border)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed),
+          onTap: () => account.setSetting(['v419LoggingCollapsed'], !collapsed, xp: false),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
             child: Row(children: [

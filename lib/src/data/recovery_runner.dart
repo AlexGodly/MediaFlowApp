@@ -134,6 +134,11 @@ class RecoveryRunner extends ChangeNotifier {
       job.stopped = stop.stopped;
       job.current = '';
       notifyListeners();
+      // v565: a finished recovery earns background-work XP.
+      if (job.finished) {
+        unawaited(account.backgroundXp('mf565RecoveryXP', 'cover:${DateTime.now().millisecondsSinceEpoch}',
+            'Recovery finished', 'Cover Recovery completed'));
+      }
     }
   }
 
@@ -402,6 +407,10 @@ class RecoveryRunner extends ChangeNotifier {
       job.stopped = stop.stopped;
       job.current = '';
       notifyListeners();
+      if (job.finished) {
+        unawaited(account.backgroundXp('mf565RecoveryXP', 'meta:${DateTime.now().millisecondsSinceEpoch}',
+            'Recovery finished', 'Metadata Recovery completed'));
+      }
     }
   }
 

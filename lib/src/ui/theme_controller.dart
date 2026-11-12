@@ -119,9 +119,9 @@ class ThemeController extends ChangeNotifier {
     final unset = jsStr(s['appearanceMode']) != 'light' && jsStr(s['appearanceMode']) != 'dark';
     unawaited(() async {
       try {
-        await account.setSetting(['globalAppearanceEnabled'], false);
-        if (unset) await account.setSetting(['appearanceMode'], native);
-        await account.setSetting(['v564NativeThemeDefault'], true);
+        await account.setSetting(['globalAppearanceEnabled'], false, xp: false);
+        if (unset) await account.setSetting(['appearanceMode'], native, xp: false);
+        await account.setSetting(['v564NativeThemeDefault'], true, xp: false);
       } finally {
         _migrating = false;
       }

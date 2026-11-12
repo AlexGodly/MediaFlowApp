@@ -190,7 +190,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (AppPrefs.instance.get<bool>('syncOnResume', true)) _account?.sync();
+      final account = _account;
+      if (account != null) {
+        // v565: after the sync, credit time the system kept the app suspended.
+        final synced = AppPrefs.instance.get<bool>('syncOnResume', true) ? account.sync() : Future<void>.value();
+        unawaited(synced.then((_) => account.creditAway()));
+      }
       _account?.startAutoPull();
       DiscordPresence.instance.resume();
     }

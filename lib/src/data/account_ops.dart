@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 
+import '../logic/action_xp.dart';
 import '../logic/extras.dart';
 import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
@@ -43,6 +44,10 @@ abstract class AccountOp {
         return ToolOp(jsStr(j['id']), jsStr(j['tool']), asMap(j['value']) ?? const {});
       case 'appTime':
         return AppTimeOp.fromJson(j);
+      case 'xpEvent':
+        return XpEventOp(ActionXpOp.fromJson(j));
+      case 'away':
+        return AwayXpOp(from: jsNum(j['from']).toInt(), to: jsNum(j['to']).toInt());
       default:
         // Beta 12 stored bare Batch Log requests.
         return BatchLogOp(LogRequest.fromJson(j));
@@ -386,3 +391,93 @@ class AppTimeOp extends AccountOp {
         at: jsNum(j['at']).toInt(),
       );
 }
+
+/// One XP event (website v565: XP for every action, background work, away
+/// time), written to the shared v348 ledger under a fixed key.
+class XpEventOp extends AccountOp {
+  XpEventOp(this.event);
+  final ActionXpOp event;
+
+  @override
+  String get id => event.key;
+  @override
+  String get kind => 'xpEvent';
+
+  @override
+  bool apply(Map<String, dynamic> state) => event.write(state) > 0;
+
+  @override
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, ...event.toJson()};
+}
+
+/// Away XP (website v565 mf565CreditAway): time when MediaFlow wasn't open
+/// anywhere earns XP at its own rate (settings.leveling.mf565AwayXPPerMinute;
+/// default a quarter of the active-time rate), times the day-streak
+/// multiplier. Each stretch is stored under its start, so the same time is
+/// never credited twice — not by two devices, not as both away and active.
+class AwayXpOp extends AccountOp {
+  AwayXpOp({required this.from, required this.to});
+  final int from, to;
+
+  static const minGap = 15 * 60 * 1000;
+
+  @override
+  String get id => 'mf565Away:$from';
+  @override
+  String get kind => 'away';
+
+  static double rate(Map<String, dynamic> state) {
+    final l = Leveling(state);
+    final raw = jsNumOrNull(asMap(asMap(state['settings'])?['leveling'])?['mf565AwayXPPerMinute']);
+    if (raw != null && raw.isFinite && raw >= 0) return raw > 100000 ? 100000 : raw;
+    final active = l.reward('activeTimeXPPerMinute');
+    return active > 0 ? active / 4 : 0;
+  }
+
+  @override
+  bool apply(Map<String, dynamic> state) {
+    var ledger = asMap(state['xpLedger']);
+    if (ledger == null) {
+      ledger = <String, dynamic>{};
+      state['xpLedger'] = ledger;
+    }
+    var changed = false;
+    // Someone (another device, the website) was seen after this stretch began: not away.
+    final seen = jsNum(ledger['mf565LastSeenAt']);
+    if (seen > from) {
+      if (to > seen) {
+        ledger['mf565LastSeenAt'] = to;
+        changed = true;
+      }
+      return changed;
+    }
+    var away = asMap(ledger['mf565Away']);
+    if (away == null) {
+      away = <String, dynamic>{};
+      ledger['mf565Away'] = away;
+    }
+    final gap = to - from;
+    if (gap >= minGap && away['$from'] == null) {
+      final minutes = gap ~/ 60000, r = rate(state);
+      var xp = 0.0;
+      if (r > 0 && Leveling(state).enabled) {
+        xp = ActionXpOp(key: id, kind: 'mf565Away', base: minutes * r, source: 'Away time',
+                details: '${fmtThousands(minutes)} min while MediaFlow was closed', at: to)
+            .write(state);
+      }
+      away['$from'] = <String, dynamic>{'from': from, 'to': to, 'ms': gap, 'xp': jsOut(xp)};
+      changed = true;
+    }
+    if (to > jsNum(ledger['mf565LastSeenAt'])) {
+      ledger['mf565LastSeenAt'] = to;
+      changed = true;
+    }
+    return changed;
+  }
+
+  @override
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'from': from, 'to': to};
+}
+
+/// `toLocaleString()` for whole numbers in en-US (1,234).
+String fmtThousands(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ',');

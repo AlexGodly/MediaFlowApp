@@ -66,6 +66,6 @@ class DeviceReport {
     final devices = asMap(asMap(view.state['settings'])?['mf565AppDevices']);
     final entry = entryToWrite(devices?[account.deviceId],
         version: kAppVersionLabel, now: DateTime.now().millisecondsSinceEpoch);
-    if (entry != null) unawaited(account.setSetting(['mf565AppDevices', account.deviceId], entry));
+    if (entry != null) unawaited(account.setSetting(['mf565AppDevices', account.deviceId], entry, xp: false));
   }
 }
