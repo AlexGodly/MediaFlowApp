@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -8,6 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../config.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/ratings_engine.dart' show ratingRows;
 import '../data/cover_cache.dart';
 import '../logic/resume.dart';
 import '../state/models.dart';
@@ -293,7 +295,12 @@ class SyncIndicator extends StatelessWidget {
   final AccountController account;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+        valueListenable: account.syncStatus,
+        builder: (context, _, __) => _pill(),
+      );
+
+  Widget _pill() {
     final (label, color, icon) = switch (account.status) {
       SyncState.loading => ('Loading', MF.textDim, Icons.hourglass_top_rounded),
       SyncState.syncing => ('Syncing', MF.warn, Icons.sync_rounded),
@@ -399,6 +406,25 @@ class CompactDropdown<T> extends StatelessWidget {
 
 /// A titled card that can be collapsed; its open/closed state is remembered on
 /// this device under [prefKey].
+/// Settings search (7.0.0): the text typed in Settings' search box. Every
+/// [SectionCard] below it shows only when it matches, opened.
+class SettingsSearch extends InheritedWidget {
+  const SettingsSearch({super.key, required this.query, required super.child});
+  final String query;
+
+  static String of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<SettingsSearch>()?.query.trim().toLowerCase() ?? '';
+
+  /// Whether every word of [query] appears in [text].
+  static bool matches(String query, String text) {
+    if (query.isEmpty) return true;
+    final t = text.toLowerCase();
+    return query.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).every(t.contains);
+  }
+
+  @override
+  bool updateShouldNotify(SettingsSearch old) => old.query != query;
+}
+
 class SectionCard extends StatefulWidget {
   const SectionCard({
     super.key,
@@ -409,6 +435,7 @@ class SectionCard extends StatefulWidget {
     this.prefKey,
     this.initiallyOpen = true,
     this.trailing,
+    this.keywords = '',
   });
 
   final String title;
@@ -418,6 +445,9 @@ class SectionCard extends StatefulWidget {
   final String? prefKey;
   final bool initiallyOpen;
   final Widget? trailing;
+
+  /// More words Settings search finds this card by.
+  final String keywords;
 
   @override
   State<SectionCard> createState() => _SectionCardState();
@@ -435,6 +465,12 @@ class _SectionCardState extends State<SectionCard> {
 
   @override
   Widget build(BuildContext context) {
+    final query = SettingsSearch.of(context);
+    if (query.isNotEmpty &&
+        !SettingsSearch.matches(query, '${widget.title} ${widget.subtitle ?? ''} ${widget.keywords} ${_kSearchWords[widget.prefKey] ?? ''}')) {
+      return const SizedBox.shrink();
+    }
+    final open = _open || query.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
@@ -456,11 +492,11 @@ class _SectionCardState extends State<SectionCard> {
                   ]),
                 ),
                 if (widget.trailing != null) widget.trailing!,
-                Icon(_open ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: MF.textDim),
+                Icon(open ? Icons.expand_less_rounded : Icons.expand_more_rounded, color: MF.textDim),
               ]),
             ),
           ),
-          if (_open)
+          if (open)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: widget.child,
@@ -605,4 +641,73 @@ class PageListView extends StatelessWidget {
           children: children,
         );
       });
+}
+
+
+/// Extra words for Settings search, by card (what's inside each card).
+const Map<String?, String> _kSearchWords = {
+  'app.discord': 'discord rich presence rpc status consuming custom status advanced modify activity buttons title name language pin',
+  'app.updates': 'update version download new release',
+  'app.notifications': 'notifications reminders streak new episodes chapters alerts',
+  'app.sync': 'sync offline cloud upload pending',
+  'app.storage': 'storage cache covers offline space',
+  'app.windows': 'windows tray start up startup close minimise',
+  'app.general': 'start page tab open language',
+  'app.diagnostics': 'diagnostics crash freeze slow log report',
+  'settings.theme': 'theme dark light colours colors cover dynamic appearance',
+  'settings.categories': 'categories units targets rename enable',
+  'settings.titleNames': 'title names language english romaji japanese',
+  'settings.dataCloud': 'backup automatic backups export import preset restore data cloud',
+  'settings.apiProviders': 'api providers covers metadata recovery tmdb anilist test',
+};
+
+/// Passes on [source]'s changes at most once per [gap] (the first right away,
+/// the last one never dropped). 7.0.0: screens that follow a running job.
+class ThrottledListenable extends ChangeNotifier {
+  ThrottledListenable(this.source, {this.gap = const Duration(milliseconds: 250)}) {
+    source.addListener(_changed);
+  }
+
+  final Listenable source;
+  final Duration gap;
+  DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _timer;
+
+  void _changed() {
+    if (_timer != null) return;
+    final wait = gap - DateTime.now().difference(_last);
+    if (wait <= Duration.zero) {
+      _fire();
+    } else {
+      _timer = Timer(wait, () {
+        _timer = null;
+        _fire();
+      });
+    }
+  }
+
+  void _fire() {
+    _last = DateTime.now();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    source.removeListener(_changed);
+    super.dispose();
+  }
+}
+
+
+/// 7.0.0: this device's "Show external ratings on titles" (off by default).
+const String kShowExternalRatingsPref = 'showExternalRatings';
+
+/// A title's saved external ratings in one short line ("MyAnimeList 8.6 ·
+/// IMDb 8.1"), or '' when there are none or they're hidden on this device.
+String externalRatingsLine(Map<String, dynamic> item, {int max = 3}) {
+  if (!AppPrefs.instance.get<bool>(kShowExternalRatingsPref, false)) return '';
+  final rows = ratingRows(item);
+  if (rows.isEmpty) return '';
+  return rows.take(max).map((r) => '${r.$1} ${r.$2.split(' / ').first}').join(' · ');
 }

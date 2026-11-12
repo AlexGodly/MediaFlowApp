@@ -7,7 +7,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../logic/consuming.dart';
 import '../logic/custom_status.dart';
+import '../logic/resume.dart' show readLogging;
+import '../logic/title_names.dart' show titleLanguageLabel, titleNames;
 import '../logic/presence_templates.dart';
 import '../platform/discord_ffi.dart';
 import '../platform/discord_presence.dart';
@@ -413,7 +416,8 @@ class _Previews extends StatelessWidget {
   }
 }
 
-/// "Show on Discord": the pinned title and how long it stays.
+/// Consuming… (7.0.0): the title shown as the one you're on now, where it
+/// comes from, Clear / Stop, and its name on Discord.
 class _PinnedTile extends StatelessWidget {
   const _PinnedTile({required this.account});
   final AccountController? account;
@@ -423,23 +427,70 @@ class _PinnedTile extends StatelessWidget {
     final a = account;
     final view = a?.view;
     if (a == null || view == null) return const SizedBox.shrink();
-    final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
-    final t = pin == null ? null : view.library.where((x) => x.id == pin.titleId).firstOrNull;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: const Icon(Icons.push_pin_rounded),
-      title: Text(t == null ? 'Consuming… (show a title on Discord)' : 'Consuming: ${t.title}'),
-      subtitle: Text(t == null ? 'Pick any Library title to show as if you\'re on it (also on the Log page)' : 'Shown on all your devices until you stop it'),
-      trailing: t == null
-          ? const Icon(Icons.chevron_right_rounded)
-          : TextButton(onPressed: () => stopShowingOnDiscord(a), child: const Text('Stop')),
-      onTap: t != null
-          ? null
-          : () async {
-              final ids = await pickLibraryTitles(context, view, title: 'Show on Discord', single: true);
-              if (ids != null && ids.isNotEmpty && context.mounted) await showOnDiscord(context, a, ids.first);
-            },
-    );
+    final config = DiscordPresence.instance.config.raw;
+    final pin = activePin(config, DateTime.now().millisecondsSinceEpoch);
+    final id = currentConsumingId(a);
+    final t = id == null ? null : view.library.where((x) => x.id == id).firstOrNull;
+    final chosen = t != null && pin?.titleId == t.id;
+    final source = consumingSource(config);
+    final name = t == null ? '' : discordTitleName(t.raw, settings: asMap(view.state['settings']), config: config, consuming: true);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.play_circle_outline_rounded),
+        title: Text(t == null ? 'Consuming… (show a title on Discord)' : 'Consuming: $name'),
+        subtitle: Text(t == null
+            ? 'Pick any Library title to show as if you\'re on it (also on the Log page)'
+            : chosen
+                ? 'Chosen by you · shown on all your devices until you stop it'
+                : 'From ${kConsumingSources.firstWhere((s) => s.$1 == source).$2.toLowerCase()}'),
+        trailing: t == null
+            ? const Icon(Icons.chevron_right_rounded)
+            : Wrap(spacing: 4, children: [
+                IconButton(tooltip: 'Name on Discord', icon: const Icon(Icons.translate_rounded), onPressed: () => pickDiscordName(context, a, t.raw)),
+                TextButton(
+                  onPressed: () => chosen ? stopShowingOnDiscord(a) : clearConsuming(a, t.id),
+                  child: Text(chosen ? 'Stop' : 'Clear'),
+                ),
+              ]),
+        onTap: () async {
+          final ids = await pickLibraryTitles(context, view, title: 'Show on Discord', single: true);
+          if (ids != null && ids.isNotEmpty && context.mounted) await showOnDiscord(context, a, ids.first);
+        },
+      ),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: DropdownButtonFormField<String>(
+          key: ValueKey('consuming-$source'),
+          initialValue: source,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Consuming shows', helperText: 'A title you choose always comes first, until you stop it.'),
+          items: [for (final s in kConsumingSources) DropdownMenuItem(value: s.$1, child: Text(s.$2, overflow: TextOverflow.ellipsis))],
+          onChanged: (v) {
+            if (v != null) setConsumingSource(a, v);
+          },
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: DropdownButtonFormField<String>(
+          key: ValueKey('titlename-${jsStr(config['titleName'])}'),
+          initialValue: jsStr(config['titleName']) == 'main' ? 'main' : 'mediaflow',
+          isExpanded: true,
+          decoration: const InputDecoration(
+              labelText: 'Title name on Discord',
+              helperText: 'Follow MediaFlow: the name each title shows in MediaFlow (English, Romanised Japanese…).',
+              helperMaxLines: 2),
+          items: const [
+            DropdownMenuItem(value: 'mediaflow', child: Text('Follow MediaFlow\'s title names')),
+            DropdownMenuItem(value: 'main', child: Text('Always the main name')),
+          ],
+          onChanged: (v) {
+            if (v != null) setDiscordTitleName(a, v);
+          },
+        ),
+      ),
+    ]);
   }
 }
 
@@ -464,15 +515,112 @@ Future<void> showOnDiscord(BuildContext context, AccountController account, Stri
     'session': choice == 'close' ? kAppSessionId : '',
     'setAt': now,
   };
-  final next = DiscordPresence.instance.config.withChanges({'pinned': pinned});
+  // Choosing a title yourself ends an earlier Clear.
+  await _saveDiscord(account, withoutClear(DiscordPresence.instance.config.withChanges({'pinned': pinned})));
+}
+
+Future<void> _saveDiscord(AccountController account, Map<String, dynamic> next) async {
   DiscordPresence.instance.setConfig(PresenceConfig(next));
   await account.setSetting([PresenceConfig.key], next);
 }
 
-Future<void> stopShowingOnDiscord(AccountController account) async {
-  final next = DiscordPresence.instance.config.withChanges({'pinned': null});
-  DiscordPresence.instance.setConfig(PresenceConfig(next));
-  await account.setSetting([PresenceConfig.key], next);
+/// The Consuming… title now, from the account (any screen).
+String? currentConsumingId(AccountController account) {
+  final view = account.view;
+  if (view == null) return null;
+  final logging = readLogging(view.state);
+  final open = logging != null && logging['active'] == true;
+  return consumingTitleId(DiscordPresence.instance.config.raw, open ? asMap(logging['currentTask']) : null,
+      open ? asMap(logging['logDraft']) : null, DateTime.now().millisecondsSinceEpoch);
+}
+
+/// Clear / Stop (7.0.0): no title is consuming any more, and Discord goes back
+/// to its normal status. [shownId]: what Consuming… showed (it stays hidden
+/// until the source gives another title or you choose one).
+Future<void> clearConsuming(AccountController account, String? shownId) =>
+    _saveDiscord(account, clearedConsuming(DiscordPresence.instance.config.raw, shownId, DateTime.now().millisecondsSinceEpoch));
+
+/// Stop showing the Consuming… title (the one you chose, else the current one).
+Future<void> stopShowingOnDiscord(AccountController account) {
+  final pin = activePin(DiscordPresence.instance.config.raw, DateTime.now().millisecondsSinceEpoch);
+  return clearConsuming(account, pin?.titleId ?? currentConsumingId(account));
+}
+
+Future<void> setConsumingSource(AccountController account, String source) =>
+    _saveDiscord(account, DiscordPresence.instance.config.withChanges({'consumingSource': source, 'consumingCleared': null}));
+
+Future<void> setDiscordTitleName(AccountController account, String mode) =>
+    _saveDiscord(account, DiscordPresence.instance.config.withChanges({'titleName': mode}));
+
+/// "Name on Discord" for one title: any of its languages or your own text, for
+/// Discord only. By default only while it's the Consuming… title; "Keep for
+/// this title" uses it every time. The title itself never changes.
+Future<void> pickDiscordName(BuildContext context, AccountController account, Map<String, dynamic> item) async {
+  final id = jsStr(item['id']);
+  if (id.isEmpty) return;
+  final config = DiscordPresence.instance.config.raw;
+  final current = discordNameChoice(config, id);
+  final names = titleNames(item);
+  final custom = TextEditingController(text: current?.custom ?? '');
+  var lang = current?.lang ?? '';
+  var keep = current?.keep ?? false;
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (c) => StatefulBuilder(
+      builder: (c, setLocal) => AlertDialog(
+        title: const Text('Name on Discord'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Only what Discord shows. The title and its name in MediaFlow stay the same.',
+                  style: TextStyle(color: MF.textDim, fontSize: 12)),
+              const SizedBox(height: 8),
+              RadioGroup<String>(
+                groupValue: custom.text.trim().isNotEmpty ? '__custom' : lang,
+                onChanged: (v) => setLocal(() {
+                  if (v == null || v == '__custom') return;
+                  lang = v;
+                  custom.clear();
+                }),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const RadioListTile<String>(contentPadding: EdgeInsets.zero, dense: true, value: '', title: Text('The usual name')),
+                  RadioListTile<String>(contentPadding: EdgeInsets.zero, dense: true, value: 'main', title: Text('Main name · ${cleanTitle(item['title'])}', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  for (final n in names)
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: n.lang,
+                      title: Text('${titleLanguageLabel(n.lang)} · ${n.text}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                ]),
+              ),
+              TextField(
+                controller: custom,
+                maxLength: 120,
+                decoration: const InputDecoration(labelText: 'Or my own name for Discord'),
+                onChanged: (_) => setLocal(() {}),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: keep,
+                onChanged: (v) => setLocal(() => keep = v ?? false),
+                title: const Text('Keep for this title'),
+                subtitle: const Text('Use it every time this title is on Discord, not only while consuming it.'),
+              ),
+            ]),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Save')),
+        ],
+      ),
+    ),
+  );
+  if (result != true) return;
+  final text = custom.text.trim();
+  await _saveDiscord(account, withDiscordName(DiscordPresence.instance.config.raw, id, lang: text.isEmpty ? lang : '', custom: text, keep: keep));
 }
 
 /// The SectionCard for Settings.

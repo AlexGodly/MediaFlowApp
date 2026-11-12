@@ -16,6 +16,10 @@ import 'metadata_search.dart';
 import 'rating_sources.dart';
 
 /// A title waiting for a cover choice.
+
+/// 7.0.0: automatic recovery uploads at most once per this window.
+const Duration kRecoverySyncBatch = Duration(seconds: 10);
+
 class CoverReview {
   CoverReview(this.id, this.title, this.expectedModifiedAt, this.candidates);
   final String id, title;
@@ -260,7 +264,7 @@ class RecoveryRunner extends ChangeNotifier {
     await account.edit((s, now) {
       var k = 0;
       xp = applyRecoveredCover(s, id, c, expected, now, () => mediaFlowUid(now + k++), manual: manual, linkIds: linkIds);
-    }, label: 'Cover Recovery');
+    }, label: 'Cover Recovery', undoable: manual, delay: manual ? null : kRecoverySyncBatch, quiet: !manual);
     if (xp == null) return false;
     if (job != null) {
       job.applied++;
@@ -378,10 +382,12 @@ class RecoveryRunner extends ChangeNotifier {
         final preview = metadataProposals(snapshot, found.results, minimumConfidence: minConf);
         var changed = 0;
         if (preview.ready > 0) {
+          // 7.0.0: saved on this device right away; uploads are batched (one
+          // sync per 10 s instead of one per title, which froze big accounts).
           await account.edit((s, now) {
             final m = findTitle(s, id);
             if (m != null) changed = applyMetadata(m, preview, now, automatic: true, minimumConfidence: minConf).changed;
-          }, label: 'Metadata Recovery');
+          }, label: 'Metadata Recovery', undoable: false, delay: kRecoverySyncBatch, quiet: true);
         }
         if (changed > 0) {
           job.applied++;

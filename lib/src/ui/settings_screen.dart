@@ -82,17 +82,38 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v369Logging', 'defaultInterface'], 'Logging interface', kind: 'choice', def: 'itemized', choices: [('itemized', 'Advanced (per unit)'), ('quick', 'Quick')]),
       _S(['v181Logging', 'defaultMode'], 'Quick logging mode', kind: 'choice', def: 'progress', choices: [('progress', 'Progress reached'), ('amount', 'Amount consumed')]),
       _S(['v419LoggingCollapsed'], 'Start with the Logging Workspace collapsed', kind: 'bool', def: false),
+      // 7.0.0 / website v566 (shared with the website).
+      _S(['mf566LogTime'], 'Log time', kind: 'choice', def: 'unit',
+          help: 'When a log is saved, its titles count on the day you consumed them. Streaks, History and Statistics follow.',
+          choices: [('unit', 'When each unit was logged'), ('added', 'When the title was added to the log')]),
+    ]
+  ),
+  (
+    'Floating Controls',
+    Icons.picture_in_picture_alt_rounded,
+    [
+      // Website Settings → Appearance → Floating Controls (v405, v441, v565).
+      // Quick Actions
       _S(['v405ShowFloatingAdd'], 'Show the floating + button', kind: 'bool', def: true),
+      // Progress Widgets
       _S(['v405ShowFloatingTaskProgress'], 'Show Floating Task Progress', kind: 'bool', def: true),
-      // v565 (shared with the website).
       _S(['mf565TaskFinish'], 'Task progress finishes at', kind: 'choice', def: 'minimum',
           help: 'Where the card reaches 100% for a goal like 9–13.', choices: [('minimum', 'Minimum (9 of 9–13)'), ('maximum', 'Maximum (13 of 9–13)')]),
       _S(['mf565TaskOver'], 'When you go over the maximum', kind: 'choice', def: 'count',
           choices: [('count', 'Count past 100%'), ('warning', 'Warning colour'), ('status', 'Status only')]),
+      // Background Processes (the position itself stays on each device)
+      _S(['v441RecoveryUI', 'visibility'], 'Background Processes widget', kind: 'choice', def: 'auto',
+          choices: [('auto', 'While something runs'), ('always', 'Always'), ('hidden', 'Hidden')]),
+      _S(['v441RecoveryUI', 'showFinished'], 'Keep finished jobs in the widget', kind: 'bool', def: false),
+      _S(['mf565Processes', 'position'], 'Background Processes: when it reopens', kind: 'choice', def: 'remember', choices: [('remember', 'Where I left it'), ('default', 'Always at the default spot')]),
+      _S(['mf565Processes', 'edges'], 'Background Processes: after moving it', kind: 'choice', def: 'stay', choices: [('stay', 'Stay where dropped'), ('snap', 'Snap to nearest edge')]),
+      _S(['mf565Processes', 'icon'], 'Background Processes: minimised icon', kind: 'choice', def: 'both',
+          choices: [('both', 'Progress ring and count'), ('ring', 'Progress ring'), ('count', 'Count of running jobs'), ('plain', 'Plain icon')]),
+      _S(['mf565Processes', 'idle'], 'Background Processes: when nothing is running', kind: 'choice', def: 'hide', choices: [('hide', 'Hide the icon'), ('show', 'Always show it')]),
     ]
   ),
   (
-    'Recovery Shortcuts & Background Processes',
+    'Recovery Shortcuts',
     Icons.auto_fix_high_rounded,
     [
       _S(['v447RecoveryShortcuts', 'floating'], 'Recovery items in the + menu', kind: 'bool', def: true),
@@ -101,15 +122,6 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['v447RecoveryShortcuts', 'collections'], 'Recovery in Collections', kind: 'bool', def: true),
       _S(['v447RecoveryShortcuts', 'order'], 'Recovery in Personal Order', kind: 'bool', def: true),
       _S(['v447RecoveryShortcuts', 'widget'], 'Recovery shortcuts in Background Processes', kind: 'bool', def: true),
-      _S(['v441RecoveryUI', 'visibility'], 'Background Processes widget', kind: 'choice', def: 'auto',
-          choices: [('auto', 'While something runs'), ('always', 'Always'), ('hidden', 'Hidden')]),
-      _S(['v441RecoveryUI', 'showFinished'], 'Keep finished jobs in the widget', kind: 'bool', def: false),
-      // v565 (shared with the website; the position itself stays on each device).
-      _S(['mf565Processes', 'position'], 'When it reopens', kind: 'choice', def: 'remember', choices: [('remember', 'Where I left it'), ('default', 'Always at the default spot')]),
-      _S(['mf565Processes', 'edges'], 'After moving it', kind: 'choice', def: 'stay', choices: [('stay', 'Stay where dropped'), ('snap', 'Snap to nearest edge')]),
-      _S(['mf565Processes', 'icon'], 'Minimised icon', kind: 'choice', def: 'both',
-          choices: [('both', 'Progress ring and count'), ('ring', 'Progress ring'), ('count', 'Count of running jobs'), ('plain', 'Plain icon')]),
-      _S(['mf565Processes', 'idle'], 'When nothing is running', kind: 'choice', def: 'hide', choices: [('hide', 'Hide the icon'), ('show', 'Always show it')]),
     ]
   ),
   (
@@ -176,9 +188,31 @@ final _sections = <(String, IconData, List<_S>)>[
   ),
 ];
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.account});
   final AccountController account;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  // 7.0.0: search every setting (both tabs).
+  final _search = TextEditingController();
+  bool _searching = false;
+
+  AccountController get account => widget.account;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _close() => setState(() {
+        _searching = false;
+        _search.clear();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -186,14 +220,32 @@ class SettingsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Settings'),
-          actions: [SyncIndicator(account: account)],
-          bottom: const TabBar(tabs: [Tab(text: 'Account settings'), Tab(text: 'This app')]),
+          title: _searching
+              ? TextField(
+                  controller: _search,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(hintText: 'Search settings', border: InputBorder.none),
+                  onChanged: (_) => setState(() {}),
+                )
+              : const Text('Settings'),
+          actions: [
+            IconButton(
+              tooltip: _searching ? 'Close search' : 'Search settings',
+              icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
+              onPressed: _searching ? _close : () => setState(() => _searching = true),
+            ),
+            SyncIndicator(account: account),
+          ],
+          bottom: const TabBar(tabs: [Tab(text: 'Account'), Tab(text: 'App')]),
         ),
-        body: TabBarView(children: [
-          _AccountSettings(account: account),
-          _AppSettings(account: account),
-        ]),
+        body: SettingsSearch(
+          query: _searching ? _search.text : '',
+          child: TabBarView(children: [
+            _AccountSettings(account: account),
+            _AppSettings(account: account),
+          ]),
+        ),
       ),
     );
   }
@@ -275,13 +327,21 @@ class _AccountSettings extends StatelessWidget {
           ),
           bulkRatingsSection(account),
           for (final sec in _sections)
-            SectionCard(
-              prefKey: 'settings.${sec.$1}',
-              initiallyOpen: false,
-              icon: sec.$2,
-              title: sec.$1,
-              child: Column(children: [for (final s in sec.$3) _row(context, state, s)]),
-            ),
+            Builder(builder: (context) {
+              // Search: a card whose name matches shows every row; otherwise
+              // only the rows that match.
+              final q = SettingsSearch.of(context);
+              final all = q.isEmpty || SettingsSearch.matches(q, sec.$1);
+              final rows = [for (final s in sec.$3) if (all || SettingsSearch.matches(q, '${s.label} ${s.help}')) s];
+              return SectionCard(
+                prefKey: 'settings.${sec.$1}',
+                initiallyOpen: false,
+                icon: sec.$2,
+                title: sec.$1,
+                keywords: [for (final s in sec.$3) '${s.label} ${s.help}'].join(' '),
+                child: Column(children: [for (final s in rows) _row(context, state, s)]),
+              );
+            }),
           SectionCard(
             prefKey: 'settings.categories',
             initiallyOpen: false,
@@ -768,6 +828,14 @@ class _AppSettingsState extends State<_AppSettings> {
                 title: const Text('Remember Library layout and filters'),
                 value: prefs.get<bool>('rememberLibraryUi', true),
                 onChanged: (v) => prefs.set('rememberLibraryUi', v),
+              ),
+              // 7.0.0: external ratings on titles (hidden by default).
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show external ratings on titles'),
+                subtitle: const Text('MyAnimeList, IMDb and the other saved ratings, on Library titles and the recommended title.'),
+                value: prefs.get<bool>(kShowExternalRatingsPref, false),
+                onChanged: (v) => prefs.set(kShowExternalRatingsPref, v),
               ),
             ]),
           ),

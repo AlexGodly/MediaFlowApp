@@ -597,14 +597,29 @@ class FieldProposal {
     required this.same,
     required this.selected,
     required this.status,
+    this.ratingUpdate = false,
   });
   final String token, label, status;
   final List<FieldOption> options;
   final Object? original;
   final bool hasOriginal, isProtected, disagree, same;
+
+  /// 7.0.0 (website v566): an automatic external rating that recovery found a
+  /// different (newer) value for. Saving it replaces the old value.
+  final bool ratingUpdate;
   bool selected;
   int choice = 0;
 }
+
+/// Website v566 `mf566RatingSame`.
+bool ratingSame(Object? a, Object? b) {
+  final x = asMap(a), y = asMap(b);
+  if (x == null || y == null) return false;
+  return jsNum(x['score']) == jsNum(y['score']) && jsNum(x['scale']) == jsNum(y['scale']) && jsNumOrNull(x['votes']) == jsNumOrNull(y['votes']);
+}
+
+/// provenance.via of ratings saved by Details Recovery (website v566).
+const String kRecoveryVia = 'recovery';
 
 class MetadataPreview {
   MetadataPreview(this.titleId, this.title, this.proposals, this.errors, this.providers, [this.records = const [], this.names = const []]);
@@ -686,17 +701,20 @@ MetadataPreview metadataProposals(Map<String, dynamic> item, List<Map<String, dy
     final same = options.every((o) => valueKey(o.value) == valueKey(old));
     final disagree = options.length > 1;
     final auto = !present && !prot && !disagree && options.first.confidence >= minimumConfidence;
+    // v566: an automatic rating with a different value can be updated.
+    final update = token.startsWith('rating.') && present && !prot && !same && !ratingSame(options.first.value, old);
     proposals.add(FieldProposal(
       token: token,
       label: _label(token),
       options: options,
       original: old,
-      hasOriginal: present,
+      hasOriginal: present && !update,
       isProtected: prot,
       disagree: disagree,
       same: same,
-      selected: !same && auto,
-      status: prot ? 'protected' : same ? 'unchanged' : present ? 'existing' : disagree ? 'conflict' : auto ? 'ready' : 'review',
+      selected: update ? !disagree && options.first.confidence >= 0.7 : !same && auto,
+      status: update ? 'update' : prot ? 'protected' : same ? 'unchanged' : present ? 'existing' : disagree ? 'conflict' : auto ? 'ready' : 'review',
+      ratingUpdate: update,
     ));
   });
   proposals.sort((a, b) => a.token == 'legacy.synopsis' ? -1 : b.token == 'legacy.synopsis' ? 1 : localeCompare(a.token, b.token));
@@ -760,6 +778,24 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
     if (src == null || src.confidence < 0.7) continue;
     if (automatic && (prop.hasOriginal || prop.disagree || src.confidence < minimumConfidence)) continue;
     if (prop.hasOriginal) continue;
+    if (prop.ratingUpdate) {
+      // v566: replace an automatic rating with the newer value recovery found.
+      final key = prop.token.substring(7);
+      final value = asMap(choice.value);
+      if (value == null || ratingSame(value, asMap(env['externalRatings'])?[key])) continue;
+      if (setRatingInEnvelope(env, key, value, source: src.provider, force: true, updatedAt: now)) {
+        (env['provenance'] as Map<String, dynamic>)[prop.token] = {
+          'source': src.provider,
+          'verified': true,
+          'recordId': src.recordId,
+          'updatedAt': now,
+          'via': kRecoveryVia,
+        };
+        ratings++;
+        count++;
+      }
+      continue;
+    }
     final current = currentFieldValue(item, prop.token);
     if (hasValue(current is Map ? current['score'] : current)) continue;
     var applied = false;
@@ -790,6 +826,8 @@ Future<({List<Map<String, dynamic>> results, List<(String, String)> failures})> 
         'recordId': src.recordId,
         'evidence': src.evidence,
         'updatedAt': now,
+        // v566: ratings saved by recovery are marked, so a later refresh updates them.
+        if (prop.token.startsWith('rating.')) 'via': kRecoveryVia,
       };
     }
   }

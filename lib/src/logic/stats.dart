@@ -736,3 +736,22 @@ class StatsModel {
   /// Visible Today's Balance categories (for the profile pills).
   int get balanceCategories => visiblePanelCategories(state, 'todayBalance').length;
 }
+
+/// Level, XP, today's streak and Library size, for Discord's {level}, {xp},
+/// {streak} and {library}. 7.0.0: worked out in the sync isolate, where the
+/// account is already decoded, instead of on the screen's thread after every
+/// change (the regular slow frames on big accounts). Null when it can't be read.
+Map<String, num>? presenceStatsOf(Map<String, dynamic> state, [DateTime? now]) {
+  try {
+    final t = now ?? DateTime.now();
+    final xp = xpMetrics(state).total;
+    return {
+      'level': levelInfo(xp).level,
+      'xp': xp,
+      'streak': buildStreakMap(asList(state['sessions']))[isoDateUtc(t.millisecondsSinceEpoch)] ?? 0,
+      'library': asList(state['library']).length,
+    };
+  } catch (_) {
+    return null;
+  }
+}

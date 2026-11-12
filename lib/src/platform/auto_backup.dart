@@ -13,8 +13,17 @@ import 'package:path_provider/path_provider.dart';
 import '../config.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../data/background_worker.dart';
 import '../logic/data_transfer.dart';
+import '../state/lazy_copy.dart';
 import '../util/js.dart';
+
+/// Builds the full backup, encodes it and writes it to [path]. Top-level so it
+/// can run on the worker isolate.
+Future<void> writeBackupFile(String path, Map<String, dynamic> state, DateTime now, String appVersion) async {
+  final json = const JsonEncoder.withIndent('  ').convert(buildFullBackup(state, now, appVersion: appVersion));
+  await File(path).writeAsString(json, flush: true);
+}
 
 class AutoBackup {
   AutoBackup._();
@@ -95,16 +104,19 @@ class AutoBackup {
       var name = p['mode'] == 'multiple' ? autoBackupFileName(now) : jsStr(p['fileName']).trim();
       if (name.isEmpty) name = 'mediaflow-backup.json';
       name = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
-      final file = File('${dir.path}${Platform.pathSeparator}$name');
-      final json = const JsonEncoder.withIndent('  ').convert(buildFullBackup(view.state, now, appVersion: kAppVersionLabel));
-      await file.writeAsString(json, flush: true);
+      final path = '${dir.path}${Platform.pathSeparator}$name';
+      // 7.0.0: building, encoding and writing a full backup of a big account
+      // took seconds on the screen's thread, every interval (the regular
+      // freezes in Windows diagnostics). It all runs on the worker now.
+      final state = readOnlyView(view.state);
+      await runOnWorker(() => writeBackupFile(path, state, now, kAppVersionLabel));
       lastError = null;
       final at = now.millisecondsSinceEpoch;
       await account.setSetting(['backup', 'lastBackup'], at, xp: false);
       if (!manual) {
         await account.backgroundXp('mf565BackupXP', 'backup:$at', 'Automatic backup', 'Backup written to your folder');
       }
-      return file.path;
+      return path;
     } catch (e) {
       lastError = '$e';
       return null;

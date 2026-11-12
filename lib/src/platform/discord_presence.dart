@@ -387,6 +387,9 @@ class DiscordPresence extends ChangeNotifier {
   /// pinned Library title into a status; set by the app.
   Map<String, dynamic>? accountSettings;
   PresenceInfo? Function(String titleId)? pinnedInfo;
+
+  /// The Consuming… title now (7.0.0, see logic/consuming.dart); set by the app.
+  String? Function(Map<String, dynamic>? config, int now)? consumingTitle;
   Timer? _minute;
 
   void setAccountSettings(Map<String, dynamic>? settings) {
@@ -430,7 +433,9 @@ class DiscordPresence extends ChangeNotifier {
     final statusLine = switch (c.statusLine) { 'details' => 2, 'state' => 1, _ => 0 };
     final g = globals?.call() ?? const <String, String>{};
     final pin = activePin(c.raw, now.millisecondsSinceEpoch);
-    final pinned = pin == null ? null : pinnedInfo?.call(pin.titleId);
+    // 7.0.0: Consuming… — a chosen title, or the one its source points at.
+    final consumingId = consumingTitle != null ? consumingTitle!(c.raw, now.millisecondsSinceEpoch) : pin?.titleId;
+    final pinned = consumingId == null ? null : pinnedInfo?.call(consumingId);
     if ((forced == 'idle') || (forced == null && _idle && pinned == null && !c.neverIdle)) {
       if (c.idle == 'clear' && forced == null) return null;
       final t = c.template('idle');
@@ -486,7 +491,7 @@ class DiscordPresence extends ChangeNotifier {
     final details = _clip(renderPresence(t.$1, values).isEmpty ? 'Using MediaFlow' : renderPresence(t.$1, values));
     final state = _opt(renderPresence(t.$2, values));
     final cover = full && c.picture == 'cover' && (w.cover ?? '').startsWith('https://') ? w.cover! : null;
-    final pinType = pin == null ? '' : pin.type;
+    final pinType = pin == null || pin.titleId != consumingId ? '' : pin.type;
     final kind = switch (pinType.isNotEmpty ? pinType : c.types[w.categoryId ?? '']) {
       'watching' => PresenceKind.watching,
       'listening' => PresenceKind.listening,
@@ -639,6 +644,38 @@ class DiscordPresence extends ChangeNotifier {
   bool get supportsLinks => _ffi?.hasLinks ?? DiscordFfi.load()?.hasLinks ?? false;
   bool get supportsEnd => (_ffi ?? DiscordFfi.load())?.timestampsSetEnd != null;
 
+  // 7.0.0: everything handed to Discord's native SDK fits Discord's limits.
+  // Advanced RPC mode and Custom Status let anyone type any text or link into
+  // these fields; text that's too short or too long, or a link that isn't a web
+  // address, is left out instead of reaching the SDK.
+  static String? _fit(String? v, {int max = 128, int min = 2}) {
+    if (v == null) return null;
+    final t = v.trim();
+    if (t.length < min) return null;
+    if (t.length <= max) return t;
+    final cut = t.runes.take(max - 1).toList();
+    var out = String.fromCharCodes(cut);
+    while (out.length > max - 1) {
+      out = String.fromCharCodes(cut..removeLast());
+    }
+    return '$out…';
+  }
+
+  static String? _link(String? v, {int max = 256}) {
+    final t = v?.trim() ?? '';
+    if (t.isEmpty || t.length > max) return null;
+    final u = Uri.tryParse(t);
+    return u != null && (u.scheme == 'https' || u.scheme == 'http') && u.host.isNotEmpty ? t : null;
+  }
+
+  /// An asset key (e.g. "mediaflow") or an image's web address.
+  static String? _image(String? v) {
+    final t = v?.trim() ?? '';
+    if (t.isEmpty || t.length > 256) return null;
+    if (t.contains('://')) return _link(t);
+    return RegExp(r'^[a-z0-9_\-]+$', caseSensitive: false).hasMatch(t) ? t : null;
+  }
+
   void _send() {
     final ffi = _ffi, client = _client;
     if (ffi == null || client == null || !enabled || _paused) return;
@@ -659,25 +696,30 @@ class DiscordPresence extends ChangeNotifier {
       using((a) {
         Pointer<DString> str(String v) => DiscordFfi.str(v, a);
         ffi.activityInit(activity);
-        ffi.activitySetName(activity, str(e.name).ref);
+        ffi.activitySetName(activity, str(_fit(e.name) ?? 'MediaFlow').ref);
         ffi.activitySetType(activity, e.type);
         // What the short status line shows ("Watching MediaFlow" / "Watching Frieren").
         final display = a<Int32>()..value = e.statusLine;
         ffi.activitySetStatusDisplayType(activity, display);
-        if (e.details != null) ffi.activitySetDetails(activity, str(e.details!));
-        if (e.state != null) ffi.activitySetState(activity, str(e.state!));
-        if (e.detailsUrl.isNotEmpty) ffi.activitySetDetailsUrl?.call(activity, str(e.detailsUrl));
-        if (e.stateUrl.isNotEmpty) ffi.activitySetStateUrl?.call(activity, str(e.stateUrl));
+        final details = _fit(e.details), state = _fit(e.state);
+        if (details != null) ffi.activitySetDetails(activity, str(details));
+        if (state != null) ffi.activitySetState(activity, str(state));
+        final detailsUrl = _link(e.detailsUrl), stateUrl = _link(e.stateUrl);
+        if (details != null && detailsUrl != null) ffi.activitySetDetailsUrl?.call(activity, str(detailsUrl));
+        if (state != null && stateUrl != null) ffi.activitySetStateUrl?.call(activity, str(stateUrl));
         ffi.assetsInit(assets);
-        if (e.large.isNotEmpty) {
-          ffi.assetsSetLargeImage(assets, str(e.large));
-          if (e.largeText != null) ffi.assetsSetLargeText(assets, str(e.largeText!));
-          if (e.largeUrl.isNotEmpty) ffi.assetsSetLargeUrl?.call(assets, str(e.largeUrl));
+        final large = _image(e.large), small = _image(e.small);
+        if (large != null) {
+          ffi.assetsSetLargeImage(assets, str(large));
+          final text = _fit(e.largeText), url = _link(e.largeUrl);
+          if (text != null) ffi.assetsSetLargeText(assets, str(text));
+          if (url != null) ffi.assetsSetLargeUrl?.call(assets, str(url));
         }
-        if (e.small != null) {
-          ffi.assetsSetSmallImage(assets, str(e.small!));
-          if (e.smallText != null) ffi.assetsSetSmallText(assets, str(e.smallText!));
-          if (e.smallUrl.isNotEmpty) ffi.assetsSetSmallUrl?.call(assets, str(e.smallUrl));
+        if (small != null) {
+          ffi.assetsSetSmallImage(assets, str(small));
+          final text = _fit(e.smallText), url = _link(e.smallUrl);
+          if (text != null) ffi.assetsSetSmallText(assets, str(text));
+          if (url != null) ffi.assetsSetSmallUrl?.call(assets, str(url));
         }
         ffi.activitySetAssets(activity, assets);
         ffi.timestampsInit(times);
@@ -695,7 +737,9 @@ class DiscordPresence extends ChangeNotifier {
           ffi.activitySetParty!(activity, party);
         }
         if (e.buttons.isNotEmpty && ffi.hasButtons) {
-          for (final (label, url) in e.buttons.take(2)) {
+          for (final (rawLabel, rawUrl) in e.buttons.take(2)) {
+            final label = _fit(rawLabel, max: 32, min: 1), url = _link(rawUrl, max: 512);
+            if (label == null || url == null) continue;
             final b = DiscordFfi.obj();
             buttons.add(b);
             ffi.buttonInit!(b);

@@ -11,8 +11,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../logic/title_names.dart' show titleLanguageLabel, titleNames;
 import '../logic/custom_status.dart';
 import '../platform/discord_presence.dart';
+import '../state/models.dart' show LibraryTitle;
 import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles;
 import 'discord_card.dart';
@@ -467,16 +469,44 @@ class _CustomStatusScreenState extends State<CustomStatusScreen> {
     final t = view.library.where((x) => x.id == ids.first).firstOrNull;
     if (t == null) return;
     final cat = view.category(t.categoryId);
+    final name = await _titleName(t);
+    if (name == null || !mounted) return;
     _load({
       ..._draft,
-      'name': t.title,
-      'details': t.title,
+      'name': name,
+      'details': name,
       'state': '${cat.name} · ${progressText(t, cat)}',
       if (t.coverUrl.startsWith('https://')) 'largeImage': t.coverUrl,
-      'largeText': t.title,
+      'largeText': name,
       'display': 'details',
     });
-    _toast('Filled from ${t.title}');
+    _toast('Filled from $name');
+  }
+
+  /// 7.0.0: the name the title shows now by default; any of its other names
+  /// on request. Only for this status: the title doesn't change.
+  Future<String?> _titleName(LibraryTitle t) async {
+    final shown = t.title;
+    final options = <(String, String)>[(shown, 'As shown · $shown')];
+    void add(String text, String label) {
+      if (text.isNotEmpty && !options.any((o) => o.$1 == text)) options.add((text, '$label · $text'));
+    }
+
+    add(t.mainTitle, 'Main name');
+    for (final n in titleNames(t.raw)) {
+      add(n.text, titleLanguageLabel(n.lang));
+    }
+    if (options.length == 1) return shown;
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => SafeArea(
+        child: ListView(shrinkWrap: true, children: [
+          const ListTile(title: Text('Which name?', style: TextStyle(fontWeight: FontWeight.w800))),
+          for (final o in options) ListTile(title: Text(o.$2, maxLines: 2, overflow: TextOverflow.ellipsis), onTap: () => Navigator.pop(c, o.$1)),
+        ]),
+      ),
+    );
   }
 
   Future<void> _coverFromLibrary({required bool large}) async {

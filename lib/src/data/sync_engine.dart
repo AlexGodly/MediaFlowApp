@@ -1,16 +1,21 @@
 import 'dart:async';
+import 'dart:isolate';
 
+import '../logic/stats.dart' show presenceStatsOf;
 import '../state/state_codec.dart';
 import 'account_ops.dart';
-import 'background_worker.dart';
 import 'records.dart';
 
 /// Runs heavy work away from the screen. The app uses [Isolate.run]; tests may
 /// run it inline. Whatever the work returns comes back without being copied.
 typedef BackgroundRunner = Future<R> Function<R>(FutureOr<R> Function() work);
 
-/// Runs on MediaFlow's long-lived worker isolate (falls back to [Isolate.run]).
-Future<R> runInIsolate<R>(FutureOr<R> Function() work) => runOnWorker(work);
+/// Runs on its own isolate with [Isolate.run]. 7.0.0: sync jobs return the
+/// whole decoded account, its encoded copy and the record index. Sent back
+/// from the long-lived worker, all of that was copied again on the screen's
+/// thread when it arrived (the regular 1–3 s freezes after every sync on big
+/// accounts). [Isolate.run] hands the result over without copying it.
+Future<R> runInIsolate<R>(FutureOr<R> Function() work) => Isolate.run(work, debugName: 'MediaFlow sync');
 
 /// Runs [work] right here (tests).
 Future<R> runInline<R>(FutureOr<R> Function() work) async => await work();
@@ -90,6 +95,9 @@ class MergeResult {
   final Map<String, dynamic>? payload;
   final int applied;
   final List<String> rejected;
+
+  /// Level, XP, streak and Library size of [state] (see [presenceStatsOf]).
+  Map<String, num>? stats;
 }
 
 /// Decodes [raw], replays [ops] on it and, when [encode] is set and something
@@ -117,11 +125,19 @@ MergeResult mergeState(Object? raw, List<AccountOp> ops, {bool encode = true}) {
 Future<MergeResult> mergeInBackground(BackgroundRunner background, Object? raw, List<AccountOp> ops,
     {bool encode = true}) {
   final copy = List<AccountOp>.of(ops);
-  return background(() => mergeState(raw, copy, encode: encode));
+  return background(() {
+    final m = mergeState(raw, copy, encode: encode);
+    m.stats = presenceStatsOf(m.state);
+    return m;
+  });
 }
 
 class SyncResult {
   SyncResult(this.state, this.raw, this.updatedAt, this.uploaded, [this.rejected = const [], this.index]);
+
+  /// Level, XP, streak and Library size of [state], worked out with it in the
+  /// background (null when [state] is null).
+  Map<String, num>? stats;
 
   /// Per-record storage: what this device now knows of the cloud's records
   /// (null when the account uses the single row).
@@ -180,11 +196,11 @@ Future<SyncResult> syncOnce(
     if (remote == null) throw MissingCloudRow();
     final merged = await mergeInBackground(background, remote.raw, pending);
     if (merged.applied == 0) {
-      return SyncResult(merged.state, merged.compactRaw ?? remote.raw, remote.updatedAt, 0, merged.rejected);
+      return SyncResult(merged.state, merged.compactRaw ?? remote.raw, remote.updatedAt, 0, merged.rejected)..stats = merged.stats;
     }
     final updatedAt = await cloud.compareAndSwap(userId, remote.updatedAt, merged.payload!);
     if (updatedAt != null) {
-      return SyncResult(merged.state, merged.payload, updatedAt, merged.applied, merged.rejected);
+      return SyncResult(merged.state, merged.payload, updatedAt, merged.applied, merged.rejected)..stats = merged.stats;
     }
     // Someone saved first: fetch their version and replay on it.
     known = null;
@@ -208,6 +224,9 @@ class RecordStep {
   final List<RecordUpload> uploads;
   final int applied;
   final List<String> rejected;
+
+  /// Level, XP, streak and Library size of [state] (see [presenceStatsOf]).
+  Map<String, num>? stats;
 }
 
 /// Pure and synchronous (runs in an isolate). [known]/[knownRaw] are what the
@@ -312,7 +331,12 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
 Future<RecordStep> _recordStepInBackground(
     BackgroundRunner background, Object? knownRaw, RecordIndex? known, List<RecordRow> rows, List<AccountOp> ops) {
   final copy = List<AccountOp>.of(ops);
-  return background(() => recordStep(knownRaw, known, rows, copy));
+  return background(() {
+    final step = recordStep(knownRaw, known, rows, copy);
+    final state = step.state;
+    if (state != null) step.stats = presenceStatsOf(state);
+    return step;
+  });
 }
 
 /// A few seconds before [cursor], so rows saved in the same instant are never missed.
@@ -357,5 +381,6 @@ Future<SyncResult> syncRecords(
   // The cursor stays where the pull ended: this device's own rows come back
   // on the next pull and are recognised, and another device's row saved in
   // the meantime is never skipped.
-  return SyncResult(step.state, step.raw, step.index.cursor, step.uploads.isEmpty ? 0 : step.applied, step.rejected, step.index);
+  return SyncResult(step.state, step.raw, step.index.cursor, step.uploads.isEmpty ? 0 : step.applied, step.rejected, step.index)
+    ..stats = step.stats;
 }

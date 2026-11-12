@@ -21,6 +21,7 @@ import 'leveling.dart';
 import 'library_hooks.dart';
 import 'log_draft.dart';
 import 'log_engine.dart';
+import 'log_times.dart';
 import 'recommend.dart';
 import 'resume.dart';
 import 'title_units.dart';
@@ -635,6 +636,12 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
 
   // ---- the form closes: the shared draft is cleared --------------------------------------------------------
   clearLoggingDraft(state, now, submittedCommitId: jsStr(req.logDraft['v369CommitId']), submittedAt: now);
+
+  // ---- 7.0.0 / website v566: sessions dated when you consumed (split by day) ----------------------------
+  final redated = redateLogSessions(sessions, added, addedTimes(req.logDraft), logTimeMode(asMap(state['settings'])), now);
+  added
+    ..clear()
+    ..addAll(redated);
 
   // ---- v149: streak XP on every log ----------------------------------------------------------------------------
   annotateStreakXP(state, l);
