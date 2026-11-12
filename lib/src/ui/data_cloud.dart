@@ -60,6 +60,41 @@ Future<Object?> _readJson(BuildContext context) async {
   }
 }
 
+/// Collections → Import (website v281 format).
+Future<void> importCollectionsFile(BuildContext context, AccountController account) async {
+  final data = await _readJson(context);
+  if (data == null || !context.mounted) return;
+  final file = readCollectionsFile(data);
+  if (file.error != null) return _toast(context, file.error!);
+  final ok = await _confirm(
+    context,
+    'Import Collections data?',
+    'Merge ${fmtNumber(file.rows.length)} collection${file.rows.length == 1 ? '' : 's'} with your current Collections.'
+        '${file.deleted.isNotEmpty ? ' This file also has ${fmtNumber(file.deleted.length)} deletion marker${file.deleted.length == 1 ? '' : 's'}; they can remove older matching collections but never a newer edited copy.' : ''}'
+        '${file.hasSettings ? ' Collection display and filter settings from this export are applied too.' : ''}',
+    'Import collections',
+  );
+  if (!ok) return;
+  ({int imported, int removed, int skipped})? r;
+  await account.edit((copy, now) => r = importCollections(copy, data, now, () => mediaFlowUid(now)), label: 'Import Collections');
+  if (!context.mounted || r == null) return;
+  _toast(context,
+      '${fmtNumber(r!.imported)} collections imported · ${fmtNumber(r!.removed)} older collections removed${r!.skipped > 0 ? ' · ${fmtNumber(r!.skipped)} older copies skipped' : ''}');
+}
+
+
+/// Collections → Export (website v281 format).
+Future<void> exportCollectionsFile(BuildContext context, AccountController account) async {
+  final view = account.view;
+  if (view == null) return;
+  final now = DateTime.now();
+  final path = await saveTextFile(collectionsFileName(now), _pretty(buildCollectionsExport(view.state, now)));
+  if (path != null && context.mounted) {
+    _toast(context, '${fmtNumber(asList(view.state['collections']).length)} collections exported ✓');
+    await account.actionXp('data', 'export', 'Export · Collections');
+  }
+}
+
 class DataCloudSection extends StatelessWidget {
   const DataCloudSection({super.key, required this.account, required this.view});
   final AccountController account;
@@ -128,26 +163,7 @@ class DataCloudSection extends StatelessWidget {
     if (context.mounted) _toast(context, 'Settings Preset imported ✓');
   }
 
-  Future<void> _importCollections(BuildContext context) async {
-    final data = await _readJson(context);
-    if (data == null || !context.mounted) return;
-    final file = readCollectionsFile(data);
-    if (file.error != null) return _toast(context, file.error!);
-    final ok = await _confirm(
-      context,
-      'Import Collections data?',
-      'Merge ${fmtNumber(file.rows.length)} collection${file.rows.length == 1 ? '' : 's'} with your current Collections.'
-          '${file.deleted.isNotEmpty ? ' This file also has ${fmtNumber(file.deleted.length)} deletion marker${file.deleted.length == 1 ? '' : 's'}; they can remove older matching collections but never a newer edited copy.' : ''}'
-          '${file.hasSettings ? ' Collection display and filter settings from this export are applied too.' : ''}',
-      'Import collections',
-    );
-    if (!ok) return;
-    ({int imported, int removed, int skipped})? r;
-    await account.edit((copy, now) => r = importCollections(copy, data, now, () => mediaFlowUid(now)), label: 'Import Collections');
-    if (!context.mounted || r == null) return;
-    _toast(context,
-        '${fmtNumber(r!.imported)} collections imported · ${fmtNumber(r!.removed)} older collections removed${r!.skipped > 0 ? ' · ${fmtNumber(r!.skipped)} older copies skipped' : ''}');
-  }
+  Future<void> _importCollections(BuildContext context) => importCollectionsFile(context, account);
 
   Future<void> _importOrder(BuildContext context) async {
     final data = await _readJson(context);

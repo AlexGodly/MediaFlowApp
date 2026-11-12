@@ -18,7 +18,10 @@ import '../logic/library_logic.dart' show batchEdit;
 import '../logic/log_arrange.dart' show compareTitlesNatural;
 import '../state/models.dart';
 import '../util/js.dart';
+import 'data_cloud.dart' show exportCollectionsFile, importCollectionsFile;
+import 'floating_dock.dart' show recoveryShortcuts;
 import 'library_screen.dart' show LibraryCoverTile, LibraryTitleRow;
+import 'recovery_screen.dart' show openRecovery;
 import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart';
@@ -119,7 +122,20 @@ class _CollectionsScreenState extends State<CollectionsScreen> {
                 _ => jsNum(b['updatedAt']).compareTo(jsNum(a['updatedAt'])),
               });
         return Scaffold(
-          appBar: AppBar(title: const Text('Collections'), actions: [SyncIndicator(account: account)]),
+          appBar: AppBar(title: const Text('Collections'), actions: [
+            PopupMenuButton<String>(
+              tooltip: 'Collections tools',
+              onSelected: (v) {
+                if (v == 'export') exportCollectionsFile(context, account);
+                if (v == 'import') importCollectionsFile(context, account);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'export', child: Text('Export Collections')),
+                PopupMenuItem(value: 'import', child: Text('Import Collections…')),
+              ],
+            ),
+            SyncIndicator(account: account),
+          ]),
           body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 100), children: [
             TextField(
               controller: _search,
@@ -697,9 +713,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
                 onSelected: (v) {
                   if (v == 'delete') _delete(c);
                   if (v == 'tools') _setSetting('toolsVisible', !_toolsVisible(view));
+                  if (v == 'recover') openRecovery(context, account, ids: ids, label: jsStr(c['title']));
                 },
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'tools', child: Text(_toolsVisible(view) ? 'Hide Collection Tools' : 'Show Collection Tools')),
+                  if (ids.isNotEmpty && recoveryShortcuts(asMap(view.state['settings']))['collections'] == true)
+                    const PopupMenuItem(value: 'recover', child: Text('Recover covers & details…')),
                   const PopupMenuItem(value: 'delete', child: Text('Delete collection', style: TextStyle(color: MF.bad))),
                 ],
               ),

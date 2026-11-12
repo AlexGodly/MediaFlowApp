@@ -15,7 +15,9 @@ import '../logic/recommend.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles, CollectionCover;
-import 'history_screen.dart' show saveExportFile;
+import '../platform/file_io.dart';
+import 'floating_dock.dart' show recoveryShortcuts;
+import 'recovery_screen.dart' show openRecovery;
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
@@ -68,6 +70,7 @@ class _OrderScreenState extends State<OrderScreen> {
   // Display only: search, filters, sort and the title view never change the Order.
   final _search = TextEditingController();
   String _cat = 'all', _status = 'all', _sort = 'order';
+  String _tabCat = ''; // Tabs layout: the category shown
 
   @override
   void dispose() {
@@ -83,12 +86,10 @@ class _OrderScreenState extends State<OrderScreen> {
     if (ids.isEmpty) return _toast(context, 'Your Order is empty.');
     final data = orderExport(Map<String, dynamic>.of(view.state), DateTime.now());
     final d = DateTime.now();
-    final path = await saveExportFile(
+    final path = await saveTextFile(
         'MediaFlow_Order_${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}.json',
         const JsonEncoder.withIndent('  ').convert(data));
-    if (mounted) {
-      _toast(context, path == null ? 'Could not save the export.' : '${(data['titles'] as List).length} ordered titles exported to $path ✓');
-    }
+    if (mounted && path != null) _toast(context, '${(data['titles'] as List).length} ordered titles exported ✓');
   }
 
   Future<void> _import() async {
@@ -107,6 +108,13 @@ class _OrderScreenState extends State<OrderScreen> {
           ),
         ),
         actions: [
+          TextButton(
+            onPressed: () async {
+              final f = await pickTextFile();
+              if (f != null) c.text = f.text;
+            },
+            child: const Text('Open file…'),
+          ),
           TextButton(
             onPressed: () async {
               final clip = await Clipboard.getData('text/plain');
@@ -186,6 +194,94 @@ class _OrderScreenState extends State<OrderScreen> {
     return out;
   }
 
+  /// `orderPlan.v288QueueView` (website v288/v289/v345/v364), unknown fields kept.
+  static Map<String, dynamic> _queueView(Map<String, dynamic> p) {
+    final x = asMap(p['v288QueueView']) ?? const <String, dynamic>{};
+    return {
+      ...x,
+      'sectionOrder': x['sectionOrder'] == 'collections-first' ? 'collections-first' : 'regular-first',
+      'showRegularQueues': x['showRegularQueues'] != false,
+      'showCollectionQueues': x['showCollectionQueues'] != false,
+      'showCollectionsInRegularQueues': x['showCollectionsInRegularQueues'] == true,
+      'layoutMode': x['layoutMode'] == 'tabs' ? 'tabs' : 'lists',
+      'collectionsBrowseMode': x['collectionsBrowseMode'] == 'tabs' ? 'tabs' : 'lists',
+    };
+  }
+
+  Future<void> _setQueueView(String key, Object value) =>
+      _order('Personal Order view', (plan, s, now, uid) => plan['v288QueueView'] = {..._queueView(plan), key: value});
+
+  /// Website v363 "Lists per row".
+  int _listColumns(AccountView view) {
+    final n = jsNum(asMap(asMap(view.state['settings'])?['v363PersonalOrder'])?['listColumns']).toInt();
+    return n >= 1 && n <= 4 ? n : 2;
+  }
+
+  Future<void> _queueTools(AccountView view) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (c) => LiveBuilder(
+        listenable: account,
+        builder: (c, _) {
+          final qv = _queueView(asMap(account.view?.state['orderPlan']) ?? const {});
+          return SafeArea(
+            child: ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), children: [
+              const Text('Queue tools', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              Text('Display options for Personal Order, saved with your Order on every device.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show title queues'),
+                value: qv['showRegularQueues'] == true,
+                onChanged: (v) => _setQueueView('showRegularQueues', v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show Collection queues'),
+                value: qv['showCollectionQueues'] == true,
+                onChanged: (v) => _setQueueView('showCollectionQueues', v),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show assigned Collections inside title queues'),
+                value: qv['showCollectionsInRegularQueues'] == true,
+                onChanged: (v) => _setQueueView('showCollectionsInRegularQueues', v),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Section order'),
+                trailing: CompactDropdown<String>(
+                  value: jsStr(qv['sectionOrder']),
+                  items: const [('regular-first', 'Titles first'), ('collections-first', 'Collections first')],
+                  onChanged: (v) => _setQueueView('sectionOrder', v),
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Category layout'),
+                trailing: CompactDropdown<String>(
+                  value: jsStr(qv['layoutMode']),
+                  items: const [('lists', 'Lists'), ('tabs', 'Tabs')],
+                  onChanged: (v) => _setQueueView('layoutMode', v),
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Lists per row'),
+                subtitle: const Text('On wide screens, By category · Lists'),
+                trailing: CompactDropdown<int>(
+                  value: _listColumns(account.view ?? view),
+                  items: const [(1, '1'), (2, '2'), (3, '3'), (4, '4')],
+                  onChanged: (v) => account.setSetting(['v363PersonalOrder', 'listColumns'], v),
+                ),
+              ),
+            ]),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LiveBuilder(
@@ -199,6 +295,7 @@ class _OrderScreenState extends State<OrderScreen> {
         final titleIds = [for (final x in asList(p['titleIds'])) if (byId.containsKey(jsStr(x))) jsStr(x)];
         final prioritize = jsTruthy(asMap(state['settings'])?['prioritizePersonalOrder']);
         final byCategory = p['viewMode'] == 'category';
+        final qv = _queueView(p);
         final canRestore = asList(asMap(p['lastClearedOrder'])?['titleIds']).isNotEmpty;
         final shown = _visible(view, titleIds, byId);
         // Each title's place in the Order, computed once per change (was a scan per row).
@@ -219,6 +316,18 @@ class _OrderScreenState extends State<OrderScreen> {
               selected: {byCategory ? 'category' : 'all'},
               onSelectionChanged: (s) => _order('Order view', (plan, st, now, uid) => plan['viewMode'] = s.first),
             ),
+            if (byCategory)
+              SegmentedButton<String>(
+                segments: const [ButtonSegment(value: 'lists', label: Text('Lists')), ButtonSegment(value: 'tabs', label: Text('Tabs'))],
+                selected: {jsStr(qv['layoutMode'])},
+                onSelectionChanged: (s) => _setQueueView('layoutMode', s.first),
+              ),
+            if (byCategory && qv['layoutMode'] != 'tabs')
+              CompactDropdown<int>(
+                value: _listColumns(view),
+                items: const [(1, '1 list per row'), (2, '2 lists per row'), (3, '3 lists per row'), (4, '4 lists per row')],
+                onChanged: (v) => account.setSetting(['v363PersonalOrder', 'listColumns'], v),
+              ),
             PopupMenuButton<String>(
               tooltip: 'Order tools',
               icon: const Icon(Icons.more_horiz_rounded),
@@ -227,9 +336,14 @@ class _OrderScreenState extends State<OrderScreen> {
                 'import' => _import(),
                 'clear' => _clear(titleIds.length),
                 'restore' => _restoreLast(),
+                'tools' => _queueTools(view),
+                'recover' => openRecovery(context, account, ids: titleIds, label: 'Personal Order'),
                 _ => null,
               },
               itemBuilder: (_) => [
+                const PopupMenuItem(value: 'tools', child: Text('Queue tools…')),
+                if (titleIds.isNotEmpty && recoveryShortcuts(asMap(state['settings']))['order'] == true)
+                  const PopupMenuItem(value: 'recover', child: Text('Recover covers & details…')),
                 const PopupMenuItem(value: 'export', child: Text('Export Order')),
                 const PopupMenuItem(value: 'import', child: Text('Import Order…')),
                 if (titleIds.isNotEmpty) const PopupMenuItem(value: 'clear', child: Text('Clear Order…', style: TextStyle(color: MF.bad))),
@@ -297,11 +411,62 @@ class _OrderScreenState extends State<OrderScreen> {
         Widget titles;
         if (byCategory && !filtered) {
           // v565: only the rows on screen are built (a big Order lagged).
-          final rows = _byCategory(view, p, titleIds, byId);
+          final blocks = _byCategory(view, p, titleIds, byId, qv);
+          final tabs = qv['layoutMode'] == 'tabs';
+          final width = MediaQuery.sizeOf(context).width;
+          final perRow = tabs || width < 760 ? 1 : _listColumns(view).clamp(1, width >= 1300 ? 4 : (width >= 1000 ? 3 : 2));
+          final items = <Widget Function()>[() => header, () => _categoryOrderRow(p)];
+          if (tabs) {
+            final ids = [for (final b in blocks) b.cid];
+            final selected = ids.contains(_tabCat) ? _tabCat : (ids.isEmpty ? '' : ids.first);
+            items.add(() => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Row(children: [
+                    for (final b in blocks)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text('${view.category(b.cid).name} · ${b.count}'),
+                          selected: b.cid == selected,
+                          onSelected: (_) => setState(() => _tabCat = b.cid),
+                        ),
+                      ),
+                  ]),
+                ));
+            for (final b in blocks.where((b) => b.cid == selected)) {
+              items.add(b.header);
+              items.addAll(b.rows);
+            }
+          } else if (perRow <= 1) {
+            for (final b in blocks) {
+              items.add(b.header);
+              items.addAll(b.rows);
+            }
+          } else {
+            // Lists per row: categories side by side, one row of lists per item.
+            for (var i = 0; i < blocks.length; i += perRow) {
+              final group = blocks.sublist(i, (i + perRow).clamp(0, blocks.length));
+              items.add(() => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    for (var j = 0; j < perRow; j++)
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(right: j < perRow - 1 ? 12 : 0),
+                          child: j < group.length
+                              ? Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                                  group[j].header(),
+                                  for (final r in group[j].rows) r(),
+                                ])
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                  ]));
+            }
+          }
           titles = ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-            itemCount: rows.length + 1,
-            itemBuilder: (context, i) => i == 0 ? header : rows[i - 1](),
+            itemCount: items.length,
+            itemBuilder: (context, i) => items[i](),
           );
         } else if (grid) {
           titles = CustomScrollView(slivers: [
@@ -341,8 +506,16 @@ class _OrderScreenState extends State<OrderScreen> {
             itemBuilder: (context, i) => i == 0 ? header : _row(view, byId[shown[i - 1]]!, posOf[shown[i - 1]] ?? 0, titleIds.length, null),
           );
         }
+        final showTitles = qv['showRegularQueues'] == true || qv['showCollectionQueues'] != true;
+        final showQueues = qv['showCollectionQueues'] == true;
+        final sections = <(String, Widget)>[
+          if (showTitles) ('Titles', titles),
+          if (showQueues) ('Collection queues', _QueuesTab(account: account, view: view, order: _order)),
+        ];
+        if (qv['sectionOrder'] == 'collections-first') sections.setAll(0, sections.reversed.toList());
         return DefaultTabController(
-          length: 2,
+          key: ValueKey('order-tabs-${sections.map((x) => x.$1).join()}'),
+          length: sections.length,
           child: Scaffold(
             appBar: AppBar(
               title: const Text('Personal Order'),
@@ -359,12 +532,9 @@ class _OrderScreenState extends State<OrderScreen> {
                 ),
                 SyncIndicator(account: account),
               ],
-              bottom: const TabBar(tabs: [Tab(text: 'Titles'), Tab(text: 'Collection queues')]),
+              bottom: sections.length < 2 ? null : TabBar(tabs: [for (final x in sections) Tab(text: x.$1)]),
             ),
-            body: TabBarView(children: [
-              titles,
-              _QueuesTab(account: account, view: view, order: _order),
-            ]),
+            body: sections.length < 2 ? sections.first.$2 : TabBarView(children: [for (final x in sections) x.$2]),
           ),
         );
       },
@@ -420,10 +590,7 @@ class _OrderScreenState extends State<OrderScreen> {
     );
   }
 
-  List<Widget Function()> _byCategory(AccountView view, Map<String, dynamic> p, List<String> titleIds, Map<String, LibraryTitle> byId) {
-    final hidden = asList(p['hiddenCategories']).map(jsStr).toSet();
-    final out = <Widget Function()>[
-      () => Row(children: [
+  Widget _categoryOrderRow(Map<String, dynamic> p) => Row(children: [
         const Text('Category order', style: TextStyle(fontWeight: FontWeight.w700)),
         const SizedBox(width: 8),
         CompactDropdown<String>(
@@ -431,40 +598,73 @@ class _OrderScreenState extends State<OrderScreen> {
           items: const [('default', 'Like Settings'), ('custom', 'Custom')],
           onChanged: (v) => _order('Order categories', (plan, s, now, uid) => orderSetCategoryMode(plan, s, v)),
         ),
-      ]),
-    ];
+      ]);
+
+  /// One block per category: its header (with Add, move, hide and any
+  /// assigned Collections) and its rows, built only when shown.
+  List<({String cid, int count, Widget Function() header, List<Widget Function()> rows})> _byCategory(
+      AccountView view, Map<String, dynamic> p, List<String> titleIds, Map<String, LibraryTitle> byId, Map<String, dynamic> qv) {
+    final hidden = asList(p['hiddenCategories']).map(jsStr).toSet();
+    final out = <({String cid, int count, Widget Function() header, List<Widget Function()> rows})>[];
     // One pass to group the Order by category.
     final byCat = <String, List<String>>{};
     for (final id in titleIds) {
       (byCat[byId[id]!.categoryId] ??= []).add(id);
     }
+    final mixed = qv['showCollectionsInRegularQueues'] == true;
+    final cols = {for (final c in collectionsOf(view.state)) jsStr(c['id']): c};
+    final assigned = <String, List<String>>{};
+    for (final a in asList(p['collectionAssignments']).map(asMap).whereType<Map<String, dynamic>>()) {
+      final c = cols[jsStr(a['collectionId'])];
+      if (c != null) (assigned[jsStr(a['categoryId'])] ??= []).add(jsStr(c['title']));
+    }
     for (final cid in orderCategoryDisplay(p, view.state)) {
       final cat = view.category(cid);
       final ids = byCat[cid] ?? const <String>[];
       final isHidden = hidden.contains(cid);
-      out.add(() => Padding(
-        padding: const EdgeInsets.only(top: 14, bottom: 4),
-        child: Row(children: [
-          CategoryBadge(cat, size: 24),
-          const SizedBox(width: 8),
-          Expanded(child: Text('${cat.name} · ${ids.length}', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
-          if (p['categoryMode'] == 'custom') ...[
-            IconButton(icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, -1))),
-            IconButton(icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, 1))),
-          ],
-          IconButton(
-            tooltip: isHidden ? 'Show category' : 'Hide category',
-            icon: Icon(isHidden ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
-            onPressed: () => _order('Order categories', (plan, s, now, uid) => orderToggleCategory(plan, cid)),
-          ),
-        ]),
-      ));
+      final collections = mixed ? (assigned[cid] ?? const <String>[]) : const <String>[];
+      Widget header() => Padding(
+            padding: const EdgeInsets.only(top: 14, bottom: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                CategoryBadge(cat, size: 24),
+                const SizedBox(width: 8),
+                Expanded(child: Text('${cat.name} · ${ids.length}', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
+                IconButton(
+                  tooltip: 'Add ${cat.name} titles',
+                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                  onPressed: () async {
+                    final pick = await pickLibraryTitles(context, view,
+                        exclude: {...titleIds, for (final t in view.library) if (t.categoryId != cid) t.id}, title: 'Add ${cat.name} titles');
+                    if (pick == null || pick.isEmpty) return;
+                    await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, pick));
+                  },
+                ),
+                if (p['categoryMode'] == 'custom') ...[
+                  IconButton(icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, -1))),
+                  IconButton(icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, 1))),
+                ],
+                IconButton(
+                  tooltip: isHidden ? 'Show category' : 'Hide category',
+                  icon: Icon(isHidden ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
+                  onPressed: () => _order('Order categories', (plan, s, now, uid) => orderToggleCategory(plan, cid)),
+                ),
+              ]),
+              if (collections.isNotEmpty)
+                Wrap(spacing: 6, runSpacing: 4, children: [
+                  for (final name in collections)
+                    Chip(visualDensity: VisualDensity.compact, avatar: const Icon(Icons.collections_bookmark_rounded, size: 16), label: Text(name)),
+                ]),
+            ]),
+          );
+      final rows = <Widget Function()>[];
       if (!isHidden) {
         for (var i = 0; i < ids.length; i++) {
           final id = ids[i], index = i, count = ids.length;
-          out.add(() => _row(view, byId[id]!, index, count, cid));
+          rows.add(() => _row(view, byId[id]!, index, count, cid));
         }
       }
+      out.add((cid: cid, count: ids.length, header: header, rows: rows));
     }
     return out;
   }
