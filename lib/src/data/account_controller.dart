@@ -17,6 +17,7 @@ import '../state/state_codec.dart' show encodeStateData;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'account_ops.dart';
+import 'app_prefs.dart';
 import 'edit_op.dart';
 import 'local_cache.dart';
 import 'records.dart';
@@ -42,7 +43,7 @@ class AccountController extends ChangeNotifier {
     this.liveDraftDelay = const Duration(milliseconds: 600),
     this.liveFoldDelay = const Duration(seconds: 45),
     this.deviceId = 'mediaflow-app',
-    this.fallbackInterval = const Duration(minutes: 3),
+    this.fallbackInterval = const Duration(minutes: 30),
   }) : _bg = background;
 
   /// This install's id on per-record rows (`device_id`, like the website's).
@@ -644,20 +645,42 @@ class AccountController extends ChangeNotifier {
   void _scheduleFallback() {
     _fallbackDirty = true;
     if (_fallbackTimer?.isActive == true) return;
-    final wait = _lastFallback.add(fallbackInterval).difference(DateTime.now());
+    final wait = _lastFallbackAt.add(fallbackInterval).difference(DateTime.now());
     _fallbackTimer = Timer(wait.isNegative ? Duration.zero : wait, () => unawaited(flushFallback()));
   }
 
-  Future<void> flushFallback() async {
+  /// 8.1.1: the copy is the whole account (several MB) and every write of it
+  /// costs the database a lot of disk work. It was written every 3 minutes and
+  /// each time the app lost focus (on Windows: every switch to another
+  /// window), which used up the project's Disk IO budget. Now: every
+  /// [fallbackInterval] (30 min), and on leaving the app only when the last
+  /// copy is at least [kFallbackMinGap] old. The time of the last copy is kept
+  /// across restarts.
+  static const Duration kFallbackMinGap = Duration(minutes: 10);
+
+  DateTime get _lastFallbackAt {
+    if (_lastFallback.millisecondsSinceEpoch == 0 && AppPrefs.instance.loaded) {
+      final saved = AppPrefs.instance.get<int>('fallbackAt:$userId', 0);
+      if (saved > 0) _lastFallback = DateTime.fromMillisecondsSinceEpoch(saved);
+    }
+    return _lastFallback;
+  }
+
+  Future<void> flushFallback({bool force = false}) async {
     final cloud = this.cloud;
     if (!_fallbackDirty || _index == null || cloud is! RecordBackend) return;
     final raw = _baseRaw;
     if (raw == null) return;
+    if (!force && fallbackInterval > Duration.zero && DateTime.now().difference(_lastFallbackAt) < kFallbackMinGap) {
+      _scheduleFallback(); // still due later
+      return;
+    }
     _fallbackDirty = false;
     _fallbackTimer?.cancel();
     try {
       await cloud.writeFallback(userId, raw, deviceId);
       _lastFallback = DateTime.now();
+      if (AppPrefs.instance.loaded) unawaited(AppPrefs.instance.set('fallbackAt:$userId', _lastFallback.millisecondsSinceEpoch));
     } catch (_) {
       _fallbackDirty = true; // tried again with the next save or pause
     }
