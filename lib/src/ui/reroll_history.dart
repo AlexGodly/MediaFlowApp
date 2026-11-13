@@ -126,7 +126,8 @@ class _RerollHistory extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final entry = history[index];
                     final item = r.findLibraryItem(jsStr(entry['libraryId']), jsStr(entry['title']));
-                    final title = cleanTitle(item?['title'] ?? entry['title']);
+                    // 8.0.1: the name the title-language settings choose (website v565).
+                    final title = view.shownName(cleanTitle(item?['title'] ?? entry['title']));
                     final shown = title.isEmpty ? 'Unavailable title' : title;
                     final eligible = index < slotLimit;
                     final current = jsStr(task['libraryId']) == jsStr(entry['libraryId']) && index == history.length - 1;

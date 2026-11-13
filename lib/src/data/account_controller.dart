@@ -8,6 +8,7 @@ import '../logic/activity.dart';
 import '../logic/initial_state.dart';
 import '../logic/leveling.dart';
 import '../logic/log_engine.dart';
+import '../logic/log_xp_preview.dart';
 import '../logic/rec_submit.dart';
 import '../logic/resume.dart';
 import '../logic/xp_preview.dart';
@@ -284,6 +285,17 @@ class AccountController extends ChangeNotifier {
     final raw = _baseRaw;
     if (raw == null) return Future.error(StateError('Your MediaFlow data has not loaded yet.'));
     return xpPreviewInBackground(_bg, raw, _pending, task, logDraft);
+  }
+
+  /// 8.0.1: what a Batch Log (Log a title) would earn, worked out in the
+  /// background on a copy of the account (like [previewXp]). Null if it
+  /// can't be logged.
+  Future<double?> previewLog(List<LogEntry> entries, {String? date, String? time}) {
+    final raw = _baseRaw;
+    if (raw == null) return Future.value(null);
+    final copy = List<AccountOp>.of(_pending);
+    final req = LogRequest.create(entries, date: date, time: time);
+    return _bg(() => previewLogXp(mergeState(raw, copy, encode: false).state, req));
   }
 
   /// Batch Log (outside recommendations). Saved on the device first, then uploaded.

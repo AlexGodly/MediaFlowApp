@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
-import '../data/background_worker.dart';
 import '../logic/log_engine.dart';
-import '../logic/log_xp_preview.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'presence.dart';
@@ -272,11 +270,9 @@ class _LogFormState extends State<LogForm> {
     _xpTimer?.cancel();
     final gen = ++_xpGen;
     _xpTimer = Timer(const Duration(milliseconds: 350), () async {
-      final req = LogRequest.create([entry], date: date, time: _timeText);
-      final state = view.state;
       double? xp;
       try {
-        xp = await runOnWorker(() => previewLogXp(state, req));
+        xp = await widget.account.previewLog([entry], date: date, time: _timeText);
       } catch (_) {
         xp = null;
       }

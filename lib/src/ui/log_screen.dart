@@ -890,7 +890,8 @@ class _LogScreenState extends State<LogScreen> {
     }
     final name = cleanTitle(task['title']);
     if (name.isEmpty) return null;
-    return LibraryTitle({'id': id, 'title': name, 'categoryId': task['categoryId']});
+    final shown = view.shownName(name);
+    return LibraryTitle({'id': id, 'title': name, 'categoryId': task['categoryId']}, shown == name ? null : shown);
   }
 
   bool _exactTitles(AccountView view) => jsTruthy(asMap(view.state['settings'])?['exactTitleRecommendations']);
@@ -1365,7 +1366,9 @@ class _LogScreenState extends State<LogScreen> {
   /// A cover for an added title (a stand-in tile for a typed new title).
   /// v565: tapping it opens the title's details (with Edit).
   Widget _entryCover(AccountView view, Map<String, dynamic>? item, Map<String, dynamic> e, Category cat, double width) {
-    final title = item != null ? LibraryTitle(item) : LibraryTitle(<String, dynamic>{'title': e['title'], 'categoryId': cat.id});
+    final title = item != null
+        ? (view.library.where((t) => t.id == jsStr(item['id'])).firstOrNull ?? LibraryTitle(item))
+        : LibraryTitle(<String, dynamic>{'title': e['title'], 'categoryId': cat.id});
     final cover = Cover(title: title, category: cat, width: width);
     return item == null ? cover : _openable(jsStr(item['id']), cover);
   }
@@ -1714,7 +1717,8 @@ class _LogScreenState extends State<LogScreen> {
     final qty = jsNum(e['qty']);
     final collapsed = e['v379QuickCollapsed'] == true;
     final progressMode = ed.mode == 'progress';
-    final title = cleanTitle(e['title']);
+    // 8.0.1: the name the title-language settings choose (English, Romanised…).
+    final title = view.shownName(cleanTitle(e['title']));
     final parts = <String>[
       cat.name,
       if (item != null) statusName(jsStr(item['status']).isEmpty ? 'planned' : jsStr(item['status'])),
@@ -1854,7 +1858,8 @@ class _LogScreenState extends State<LogScreen> {
     final noun = _cap(_word(titleUnit(item, cat.raw), 1));
     final collapsed = e['v369Collapsed'] == true;
     final showAll = e['v369ShowAll'] == true;
-    final title = cleanTitle(e['title']);
+    // 8.0.1: the name the title-language settings choose (English, Romanised…).
+    final title = view.shownName(cleanTitle(e['title']));
     final first = showAll || units.length <= _shownUnits ? 0 : units.length - _shownUnits;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
