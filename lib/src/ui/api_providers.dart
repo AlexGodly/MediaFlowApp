@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
 import '../data/metadata_search.dart';
+import '../data/provider_catalog.dart' show coverRegistryIds;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
@@ -38,10 +39,10 @@ class _ApiProvidersSectionState extends State<ApiProvidersSection> {
   Map<String, dynamic>? get _settings => asMap(widget.view.state['settings']);
 
   Future<void> _toggle(String id, bool on) {
-    final list = [...enabledCoverSources(_settings)]..remove('itunes');
-    if (on && !list.contains(id)) list.add(id);
-    if (!on) list.remove(id);
-    final order = [for (final p in kPublicProviders) if (list.contains(p.id)) p.id];
+    final list = {...enabledCoverSources(_settings)};
+    on ? list.add(id) : list.remove(id);
+    // 8.1.0: keep every other cover source as it is (the website's registry order).
+    final order = [for (final id in coverRegistryIds) if (list.contains(id)) id];
     return widget.account.setSetting(['v424Covers', 'enabled'], order);
   }
 
@@ -108,9 +109,7 @@ class _ApiProvidersSectionState extends State<ApiProvidersSection> {
       for (final p in kPublicProviders)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: p.id == 'itunes'
-              ? const Icon(Icons.public_rounded)
-              : Switch(value: enabled.contains(p.id), onChanged: (v) => _toggle(p.id, v)),
+          leading: Switch(value: enabled.contains(p.id), onChanged: (v) => _toggle(p.id, v)),
           title: Text(p.name),
           subtitle: Text([p.media, if (_results[p.id] != null) _results[p.id]!].join(' · ')),
           trailing: TextButton(onPressed: _busy.contains(p.id) ? null : () => _testPublic(p.id), child: const Text('Test API')),

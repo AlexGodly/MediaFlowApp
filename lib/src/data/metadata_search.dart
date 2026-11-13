@@ -54,6 +54,8 @@ Future<Object?> _getJson(Uri uri, {Map<String, dynamic>? post}) async {
   try {
     final req = post == null ? await client.getUrl(uri) : await client.postUrl(uri);
     req.headers.set(HttpHeaders.acceptHeader, 'application/json');
+    // MusicBrainz asks every client to say who it is.
+    req.headers.set(HttpHeaders.userAgentHeader, 'MediaFlowApp (https://github.com/AlexGodly/MediaFlowApp)');
     if (post != null) {
       req.headers.contentType = ContentType.json;
       req.write(jsonEncode(post));
@@ -314,11 +316,15 @@ List<MetadataResult> _malRows(Object? data, String source, {String? id}) {
 }
 
 /// Tenrai (MAL, the website's first cover source) — Jikan when Tenrai is down.
-Future<List<MetadataResult>> _mal(String q, String type, {String? id}) async {
+Future<List<MetadataResult>> _mal(String q, String type, {String? id, bool tenrai = true, bool jikan = true}) async {
   Uri uri(String host, String base) =>
       id != null ? Uri.https(host, '$base/$type/$id') : Uri.https(host, '$base/$type', {'q': q, 'limit': '8'});
-  final tenrai = await _getJson(uri('api.tenrai.org', '/v1'));
-  if (tenrai != null) return _malRows(tenrai, 'Tenrai', id: id);
+  // 8.1.0: each one only when it's turned on (Sources / the category's preset).
+  if (tenrai) {
+    final data = await _getJson(uri('api.tenrai.org', '/v1'));
+    if (data != null || !jikan) return _malRows(data, 'Tenrai', id: id);
+  }
+  if (!jikan) return const [];
   return _malRows(await _getJson(uri('api.jikan.moe', '/v4')), 'Jikan', id: id);
 }
 
@@ -378,46 +384,71 @@ Future<List<MetadataResult>> _mangadex(String q) async => _mangadexRows(await _g
 /// The cover sources the account has turned on (settings.v424Covers.enabled,
 /// website default: Tenrai, Jikan, AniList, Kitsu, TVmaze, Open Library).
 /// Gateway providers are used whenever they are configured.
-const kDefaultCoverSources = ['tenrai', 'jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary'];
+const kDefaultCoverSources = [
+  'tenrai', 'jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary', 'steam', 'itunes', 'musicbrainz', 'vndb', 'ifdb', 'gutendex-public',
+  'googlebooks', 'tmdb',
+];
 Set<String> enabledCoverSources(Map<String, dynamic>? settings) {
   final v = (settings?['v424Covers'] as Map?)?['enabled'];
   final list = v is List ? [for (final x in v) '$x'] : kDefaultCoverSources;
-  return {...list, 'itunes'};
+  return {...list};
 }
+
+/// `mf453ProvidersFor('cover', category)`: the category's own cover sources
+/// (Sources → Category presets), or the global list.
+Set<String> coverSourcesFor(Map<String, dynamic>? settings, String categoryId) {
+  final preset = ((settings?['v453RecoveryPresets'] as Map?)?[categoryId] as Map?)?['cover'];
+  if (preset is List) return {for (final x in preset) if (x is String) x};
+  return enabledCoverSources(settings);
+}
+
+/// Whether [categoryId] has its own cover sources.
+bool hasCoverPreset(Map<String, dynamic>? settings, String categoryId) =>
+    ((settings?['v453RecoveryPresets'] as Map?)?[categoryId] as Map?)?['cover'] is List;
 
 /// Searches the sources that fit a category ([unit] and media [type]), using
 /// the cover sources in [enabled] (all of them when null). TMDB and the other
 /// gateway providers are used when configured ([tmdbKind] picks movie or TV).
 Future<List<MetadataResult>> searchMetadata(String query,
-    {required String unit, String type = '', String kind = '', Map<String, dynamic>? externalIds, Set<String>? enabled}) async {
+    {required String unit,
+    String type = '',
+    String kind = '',
+    Map<String, dynamic>? externalIds,
+    Set<String>? enabled,
+    bool gatewayFollowsList = false}) async {
   final q = query.trim();
   if (q.isEmpty) return const [];
   bool on(String id) => enabled == null || enabled.contains(id);
-  Future<List<MetadataResult>> gw(String id) => searchGateway(id, q, kind: kind, externalIds: externalIds, checkReady: id != 'tmdb');
+  // The provider-service sources (TMDB, OMDb, Fanart.tv…) are used whenever
+  // they're set up; a category's own cover preset decides for that category.
+  Future<List<MetadataResult>> gw(String id) => gatewayFollowsList && !on(id)
+      ? Future.value(const <MetadataResult>[])
+      : searchGateway(id, q, kind: kind, externalIds: externalIds, checkReady: id != 'tmdb');
   final mal = on('tenrai') || on('jikan');
+  Future<List<MetadataResult>> malSearch(String type) => _mal(q, type, tenrai: on('tenrai'), jikan: on('jikan'));
   final List<Future<List<MetadataResult>>> jobs;
   switch (unit) {
     case 'chapters':
-      jobs = [if (mal) _mal(q, 'manga'), if (on('anilist')) _anilist(q, 'MANGA'), if (on('kitsu')) _kitsu(q, 'manga'), if (on('mangadex')) _mangadex(q)];
+      jobs = [if (mal) malSearch('manga'), if (on('anilist')) _anilist(q, 'MANGA'), if (on('kitsu')) _kitsu(q, 'manga'), if (on('mangadex')) _mangadex(q)];
     case 'pages':
     case 'volumes':
       jobs = [
         if (on('openlibrary')) _openLibrary(q), gw('gutendex'),
-        if (on('anilist')) _anilist(q, 'MANGA'), if (mal) _mal(q, 'manga'), if (on('mangadex')) _mangadex(q),
+        if (on('anilist')) _anilist(q, 'MANGA'), if (mal) malSearch('manga'), if (on('mangadex')) _mangadex(q),
       ];
     case 'issues':
       jobs = [if (on('openlibrary')) _openLibrary(q)];
     case 'movies':
-      jobs = [gw('tmdb'), gw('omdb'), gw('fanart'), _itunes(q, 'movie'), if (on('anilist')) _anilist(q, 'ANIME'), if (mal) _mal(q, 'anime')];
+      jobs = [gw('tmdb'), gw('omdb'), gw('fanart'), if (on('itunes')) _itunes(q, 'movie'), if (on('anilist')) _anilist(q, 'ANIME'), if (mal) malSearch('anime')];
     case 'tracks':
     case 'albums':
-      jobs = [_itunes(q, 'album')];
+      jobs = [if (on('itunes')) _itunes(q, 'album')];
     default:
       jobs = type == 'reading'
           ? [if (on('openlibrary')) _openLibrary(q), gw('gutendex')]
           : [
               gw('tmdb'), gw('omdb'), gw('fanart'), gw('episodate'), gw('animeschedule'), gw('malofficial'),
-              if (mal) _mal(q, 'anime'), if (on('anilist')) _anilist(q, 'ANIME'), if (on('kitsu')) _kitsu(q, 'anime'),
+              if (mal) malSearch('anime'), if (on('anilist')) _anilist(q, 'ANIME'), if (on('kitsu')) _kitsu(q, 'anime'),
               if (on('tvmaze')) _tvmaze(q),
             ];
   }
@@ -508,6 +539,25 @@ final List<({String id, String name, String media, Uri url, Map<String, dynamic>
       valid: (d) => '${(d as Map?)?['key'] ?? ''}'.startsWith('/works/')),
   (id: 'itunes', name: 'Apple iTunes Search', media: 'Music, movies', url: Uri.parse('https://itunes.apple.com/search?term=queen&entity=album&limit=1'),
       post: null, valid: (d) => (d as Map?)?['results'] is List),
+  // 8.1.0: the website's v440 cover sources.
+  (id: 'steam', name: 'Steam Store Artwork', media: 'Games, visual novels',
+      url: Uri.parse('https://store.steampowered.com/api/storesearch/?term=portal&l=english&cc=us'), post: null,
+      valid: (d) => (d as Map?)?['items'] is List),
+  (id: 'musicbrainz', name: 'MusicBrainz / Cover Art Archive', media: 'Music',
+      url: Uri.parse('https://musicbrainz.org/ws/2/release-group/?query=artist%3AQueen&fmt=json&limit=1'), post: null,
+      valid: (d) => (d as Map?)?['release-groups'] is List),
+  (id: 'vndb', name: 'VNDB', media: 'Visual novels', url: Uri.parse('https://api.vndb.org/kana/vn'),
+      post: {'filters': ['id', '=', 'v17'], 'fields': 'title', 'results': 1},
+      valid: (d) => (d as Map?)?['results'] is List),
+  (id: 'ifdb', name: 'IFDB (Interactive Fiction)', media: 'Interactive fiction',
+      url: Uri.parse('https://ifdb.org/search?json&game&searchfor=zork'), post: null,
+      valid: (d) => (d as Map?)?['games'] is List),
+  (id: 'gutendex-public', name: 'Gutenberg covers (Gutendex)', media: 'Books',
+      url: Uri.parse('https://gutendex.com/books?search=frankenstein'), post: null,
+      valid: (d) => (d as Map?)?['results'] is List),
+  (id: 'googlebooks', name: 'Google Books Cover Art', media: 'Books, comics',
+      url: Uri.parse('https://www.googleapis.com/books/v1/volumes?q=intitle:frankenstein&maxResults=1'), post: null,
+      valid: (d) => (d as Map?)?['items'] is List || (d as Map?)?['totalItems'] != null),
 ];
 
 /// Runs a public provider's test request. Null: passed; otherwise the problem.
@@ -517,4 +567,243 @@ Future<String?> testPublicProvider(String id) async {
   final data = await _getJson(p.url, post: p.post);
   if (data == null) return 'No response (offline, or the service is down)';
   return p.valid(data) ? null : 'Unexpected response';
+}
+
+// ---- Website v440 universal cover adapters (8.1.0) ----
+//
+// Steam, Apple iTunes albums, MusicBrainz / Cover Art Archive, VNDB, IFDB,
+// Gutenberg (Gutendex) and Google Books, as the website's MF440_ADAPTERS:
+// a saved External ID is looked up first (an exact match), otherwise the
+// title is searched. Like the website, the category never stops a source
+// that's turned on from being searched.
+
+/// Each source's External ID key (`MF440_SOURCES[].key`).
+const kExtraCoverIdKeys = {
+  'steam': 'steam_app',
+  'itunes': 'apple_music_album',
+  'musicbrainz': 'musicbrainz_release_group',
+  'vndb': 'vndb',
+  'ifdb': 'ifdb',
+  'gutendex-public': 'gutendex',
+  'googlebooks': 'googlebooks',
+};
+
+String _cut(Object? v, [int max = 220]) {
+  final s = '${v ?? ''}'.trim();
+  return s.length > max ? s.substring(0, max) : s;
+}
+
+final _reNumericId = RegExp(r'^[1-9]\d{0,15}$');
+final _reUuid = RegExp(r'^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$', caseSensitive: false);
+final _reVndb = RegExp(r'^v[1-9]\d{0,10}$', caseSensitive: false);
+final _reIfdb = RegExp(r'^[a-z0-9]{6,32}$', caseSensitive: false);
+final _reGoogleBooks = RegExp(r'^[A-Za-z0-9_-]{6,50}$');
+
+String _validId(Object? v, RegExp re) {
+  final s = _cut(v, 110);
+  return re.hasMatch(s) ? s : '';
+}
+
+/// `mf440Id`: the title's saved ID for [provider], when it's valid.
+String savedExtraCoverId(Map<String, dynamic>? ids, String provider) {
+  final raw = ids?[kExtraCoverIdKeys[provider]];
+  return switch (provider) {
+    'steam' || 'itunes' || 'gutendex-public' => _validId(raw, _reNumericId),
+    'musicbrainz' => _validId(raw, _reUuid),
+    'vndb' => _validId(raw, _reVndb),
+    'ifdb' => _validId(raw, _reIfdb),
+    'googlebooks' => _validId(raw, _reGoogleBooks),
+    _ => '',
+  };
+}
+
+int? _yearFrom(Object? v) {
+  final m = RegExp(r'^(\d{4})').firstMatch('${v ?? ''}');
+  return m == null ? null : int.parse(m[1]!);
+}
+
+MetadataResult? _extraRow(String provider, String source, String id, Object? title, Object? year, String cover, String saved,
+    {List<String> alt = const [], bool exact = false, String subtitle = ''}) {
+  final t = _cut(title), i = _cut(id, 100);
+  if (i.isEmpty || t.isEmpty || !cover.startsWith('https://')) return null;
+  return MetadataResult(
+    title: t,
+    source: source,
+    coverUrl: cover,
+    year: _yearFrom(year),
+    subtitle: subtitle,
+    externalId: i,
+    externalIdKey: kExtraCoverIdKeys[provider]!,
+    altTitles: [for (final a in alt) if (_cut(a).isNotEmpty) _cut(a)],
+    idMatch: exact || (saved.isNotEmpty && saved.toLowerCase() == i.toLowerCase()),
+  );
+}
+
+List<MetadataResult> _firstSixteen(Iterable<MetadataResult?> rows) {
+  final seen = <String>{};
+  return [for (final r in rows) if (r != null && seen.add(r.coverUrl)) r].take(16).toList();
+}
+
+String _https(Object? url) => '${url ?? ''}'.replaceFirst(RegExp(r'^http:'), 'https:');
+
+/// `mf440Steam`.
+Future<List<MetadataResult>> steamCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'steam');
+  final data = await _getJson(Uri.https('store.steampowered.com', '/api/storesearch/', {'term': title, 'l': 'english', 'cc': 'us'}));
+  final rows = [for (final r in (((data as Map?)?['items'] as List?) ?? const []).take(12)) if (r is Map) r];
+  if (id.isNotEmpty && !rows.any((r) => '${r['id']}' == id)) rows.insert(0, {'id': id, 'name': title, 'idOnly': true});
+  final out = <MetadataResult?>[];
+  for (final r in rows) {
+    final app = _validId(r['id'], _reNumericId);
+    if (app.isEmpty) continue;
+    final name = '${r['name'] ?? title}';
+    final stem = 'https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$app/';
+    out.add(_extraRow('steam', 'Steam', app, name, null, '${stem}library_600x900_2x.jpg', id));
+    final tiny = _https(r['tiny_image']);
+    if (tiny.isNotEmpty && id.isEmpty) out.add(_extraRow('steam', 'Steam', app, name, null, tiny, id, subtitle: 'Storefront thumbnail'));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440Itunes` (albums).
+Future<List<MetadataResult>> itunesAlbumCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'itunes');
+  final uri = id.isNotEmpty
+      ? Uri.https('itunes.apple.com', '/lookup', {'id': id, 'entity': 'album'})
+      : Uri.https('itunes.apple.com', '/search', {'term': title, 'entity': 'album', 'limit': '12'});
+  final data = await _getJson(uri);
+  final out = <MetadataResult?>[];
+  for (final r in (((data as Map?)?['results'] as List?) ?? const []).whereType<Map>().take(12)) {
+    if (r['collectionId'] == null || r['collectionName'] == null) continue;
+    final art = _https(r['artworkUrl100'] ?? r['artworkUrl60']);
+    if (art.isEmpty) continue;
+    final hiRes = art.replaceFirstMapped(RegExp(r'/\d+x\d+bb\.(jpg|png)(?:\?.*)?$', caseSensitive: false), (m) => '/600x600bb.${m[1]}');
+    out.add(_extraRow('itunes', 'iTunes', '${r['collectionId']}', r['collectionName'], r['releaseDate'], hiRes, id,
+        subtitle: '${r['artistName'] ?? ''}'));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440MusicBrainz` (front covers from the Cover Art Archive).
+Future<List<MetadataResult>> musicBrainzCovers(String title, Map<String, dynamic>? ids, {Object? year}) async {
+  final id = savedExtraCoverId(ids, 'musicbrainz');
+  final list = <Map>[if (id.isNotEmpty) {'id': id, 'title': title, 'first-release-date': '${year ?? ''}'}];
+  if (id.isEmpty) {
+    final data = await _getJson(Uri.https('musicbrainz.org', '/ws/2/release-group/',
+        {'query': 'releasegroup:"${title.replaceAll('"', '')}"', 'fmt': 'json', 'limit': '6'}));
+    list.addAll((((data as Map?)?['release-groups'] as List?) ?? const []).whereType<Map>().take(7));
+  }
+  final out = <MetadataResult?>[];
+  for (final r in list) {
+    final mbid = _validId(r['id'], _reUuid);
+    if (mbid.isEmpty) continue;
+    out.add(_extraRow('musicbrainz', 'MusicBrainz', mbid, r['title'], r['first-release-date'],
+        'https://coverartarchive.org/release-group/$mbid/front-500', id));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440VNDB` (explicit or strongly violent images are left out).
+Future<List<MetadataResult>> vndbCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'vndb');
+  final data = await _getJson(Uri.parse('https://api.vndb.org/kana/vn'), post: {
+    'filters': id.isNotEmpty ? ['id', '=', id] : ['search', '=', title],
+    'fields': 'title,alttitle,released,image.url,image.thumbnail,image.sexual,image.violence',
+    'results': 10,
+  });
+  final out = <MetadataResult?>[];
+  for (final r in (((data as Map?)?['results'] as List?) ?? const []).whereType<Map>().take(10)) {
+    final vid = _validId(r['id'], _reVndb);
+    final img = r['image'] as Map?;
+    if (vid.isEmpty || img == null || img['url'] == null) continue;
+    final sexual = num.tryParse('${img['sexual'] ?? 0}') ?? 0, violence = num.tryParse('${img['violence'] ?? 0}') ?? 0;
+    if (sexual > 0 || violence > 1) continue;
+    out.add(_extraRow('vndb', 'VNDB', vid, r['title'], r['released'], _https(img['url']), id,
+        alt: [if (r['alttitle'] is String) r['alttitle'] as String]));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440IFDB`.
+Future<List<MetadataResult>> ifdbCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'ifdb');
+  final data = await _getJson(Uri.parse('https://ifdb.org/search?json&game&searchfor=${Uri.encodeQueryComponent(title)}'));
+  final out = <MetadataResult?>[];
+  for (final r in (((data as Map?)?['games'] as List?) ?? const []).whereType<Map>().take(14)) {
+    final tuid = _validId(r['tuid'], _reIfdb);
+    if (tuid.isEmpty || r['coverArtLink'] == null) continue;
+    out.add(_extraRow('ifdb', 'IFDB', tuid, r['title'], (r['published'] as Map?)?['machine'], _https(r['coverArtLink']), id));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440Gutendex` (Project Gutenberg cover art).
+Future<List<MetadataResult>> gutenbergCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'gutendex-public');
+  final data = await _getJson(Uri.https('gutendex.com', '/books', id.isNotEmpty ? {'ids': id} : {'search': title}));
+  final out = <MetadataResult?>[];
+  for (final r in (((data as Map?)?['results'] as List?) ?? const []).whereType<Map>().take(14)) {
+    final gid = _validId(r['id'], _reNumericId);
+    final formats = (r['formats'] as Map?) ?? const {};
+    final cover = _https(formats['image/jpeg'] ?? formats['image/png']);
+    if (gid.isEmpty || cover.isEmpty) continue;
+    out.add(_extraRow('gutendex-public', 'Gutenberg', gid, r['title'], null, cover, id));
+  }
+  return _firstSixteen(out);
+}
+
+/// `mf440GoogleBooks` (keyless; an ISBN match counts as exact).
+Future<List<MetadataResult>> googleBooksCovers(String title, Map<String, dynamic>? ids) async {
+  final id = savedExtraCoverId(ids, 'googlebooks');
+  final isbn = '${ids?['isbn13'] ?? ids?['isbn'] ?? ''}'.replaceAll(RegExp(r'[^0-9Xx]'), '');
+  final uri = id.isNotEmpty
+      ? Uri.https('www.googleapis.com', '/books/v1/volumes/$id')
+      : Uri.https('www.googleapis.com', '/books/v1/volumes',
+          {'q': isbn.isNotEmpty ? 'isbn:$isbn' : 'intitle:$title', 'maxResults': '10', 'printType': 'all'});
+  final data = await _getJson(uri);
+  final rows = id.isNotEmpty ? [data] : (((data as Map?)?['items'] as List?) ?? const []);
+  final out = <MetadataResult?>[];
+  for (final r in rows.whereType<Map>().take(10)) {
+    final info = r['volumeInfo'] as Map?;
+    if (r['id'] == null || info?['title'] == null) continue;
+    final codes = ((info!['industryIdentifiers'] as List?) ?? const []).whereType<Map>();
+    final isbnMatch = isbn.isNotEmpty && codes.any((c) => '${c['identifier'] ?? ''}'.replaceAll(RegExp(r'[^0-9Xx]'), '') == isbn);
+    final links = (info['imageLinks'] as Map?) ?? const {};
+    final img = _https(links['large'] ?? links['medium'] ?? links['small'] ?? links['thumbnail']);
+    if (img.isEmpty) continue;
+    out.add(_extraRow('googlebooks', 'Google Books', '${r['id']}', info['title'], info['publishedDate'], img, id, exact: isbnMatch));
+  }
+  return _firstSixteen(out);
+}
+
+/// The website v440 sources that are turned on in [enabled], for one name.
+/// [albums]: false when the category's own search already asks iTunes for albums.
+Future<List<MetadataResult>> searchExtraCovers(String title, Map<String, dynamic>? ids, Set<String> enabled,
+    {bool albums = true, Object? year}) async {
+  final q = title.trim();
+  if (q.isEmpty) return const [];
+  final jobs = <Future<List<MetadataResult>>>[
+    if (enabled.contains('steam')) steamCovers(q, ids),
+    if (albums && enabled.contains('itunes')) itunesAlbumCovers(q, ids),
+    if (enabled.contains('musicbrainz')) musicBrainzCovers(q, ids, year: year),
+    if (enabled.contains('vndb')) vndbCovers(q, ids),
+    if (enabled.contains('ifdb')) ifdbCovers(q, ids),
+    if (enabled.contains('gutendex-public')) gutenbergCovers(q, ids),
+    if (enabled.contains('googlebooks')) googleBooksCovers(q, ids),
+  ];
+  final results = await Future.wait(jobs.map((j) => j.catchError((_) => <MetadataResult>[])));
+  return [for (final r in results) ...r];
+}
+
+/// The website v440 sources that fit a category (for the title editor's
+/// online search, which isn't limited by the recovery source lists).
+Set<String> extraCoverSourcesForCategory({required String name, required String unit, String type = ''}) {
+  final t = '$name $unit $type'.toLowerCase();
+  return {
+    if (RegExp(r'game|level|mission|match|steam|playing').hasMatch(t)) 'steam',
+    if (RegExp(r'visual novel|\bvn\b|vndb').hasMatch(t)) ...{'vndb', 'steam'},
+    if (RegExp(r'interactive fiction|text adventure|\bif\b').hasMatch(t)) 'ifdb',
+    if (RegExp(r'music|album|track|song').hasMatch(t)) ...{'itunes', 'musicbrainz'},
+    if (type == 'reading' || RegExp(r'book|novel|reading|page|volume').hasMatch(t)) ...{'gutendex-public', 'googlebooks'},
+  };
 }

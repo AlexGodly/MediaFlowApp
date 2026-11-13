@@ -411,14 +411,22 @@ class _MetadataSheetState extends State<_MetadataSheet> {
   Future<void> _run() async {
     setState(() => _busy = true);
     final cat = widget.category;
-    final r = await searchMetadata(
-      _q.text,
-      unit: cat.unit,
-      type: jsStr(cat.raw['type']),
-      kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: widget.externalIds),
-      // A saved TMDB ID only fits the title it belongs to, not another search.
-      externalIds: _q.text.trim() == widget.query.trim() ? widget.externalIds : null,
-    );
+    // A saved ID only fits the title it belongs to, not another search.
+    final ids = _q.text.trim() == widget.query.trim() ? widget.externalIds : null;
+    final found = await Future.wait([
+      searchMetadata(
+        _q.text,
+        unit: cat.unit,
+        type: jsStr(cat.raw['type']),
+        kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: widget.externalIds),
+        externalIds: ids,
+      ),
+      // 8.1.0: Steam, iTunes albums, MusicBrainz, VNDB, IFDB, Gutenberg and Google Books where they fit.
+      searchExtraCovers(_q.text, ids,
+          extraCoverSourcesForCategory(name: cat.name, unit: cat.unit, type: jsStr(cat.raw['type'])),
+          albums: !const ['tracks', 'albums'].contains(cat.unit)),
+    ]);
+    final r = [...found[0], ...found[1]];
     if (mounted) {
       setState(() {
         _results = r;
