@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mediaflow/src/config.dart' show kAppVersionLabel;
 import 'package:mediaflow/src/logic/data_transfer.dart';
 
 Map<String, dynamic> _state() => {
@@ -91,5 +92,13 @@ void main() {
     expect((copy['collectionTombstones'] as List).single['id'], 'c3');
     final again = importCollections(copy, {'collections': [], 'collectionTombstones': [{'id': 'c2', 'deletedAt': 300}]}, 1000, () => 'u');
     expect(again.removed, 1);
+  });
+
+  test('exports carry the website version the app matches (not a fixed 565)', () {
+    final site = int.parse(kAppVersionLabel.split('.').last);
+    final b = buildFullBackup({'categories': [], 'library': [], 'sessions': [], 'settings': {}}, DateTime.utc(2026, 11, 13));
+    expect(b['mediaFlowVersion'], site);
+    expect(buildSettingsPreset({'settings': {}, 'categories': []}, DateTime.utc(2026, 11, 13))['mediaFlowVersion'], site);
+    expect(buildCollectionsExport({'collections': []}, DateTime.utc(2026, 11, 13))['mediaFlowVersion'], site);
   });
 }

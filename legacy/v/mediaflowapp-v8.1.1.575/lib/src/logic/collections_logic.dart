@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../config.dart' show kAppVersionLabel;
 import '../state/lazy_copy.dart';
 import '../util/js.dart';
 import 'leveling.dart';
@@ -428,10 +429,15 @@ Map<String, dynamic> orderExport(Map<String, dynamic> state, DateTime now) {
   final byId = {for (final i in asList(readOnlyPart(state, 'library'))) jsStr(asMap(i)?['id']): asMap(i)};
   final cats = {for (final c in asList(readOnlyPart(state, 'categories'))) jsStr(asMap(c)?['id']): jsStr(asMap(c)?['name'])};
   final ids = _ids(p['titleIds']);
+  // 8.1.1: the website's v287/v288 additions (Collections assigned to task
+  // categories, their queues and the queue view), so an Order moved between
+  // the app and the website keeps them.
+  final assignments = [for (final a in asList(p['collectionAssignments'])) if (asMap(a) != null) jsonClone(a)];
+  final assignedCollections = {for (final a in assignments) jsStr(asMap(a)?['collectionId'])};
   return {
     'format': 'MediaFlowOrder',
-    'formatVersion': 1,
-    'mediaFlowVersion': 142,
+    'formatVersion': 5,
+    'mediaFlowVersion': websiteRelease,
     'exportedAt': now.toUtc().toIso8601String(),
     'orderPlan': {
       'titleIds': [...{...ids}],
@@ -439,6 +445,18 @@ Map<String, dynamic> orderExport(Map<String, dynamic> state, DateTime now) {
       'categoryMode': p['categoryMode'],
       'categoryOrder': _ids(p['categoryOrder']),
       'hiddenCategories': _ids(p['hiddenCategories']),
+      'collectionAssignments': assignments,
+      'categoryQueues': jsonClone(asMap(p['categoryQueues']) ?? const <String, dynamic>{}),
+      if (asMap(p['v288QueueView']) != null) 'v288QueueView': jsonClone(p['v288QueueView']),
+    },
+    'collections': [
+      for (final c in asList(readOnlyPart(state, 'collections')).map(asMap).whereType<Map<String, dynamic>>())
+        if (assignedCollections.contains(jsStr(c['id'])))
+          {'id': jsStr(c['id']), 'title': jsStr(c['title']), 'description': jsStr(c['description'])},
+    ],
+    'exportAudit': {
+      'release': websiteRelease,
+      'includes': ['collectionAssignments', 'categoryQueues', 'collectionReferences'],
     },
     'titles': [
       for (final id in ids)
@@ -542,8 +560,63 @@ Map<String, dynamic> orderExport(Map<String, dynamic> state, DateTime now) {
   p['categoryOrder'] = order;
   p['hiddenCategories'] = mapList(rawPlan['hiddenCategories']);
   p['modifiedAt'] = now;
+  // 8.1.1: website v287 — Collection assignments and category queues come
+  // along: Collections by id or by title, categories by id or by name, titles
+  // in queues by the same matching as above.
+  final rawAssignments = asList(rawPlan['collectionAssignments']).map(asMap).whereType<Map<String, dynamic>>().toList();
+  if (rawAssignments.isNotEmpty) {
+    final cols = asList(readOnlyPart(state, 'collections')).map(asMap).whereType<Map<String, dynamic>>().toList();
+    final colDesc = asList(d?['collections']).map(asMap).whereType<Map<String, dynamic>>().toList();
+    String mapCollection(Object? raw) {
+      final id = jsStr(raw);
+      if (id.isNotEmpty && cols.any((c) => jsStr(c['id']) == id)) return id;
+      final src = colDesc.where((c) => jsStr(c['id']) == id).firstOrNull;
+      final title = jsStr(src?['title']).trim().toLowerCase();
+      if (title.isEmpty) return '';
+      return jsStr(cols.where((c) => jsStr(c['title']).trim().toLowerCase() == title).firstOrNull?['id']);
+    }
+
+    final assignmentMap = <String, String>{};
+    final next = <Map<String, dynamic>>[];
+    for (final raw in rawAssignments) {
+      final col = mapCollection(raw['collectionId']), cat = mapCat(raw['categoryId']);
+      if (col.isEmpty || cat.isEmpty) continue;
+      if (next.any((a) => a['collectionId'] == col && a['categoryId'] == cat)) continue;
+      final rid = jsStr(raw['id']);
+      final id = rid.isNotEmpty && !next.any((a) => a['id'] == rid) ? rid : 'oca_${mediaFlowUid()}';
+      next.add({...raw, 'id': id, 'collectionId': col, 'categoryId': cat});
+      assignmentMap[rid] = id;
+    }
+    p['collectionAssignments'] = next;
+    final queues = <String, dynamic>{};
+    for (final e in (asMap(rawPlan['categoryQueues']) ?? const <String, dynamic>{}).entries) {
+      final cid = mapCat(e.key);
+      if (cid.isEmpty) continue;
+      final mapped = <String>[];
+      for (final raw in asList(e.value)) {
+        final token = jsStr(raw);
+        if (token.startsWith('t:')) {
+          final old = token.substring(2);
+          final item = byId[old] ?? (desc[old] != null ? find(desc[old]!) : null);
+          final tid = jsStr(item?['id']);
+          if (tid.isNotEmpty && !mapped.contains('t:$tid')) mapped.add('t:$tid');
+        } else if (token.startsWith('c:')) {
+          final aid = assignmentMap[token.substring(2)];
+          if (aid != null && !mapped.contains('c:$aid')) mapped.add('c:$aid');
+        }
+      }
+      queues[cid] = mapped;
+    }
+    p['categoryQueues'] = queues;
+    ensureOrderPlan(state); // normalize like the website
+  }
+  final view = asMap(rawPlan['v288QueueView']);
+  if (view != null) asMap(state['orderPlan'])?['v288QueueView'] = jsonClone(view);
   return (imported: resolved.length, skipped: skipped, error: null);
 }
+
+/// The website version the app matches (the last part of the app's version).
+int get websiteRelease => int.tryParse(kAppVersionLabel.split('.').last) ?? 575;
 
 /// `v138MoveTitle` / `v138MoveTitleInCategory` / `v157SetOrderTitlePosition`.
 void orderMoveTitle(Map<String, dynamic> p, Map<String, dynamic> state, String id, {int delta = 0, int? toPosition, String? categoryId}) {

@@ -7,11 +7,15 @@
 
 import 'dart:convert';
 
+import '../config.dart' show kAppVersionLabel;
 import '../util/js.dart';
 import 'collections_logic.dart' show normalizeCollection;
 import 'default_settings.g.dart';
 
-const kWebsiteRelease = 565;
+/// The website version the app matches (the last part of the app's version,
+/// e.g. 575 in 8.1.1.575), stamped on exports like the website stamps its own.
+/// It was a fixed 565, so files from the app looked older than they were.
+final int kWebsiteRelease = int.tryParse(kAppVersionLabel.split('.').last) ?? 575;
 const kBackupSchemaVersion = 29; // V201_BACKUP_SCHEMA_VERSION
 const kBackupFormat = 'MediaFlow_Full_Backup';
 const kPresetFormat = 'MediaFlow_Settings_Preset';
