@@ -240,6 +240,7 @@ String coverProviderId(String source) => switch (source.toLowerCase()) {
       'tmdb' => 'tmdb',
       'myanimelist official' => 'malofficial',
       'fanart.tv' => 'fanart',
+      'gutenberg' => 'gutendex-public',
       final s => s.replaceAll(' ', ''),
     };
 

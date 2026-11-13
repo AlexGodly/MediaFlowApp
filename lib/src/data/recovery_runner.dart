@@ -232,18 +232,27 @@ class RecoveryRunner extends ChangeNotifier {
         }
       } catch (_) {}
     }
+    // 8.1.0: the category's own cover sources (Sources → Category presets) or the global list.
+    final settings = asMap(account.view!.state['settings']);
+    final enabled = coverSourcesFor(settings, cat.id);
     final names = query != null ? [query] : titleVariants(item).take(3).toList();
     for (final name in names) {
       List<MetadataResult> results;
       try {
-        results = await searchMetadata(
-          name,
-          unit: unit,
-          type: jsStr(cat.raw['type']),
-          kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: ids),
-          externalIds: ids,
-          enabled: enabledCoverSources(asMap(account.view!.state['settings'])),
-        );
+        final searches = await Future.wait([
+          searchMetadata(
+            name,
+            unit: unit,
+            type: jsStr(cat.raw['type']),
+            kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: ids),
+            externalIds: ids,
+            enabled: enabled,
+            gatewayFollowsList: hasCoverPreset(settings, cat.id),
+          ),
+          // Website v440 sources (Steam, iTunes albums, MusicBrainz, VNDB, IFDB, Gutenberg, Google Books).
+          searchExtraCovers(name, ids, enabled, albums: !const ['tracks', 'albums'].contains(unit), year: item['year']),
+        ]);
+        results = [...searches[0], ...searches[1]];
       } catch (_) {
         continue;
       }

@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../data/metadata_search.dart' show coverSourcesFor, enabledCoverSources, hasCoverPreset;
+import '../data/provider_catalog.dart';
 import '../data/rating_sources.dart';
 import '../data/recovery_runner.dart';
 import '../logic/extras.dart' show OtdEvent;
@@ -741,6 +743,9 @@ class _SourcesSettingsState extends State<SourcesSettings> {
     final presetRaw = asMap(asMap(_settings?['v453RecoveryPresets'])?[_category])?['metadata'];
     final custom = presetRaw is List;
     final presetIds = metadataProvidersFor(_settings, _category).toSet();
+    final coverOn = enabledCoverSources(_settings);
+    final coverCustom = hasCoverPreset(_settings, _category);
+    final coverPreset = coverSourcesFor(_settings, _category);
     return ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 32), children: [
       const Text('Metadata and rating sources', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
       const SizedBox(height: 4),
@@ -771,9 +776,31 @@ class _SourcesSettingsState extends State<SourcesSettings> {
         ],
         onChanged: (v) => unawaited(_saveEnabled(enabled.toList(), v ?? 250)),
       ),
+      const SizedBox(height: 22),
+      // 8.1.0: every cover source of the website (MF424 registry), shared with the website.
+      const Text('Cover sources', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      const SizedBox(height: 4),
+      Text('Used by Cover Recovery (shared with the website). Sources with no connection yet can be selected, but they are only searched once they work.',
+          style: TextStyle(color: MF.textDim, fontSize: 12)),
+      for (final p in kCoverRegistry)
+        () {
+          final st = providerStatus(p.id, cover: true, serviceReady: _ready, serviceChecked: _checked);
+          return SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(st.text, style: TextStyle(fontSize: 11, color: st.works ? MF.good : MF.textDim)),
+            value: coverOn.contains(p.id),
+            onChanged: (on) {
+              final next = {...coverOn};
+              on ? next.add(p.id) : next.remove(p.id);
+              unawaited(widget.account.setSetting(['v424Covers', 'enabled'], [for (final id in coverRegistryIds) if (next.contains(id)) id]));
+            },
+          );
+        }(),
       const SizedBox(height: 18),
       const Text('Category presets', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-      Text('Pick which sources a category uses. Categories without a preset use the list above.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      Text('Pick which cover and details sources a category uses. Categories without a preset use the lists above.', style: TextStyle(color: MF.textDim, fontSize: 12)),
       const SizedBox(height: 8),
       if (cats.isNotEmpty)
         DropdownButtonFormField<String>(
@@ -785,7 +812,43 @@ class _SourcesSettingsState extends State<SourcesSettings> {
         ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Use its own sources'),
+        title: const Text('Use its own cover sources'),
+        subtitle: Text(coverCustom ? 'Custom preset · ${coverPreset.length} selected' : 'Uses the global cover list'),
+        value: coverCustom,
+        onChanged: (on) => widget.account.setSetting(['v453RecoveryPresets'],
+            presetToSave(_settings, _category, 'cover', on ? coverOn.toList() : null, coverRegistryIds)),
+      ),
+      if (coverCustom) ...[
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          TextButton(
+            onPressed: () => widget.account.setSetting(['v453RecoveryPresets'], presetToSave(_settings, _category, 'cover', [
+              for (final id in coverRegistryIds)
+                if (providerStatus(id, cover: true, serviceReady: _ready, serviceChecked: _checked).works) id
+            ], coverRegistryIds)),
+            child: const Text('Select available'),
+          ),
+          TextButton(
+            onPressed: () => widget.account.setSetting(['v453RecoveryPresets'], presetToSave(_settings, _category, 'cover', const [], coverRegistryIds)),
+            child: const Text('Deselect all'),
+          ),
+        ]),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final p in kCoverRegistry)
+            FilterChip(
+              label: Text(p.name),
+              selected: coverPreset.contains(p.id),
+              onSelected: (on) {
+                final next = {...coverPreset};
+                on ? next.add(p.id) : next.remove(p.id);
+                widget.account.setSetting(['v453RecoveryPresets'], presetToSave(_settings, _category, 'cover', next.toList(), coverRegistryIds));
+              },
+            ),
+        ]),
+        const SizedBox(height: 10),
+      ],
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Use its own details sources'),
         subtitle: Text(custom ? 'Custom preset · ${presetIds.length} selected' : 'Uses the global list'),
         value: custom,
         onChanged: (on) => widget.account.setSetting(['v453RecoveryPresets'], presetsToSave(_settings, _category, on ? enabled.toList() : null)),
@@ -803,6 +866,29 @@ class _SourcesSettingsState extends State<SourcesSettings> {
               },
             ),
         ]),
+      const SizedBox(height: 22),
+      Text('Every API (${kProviderCatalog.length})', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+      const SizedBox(height: 4),
+      Text('The website\'s full provider list and what each one does in MediaFlow today.', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      for (final p in kProviderCatalog)
+        () {
+          final cover = providerStatus(p.id, cover: true, serviceReady: _ready, serviceChecked: _checked);
+          final details = kAvailableSources.contains(p.id) || (p.id == 'gutendex-public' && kAvailableSources.contains('gutendex'));
+          final works = cover.works || details;
+          final uses = [
+            if (cover.works && p.caps.contains('cover')) 'Covers',
+            if (details) 'Details & ratings',
+          ];
+          return ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(works ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 20, color: works ? MF.good : MF.textDim),
+            title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: Text(
+                [p.media.replaceAll('/', ', ').replaceAll('_', ' '), if (uses.isNotEmpty) 'Used for: ${uses.join(', ')}' else cover.text].join(' · '),
+                style: const TextStyle(fontSize: 11)),
+          );
+        }(),
     ]);
   }
 }

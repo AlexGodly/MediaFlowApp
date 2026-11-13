@@ -6,7 +6,8 @@ void main() {
 
   test('cover sources follow settings.v424Covers.enabled', () {
     expect(enabledCoverSources(null), containsAll(kDefaultCoverSources));
-    expect(enabledCoverSources({'v424Covers': {'enabled': ['anilist']}}), {'anilist', 'itunes'});
+    // 8.1.0: iTunes follows its own switch, like on the website.
+    expect(enabledCoverSources({'v424Covers': {'enabled': ['anilist']}}), {'anilist'});
   });
 
   test('gateway providers are used only when configured', () async {
