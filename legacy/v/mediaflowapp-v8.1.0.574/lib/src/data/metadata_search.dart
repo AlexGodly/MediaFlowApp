@@ -557,7 +557,7 @@ final List<({String id, String name, String media, Uri url, Map<String, dynamic>
       valid: (d) => (d as Map?)?['results'] is List),
   (id: 'googlebooks', name: 'Google Books Cover Art', media: 'Books, comics',
       url: Uri.parse('https://www.googleapis.com/books/v1/volumes?q=intitle:frankenstein&maxResults=1'), post: null,
-      valid: (d) => (d as Map?)?['items'] is List || (d as Map?)?['totalItems'] != null),
+      valid: (d) => d is Map && (d['items'] is List || d['totalItems'] != null)),
 ];
 
 /// Runs a public provider's test request. Null: passed; otherwise the problem.
