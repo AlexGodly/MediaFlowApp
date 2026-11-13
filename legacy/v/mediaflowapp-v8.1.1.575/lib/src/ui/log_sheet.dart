@@ -171,6 +171,8 @@ class _LogFormState extends State<LogForm> {
   int _xpGen = 0;
   String _xpKey = '';
   double? _xp;
+  String? _xpProblem;
+  bool _xpWorking = false;
 
   @override
   void initState() {
@@ -267,17 +269,25 @@ class _LogFormState extends State<LogForm> {
     final key = '${identityHashCode(view.state)}|${entry.toJson()}|$date|$_timeText';
     if (key == _xpKey) return;
     _xpKey = key;
+    _xpWorking = true;
     _xpTimer?.cancel();
     final gen = ++_xpGen;
     _xpTimer = Timer(const Duration(milliseconds: 350), () async {
       double? xp;
+      String? problem;
       try {
         xp = await widget.account.previewLog([entry], date: date, time: _timeText);
-      } catch (_) {
-        xp = null;
+        if (xp == null) problem = 'XP preview unavailable for this log';
+      } catch (e) {
+        problem = 'XP preview unavailable';
+        debugPrint('MediaFlow: Log a title XP preview failed: $e');
       }
       if (!mounted || gen != _xpGen) return;
-      setState(() => _xp = xp);
+      setState(() {
+        _xp = xp;
+        _xpProblem = problem;
+        _xpWorking = false;
+      });
     });
   }
 
@@ -444,14 +454,19 @@ class _LogFormState extends State<LogForm> {
           const SizedBox(height: 4),
           Text(_error!, style: const TextStyle(color: MF.bad)),
         ],
-        if (_xp != null && _xp! > 0) ...[
+        if (p != null && p.qty > 0) ...[
           const SizedBox(height: 10),
           Row(children: [
             Icon(Icons.auto_awesome_rounded, size: 18, color: MF.accent),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('This log earns +${fmtNumber(_xp!.round())} XP',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(
+                  _xp != null && !_xpWorking
+                      ? 'This log earns +${fmtNumber(_xp!.round())} XP'
+                      : _xpProblem != null && !_xpWorking
+                          ? _xpProblem!
+                          : 'Working out the XP…',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: _xp != null && !_xpWorking ? MF.text : MF.textDim)),
             ),
           ]),
         ],

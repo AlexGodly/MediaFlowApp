@@ -294,9 +294,7 @@ class AccountController extends ChangeNotifier {
   Future<double?> previewLog(List<LogEntry> entries, {String? date, String? time}) {
     final raw = _baseRaw;
     if (raw == null) return Future.value(null);
-    final copy = List<AccountOp>.of(_pending);
-    final req = LogRequest.create(entries, date: date, time: time);
-    return _bg(() => previewLogXp(mergeState(raw, copy, encode: false).state, req));
+    return logPreviewInBackground(_bg, raw, _pending, LogRequest.create(entries, date: date, time: time));
   }
 
   /// Batch Log (outside recommendations). Saved on the device first, then uploaded.
@@ -785,6 +783,13 @@ class AccountController extends ChangeNotifier {
 
 /// The XP preview's background run. Top-level on purpose: the closure handed to
 /// the isolate then holds only these arguments.
+/// Top-level (like [xpPreviewInBackground]) so the background work carries
+/// only the account copy and the log, never the controller.
+Future<double?> logPreviewInBackground(BackgroundRunner background, Object? raw, List<AccountOp> ops, LogRequest req) {
+  final copy = List<AccountOp>.of(ops);
+  return background(() => previewLogXp(mergeState(raw, copy, encode: false).state, req));
+}
+
 Future<XpPreview> xpPreviewInBackground(BackgroundRunner background, Object? raw, List<AccountOp> ops,
     Map<String, dynamic> task, Map<String, dynamic> logDraft) {
   final copy = List<AccountOp>.of(ops);
