@@ -74,6 +74,52 @@ void main() {
     expect(orderImport(other, {'nope': 1}, 1).error, 'This is not a MediaFlow Order export.');
   });
 
+  test('8.1.1: Collection assignments, queues and the queue view travel with the Order (website v287/v288)', () {
+    final s = _state()
+      ..['collections'] = [
+        {'id': 'col1', 'title': 'Winter watchlist', 'description': 'cozy', 'titleIds': ['a', 'c']},
+      ];
+    (s['orderPlan'] as Map<String, dynamic>)
+      ..['collectionAssignments'] = [
+        {'id': 'as1', 'collectionId': 'col1', 'categoryId': 'anime', 'categoryRule': 'match', 'completedRule': 'skip', 'traversedTitleIds': [], 'createdAt': 1},
+      ]
+      ..['categoryQueues'] = {
+        'anime': ['t:c', 'c:as1', 't:a'],
+      }
+      ..['v288QueueView'] = {'mode': 'cards'};
+    final data = orderExport(s, DateTime.utc(2026, 11, 13));
+    expect(data['formatVersion'], 5);
+    expect(data['mediaFlowVersion'], websiteRelease);
+    expect(((data['orderPlan'] as Map)['collectionAssignments'] as List).length, 1);
+    expect((data['collections'] as List).single, {'id': 'col1', 'title': 'Winter watchlist', 'description': 'cozy'});
+
+    final other = <String, dynamic>{
+      'categories': [
+        {'id': 'x-anime', 'name': 'Anime'},
+        {'id': 'x-books', 'name': 'Books'},
+      ],
+      'library': [
+        {'id': 'z1', 'title': 'Frieren', 'categoryId': 'x-anime', 'externalIds': {'mal': '52991'}},
+        {'id': 'z2', 'title': 'Dune', 'categoryId': 'x-books'},
+        {'id': 'z3', 'title': 'Mushishi', 'categoryId': 'x-anime'},
+      ],
+      'collections': [
+        {'id': 'other-col', 'title': 'winter watchlist', 'titleIds': ['z1']},
+      ],
+      'orderPlan': <String, dynamic>{},
+    };
+    final r = orderImport(other, data, 5000);
+    expect(r.error, isNull);
+    final p = other['orderPlan'] as Map<String, dynamic>;
+    final a = (p['collectionAssignments'] as List).single as Map;
+    expect(a['collectionId'], 'other-col', reason: 'matched by title');
+    expect(a['categoryId'], 'x-anime', reason: 'matched by name');
+    expect(p['categoryQueues'], {
+      'x-anime': ['t:z3', 'c:${a['id']}', 't:z1'],
+    });
+    expect(p['v288QueueView'], {'mode': 'cards'});
+  });
+
   test('moving a title inside a category of a big Order is quick', () {
     final s = <String, dynamic>{
       'categories': [

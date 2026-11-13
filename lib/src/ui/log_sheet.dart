@@ -166,11 +166,16 @@ class _LogFormState extends State<LogForm> {
   TimeOfDay? _time; // null = now today, midday on other days (website v573)
   bool _saving = false;
   String? _error;
+  // 8.2.0: several titles in one log (website Batch Log rows). Each added
+  // title waits here; the one being filled in is the form below.
+  final List<({LogEntry entry, String id, String text})> _batch = [];
   // XP preview (website v574): worked out on a copy of the account.
   Timer? _xpTimer;
   int _xpGen = 0;
   String _xpKey = '';
   double? _xp;
+  String? _xpProblem;
+  bool _xpWorking = false;
 
   @override
   void initState() {
@@ -253,31 +258,37 @@ class _LogFormState extends State<LogForm> {
   /// Recomputes the XP preview a moment after the form stops changing.
   void _scheduleXp() {
     final view = widget.account.view;
-    final e = _entry();
-    final p = _preview();
-    if (view == null || e == null || p == null || !(p.qty > 0)) {
+    final entries = _allEntries();
+    if (view == null || entries.isEmpty) {
       if (_xp != null || _xpKey.isNotEmpty) {
         _xpKey = '';
         _xp = null;
       }
       return;
     }
-    final entry = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes);
     final date = _date == null ? null : isoDay(_date!);
-    final key = '${identityHashCode(view.state)}|${entry.toJson()}|$date|$_timeText';
+    final key = '${identityHashCode(view.state)}|${[for (final x in entries) x.toJson()]}|$date|$_timeText';
     if (key == _xpKey) return;
     _xpKey = key;
+    _xpWorking = true;
     _xpTimer?.cancel();
     final gen = ++_xpGen;
     _xpTimer = Timer(const Duration(milliseconds: 350), () async {
       double? xp;
+      String? problem;
       try {
-        xp = await widget.account.previewLog([entry], date: date, time: _timeText);
-      } catch (_) {
-        xp = null;
+        xp = await widget.account.previewLog(entries, date: date, time: _timeText);
+        if (xp == null) problem = 'XP preview unavailable for this log';
+      } catch (e) {
+        problem = 'XP preview unavailable';
+        debugPrint('MediaFlow: Log a title XP preview failed: $e');
       }
       if (!mounted || gen != _xpGen) return;
-      setState(() => _xp = xp);
+      setState(() {
+        _xp = xp;
+        _xpProblem = problem;
+        _xpWorking = false;
+      });
     });
   }
 
@@ -289,23 +300,61 @@ class _LogFormState extends State<LogForm> {
   String? get _timeText =>
       _time == null ? null : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
-  Future<void> _save() async {
+  /// The title being filled in, ready to log (null when it isn't complete).
+  LogEntry? _currentEntry() {
     final e = _entry();
     final p = _preview();
-    if (e == null || p == null) return;
-    if (!(p.qty > 0)) {
-      setState(() => _error = _reachedMode
-          ? 'Enter a number higher than ${fmtNumber(p.start)}.'
-          : 'Enter an amount above 0.');
+    if (e == null || p == null || !(p.qty > 0)) return null;
+    return _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes);
+  }
+
+  /// Everything this log saves: the added titles, then the one being filled in.
+  List<LogEntry> _allEntries() => [
+        for (final b in _batch) if (b.id != _libraryId) b.entry,
+        if (_currentEntry() case final e?) e,
+      ];
+
+  /// "Add another title": keeps this title in the log and opens the picker.
+  void _addAnother() {
+    final e = _currentEntry();
+    final p = _preview();
+    final t = _title;
+    if (e == null || p == null || t == null) {
+      setState(() => _error = 'Fill in this title first.');
       return;
     }
+    final cat = widget.account.view!.category(t.categoryId);
+    final text = '+${fmtNumber(p.qty)} ${unitLabel(titleUnit(t.raw, cat.raw), p.qty)} · ${fmtMinutes(p.minutes)}';
+    setState(() {
+      _batch.removeWhere((b) => b.id == t.id);
+      _batch.add((entry: e, id: t.id, text: '${t.title} · $text'));
+      _libraryId = null;
+      _search.clear();
+      _minutes.clear();
+      _minutesEdited = false;
+      _error = null;
+      _xpKey = '';
+    });
+  }
+
+  Future<void> _save() async {
+    final p = _preview();
+    if (_batch.isEmpty && _currentEntry() == null) {
+      if (p != null) {
+        setState(() => _error = _reachedMode ? 'Enter a number higher than ${fmtNumber(p.start)}.' : 'Enter an amount above 0.');
+      }
+      return;
+    }
+    // With other titles added, an open title left unfinished simply isn't included.
+    final entries = _allEntries();
+    if (entries.isEmpty) return;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
       final outcome = await widget.account.log(
-        [_minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes)],
+        entries,
         note: _note.text,
         date: _date == null ? null : isoDay(_date!),
         time: _timeText,
@@ -316,7 +365,9 @@ class _LogFormState extends State<LogForm> {
       final cat = widget.account.view!.category(_title?.categoryId ?? '');
       final done = outcome.completed.isNotEmpty ? ' · Completed!' : '';
       messenger.showSnackBar(SnackBar(
-        content: Text('Logged ${fmtNumber(p.qty)} ${unitLabel(titleUnit(_title?.raw, cat.raw), p.qty)} of ${outcome.titles.join(', ')}'
+        content: Text((entries.length == 1 && p != null
+                ? 'Logged ${fmtNumber(p.qty)} ${unitLabel(titleUnit(_title?.raw, cat.raw), p.qty)} of ${outcome.titles.join(', ')}'
+                : 'Logged ${entries.length} title${entries.length == 1 ? '' : 's'}: ${outcome.titles.join(', ')}') +
             ' · +${fmtNumber(outcome.xp)} XP$done'),
       ));
     } catch (err) {
@@ -337,9 +388,11 @@ class _LogFormState extends State<LogForm> {
     _scheduleXp();
     final unit = titleUnit(title.raw, cat.raw); // v565: the title's own unit
     final rewatch = title.isCompleted;
+    final count = _allEntries().length;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (_batch.isNotEmpty) _batchCard(),
         Row(children: [
           Cover(title: title, category: cat, width: 52),
           const SizedBox(width: 12),
@@ -440,18 +493,31 @@ class _LogFormState extends State<LogForm> {
               icon: const Icon(Icons.close_rounded, size: 16),
             ),
         ]),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _saving ? null : _addAnother,
+            icon: const Icon(Icons.playlist_add_rounded, size: 20),
+            label: const Text('Add another title'),
+          ),
+        ),
         if (_error != null) ...[
           const SizedBox(height: 4),
           Text(_error!, style: const TextStyle(color: MF.bad)),
         ],
-        if (_xp != null && _xp! > 0) ...[
+        if (count > 0) ...[
           const SizedBox(height: 10),
           Row(children: [
             Icon(Icons.auto_awesome_rounded, size: 18, color: MF.accent),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('This log earns +${fmtNumber(_xp!.round())} XP',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
+              child: Text(
+                  _xp != null && !_xpWorking
+                      ? '${count > 1 ? 'These $count titles earn' : 'This log earns'} +${fmtNumber(_xp!.round())} XP'
+                      : _xpProblem != null && !_xpWorking
+                          ? _xpProblem!
+                          : 'Working out the XP…',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: _xp != null && !_xpWorking ? MF.text : MF.textDim)),
             ),
           ]),
         ],
@@ -462,9 +528,11 @@ class _LogFormState extends State<LogForm> {
           child: _saving
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
               : Text(
-                  p == null || !(p.qty > 0)
-                      ? 'Save log'
-                      : 'Log ${fmtNumber(p.qty)} ${unitLabel(unit, p.qty)} · ${fmtMinutes(p.minutes)}',
+                  count > 1
+                      ? 'Log $count titles'
+                      : p == null || !(p.qty > 0)
+                          ? (_batch.isNotEmpty ? 'Log ${_batch.length} title${_batch.length == 1 ? '' : 's'}' : 'Save log')
+                          : 'Log ${fmtNumber(p.qty)} ${unitLabel(unit, p.qty)} · ${fmtMinutes(p.minutes)}',
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
         ),
         const SizedBox(height: 8),
@@ -475,6 +543,29 @@ class _LogFormState extends State<LogForm> {
   }
 
   String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  /// The titles added to this log so far (8.2.0).
+  Widget _batchCard() => Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.fromLTRB(12, 10, 4, 6),
+        decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('In this log (${_batch.length})', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+          for (final b in _batch)
+            Row(children: [
+              Expanded(child: Text(b.text, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+              IconButton(
+                tooltip: 'Remove from this log',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close_rounded, size: 18),
+                onPressed: () => setState(() {
+                  _batch.remove(b);
+                  _xpKey = '';
+                }),
+              ),
+            ]),
+        ]),
+      );
 
   Widget _picker(AccountView view) {
     final q = _search.text.trim().toLowerCase();
@@ -488,7 +579,18 @@ class _LogFormState extends State<LogForm> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('What did you watch or read?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        if (_batch.isNotEmpty) ...[
+          _batchCard(),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+            child: Text(_batch.length == 1 ? 'Log this title' : 'Log these ${_batch.length} titles',
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+          ),
+          const SizedBox(height: 14),
+        ],
+        Text(_batch.isEmpty ? 'What did you watch or read?' : 'Add another title',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
         TextField(
           controller: _search,

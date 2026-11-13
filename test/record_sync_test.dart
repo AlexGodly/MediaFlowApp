@@ -122,4 +122,35 @@ void main() {
     expect(_item(decodeStateData(cloud.fallback), 'lib_alpha')['progress'], 6);
     account.dispose();
   });
+
+  test('8.1.1: the full fallback copy is written rarely (it used up the Disk IO budget)', () async {
+    final cloud = FakeRecordCloud(_account());
+    final account = AccountController(
+      userId: 'u',
+      email: 'e',
+      cloud: cloud,
+      cache: MemoryCache(),
+      background: runInline,
+      deviceId: 'test-device',
+    );
+    await account.start();
+    await account.log([const LogEntry(libraryId: 'lib_alpha', reached: 6)]);
+    for (var n = 0; n < 200 && account.pendingCount > 0; n++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    await account.flushFallback();
+    final first = cloud.fallbackWrites;
+    expect(first, 1, reason: 'the first copy is written');
+    await account.log([const LogEntry(libraryId: 'lib_alpha', reached: 7)]);
+    for (var n = 0; n < 200 && account.pendingCount > 0; n++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    // Leaving the app (or switching windows) right after: no new multi-MB copy.
+    await account.flushDraft();
+    await account.flushFallback();
+    expect(cloud.fallbackWrites, first, reason: 'not again within 10 minutes');
+    await account.flushFallback(force: true);
+    expect(cloud.fallbackWrites, first + 1);
+    account.dispose();
+  });
 }
