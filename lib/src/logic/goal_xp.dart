@@ -25,17 +25,19 @@ class GoalXPConfig {
   /// `mf580GoalCfg`.
   static GoalXPConfig of(Map<String, dynamic>? settings) {
     final c = asMap(settings?['mf580GoalXP']) ?? const <String, dynamic>{};
-    int n(Object? v, int d) {
-      final x = jsNumOrNull(v);
+    // JS `Number.isFinite(Number(v)) ? … : default`: a missing key is the default.
+    int n(String key, int d) {
+      if (!c.containsKey(key)) return d;
+      final x = jsNumOrNull(c[key]);
       return x == null || !x.isFinite ? d : jsRound(x).clamp(0, 100000).toInt();
     }
 
     return GoalXPConfig(
       enabled: c['enabled'] != false,
-      min: n(c['min'], defaults.min),
-      max: n(c['max'], defaults.max),
-      perExtra: n(c['perExtra'], defaults.perExtra),
-      extraCap: n(c['extraCap'], defaults.extraCap),
+      min: n('min', defaults.min),
+      max: n('max', defaults.max),
+      perExtra: n('perExtra', defaults.perExtra),
+      extraCap: n('extraCap', defaults.extraCap),
     );
   }
 
@@ -46,7 +48,7 @@ class GoalXPConfig {
 /// `mf580GoalBounds`.
 ({int low, int high}) goalBounds(Map<String, dynamic>? task) {
   double safe(Object? v) {
-    final x = jsNumOrNull(v);
+    final x = v == null ? null : jsNumOrNull(v);
     return x == null || !x.isFinite ? 0 : math.max(0, x);
   }
 
