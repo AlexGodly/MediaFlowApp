@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 
 import '../config.dart';
 import '../data/account_controller.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/history_views.dart';
-import '../logic/title_parts.dart' show partsHistoryText;
+import '../logic/title_parts.dart' show fmtN;
+import '../logic/title_units.dart' show titleUnit;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
@@ -145,7 +147,7 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            _filterChip('Category', _drop<String>(_category, [('all', 'All'), for (final c in view.categories) (c.id, c.name)], (v) => setState(() {
+            _filterChip('Category', _drop<String>(_category, [('all', 'All'), for (final c in filterCategories(view)) (c.id, c.name)], (v) => setState(() {
                   _category = v;
                   _weekPage = 0;
                 }))),
@@ -256,10 +258,10 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
       return '${sn}Ep. ${jsNum(season['episode']).toInt()}';
     }
     final p = jsNum(ev.item?['progress']), total = jsNum(ev.item?['total']);
-    final abbr = progressAbbr(cat.unit);
+    final abbr = progressAbbr(titleUnit(ev.item, cat.raw));
     if (abbr == 'Seen' && ((total > 0 && p >= total) || jsStr(ev.item?['status']) == 'completed')) return 'Seen all';
     if (p > 0) return '$abbr ${fmtNumber(p)}';
-    if (ev.qty > 0) return '+${fmtNumber(ev.qty)} ${unitLabel(cat.unit, ev.qty)}';
+    if (ev.qty > 0) return '+${fmtNumber(ev.qty)} ${unitLabel(titleUnit(ev.item, cat.raw), ev.qty)}';
     return fmtMinutes(ev.minutes);
   }
 
@@ -332,7 +334,7 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text(t.event.title.isEmpty ? view.category(t.event.categoryId).name : view.shownName(t.event.title),
                               maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
-                          Text('${fmtNumber(t.units)} ${unitLabel(view.category(t.event.categoryId).unit, t.units)}',
+                          Text('${fmtNumber(t.units)} ${unitLabel(titleUnit(t.event.item, view.category(t.event.categoryId).raw), t.units)}',
                               style: TextStyle(color: MF.textDim, fontSize: 11)),
                         ]),
                       ),
@@ -379,14 +381,13 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
                       Text(
                         [
                           cat.name,
-                          if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(cat.unit, ev.qty)}',
+                          if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(titleUnit(ev.item, cat.raw), ev.qty)}',
                           fmtMinutes(ev.minutes),
                           _time(sessionDateTime(ev.session)),
                         ].join(' · '),
                         style: TextStyle(color: MF.textDim, fontSize: 12),
                       ),
-                      if (ev.row['mf577Parts'] is List)
-                        Text(partsHistoryText(ev.row['mf577Parts'], unitLabel), style: TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                      if (ev.row['mf577Parts'] is List) partLines(ev.row['mf577Parts']),
                     ]),
                   ),
                   if (!_select && log != null)
@@ -456,7 +457,7 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
 
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
         Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.end, children: [
-          _filterChip('Category', _drop<String>(_category, [('all', 'All media'), for (final c in view.categories) (c.id, c.name)], (v) => setState(() {
+          _filterChip('Category', _drop<String>(_category, [('all', 'All media'), for (final c in filterCategories(view)) (c.id, c.name)], (v) => setState(() {
                 _category = v;
                 _page = 0;
               }))),
@@ -522,10 +523,9 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${cat.name} · ${_time(t)}', style: TextStyle(color: MF.textDim, fontSize: 11)),
               Text(widget.view.shownName(ev.title), style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text([if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(cat.unit, ev.qty)}', fmtMinutes(ev.minutes)].join(' · '),
+              Text([if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(titleUnit(ev.item, cat.raw), ev.qty)}', fmtMinutes(ev.minutes)].join(' · '),
                   style: TextStyle(color: MF.textDim, fontSize: 12)),
-              if (ev.row['mf577Parts'] is List)
-                Text(partsHistoryText(ev.row['mf577Parts'], unitLabel), style: TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+              if (ev.row['mf577Parts'] is List) partLines(ev.row['mf577Parts']),
             ]),
           ),
         ]),
@@ -621,7 +621,7 @@ class _RatingsHistoryTabState extends State<RatingsHistoryTab> with AutomaticKee
     void reset() => _page = 0;
     return ListView(padding: const EdgeInsets.fromLTRB(16, 12, 16, 96), children: [
         Wrap(spacing: 8, runSpacing: 8, children: [
-          _filterChip('Category', _drop<String>(_category, [('all', 'All media'), for (final c in view.categories) (c.id, c.name)], (v) => setState(() {
+          _filterChip('Category', _drop<String>(_category, [('all', 'All media'), for (final c in filterCategories(view)) (c.id, c.name)], (v) => setState(() {
                 _category = v;
                 reset();
               }))),
@@ -703,4 +703,29 @@ class _RatingsHistoryTabState extends State<RatingsHistoryTab> with AutomaticKee
           ]),
       ]);
   }
+}
+
+
+/// 10.0.0: a by-parts log, one short line per part; the kind ("Mode") once.
+Widget partLines(Object? rows) {
+  final list = asList(rows).map(asMap).whereType<Map<String, dynamic>>().toList();
+  final kinds = {for (final p in list) jsStr(p['kind'])};
+  final kind = kinds.length == 1 ? kinds.first : '';
+  String line(Map<String, dynamic> p) {
+    final k = kind.isEmpty && jsStr(p['kind']).isNotEmpty ? '${jsStr(p['kind'])} · ' : '';
+    final u = unitLabel(jsStr(p['unit']).isEmpty ? 'units' : jsStr(p['unit']), 1);
+    final cap = u.isEmpty ? u : u[0].toUpperCase() + u.substring(1);
+    final qty = jsNum(p['qty']);
+    return p['to'] != null
+        ? '$k${jsStr(p['name'])} · $cap ${fmtNumber(jsNum(p['from']))} → ${fmtNumber(jsNum(p['to']))} (+${fmtN(qty)})'
+        : '$k${jsStr(p['name'])} · +${fmtN(qty)}';
+  }
+
+  return Padding(
+    padding: const EdgeInsets.only(top: 2),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (kind.isNotEmpty) Text(kind.toUpperCase(), style: TextStyle(color: MF.textDim, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: .6)),
+      for (final p in list) Text(line(p), style: TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+    ]),
+  );
 }

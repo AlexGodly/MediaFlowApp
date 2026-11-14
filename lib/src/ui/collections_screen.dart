@@ -12,6 +12,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/collections_logic.dart';
 import '../logic/library_index.dart';
 import '../logic/library_logic.dart' show batchEdit;
@@ -841,7 +842,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         count,
       ]);
     }
-    final cats = view.categories;
+    final cats = filterCategories(view);
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       padding: const EdgeInsets.all(12),
@@ -1289,7 +1290,7 @@ class _TitlePickerState extends State<_TitlePicker> {
           child: Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
             CompactDropdown<String>(
               value: _cat,
-              items: [('', 'All categories'), for (final c in view.categories) (c.id, c.name)],
+              items: [('', 'All categories'), for (final c in filterCategories(view, keep: [_cat])) (c.id, c.name)],
               onChanged: (v) => setState(() {
                 _cat = v;
                 _shown = 60;

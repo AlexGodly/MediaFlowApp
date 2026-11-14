@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+import '../logic/choice_layout.dart' show filterCategories;
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../data/offline_covers.dart';
@@ -23,11 +24,12 @@ class OfflineCoversEditor extends StatelessWidget {
           content: SizedBox(
             width: 420,
             child: ListView(shrinkWrap: true, children: [
-              for (final c in view.categories)
+              for (final c in filterCategories(view))
                 CheckboxListTile(
                   value: chosen.contains(c.id),
                   onChanged: (v) => set(() => v == true ? chosen.add(c.id) : chosen.remove(c.id)),
-                  title: Text('${c.icon} ${c.name}'),
+                  secondary: CategoryBadge(c, size: 28),
+                  title: Text(c.name),
                 ),
             ]),
           ),

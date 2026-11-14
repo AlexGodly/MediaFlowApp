@@ -13,6 +13,7 @@ import '../config.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../logic/collections_logic.dart' show orderExport, orderImport;
+import '../logic/choice_layout.dart' show setCategories;
 import '../logic/data_transfer.dart';
 import '../logic/exchange_import.dart';
 import '../platform/auto_backup.dart';
@@ -450,7 +451,7 @@ class _ExchangeToolsState extends State<_ExchangeTools> {
           CompactDropdown<String>(value: _service, items: kExchangeServices, onChanged: (v) => setState(() => _service = v), maxWidth: 200),
           CompactDropdown<String>(
             value: widget.view.categories.any((c) => c.id == _into) ? _into : '',
-            items: [('', 'Category: MediaFlow decides'), for (final c in widget.view.categories) (c.id, 'Into ${c.name}')],
+            items: [('', 'Category: MediaFlow decides'), for (final c in setCategories(widget.view)) (c.id, 'Into ${c.name}')],
             onChanged: (v) => setState(() => _into = v),
             maxWidth: 230,
           ),

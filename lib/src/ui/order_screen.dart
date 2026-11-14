@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show filterCategories, setCategories;
 import '../logic/collections_logic.dart';
 import '../logic/order_view.dart';
 import '../state/models.dart';
@@ -305,8 +306,12 @@ class _OrderScreenState extends State<OrderScreen> {
             onAddTitles: () => _addTitles(view, titleIds),
             onAddCollection: () => _addCollection(context, account, view, _order, showInTitles: true),
             trailing: FilterChip(
-              avatar: const Icon(Icons.collections_bookmark_rounded, size: 16),
-              label: const Text('Collections in this list'),
+              // 10.0.0: a plain icon in the label (as an avatar it was drawn
+              // on a dark circle); ✓ when on.
+              label: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!mixed) ...[Icon(Icons.collections_bookmark_outlined, size: 16, color: MF.accent), const SizedBox(width: 6)],
+                const Text('Collections in this list'),
+              ]),
               selected: mixed,
               onSelected: (v) => _setQueueView('showCollectionsInRegularQueues', v),
             ),
@@ -365,7 +370,7 @@ class _OrderScreenState extends State<OrderScreen> {
             child: Row(children: [
               CompactDropdown<String>(
                 value: _cat,
-                items: [('all', 'All categories'), for (final c in view.categories) (c.id, c.name)],
+                items: [('all', 'All categories'), for (final c in filterCategories(view, keep: [_cat])) (c.id, c.name)],
                 onChanged: (v) => setState(() => _cat = v),
               ),
               const SizedBox(width: 6),
@@ -809,7 +814,7 @@ Future<void> _addCollection(BuildContext context, AccountController account, Acc
               initialValue: cat,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Task category'),
-              items: [for (final c in view.categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
+              items: [for (final c in setCategories(view)) DropdownMenuItem(value: c.id, child: Text(c.name))],
               onChanged: (v) => set(() => cat = v),
             ),
           const SizedBox(height: 8),

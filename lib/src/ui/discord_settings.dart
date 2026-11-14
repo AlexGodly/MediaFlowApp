@@ -7,12 +7,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/consuming.dart';
 import '../logic/custom_status.dart';
 import '../logic/resume.dart' show readLogging;
 import '../logic/title_names.dart' show titleLanguageLabel, titleNames;
 import '../logic/presence_templates.dart';
 import '../platform/discord_ffi.dart';
+import '../state/models.dart' show Category;
 import '../platform/discord_presence.dart';
 import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles;
@@ -63,7 +65,7 @@ class DiscordSettings extends StatelessWidget {
           );
         }
         final c = d.config;
-        final cats = account?.view?.categories ?? const [];
+        final cats = account?.view == null ? const <Category>[] : filterCategories(account!.view!);
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
