@@ -1,0 +1,2633 @@
+{
+ "base": {
+  "categories": [
+   {
+    "id": "anime",
+    "name": "Anime",
+    "icon": "🌸",
+    "type": "video",
+    "unit": "episodes",
+    "target": 4,
+    "weight": 4,
+    "minutesPerUnit": 24,
+    "color": "#FF5D9E",
+    "seasonal": true,
+    "enabled": true,
+    "custom": false,
+    "extra": "kept"
+   },
+   {
+    "id": "books",
+    "name": "Books",
+    "icon": "📚",
+    "type": "reading",
+    "unit": "pages",
+    "target": 30,
+    "weight": 2,
+    "minutesPerUnit": 2,
+    "color": "#5AA9E6",
+    "enabled": true,
+    "custom": true,
+    "missingDefaultCoverUrl": "https://x.example/b.png",
+    "missingDefaultCoverModifiedAt": 5
+   }
+  ],
+  "settings": {
+   "theme": "dark"
+  },
+  "library": [
+   {
+    "id": "t1",
+    "title": "A",
+    "categoryId": "books"
+   },
+   {
+    "id": "t2",
+    "title": "B",
+    "categoryId": "anime"
+   },
+   {
+    "id": "t3",
+    "title": "C",
+    "categoryId": "books"
+   }
+  ],
+  "activityLog": []
+ },
+ "scenarios": [
+  {
+   "name": "edit, new, runtime, icon link, cover link, clamps",
+   "actions": [
+    {
+     "op": "save",
+     "id": "anime",
+     "at": 1762600001000,
+     "form": {
+      "m-name": "  Seasonal  ",
+      "m-icon": "🌸",
+      "m-icon-url": "",
+      "m-type": "video",
+      "m-unit": "episodes",
+      "m-target": "6",
+      "m-weight": "9",
+      "m-mpu": "20",
+      "m-seasonal": true,
+      "m-color": "#ff5d9e",
+      "m-enabled": true,
+      "m-missing-default-cover": "",
+      "m-runtime-hours": "0",
+      "m-runtime-minutes": "23",
+      "m-runtime-seconds": "40"
+     }
+    },
+    {
+     "op": "save",
+     "id": "books",
+     "at": 1762600002000,
+     "form": {
+      "m-name": "Books",
+      "m-icon": "",
+      "m-icon-url": "https://cdn.example/i.svg",
+      "m-type": "reading",
+      "m-unit": "pages",
+      "m-target": "0",
+      "m-weight": "",
+      "m-mpu": "20",
+      "m-seasonal": false,
+      "m-color": "red",
+      "m-enabled": false,
+      "m-missing-default-cover": "https://x.example/b.png",
+      "m-runtime-hours": "0",
+      "m-runtime-minutes": "0",
+      "m-runtime-seconds": "0"
+     }
+    },
+    {
+     "op": "save",
+     "id": "books",
+     "at": 1762600003000,
+     "form": {
+      "m-name": "",
+      "m-icon": " ",
+      "m-icon-url": "javascript:alert(1)",
+      "m-type": "video",
+      "m-unit": "episodes",
+      "m-target": "1",
+      "m-weight": "3",
+      "m-mpu": "20",
+      "m-seasonal": false,
+      "m-color": "#e8607a",
+      "m-enabled": true,
+      "m-missing-default-cover": "https://y.example/c.png",
+      "m-runtime-hours": "1",
+      "m-runtime-minutes": "75",
+      "m-runtime-seconds": "-3"
+     }
+    },
+    {
+     "op": "save",
+     "id": "",
+     "at": 1762600004000,
+     "form": {
+      "m-name": "Podcasts",
+      "m-icon": "🎧",
+      "m-icon-url": "",
+      "m-type": "listening",
+      "m-unit": "episodes",
+      "m-target": "2.5",
+      "m-weight": "2",
+      "m-mpu": "20",
+      "m-seasonal": false,
+      "m-color": "#abc",
+      "m-enabled": true,
+      "m-missing-default-cover": "",
+      "m-runtime-hours": "0",
+      "m-runtime-minutes": "45",
+      "m-runtime-seconds": "0"
+     }
+    },
+    {
+     "op": "save",
+     "id": "",
+     "at": 1762600005000,
+     "form": {
+      "m-name": "Bad",
+      "m-icon": "",
+      "m-icon-url": "",
+      "m-type": "video",
+      "m-unit": "episodes",
+      "m-target": "1",
+      "m-weight": "3",
+      "m-mpu": "20",
+      "m-seasonal": false,
+      "m-color": "#e8607a",
+      "m-enabled": true,
+      "m-missing-default-cover": "ftp://nope",
+      "m-runtime-hours": "0",
+      "m-runtime-minutes": "20",
+      "m-runtime-seconds": "0"
+     }
+    }
+   ],
+   "expected": [
+    {
+     "toast": "",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Seasonal",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 6,
+        "weight": 5,
+        "minutesPerUnit": 23.666666666666668,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": true,
+        "extra": "kept",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "secondsPerUnit": 1420,
+        "modifiedAt": 1762600001000
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books"
+       ]
+      },
+      "categoryRecovery": null,
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Seasonal",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 6,
+        "weight": 5,
+        "minutesPerUnit": 23.666666666666668,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": true,
+        "extra": "kept",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "secondsPerUnit": 1420,
+        "modifiedAt": 1762600001000
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "🖼️",
+        "type": "reading",
+        "unit": "pages",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 0.016666666666666666,
+        "color": "#E8607A",
+        "enabled": false,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5,
+        "iconUrl": "https://cdn.example/i.svg",
+        "seasonal": false,
+        "secondsPerUnit": 1,
+        "modifiedAt": 1762600002000
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books"
+       ]
+      },
+      "categoryRecovery": null,
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Seasonal",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 6,
+        "weight": 5,
+        "minutesPerUnit": 23.666666666666668,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": true,
+        "extra": "kept",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "secondsPerUnit": 1420,
+        "modifiedAt": 1762600001000
+       },
+       {
+        "id": "books",
+        "name": "Untitled category",
+        "icon": "✨",
+        "type": "video",
+        "unit": "episodes",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 119,
+        "color": "#E8607A",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://y.example/c.png",
+        "missingDefaultCoverModifiedAt": 1762600003000,
+        "iconUrl": null,
+        "seasonal": false,
+        "secondsPerUnit": 7140,
+        "modifiedAt": 1762600003000
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books"
+       ]
+      },
+      "categoryRecovery": null,
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Seasonal",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 6,
+        "weight": 5,
+        "minutesPerUnit": 23.666666666666668,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": true,
+        "extra": "kept",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "secondsPerUnit": 1420,
+        "modifiedAt": 1762600001000
+       },
+       {
+        "id": "books",
+        "name": "Untitled category",
+        "icon": "✨",
+        "type": "video",
+        "unit": "episodes",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 119,
+        "color": "#E8607A",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://y.example/c.png",
+        "missingDefaultCoverModifiedAt": 1762600003000,
+        "iconUrl": null,
+        "seasonal": false,
+        "secondsPerUnit": 7140,
+        "modifiedAt": 1762600003000
+       },
+       {
+        "id": "u1",
+        "name": "Podcasts",
+        "icon": "🎧",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "type": "listening",
+        "unit": "episodes",
+        "target": 2.5,
+        "weight": 2,
+        "minutesPerUnit": 45,
+        "seasonal": false,
+        "color": "#E8607A",
+        "enabled": true,
+        "custom": true,
+        "secondsPerUnit": 2700,
+        "modifiedAt": 1762600004000
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books",
+       "u1"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books",
+        "u1"
+       ]
+      },
+      "categoryRecovery": null,
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "Use a valid http:// or https:// Missing default cover URL.",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Seasonal",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 6,
+        "weight": 5,
+        "minutesPerUnit": 23.666666666666668,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": true,
+        "extra": "kept",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "secondsPerUnit": 1420,
+        "modifiedAt": 1762600001000
+       },
+       {
+        "id": "books",
+        "name": "Untitled category",
+        "icon": "✨",
+        "type": "video",
+        "unit": "episodes",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 119,
+        "color": "#E8607A",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://y.example/c.png",
+        "missingDefaultCoverModifiedAt": 1762600003000,
+        "iconUrl": null,
+        "seasonal": false,
+        "secondsPerUnit": 7140,
+        "modifiedAt": 1762600003000
+       },
+       {
+        "id": "u1",
+        "name": "Podcasts",
+        "icon": "🎧",
+        "iconUrl": null,
+        "missingDefaultCoverUrl": null,
+        "missingDefaultCoverModifiedAt": 0,
+        "type": "listening",
+        "unit": "episodes",
+        "target": 2.5,
+        "weight": 2,
+        "minutesPerUnit": 45,
+        "seasonal": false,
+        "color": "#E8607A",
+        "enabled": true,
+        "custom": true,
+        "secondsPerUnit": 2700,
+        "modifiedAt": 1762600004000
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books",
+       "u1"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books",
+        "u1"
+       ]
+      },
+      "categoryRecovery": null,
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "delete, restore, defaults, clear",
+   "actions": [
+    {
+     "op": "delete",
+     "id": "anime",
+     "at": 1762600010000
+    },
+    {
+     "op": "restoreDeleted",
+     "at": 1762600011000
+    },
+    {
+     "op": "restoreDeleted",
+     "at": 1762600012000
+    },
+    {
+     "op": "delete",
+     "id": "books",
+     "at": 1762600013000
+    },
+    {
+     "op": "restoreDefaults",
+     "at": 1762600014000
+    },
+    {
+     "op": "clear",
+     "id": "anime",
+     "at": 1762600015000
+    },
+    {
+     "op": "clear",
+     "id": "anime",
+     "at": 1762600016000
+    }
+   ],
+   "expected": [
+    {
+     "toast": "Anime deleted",
+     "state": {
+      "categories": [
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       }
+      ],
+      "categoryOrder": [
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "books"
+       ]
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       "lastDeletedIndex": 0,
+       "modifiedAt": 1762600010000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "Anime restored",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": null,
+       "lastDeletedIndex": -1,
+       "modifiedAt": 1762600011000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "There is no deleted category to restore.",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "books"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "books"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": null,
+       "lastDeletedIndex": -1,
+       "modifiedAt": 1762600011000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "Books deleted",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       }
+      ],
+      "categoryOrder": [
+       "anime"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       },
+       "lastDeletedIndex": 1,
+       "modifiedAt": 1762600013000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "22 default categories restored with original IDs",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       {
+        "id": "seasonal",
+        "name": "Seasonal Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/seasonal-anime.png"
+       },
+       {
+        "id": "missedanime",
+        "name": "Missed Anime",
+        "icon": "🕘",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF7A59",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/missed-anime.png"
+       },
+       {
+        "id": "finishedanime",
+        "name": "Finished Anime",
+        "icon": "✅",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#50B878",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/finished-anime.png"
+       },
+       {
+        "id": "animemovies",
+        "name": "Anime Movies",
+        "icon": "🎞️",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#FF9F1C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies.png"
+       },
+       {
+        "id": "manga",
+        "name": "Asian Comics",
+        "icon": "📖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 4,
+        "minutesPerUnit": 6,
+        "color": "#7C6CF2",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics.png"
+       },
+       {
+        "id": "movies",
+        "name": "Movies",
+        "icon": "🎬",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 115,
+        "color": "#FF647C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies.png"
+       },
+       {
+        "id": "tv",
+        "name": "TV Series",
+        "icon": "📺",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 3,
+        "minutesPerUnit": 42,
+        "color": "#5AA9E6",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series.png"
+       },
+       {
+        "id": "backlog",
+        "name": "Anime Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-backlog.png"
+       },
+       {
+        "id": "animemoviesbacklog",
+        "name": "Anime Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#EF5DA8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies-backlog.png"
+       },
+       {
+        "id": "mangabacklog",
+        "name": "Asian Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 3,
+        "minutesPerUnit": 6,
+        "color": "#7967E8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics-backlog.png"
+       },
+       {
+        "id": "tvbacklog",
+        "name": "TV Series Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 42,
+        "color": "#5887FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series-backlog.png"
+       },
+       {
+        "id": "moviesbacklog",
+        "name": "Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 115,
+        "color": "#75B85A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies-backlog.png"
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📕",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books.png"
+       },
+       {
+        "id": "booksbacklog",
+        "name": "Books Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books-backlog.png"
+       },
+       {
+        "id": "novels",
+        "name": "Novels",
+        "icon": "📘",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels.png"
+       },
+       {
+        "id": "novelsbacklog",
+        "name": "Novels Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels-backlog.png"
+       },
+       {
+        "id": "magazines",
+        "name": "Magazines",
+        "icon": "🗞️",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines.png"
+       },
+       {
+        "id": "magazinesbacklog",
+        "name": "Magazines Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines-backlog.png"
+       },
+       {
+        "id": "onlinemedia",
+        "name": "Online Media",
+        "icon": "🌐",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media.png"
+       },
+       {
+        "id": "onlinemediabacklog",
+        "name": "Online Media Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media-backlog.png"
+       },
+       {
+        "id": "comics",
+        "name": "Comics",
+        "icon": "📰",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics.png"
+       },
+       {
+        "id": "comicsbacklog",
+        "name": "Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics-backlog.png"
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "seasonal",
+       "missedanime",
+       "finishedanime",
+       "animemovies",
+       "manga",
+       "movies",
+       "tv",
+       "backlog",
+       "animemoviesbacklog",
+       "mangabacklog",
+       "tvbacklog",
+       "moviesbacklog",
+       "books",
+       "booksbacklog",
+       "novels",
+       "novelsbacklog",
+       "magazines",
+       "magazinesbacklog",
+       "onlinemedia",
+       "onlinemediabacklog",
+       "comics",
+       "comicsbacklog"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "seasonal",
+        "missedanime",
+        "finishedanime",
+        "animemovies",
+        "manga",
+        "movies",
+        "tv",
+        "backlog",
+        "animemoviesbacklog",
+        "mangabacklog",
+        "tvbacklog",
+        "moviesbacklog",
+        "books",
+        "booksbacklog",
+        "novels",
+        "novelsbacklog",
+        "magazines",
+        "magazinesbacklog",
+        "onlinemedia",
+        "onlinemediabacklog",
+        "comics",
+        "comicsbacklog"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       },
+       "lastDeletedIndex": 1,
+       "modifiedAt": 1762600013000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t2",
+        "title": "B",
+        "categoryId": "anime"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": []
+     }
+    },
+    {
+     "toast": "Anime cleared · 1 titles",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       {
+        "id": "seasonal",
+        "name": "Seasonal Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/seasonal-anime.png"
+       },
+       {
+        "id": "missedanime",
+        "name": "Missed Anime",
+        "icon": "🕘",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF7A59",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/missed-anime.png"
+       },
+       {
+        "id": "finishedanime",
+        "name": "Finished Anime",
+        "icon": "✅",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#50B878",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/finished-anime.png"
+       },
+       {
+        "id": "animemovies",
+        "name": "Anime Movies",
+        "icon": "🎞️",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#FF9F1C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies.png"
+       },
+       {
+        "id": "manga",
+        "name": "Asian Comics",
+        "icon": "📖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 4,
+        "minutesPerUnit": 6,
+        "color": "#7C6CF2",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics.png"
+       },
+       {
+        "id": "movies",
+        "name": "Movies",
+        "icon": "🎬",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 115,
+        "color": "#FF647C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies.png"
+       },
+       {
+        "id": "tv",
+        "name": "TV Series",
+        "icon": "📺",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 3,
+        "minutesPerUnit": 42,
+        "color": "#5AA9E6",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series.png"
+       },
+       {
+        "id": "backlog",
+        "name": "Anime Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-backlog.png"
+       },
+       {
+        "id": "animemoviesbacklog",
+        "name": "Anime Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#EF5DA8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies-backlog.png"
+       },
+       {
+        "id": "mangabacklog",
+        "name": "Asian Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 3,
+        "minutesPerUnit": 6,
+        "color": "#7967E8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics-backlog.png"
+       },
+       {
+        "id": "tvbacklog",
+        "name": "TV Series Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 42,
+        "color": "#5887FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series-backlog.png"
+       },
+       {
+        "id": "moviesbacklog",
+        "name": "Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 115,
+        "color": "#75B85A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies-backlog.png"
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📕",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books.png"
+       },
+       {
+        "id": "booksbacklog",
+        "name": "Books Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books-backlog.png"
+       },
+       {
+        "id": "novels",
+        "name": "Novels",
+        "icon": "📘",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels.png"
+       },
+       {
+        "id": "novelsbacklog",
+        "name": "Novels Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels-backlog.png"
+       },
+       {
+        "id": "magazines",
+        "name": "Magazines",
+        "icon": "🗞️",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines.png"
+       },
+       {
+        "id": "magazinesbacklog",
+        "name": "Magazines Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines-backlog.png"
+       },
+       {
+        "id": "onlinemedia",
+        "name": "Online Media",
+        "icon": "🌐",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media.png"
+       },
+       {
+        "id": "onlinemediabacklog",
+        "name": "Online Media Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media-backlog.png"
+       },
+       {
+        "id": "comics",
+        "name": "Comics",
+        "icon": "📰",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics.png"
+       },
+       {
+        "id": "comicsbacklog",
+        "name": "Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics-backlog.png"
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "seasonal",
+       "missedanime",
+       "finishedanime",
+       "animemovies",
+       "manga",
+       "movies",
+       "tv",
+       "backlog",
+       "animemoviesbacklog",
+       "mangabacklog",
+       "tvbacklog",
+       "moviesbacklog",
+       "books",
+       "booksbacklog",
+       "novels",
+       "novelsbacklog",
+       "magazines",
+       "magazinesbacklog",
+       "onlinemedia",
+       "onlinemediabacklog",
+       "comics",
+       "comicsbacklog"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "seasonal",
+        "missedanime",
+        "finishedanime",
+        "animemovies",
+        "manga",
+        "movies",
+        "tv",
+        "backlog",
+        "animemoviesbacklog",
+        "mangabacklog",
+        "tvbacklog",
+        "moviesbacklog",
+        "books",
+        "booksbacklog",
+        "novels",
+        "novelsbacklog",
+        "magazines",
+        "magazinesbacklog",
+        "onlinemedia",
+        "onlinemediabacklog",
+        "comics",
+        "comicsbacklog"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       },
+       "lastDeletedIndex": 1,
+       "modifiedAt": 1762600013000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": [
+       {
+        "id": "u1",
+        "timestamp": 1762600015000,
+        "action": "Clear category",
+        "detail": "Anime · 1 titles",
+        "deletedItems": [
+         {
+          "id": "t2",
+          "title": "B",
+          "categoryId": "anime"
+         }
+        ],
+        "restoreVersion": 191
+       }
+      ]
+     }
+    },
+    {
+     "toast": "Anime is already empty",
+     "state": {
+      "categories": [
+       {
+        "id": "anime",
+        "name": "Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "extra": "kept"
+       },
+       {
+        "id": "seasonal",
+        "name": "Seasonal Anime",
+        "icon": "🌸",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": true,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/seasonal-anime.png"
+       },
+       {
+        "id": "missedanime",
+        "name": "Missed Anime",
+        "icon": "🕘",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 4,
+        "minutesPerUnit": 24,
+        "color": "#FF7A59",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/missed-anime.png"
+       },
+       {
+        "id": "finishedanime",
+        "name": "Finished Anime",
+        "icon": "✅",
+        "type": "video",
+        "unit": "episodes",
+        "target": 4,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#50B878",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/finished-anime.png"
+       },
+       {
+        "id": "animemovies",
+        "name": "Anime Movies",
+        "icon": "🎞️",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#FF9F1C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies.png"
+       },
+       {
+        "id": "manga",
+        "name": "Asian Comics",
+        "icon": "📖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 4,
+        "minutesPerUnit": 6,
+        "color": "#7C6CF2",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics.png"
+       },
+       {
+        "id": "movies",
+        "name": "Movies",
+        "icon": "🎬",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 3,
+        "minutesPerUnit": 115,
+        "color": "#FF647C",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies.png"
+       },
+       {
+        "id": "tv",
+        "name": "TV Series",
+        "icon": "📺",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 3,
+        "minutesPerUnit": 42,
+        "color": "#5AA9E6",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series.png"
+       },
+       {
+        "id": "backlog",
+        "name": "Anime Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 24,
+        "color": "#FF5D9E",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-backlog.png"
+       },
+       {
+        "id": "animemoviesbacklog",
+        "name": "Anime Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 100,
+        "color": "#EF5DA8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/anime-movies-backlog.png"
+       },
+       {
+        "id": "mangabacklog",
+        "name": "Asian Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 20,
+        "weight": 3,
+        "minutesPerUnit": 6,
+        "color": "#7967E8",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/asian-comics-backlog.png"
+       },
+       {
+        "id": "tvbacklog",
+        "name": "TV Series Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 42,
+        "color": "#5887FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/tv-series-backlog.png"
+       },
+       {
+        "id": "moviesbacklog",
+        "name": "Movies Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "movies",
+        "target": 1,
+        "weight": 2,
+        "minutesPerUnit": 115,
+        "color": "#75B85A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/movies-backlog.png"
+       },
+       {
+        "id": "books",
+        "name": "Books",
+        "icon": "📕",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books.png"
+       },
+       {
+        "id": "booksbacklog",
+        "name": "Books Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#E84A8A",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/books-backlog.png"
+       },
+       {
+        "id": "novels",
+        "name": "Novels",
+        "icon": "📘",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 3,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels.png"
+       },
+       {
+        "id": "novelsbacklog",
+        "name": "Novels Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "chapters",
+        "target": 5,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2E9CFF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/novels-backlog.png"
+       },
+       {
+        "id": "magazines",
+        "name": "Magazines",
+        "icon": "🗞️",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines.png"
+       },
+       {
+        "id": "magazinesbacklog",
+        "name": "Magazines Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 2,
+        "weight": 2,
+        "minutesPerUnit": 25,
+        "color": "#35BEB0",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/magazines-backlog.png"
+       },
+       {
+        "id": "onlinemedia",
+        "name": "Online Media",
+        "icon": "🌐",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media.png"
+       },
+       {
+        "id": "onlinemediabacklog",
+        "name": "Online Media Backlog",
+        "icon": "🔖",
+        "type": "video",
+        "unit": "episodes",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 20,
+        "color": "#F06292",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/online-media-backlog.png"
+       },
+       {
+        "id": "comics",
+        "name": "Comics",
+        "icon": "📰",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics.png"
+       },
+       {
+        "id": "comicsbacklog",
+        "name": "Comics Backlog",
+        "icon": "🔖",
+        "type": "reading",
+        "unit": "issues",
+        "target": 3,
+        "weight": 2,
+        "minutesPerUnit": 15,
+        "color": "#2EA7FF",
+        "seasonal": false,
+        "enabled": true,
+        "custom": false,
+        "iconUrl": "assets/category-icons/comics-backlog.png"
+       }
+      ],
+      "categoryOrder": [
+       "anime",
+       "seasonal",
+       "missedanime",
+       "finishedanime",
+       "animemovies",
+       "manga",
+       "movies",
+       "tv",
+       "backlog",
+       "animemoviesbacklog",
+       "mangabacklog",
+       "tvbacklog",
+       "moviesbacklog",
+       "books",
+       "booksbacklog",
+       "novels",
+       "novelsbacklog",
+       "magazines",
+       "magazinesbacklog",
+       "onlinemedia",
+       "onlinemediabacklog",
+       "comics",
+       "comicsbacklog"
+      ],
+      "settings": {
+       "theme": "dark",
+       "categoryOrder": [
+        "anime",
+        "seasonal",
+        "missedanime",
+        "finishedanime",
+        "animemovies",
+        "manga",
+        "movies",
+        "tv",
+        "backlog",
+        "animemoviesbacklog",
+        "mangabacklog",
+        "tvbacklog",
+        "moviesbacklog",
+        "books",
+        "booksbacklog",
+        "novels",
+        "novelsbacklog",
+        "magazines",
+        "magazinesbacklog",
+        "onlinemedia",
+        "onlinemediabacklog",
+        "comics",
+        "comicsbacklog"
+       ],
+       "highlightDefaultCategories": true
+      },
+      "categoryRecovery": {
+       "lastDeletedCategory": {
+        "id": "books",
+        "name": "Books",
+        "icon": "📚",
+        "type": "reading",
+        "unit": "pages",
+        "target": 30,
+        "weight": 2,
+        "minutesPerUnit": 2,
+        "color": "#5AA9E6",
+        "enabled": true,
+        "custom": true,
+        "missingDefaultCoverUrl": "https://x.example/b.png",
+        "missingDefaultCoverModifiedAt": 5
+       },
+       "lastDeletedIndex": 1,
+       "modifiedAt": 1762600013000
+      },
+      "library": [
+       {
+        "id": "t1",
+        "title": "A",
+        "categoryId": "books"
+       },
+       {
+        "id": "t3",
+        "title": "C",
+        "categoryId": "books"
+       }
+      ],
+      "activityLog": [
+       {
+        "id": "u1",
+        "timestamp": 1762600015000,
+        "action": "Clear category",
+        "detail": "Anime · 1 titles",
+        "deletedItems": [
+         {
+          "id": "t2",
+          "title": "B",
+          "categoryId": "anime"
+         }
+        ],
+        "restoreVersion": 191
+       }
+      ]
+     }
+    }
+   ]
+  }
+ ],
+ "constants": {
+  "defaults": [
+   {
+    "id": "seasonal",
+    "name": "Seasonal Anime",
+    "icon": "🌸",
+    "type": "video",
+    "unit": "episodes",
+    "target": 4,
+    "weight": 4,
+    "minutesPerUnit": 24,
+    "color": "#FF5D9E",
+    "seasonal": true,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/seasonal-anime.png"
+   },
+   {
+    "id": "missedanime",
+    "name": "Missed Anime",
+    "icon": "🕘",
+    "type": "video",
+    "unit": "episodes",
+    "target": 4,
+    "weight": 4,
+    "minutesPerUnit": 24,
+    "color": "#FF7A59",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/missed-anime.png"
+   },
+   {
+    "id": "finishedanime",
+    "name": "Finished Anime",
+    "icon": "✅",
+    "type": "video",
+    "unit": "episodes",
+    "target": 4,
+    "weight": 3,
+    "minutesPerUnit": 24,
+    "color": "#50B878",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/finished-anime.png"
+   },
+   {
+    "id": "animemovies",
+    "name": "Anime Movies",
+    "icon": "🎞️",
+    "type": "video",
+    "unit": "movies",
+    "target": 1,
+    "weight": 2,
+    "minutesPerUnit": 100,
+    "color": "#FF9F1C",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/anime-movies.png"
+   },
+   {
+    "id": "manga",
+    "name": "Asian Comics",
+    "icon": "📖",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 20,
+    "weight": 4,
+    "minutesPerUnit": 6,
+    "color": "#7C6CF2",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/asian-comics.png"
+   },
+   {
+    "id": "movies",
+    "name": "Movies",
+    "icon": "🎬",
+    "type": "video",
+    "unit": "movies",
+    "target": 1,
+    "weight": 3,
+    "minutesPerUnit": 115,
+    "color": "#FF647C",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/movies.png"
+   },
+   {
+    "id": "tv",
+    "name": "TV Series",
+    "icon": "📺",
+    "type": "video",
+    "unit": "episodes",
+    "target": 2,
+    "weight": 3,
+    "minutesPerUnit": 42,
+    "color": "#5AA9E6",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/tv-series.png"
+   },
+   {
+    "id": "backlog",
+    "name": "Anime Backlog",
+    "icon": "🔖",
+    "type": "video",
+    "unit": "episodes",
+    "target": 5,
+    "weight": 3,
+    "minutesPerUnit": 24,
+    "color": "#FF5D9E",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/anime-backlog.png"
+   },
+   {
+    "id": "animemoviesbacklog",
+    "name": "Anime Movies Backlog",
+    "icon": "🔖",
+    "type": "video",
+    "unit": "movies",
+    "target": 1,
+    "weight": 2,
+    "minutesPerUnit": 100,
+    "color": "#EF5DA8",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/anime-movies-backlog.png"
+   },
+   {
+    "id": "mangabacklog",
+    "name": "Asian Comics Backlog",
+    "icon": "🔖",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 20,
+    "weight": 3,
+    "minutesPerUnit": 6,
+    "color": "#7967E8",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/asian-comics-backlog.png"
+   },
+   {
+    "id": "tvbacklog",
+    "name": "TV Series Backlog",
+    "icon": "🔖",
+    "type": "video",
+    "unit": "episodes",
+    "target": 2,
+    "weight": 2,
+    "minutesPerUnit": 42,
+    "color": "#5887FF",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/tv-series-backlog.png"
+   },
+   {
+    "id": "moviesbacklog",
+    "name": "Movies Backlog",
+    "icon": "🔖",
+    "type": "video",
+    "unit": "movies",
+    "target": 1,
+    "weight": 2,
+    "minutesPerUnit": 115,
+    "color": "#75B85A",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/movies-backlog.png"
+   },
+   {
+    "id": "books",
+    "name": "Books",
+    "icon": "📕",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 5,
+    "weight": 2,
+    "minutesPerUnit": 20,
+    "color": "#E84A8A",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/books.png"
+   },
+   {
+    "id": "booksbacklog",
+    "name": "Books Backlog",
+    "icon": "🔖",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 5,
+    "weight": 2,
+    "minutesPerUnit": 20,
+    "color": "#E84A8A",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/books-backlog.png"
+   },
+   {
+    "id": "novels",
+    "name": "Novels",
+    "icon": "📘",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 5,
+    "weight": 3,
+    "minutesPerUnit": 15,
+    "color": "#2E9CFF",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/novels.png"
+   },
+   {
+    "id": "novelsbacklog",
+    "name": "Novels Backlog",
+    "icon": "🔖",
+    "type": "reading",
+    "unit": "chapters",
+    "target": 5,
+    "weight": 2,
+    "minutesPerUnit": 15,
+    "color": "#2E9CFF",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/novels-backlog.png"
+   },
+   {
+    "id": "magazines",
+    "name": "Magazines",
+    "icon": "🗞️",
+    "type": "reading",
+    "unit": "issues",
+    "target": 2,
+    "weight": 2,
+    "minutesPerUnit": 25,
+    "color": "#35BEB0",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/magazines.png"
+   },
+   {
+    "id": "magazinesbacklog",
+    "name": "Magazines Backlog",
+    "icon": "🔖",
+    "type": "reading",
+    "unit": "issues",
+    "target": 2,
+    "weight": 2,
+    "minutesPerUnit": 25,
+    "color": "#35BEB0",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/magazines-backlog.png"
+   },
+   {
+    "id": "onlinemedia",
+    "name": "Online Media",
+    "icon": "🌐",
+    "type": "video",
+    "unit": "episodes",
+    "target": 3,
+    "weight": 2,
+    "minutesPerUnit": 20,
+    "color": "#F06292",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/online-media.png"
+   },
+   {
+    "id": "onlinemediabacklog",
+    "name": "Online Media Backlog",
+    "icon": "🔖",
+    "type": "video",
+    "unit": "episodes",
+    "target": 3,
+    "weight": 2,
+    "minutesPerUnit": 20,
+    "color": "#F06292",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/online-media-backlog.png"
+   },
+   {
+    "id": "comics",
+    "name": "Comics",
+    "icon": "📰",
+    "type": "reading",
+    "unit": "issues",
+    "target": 3,
+    "weight": 2,
+    "minutesPerUnit": 15,
+    "color": "#2EA7FF",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/comics.png"
+   },
+   {
+    "id": "comicsbacklog",
+    "name": "Comics Backlog",
+    "icon": "🔖",
+    "type": "reading",
+    "unit": "issues",
+    "target": 3,
+    "weight": 2,
+    "minutesPerUnit": 15,
+    "color": "#2EA7FF",
+    "seasonal": false,
+    "enabled": true,
+    "custom": false,
+    "iconUrl": "assets/category-icons/comics-backlog.png"
+   }
+  ],
+  "colors": [
+   "#E8607A",
+   "#3FC7A6",
+   "#5AA9E6",
+   "#F5A3D0",
+   "#E8A94A",
+   "#C98CF5",
+   "#9C8CF5",
+   "#4FD1C5",
+   "#F5C56A",
+   "#7EE787",
+   "#F58A5A",
+   "#6AD1E3"
+  ],
+  "icons": [
+   "🔴",
+   "🟢",
+   "📺",
+   "🎨",
+   "🎥",
+   "🎞️",
+   "📖",
+   "📚",
+   "📰",
+   "🌊",
+   "⚡",
+   "🧩",
+   "🎮",
+   "🎭",
+   "🎧",
+   "📼",
+   "🀄",
+   "🖼️",
+   "🕹️",
+   "✨"
+  ]
+ }
+}
