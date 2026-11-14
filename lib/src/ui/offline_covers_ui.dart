@@ -8,6 +8,7 @@ import '../data/app_prefs.dart';
 import '../data/offline_covers.dart';
 import '../state/models.dart';
 import 'theme.dart';
+import 'title_picker.dart' show pickLibraryTitles;
 import 'widgets.dart';
 
 class OfflineCoversEditor extends StatelessWidget {
@@ -43,49 +44,12 @@ class OfflineCoversEditor extends StatelessWidget {
     if (ok == true) await AppPrefs.instance.set('offlineCoverCategories', chosen.toList());
   }
 
+  /// 10.0.0: the full title picker (search, filters, sort, views, pages,
+  /// Select visible / all matches / Deselect all, "Only selected").
   Future<void> _pickTitles(BuildContext context, AccountView view) async {
-    final chosen = {...OfflineCovers.titles};
-    var query = '';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(builder: (d, set) {
-        final q = query.toLowerCase();
-        final rows = [
-          for (final t in view.library)
-            if (t.coverUrl.startsWith('http') && (q.isEmpty || t.title.toLowerCase().contains(q))) t,
-        ];
-        return AlertDialog(
-          title: Text('Titles to keep offline (${chosen.length})'),
-          content: SizedBox(
-            width: 460,
-            height: 460,
-            child: Column(children: [
-              TextField(
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search_rounded), hintText: 'Search titles'),
-                onChanged: (v) => set(() => query = v.trim()),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: rows.length,
-                  itemBuilder: (_, i) => CheckboxListTile(
-                    dense: true,
-                    value: chosen.contains(rows[i].id),
-                    onChanged: (v) => set(() => v == true ? chosen.add(rows[i].id) : chosen.remove(rows[i].id)),
-                    title: Text(rows[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(view.category(rows[i].categoryId).name),
-                  ),
-                ),
-              ),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save')),
-          ],
-        );
-      }),
-    );
-    if (ok == true) await AppPrefs.instance.set('offlineCoverTitles', chosen.toList());
+    final picked = await pickLibraryTitles(context, view,
+        title: 'Titles to keep offline', initial: {...OfflineCovers.titles}, confirm: 'Save', allowEmpty: true);
+    if (picked != null) await AppPrefs.instance.set('offlineCoverTitles', picked);
   }
 
   @override

@@ -630,7 +630,8 @@ class _OrderScreenState extends State<OrderScreen> {
   Future<void> _addTitles(AccountView view, List<String> titleIds, {String? categoryId}) async {
     final cat = categoryId == null ? null : view.category(categoryId);
     final ids = await pickLibraryTitles(context, view,
-        exclude: {...titleIds, if (categoryId != null) for (final t in view.library) if (t.categoryId != categoryId) t.id},
+        exclude: titleIds.toSet(),
+        categories: {if (categoryId != null) categoryId},
         title: cat == null ? 'Add titles to Order' : 'Add ${cat.name} titles');
     if (ids == null || ids.isEmpty) return;
     await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
