@@ -63,7 +63,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
       ..hours = _h.text
       ..minutes = _m.text
       ..seconds = _s.text;
-    if (_iconUrl.text.trim().isNotEmpty && safeCategoryUrl(_iconUrl.text).isEmpty) {
+    if (_iconUrl.text.trim().isNotEmpty && safeCategoryIconUrl(_iconUrl.text).isEmpty) {
       _toast('Use a valid http:// or https:// icon URL.');
       return;
     }
@@ -180,7 +180,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
     final raw = <String, dynamic>{
       'name': _name.text.isEmpty ? 'Category' : _name.text,
       'icon': f.icon,
-      'iconUrl': safeCategoryUrl(_iconUrl.text),
+      'iconUrl': safeCategoryIconUrl(_iconUrl.text),
       'color': f.color,
     };
     return Row(children: [
@@ -198,7 +198,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
     final settings = _settings;
     final savedIcons = savedCategoryIcons(settings);
     final savedColors = savedCategoryColors(settings);
-    final url = safeCategoryUrl(_iconUrl.text);
+    final url = safeCategoryIconUrl(_iconUrl.text);
     final cover = safeCategoryUrl(_cover.text);
     return PresenceScope(
       info: PresenceInfo(situation: 'settings', values: {'action': widget.category == null ? 'Adding a category' : 'Editing a category'}),
@@ -231,6 +231,22 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
           const SizedBox(height: 12),
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name'), onChanged: (_) => setState(() {})),
           _label('ICON'),
+          Text('MediaFlow icons', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final b in kBuiltInCategoryIcons)
+              Tooltip(
+                message: b.$1,
+                child: _swatch(
+                  selected: url == b.$2,
+                  onTap: () => setState(() => _iconUrl.text = b.$2),
+                  child: NetIcon(url: categoryIconUrl(b.$2), size: 30, fallback: const Icon(Icons.image_outlined, size: 18)),
+                ),
+              ),
+          ]),
+          const SizedBox(height: 10),
+          Text('Emoji & symbols', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
           Wrap(spacing: 8, runSpacing: 8, children: [
             for (final e in kIconChoices)
               _swatch(
@@ -254,7 +270,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
                 }),
                 onRemove: () => _savePalette('customCategoryIcons', [...savedIcons]..removeAt(i)),
                 child: row['type'] == 'url'
-                    ? NetIcon(url: jsStr(row['value']), size: 26, fallback: const Icon(Icons.link_rounded, size: 18))
+                    ? NetIcon(url: categoryIconUrl(jsStr(row['value'])), size: 26, fallback: const Icon(Icons.link_rounded, size: 18))
                     : Text(jsStr(row['value']), style: const TextStyle(fontSize: 20)),
               ),
           ]),
@@ -296,7 +312,7 @@ class _CategoryEditorScreenState extends State<CategoryEditorScreen> {
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(8)),
-                child: NetIcon(url: url, size: 28, fallback: Icon(Icons.broken_image_outlined, size: 18, color: MF.textDim)),
+                child: NetIcon(url: categoryIconUrl(url), size: 28, fallback: Icon(Icons.broken_image_outlined, size: 18, color: MF.textDim)),
               ),
             const SizedBox(width: 8),
             OutlinedButton(

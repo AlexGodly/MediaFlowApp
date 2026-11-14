@@ -25,6 +25,47 @@ String safeCategoryUrl(Object? raw) {
   return u.scheme == 'http' || u.scheme == 'https' ? v : '';
 }
 
+/// Website v258: MediaFlow's packaged category artwork (`V258_BUILTIN_CATEGORY_ICONS`).
+const kBuiltInCategoryIcons = <(String, String)>[
+  ('Seasonal Anime', 'assets/category-icons/seasonal-anime.png'),
+  ('Missed Anime', 'assets/category-icons/missed-anime.png'),
+  ('Finished Anime', 'assets/category-icons/finished-anime.png'),
+  ('Anime Movies', 'assets/category-icons/anime-movies.png'),
+  ('Anime Backlog', 'assets/category-icons/anime-backlog.png'),
+  ('Anime Movies Backlog', 'assets/category-icons/anime-movies-backlog.png'),
+  ('Asian Comics', 'assets/category-icons/asian-comics.png'),
+  ('Asian Comics Backlog', 'assets/category-icons/asian-comics-backlog.png'),
+  ('Movies', 'assets/category-icons/movies.png'),
+  ('Movies Backlog', 'assets/category-icons/movies-backlog.png'),
+  ('TV Series', 'assets/category-icons/tv-series.png'),
+  ('TV Series Backlog', 'assets/category-icons/tv-series-backlog.png'),
+  ('Games', 'assets/category-icons/games.png'),
+  ('Music', 'assets/category-icons/music.png'),
+  ('Books', 'assets/category-icons/books.png'),
+  ('Books Backlog', 'assets/category-icons/books-backlog.png'),
+  ('Novels', 'assets/category-icons/novels.png'),
+  ('Novels Backlog', 'assets/category-icons/novels-backlog.png'),
+  ('Magazines', 'assets/category-icons/magazines.png'),
+  ('Magazines Backlog', 'assets/category-icons/magazines-backlog.png'),
+  ('Online Media', 'assets/category-icons/online-media.png'),
+  ('Online Media Backlog', 'assets/category-icons/online-media-backlog.png'),
+  ('Comics', 'assets/category-icons/comics.png'),
+  ('Comics Backlog', 'assets/category-icons/comics-backlog.png'),
+];
+
+/// `v258NormalizeBuiltInCategoryIcon`: the packaged artwork path, or ''.
+String builtInCategoryIcon(Object? raw) {
+  final v = jsStr(raw).trim().replaceAll('\\', '/').replaceFirst(RegExp(r'^\./'), '').replaceFirst(RegExp(r'^/'), '');
+  return kBuiltInCategoryIcons.any((x) => x.$2 == v) ? v : '';
+}
+
+/// `v144SafeIconUrl` as extended by v258: an http(s) link, or one of
+/// MediaFlow's packaged category icons; else ''.
+String safeCategoryIconUrl(Object? raw) {
+  final b = builtInCategoryIcon(raw);
+  return b.isNotEmpty ? b : safeCategoryUrl(raw);
+}
+
 /// What the category editor's fields hold (the website's m-* inputs, as text).
 class CategoryForm {
   CategoryForm({
@@ -96,7 +137,7 @@ void _persistOrder(Map<String, dynamic> state) {
 /// `App.saveCategoryModal`: returns the saved id, or an error message.
 ({String? id, String? error}) saveCategory(Map<String, dynamic> state, String? id, CategoryForm f, int now, String Function() uid) {
   // v283ReadCategoryForm
-  final iconUrl = safeCategoryUrl(f.iconUrl);
+  final iconUrl = safeCategoryIconUrl(f.iconUrl);
   final icon = iconUrl.isNotEmpty ? '🖼️' : (f.icon.trim().isEmpty ? '✨' : f.icon.trim());
   final rawMissing = f.missingCover.trim();
   final missing = safeCategoryUrl(rawMissing);
@@ -268,7 +309,7 @@ List<Map<String, dynamic>> savedCategoryIcons(Map<String, dynamic>? settings) {
     final type = row['type'] == 'url' ? 'url' : 'emoji';
     var value = jsStr(row['value']).trim();
     if (type == 'url') {
-      value = safeCategoryUrl(value);
+      value = safeCategoryIconUrl(value);
       if (value.isEmpty) continue;
     } else {
       if (value.isEmpty) continue;

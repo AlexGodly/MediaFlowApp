@@ -4,6 +4,7 @@
 // already reads it. This file is the website's v480Clean, used when saving.
 
 import '../util/js.dart';
+import 'categories.dart' show safeCategoryIconUrl;
 
 const kClassStrengths = [('gentle', 'Gentle'), ('balanced', 'Balanced (recommended)'), ('strong', 'Strong')];
 
@@ -43,7 +44,7 @@ Map<String, dynamic> cleanCategoryClasses(Object? raw, Iterable<String> category
       'id': id,
       'name': name.isEmpty ? 'Untitled Class' : name,
       'icon': icon,
-      'iconUrl': iconUrl.startsWith('https://') || iconUrl.startsWith('http://') ? iconUrl : '',
+      'iconUrl': safeCategoryIconUrl(iconUrl),
       'color': RegExp(r'^#[A-F0-9]{6}$').hasMatch(color) ? color : '#A78BFA',
       'weight': jsOut((w.isNaN || w == 0 ? 1.0 : w.toDouble()).clamp(1.0, 5.0)),
       'enabled': entry['enabled'] != false,
