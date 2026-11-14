@@ -26,6 +26,7 @@ import '../state/models.dart';
 import '../util/js.dart';
 import '../logic/consuming.dart';
 import '../logic/custom_status.dart' show activePin;
+import 'amount_adder.dart';
 import 'collections_screen.dart' show pickLibraryTitles;
 import 'discord_card.dart' show DiscordActivityCard;
 import 'discord_settings.dart' show clearConsuming, pickDiscordName, setConsumingSource, showOnDiscord, stopShowingOnDiscord;
@@ -1784,18 +1785,28 @@ class _LogScreenState extends State<LogScreen> {
                           return null;
                         }),
                       )
-                    : CommitField(
-                        key: ValueKey('qty-${entryKey(e)}'),
-                        value: _plain(qty),
-                        label: 'Amount consumed',
-                        decimal: false,
-                        min: 0,
-                        max: total > 0 ? math.max(0, total - start).floor() : _stepLimit,
-                        onCommit: (t) => _edit((x) {
-                          x.setEntryQty(index, double.tryParse(t.replaceAll(',', '.')) ?? 0);
-                          return null;
-                        }),
-                      ),
+                    : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        CommitField(
+                          key: ValueKey('qty-${entryKey(e)}-${_plain(qty)}'),
+                          value: _plain(qty),
+                          label: 'Amount consumed',
+                          decimal: false,
+                          min: 0,
+                          max: total > 0 ? math.max(0, total - start).floor() : _stepLimit,
+                          onCommit: (t) => _edit((x) {
+                            x.setEntryQty(index, double.tryParse(t.replaceAll(',', '.')) ?? 0);
+                            return null;
+                          }),
+                        ),
+                        AmountAdder(
+                          sumKey: 'quick-${entryKey(e)}',
+                          current: qty,
+                          onTotal: (v) => _edit((x) {
+                            x.setEntryQty(index, v);
+                            return null;
+                          }),
+                        ),
+                      ]),
               ),
               const SizedBox(width: 12),
               Text(
@@ -1814,9 +1825,13 @@ class _LogScreenState extends State<LogScreen> {
 
   /// Website v577: a by-parts title's chips and one line per chosen part, with
   /// its own counter and bar ("Competitive · Match 41 → 44 (+3)").
-  Widget _partsControls(LogDraftEditor ed, int index, Map<String, dynamic> e, Map<String, dynamic> item, Category cat) {
-    final reached = ed.mode == 'progress' && e['isRepeat'] != true;
-    final chosen = {for (final m in cleanMoves(item, partMovesOf(e))) m.id: m.qty};
+  Widget _partsControls(LogDraftEditor ed, int index, Map<String, dynamic> e, Map<String, dynamic> item, Category cat,
+      {bool adv = false}) {
+    // Website v580: Advanced logging too — Progress Reached gives reached
+    // boxes; Per Unit and Amount Consumed give amounts (backed by the units).
+    final reached = (adv ? LogDraftEditor.method(e) == 'last' : ed.mode == 'progress') && e['isRepeat'] != true;
+    final moves = adv ? ed.advParts(index) : cleanMoves(item, partMovesOf(e));
+    final chosen = {for (final m in moves) m.id: m.qty};
     final parts = titleParts(item);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -1834,6 +1849,7 @@ class _LogScreenState extends State<LogScreen> {
               label: Text(partName(p)),
               selected: chosen.containsKey(jsStr(p['id'])),
               onSelected: (_) => _edit((x) {
+                if (adv) return x.toggleAdvPart(index, jsStr(p['id']));
                 if (chosen.length == 1 && chosen.containsKey(jsStr(p['id']))) return 'Keep at least one part, or remove the title.';
                 x.togglePartAt(index, jsStr(p['id']));
                 return null;
@@ -1857,19 +1873,34 @@ class _LogScreenState extends State<LogScreen> {
                     SizedBox(
                       width: 156,
                       child: CommitField(
-                        key: ValueKey('part-${entryKey(e)}-$id-$reached'),
+                        key: ValueKey('part-${entryKey(e)}-$id-$reached-${_plain(reached ? to : q)}'),
                         value: _plain(reached ? to : q),
                         label: reached ? '${_cap(_word(unit, 1))} reached' : 'Amount',
                         decimal: false,
                         min: reached ? from.floor() : 0,
                         max: reached && total > 0 ? total.floor() : _stepLimit,
                         onCommit: (t) => _edit((x) {
-                          x.setPartAt(index, id, double.tryParse(t.replaceAll(',', '.')) ?? 0);
+                          final v = double.tryParse(t.replaceAll(',', '.')) ?? 0;
+                          if (adv) return x.setAdvPart(index, id, v);
+                          x.setPartAt(index, id, v);
                           return null;
                         }),
                       ),
                     ),
                   ]),
+                  if (!reached)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: AmountAdder(
+                        sumKey: 'part-${adv ? 'adv' : 'quick'}-${entryKey(e)}-$id',
+                        current: q,
+                        onTotal: (v) => _edit((x) {
+                          if (adv) return x.setAdvPart(index, id, v);
+                          x.setPartAt(index, id, v);
+                          return null;
+                        }),
+                      ),
+                    ),
                   const SizedBox(height: 4),
                   Text(
                     '${reached ? '${_cap(_word(unit, 1))} ${_num(from)} → ${_num(to)} ' : ''}(+${fmtNumber(q)} ${_word(unit, q)})'
@@ -1887,7 +1918,10 @@ class _LogScreenState extends State<LogScreen> {
             }),
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text('+${fmtNumber(jsNum(e['qty']))} in all · ${fmtMinutes(partsMinutes(item, cat.raw, cleanMoves(item, partMovesOf(e))))} · title ${_num(jsNum(e['v179StartProgress']))} → ${_num(jsNum(e['v179EndProgress']))}',
+          child: Text(
+              adv
+                  ? '+${fmtNumber(movesQty(moves))} in all · ${fmtMinutes(partsMinutes(item, cat.raw, moves))}'
+                  : '+${fmtNumber(jsNum(e['qty']))} in all · ${fmtMinutes(partsMinutes(item, cat.raw, moves))} · title ${_num(jsNum(e['v179StartProgress']))} → ${_num(jsNum(e['v179EndProgress']))}',
               style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
         ),
       ]),
@@ -2037,7 +2071,10 @@ class _LogScreenState extends State<LogScreen> {
                 ]),
               ),
               _beforeAfter(ed, e, item, cat),
-              if (seasons.isNotEmpty) ...[
+              if (item != null && isByParts(item)) ...[
+                const SizedBox(height: 8),
+                _partsControls(ed, index, e, item, cat, adv: true),
+              ] else if (seasons.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   key: ValueKey('season-${entryKey(e)}-${jsStr(selected?['id'])}'),
@@ -2077,7 +2114,7 @@ class _LogScreenState extends State<LogScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(onPressed: () => _toggleFlag(e, 'v369ShowAll'), child: Text('Show the last $_shownUnits')),
                   ),
-                if (item != null) _addUnitRow(ed, index, e, item, selected, cat, noun),
+                if (item != null && !isByParts(item)) _addUnitRow(ed, index, e, item, selected, cat, noun),
               ] else
                 _bulkPanel(ed, index, e, item, selected, cat, method),
             ]),
@@ -2291,9 +2328,10 @@ class _LogScreenState extends State<LogScreen> {
     final countMax = math.min(2000, limit > 0 ? math.max(0, limit - base) : 2000);
     final stamp = ed.bulkStamp(e, method);
     final manual = e['v394RuntimeManual'] == true;
+    final parts = isByParts(item);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      CommitField(
-        key: ValueKey('bulk-${entryKey(e)}-$method-${jsStr(season?['id'])}'),
+      if (!parts) CommitField(
+        key: ValueKey('bulk-${entryKey(e)}-$method-${jsStr(season?['id'])}-$value'),
         value: '$value',
         label: label,
         decimal: false,
@@ -2302,6 +2340,12 @@ class _LogScreenState extends State<LogScreen> {
         helper: 'Saved progress: $base · draft: ${rel.units.length} ${_word(titleUnit(item, cat.raw), rel.units.length)}',
         onCommit: (t) => _setQuantity(index, t),
       ),
+      if (!parts && method == 'amount')
+        AmountAdder(
+          sumKey: 'adv-${entryKey(e)}-${jsStr(season?['id'])}',
+          current: value.toDouble(),
+          onTotal: (v) => _setQuantity(index, fmtN(v)),
+        ),
       const SizedBox(height: 8),
       Align(
         alignment: Alignment.centerLeft,

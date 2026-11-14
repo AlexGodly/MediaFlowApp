@@ -8,6 +8,7 @@ import '../data/account_controller.dart';
 import '../logic/log_engine.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'amount_adder.dart';
 import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -176,6 +177,7 @@ class _LogFormState extends State<LogForm> {
   // for each (the part's reached number, or its amount).
   List<String> _partIds = [];
   final Map<String, String> _partInput = {};
+  final Map<String, int> _partRev = {};
   // XP preview (website v574): worked out on a copy of the account.
   Timer? _xpTimer;
   int _xpGen = 0;
@@ -659,6 +661,17 @@ class _LogFormState extends State<LogForm> {
             ),
           ),
         ]),
+        // Website v580: "+ add" under the amount ("3 + 4 = 7").
+        if (!_reachedMode && !isByParts(title.raw))
+          AmountAdder(
+            sumKey: 'any-${title.id}',
+            current: _parse(_amount) ?? 0,
+            onTotal: (v) => setState(() {
+              _amount.text = fmtN(v);
+              _error = null;
+              _syncMinutes();
+            }),
+          ),
         const SizedBox(height: 14),
         TextField(
           controller: _note,
@@ -774,6 +787,7 @@ class _LogFormState extends State<LogForm> {
                 SizedBox(
                   width: 156,
                   child: TextFormField(
+                    key: ValueKey('part-field-$id-${_partRev[id] ?? 0}'),
                     initialValue: _partInput[id] ?? '',
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
@@ -789,6 +803,20 @@ class _LogFormState extends State<LogForm> {
                   ),
                 ),
               ]),
+              if (!_partReached)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AmountAdder(
+                    sumKey: 'any-${title.id}-$id',
+                    current: (double.tryParse((_partInput[id] ?? '').trim().replaceAll(',', '.')) ?? 0).floorToDouble(),
+                    onTotal: (v) => setState(() {
+                      _partInput[id] = fmtN(v);
+                      _partRev[id] = (_partRev[id] ?? 0) + 1;
+                      _error = null;
+                      _syncMinutes();
+                    }),
+                  ),
+                ),
               const SizedBox(height: 4),
               Builder(builder: (_) {
                 final from = jsNum(part['progress']), total = jsNum(part['total']), q = moves[id] ?? 0;
