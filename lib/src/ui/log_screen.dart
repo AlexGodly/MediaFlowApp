@@ -419,7 +419,7 @@ class _LogScreenState extends State<LogScreen> {
             ];
             final narrow = box.maxWidth < 760;
             final main = <Widget>[
-              ProgressCards(state: state),
+              ProgressCards(state: state, totalXp: account.totalXp),
               // Phones: the task stays on the first screen, Log any title right under it.
               if (!narrow) _logAnyBar(),
               if (!narrow) _consumingBar(view),
@@ -444,7 +444,7 @@ class _LogScreenState extends State<LogScreen> {
                     Expanded(
                       flex: 5,
                       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        ProgressCards(state: state),
+                        ProgressCards(state: state, totalXp: account.totalXp),
                         _logAnyBar(),
                         _consumingBar(view),
                         ..._form(view, part: 'left'),

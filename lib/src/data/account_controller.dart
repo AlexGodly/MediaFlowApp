@@ -16,6 +16,7 @@ import '../state/lazy_copy.dart';
 import '../state/state_codec.dart' show encodeStateData;
 import '../state/models.dart';
 import '../util/js.dart';
+import '../platform/diagnostics.dart';
 import 'account_ops.dart';
 import 'app_prefs.dart';
 import 'edit_op.dart';
@@ -127,7 +128,25 @@ class AccountController extends ChangeNotifier {
 
   /// Level, XP, streak and Library size, worked out in the background with
   /// each sync (7.0.0, for Discord). Null until the first one.
-  Map<String, num>? presenceStats;
+  Map<String, num>? get presenceStats => _stats;
+  set presenceStats(Map<String, num>? v) {
+    if (!identical(v, _stats) && v != null) _localXp = 0;
+    _stats = v;
+  }
+
+  Map<String, num>? _stats;
+
+  /// XP of logs saved on this device since [presenceStats] was worked out.
+  double _localXp = 0;
+
+  /// 10.0.0: the account's total XP for the Log page's cards, at once after a
+  /// log (the background total plus this device's logs since), so the cards
+  /// never wait for a sync and the screen never walks the whole account.
+  /// Null before the first background total.
+  double? get totalXp {
+    final x = _stats?['xp'];
+    return x == null ? null : x.toDouble() + _localXp;
+  }
 
   /// Changes waiting to upload (read only).
   List<AccountOp> get pendingOps => List.unmodifiable(_pending);
@@ -198,8 +217,23 @@ class AccountController extends ChangeNotifier {
         lastRejection = 'A log made on this device could not be added to your account: ${result.rejected.first}';
       }
       _pending.removeWhere((op) => batch.any((b) => identical(b, op)));
-      final fresh = result.state;
+      var fresh = result.state;
       presenceStats = result.stats ?? presenceStats;
+      final patches = result.patches;
+      if (fresh == null && patches != null && patches.isNotEmpty) {
+        // 10.0.0: another device's few records, applied to this device's copy
+        // (not the whole account handed back from the background).
+        final display = _display, index = result.index;
+        Diagnostics.instance.note('sync: ${patches.length} record${patches.length == 1 ? '' : 's'} from another device');
+        if (display != null && index != null && _pending.isEmpty && patchState(display, patches, index)) {
+          _setDisplay(display);
+        } else {
+          Diagnostics.instance.note('sync: rebuilding the account');
+          fresh = (await mergeInBackground(_bg, result.raw, const [], encode: false)).state;
+        }
+      } else if (fresh != null) {
+        Diagnostics.instance.note('sync: account rebuilt');
+      }
       if (fresh != null) {
         // The new cloud copy plus whatever was changed here while syncing.
         for (final op in _pending) {
@@ -264,6 +298,7 @@ class AccountController extends ChangeNotifier {
     final current = _display;
     if (current != null && !identical(current, display)) op.apply(current);
     _pending.add(op);
+    Diagnostics.instance.note('saved: ${op.kind}');
     if (quiet) {
       // Same data for every reader; the screens pick it up with the next change.
       if (!_disposed) syncStatus.value++;
@@ -303,6 +338,7 @@ class AccountController extends ChangeNotifier {
     final req = LogRequest.create(entries, note: note, date: date, time: time);
     final outcome = applyLog(display, req);
     if (!outcome.applied) return outcome;
+    _localXp += outcome.xp;
     await _queue(BatchLogOp(req), display);
     return outcome;
   }
@@ -766,6 +802,7 @@ class AccountController extends ChangeNotifier {
     final req = RecLogRequest.create(task, logDraft);
     final outcome = applyRecLog(display, req);
     if (!outcome.applied) return outcome;
+    _localXp += outcome.xp;
     _pending.removeWhere((p) => p is DraftOp);
     await _queue(RecLogOp(req), display);
     return outcome;

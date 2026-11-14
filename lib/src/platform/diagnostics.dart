@@ -30,6 +30,30 @@ class Diagnostics {
 
   List<Map<String, Object?>> get entries => List.unmodifiable(_entries);
 
+  /// 10.0.0: what was on screen and what the app last did, so a slow frame
+  /// says where it happened ("Personal Order · after sync: remote changes").
+  String screen = '';
+  String _event = '';
+  DateTime _eventAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Notes what the app is doing now (sync, a saved change, a live update).
+  void note(String event) {
+    _event = event;
+    _eventAt = DateTime.now();
+  }
+
+  String _context() {
+    final parts = <String>[
+      if (screen.isNotEmpty) screen,
+      if (_event.isNotEmpty && DateTime.now().difference(_eventAt).inSeconds < 10)
+        'after $_event (${DateTime.now().difference(_eventAt).inMilliseconds} ms before)',
+    ];
+    try {
+      parts.add('RAM ${(ProcessInfo.currentRss / (1 << 20)).round()} MB');
+    } catch (_) {}
+    return parts.join(' · ');
+  }
+
   Future<void> init() async {
     // Covers: at most ~96 MB / 500 decoded images held at once.
     final cache = PaintingBinding.instance.imageCache;
@@ -63,7 +87,7 @@ class Diagnostics {
     SchedulerBinding.instance.addTimingsCallback((timings) {
       for (final t in timings) {
         final ms = t.totalSpan.inMilliseconds;
-        if (ms >= 700) record('slow-frame', 'A frame took $ms ms');
+        if (ms >= 700) record('slow-frame', 'A frame took $ms ms · ${_context()}');
       }
     });
     _watch = Timer.periodic(const Duration(milliseconds: 500), (_) {
@@ -71,7 +95,7 @@ class Diagnostics {
       final now = DateTime.now();
       final gap = now.difference(_lastTick).inMilliseconds;
       _lastTick = now;
-      if (_foreground && gap > 1500) record('freeze', 'The app did not respond for ${(gap / 1000).toStringAsFixed(1)} s');
+      if (_foreground && gap > 1500) record('freeze', 'The app did not respond for ${(gap / 1000).toStringAsFixed(1)} s · ${_context()}');
     });
     WidgetsBinding.instance.addObserver(_Lifecycle(this));
   }
@@ -108,7 +132,9 @@ class Diagnostics {
   /// The log as readable text, for Settings → Export.
   String asText() => [
         'MediaFlow $kAppVersionLabel diagnostics (${Platform.operatingSystem})',
-        for (final e in _entries.reversed) '${e['at']}  ${e['kind']}  ${e['message']}${e['stack'] != null ? '\n${e['stack']}' : ''}',
+        // Each entry with the version it happened in (a log spans updates).
+        for (final e in _entries.reversed)
+          '${e['at']}  ${e['version'] ?? ''}  ${e['kind']}  ${e['message']}${e['stack'] != null ? '\n${e['stack']}' : ''}',
       ].join('\n\n');
 
   void _setForeground(bool fg) {

@@ -17,6 +17,7 @@ import '../logic/title_parts.dart';
 import '../logic/presence_templates.dart';
 import '../logic/resume.dart' show readLogging;
 import '../logic/title_units.dart' show titleUnit;
+import '../platform/diagnostics.dart';
 import '../platform/discord_presence.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -178,6 +179,7 @@ class PresenceHub {
   /// The section on screen (from the app's navigation).
   void setSection(Section s, AccountView? view) {
     _section = s;
+    Diagnostics.instance.screen = s.name;
     if (!identical(view, _view)) {
       _view = view;
       _globals = null;
@@ -260,6 +262,7 @@ class PresenceHub {
   }
 
   void push(Object owner, PresenceInfo info) {
+    Diagnostics.instance.screen = '${_section?.name ?? ''} › ${info.situation}';
     final i = _overlays.indexWhere((o) => identical(o.$1, owner));
     if (i >= 0) {
       if (_overlays[i].$2.key == info.key) return;
