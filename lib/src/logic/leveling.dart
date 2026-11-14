@@ -251,7 +251,9 @@ double _storedXP(Map<String, dynamic> s, Leveling l, AccountView Function() view
     base = l.consumptionXP(view().category(jsStr(s['categoryId'])), jsNum(s['actualAmount']), jsNum(s['minutes']), health);
   }
   final respect = jsRound(jsNum(s['v165RespectBonusXP']));
-  final total = base + (respect < 0 ? 0.0 : respect);
+  // Website v580: task goal XP is part of the base too (433-v580-goal-xp.js).
+  final goal = jsRound(jsNum(s['mf580GoalXP']));
+  final total = base + (respect < 0 ? 0.0 : respect) + (goal < 0 ? 0.0 : goal);
   return total < 0 ? 0.0 : total;
 }
 

@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/account_ops.dart';
 import '../data/app_prefs.dart';
+import '../logic/goal_xp.dart' show GoalXPConfig;
 import '../logic/log_arrange.dart';
 import '../logic/log_draft.dart';
 import '../logic/title_units.dart' show titleUnit;
@@ -39,6 +40,7 @@ import '../platform/discord_presence.dart' show DiscordPresence;
 import 'presence.dart';
 import 'progress_cards.dart';
 import 'reroll_history.dart';
+import 'runtime_tools.dart';
 import 'task_progress_card.dart';
 import 'theme.dart';
 import 'title_screen.dart' show TitleEditor, openTitle;
@@ -849,6 +851,14 @@ class _LogScreenState extends State<LogScreen> {
       if (bonus > 0) ...[
         const SizedBox(height: 8),
         Text('Follow it for a System Respect bonus of +${fmtNumber(bonus)} XP',
+            style: const TextStyle(color: MF.good, fontSize: 12, fontWeight: FontWeight.w700)),
+      ],
+      // Website v580: task goal XP.
+      if (GoalXPConfig.of(asMap(view.state['settings'])) case final g when g.enabled && g.min + g.max + g.perExtra > 0) ...[
+        const SizedBox(height: 4),
+        Text(
+            'Goal XP: reach ${_num(low)} for +${g.min} · ${_num(high)} for +${g.max} more'
+            '${g.perExtra > 0 && g.extraCap > 0 ? ' · +${g.perExtra} each past it (up to +${g.extraCap})' : ''}',
             style: const TextStyle(color: MF.good, fontSize: 12, fontWeight: FontWeight.w700)),
       ],
       const SizedBox(height: 16),
@@ -2384,6 +2394,17 @@ class _LogScreenState extends State<LogScreen> {
                 });
               }
             },
+          ),
+        ),
+      if (manual)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: RuntimeToolButtons(
+            state: () => account.view?.state,
+            onSeconds: (secs) => _edit((x) {
+              x.setRuntime(index, secs);
+              return null;
+            }),
           ),
         ),
     ]);

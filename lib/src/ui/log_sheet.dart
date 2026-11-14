@@ -8,8 +8,10 @@ import '../data/account_controller.dart';
 import '../logic/log_engine.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/extras.dart' show fmtRuntime;
 import 'amount_adder.dart';
 import 'presence.dart';
+import 'runtime_tools.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import '../logic/title_units.dart';
@@ -406,6 +408,12 @@ class _LogFormState extends State<LogForm> {
     return previewEntry(t, cat, entryForPreview);
   }
 
+  void _setRuntime(int seconds) => setState(() {
+        _minutesEdited = true;
+        _minutes.text = fmtN((seconds / 60 * 100).round() / 100);
+        _error = null;
+      });
+
   void _syncMinutes() {
     if (_minutesEdited) return;
     final p = _preview();
@@ -672,6 +680,47 @@ class _LogFormState extends State<LogForm> {
               _syncMinutes();
             }),
           ),
+        // Website v580: Customize total runtime, with the Stopwatch / Runtime
+        // Calculator (the Minutes box is the runtime; off = automatic).
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Customize total runtime'),
+              Text(
+                _minutesEdited
+                    ? fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round())
+                    : 'Automatic: ${fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round())}',
+                style: TextStyle(color: MF.textDim, fontSize: 12),
+              ),
+            ]),
+          ),
+          Switch(
+            value: _minutesEdited,
+            onChanged: (v) => setState(() {
+              _minutesEdited = v;
+              if (!v) _syncMinutes();
+            }),
+          ),
+        ]),
+        if (_minutesEdited) ...[
+          TextFormField(
+            key: ValueKey('runtime-${_minutes.text}'),
+            initialValue: fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round()),
+            keyboardType: TextInputType.datetime,
+            decoration: const InputDecoration(labelText: 'Total runtime (HH:MM:SS)', isDense: true, helperText: 'Press Enter to apply'),
+            onFieldSubmitted: (v) {
+              final m = RegExp(r'^(\d{1,5}):([0-5]\d):([0-5]\d)$').firstMatch(v.trim());
+              if (m == null) {
+                ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Use total runtime as HH:MM:SS.')));
+                return;
+              }
+              _setRuntime(int.parse(m[1]!) * 3600 + int.parse(m[2]!) * 60 + int.parse(m[3]!));
+            },
+          ),
+          const SizedBox(height: 6),
+          RuntimeToolButtons(state: () => widget.account.view?.state, onSeconds: _setRuntime),
+        ],
         const SizedBox(height: 14),
         TextField(
           controller: _note,

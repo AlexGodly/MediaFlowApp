@@ -19,6 +19,7 @@ import 'leveling.dart';
 import 'library_hooks.dart';
 import 'title_parts.dart';
 import 'title_units.dart';
+import 'goal_xp.dart';
 
 /// One title in a log. Give [reached] ("Episode reached", the website's default
 /// Progress mode) or [amount] (Amount mode).
@@ -352,6 +353,9 @@ LogOutcome applyLog(Map<String, dynamic> state, LogRequest req) {
       outcome.xp += xp;
     }
   }
+
+  // ---- website v580: task goal XP (the current task, once per task) ----------
+  applyGoalXP(state, asMap(state['currentTask']), newSessions, leveling: l.enabled);
 
   // ---- v149: streak annotations on every log ---------------------------------
   annotateStreakXP(state, l);

@@ -727,3 +727,17 @@ List<({int years, List<OtdEvent> rows})> onThisDay(Map<String, dynamic> state, D
   }
   return out;
 }
+
+/// Website v580 `mf580TimeSource`: the Stopwatch's time or the Runtime
+/// Calculator's result, in seconds, for "Customize total runtime".
+({int seconds, String? error}) toolTimeSeconds(Map<String, dynamic> state, String source, int now) {
+  final t = readTools(state);
+  if (source == 'calculator') {
+    final c = RuntimeCalc(t.runtime);
+    return c.hasResult && c.resultSeconds > 0
+        ? (seconds: c.resultSeconds, error: null)
+        : (seconds: 0, error: 'Calculate a runtime first (Runtime Calculator in Extras).');
+  }
+  final s = (Stopwatch2(t.stopwatch).elapsed(now) / 1000).round();
+  return s > 0 ? (seconds: s, error: null) : (seconds: 0, error: 'The Stopwatch is at 00:00:00 — start it first (Extras).');
+}

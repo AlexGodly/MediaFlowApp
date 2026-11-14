@@ -141,6 +141,13 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['leveling', 'firstTitleStartXP'], 'First title start XP', def: 40),
       _S(['leveling', 'firstEpisodeXP'], 'First episode XP', def: 20),
       _S(['leveling', 'batchLogXP'], 'Batch Log bonus XP', def: 15),
+      // Website v580: task goal XP (once per task, by any log).
+      _S(['mf580GoalXP', 'enabled'], 'Task goal XP', kind: 'bool', def: true,
+          help: 'XP for reaching a recommendation\'s goal, once per task, by any log (Logging, Log any title).'),
+      _S(['mf580GoalXP', 'min'], 'Task goal: reaching the minimum XP', def: 100),
+      _S(['mf580GoalXP', 'max'], 'Task goal: reaching the maximum XP (more)', def: 300),
+      _S(['mf580GoalXP', 'perExtra'], 'Task goal: each unit past the maximum XP', def: 10, max: 10000),
+      _S(['mf580GoalXP', 'extraCap'], 'Task goal: past the maximum, at most XP', def: 100),
       _S(['leveling', 'collectionCreateXP'], 'Collection created XP', def: 35),
       _S(['leveling', 'collectionEditXP'], 'Collection edited XP', def: 10),
       _S(['leveling', 'collectionAddTitleXP'], 'Add title to Collection XP', def: 8),

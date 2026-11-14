@@ -26,6 +26,7 @@ import 'recommend.dart';
 import 'resume.dart';
 import 'title_parts.dart';
 import 'title_units.dart';
+import 'goal_xp.dart';
 
 T _clone<T>(T value) => jsonDecode(jsonEncode(value)) as T;
 
@@ -687,6 +688,9 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
   added
     ..clear()
     ..addAll(redated);
+
+  // ---- website v580: task goal XP (once per task, on this log) -------------------------------------------
+  applyGoalXP(state, task, added, leveling: l.enabled);
 
   // ---- v149: streak XP on every log ----------------------------------------------------------------------------
   annotateStreakXP(state, l);
