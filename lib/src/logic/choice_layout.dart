@@ -3,7 +3,7 @@
 // Set Category, Set Status and the Library filters. settings.v230ChoiceLayout
 // = {modifiedAt, <surface>: {source, order, hidden}}.
 
-import '../state/models.dart' show AccountView;
+import '../state/models.dart' show AccountView, Category;
 import '../util/js.dart';
 
 const kStatusIds = ['planned', 'active', 'paused', 'completed', 'dropped'];
@@ -119,3 +119,25 @@ List<({String id, bool enabled})> choiceCategories(AccountView view) =>
 /// [applyChoiceLayout] for an [AccountView].
 List<(String, String)> viewChoices(AccountView view, String surface, List<(String, String)> choices, {String? keep}) =>
     applyChoiceLayout(asMap(view.state['settings']), surface, choiceCategories(view), choices, keep: keep);
+
+// ---- 10.0.0: every list of categories follows the layout ------------------------------
+
+/// The categories as the Library category filter shows them (your order,
+/// hidden ones left out; [keep] stays even if hidden). For filters and pickers.
+List<Category> filterCategories(AccountView view, {Iterable<String> keep = const []}) =>
+    _layoutCategories(view, 'categoryFilter', keep);
+
+/// The categories as Set Category shows them, for choosing where a title goes.
+List<Category> setCategories(AccountView view, {Iterable<String> keep = const []}) =>
+    _layoutCategories(view, 'setCategory', keep);
+
+List<Category> _layoutCategories(AccountView view, String surface, Iterable<String> keep) {
+  final ids = visibleChoices(asMap(view.state['settings']), surface, choiceCategories(view));
+  final byId = {for (final c in view.categories) c.id: c};
+  final out = [for (final id in ids) if (byId[id] != null) byId[id]!];
+  for (final k in keep) {
+    final c = byId[k];
+    if (c != null && !out.contains(c)) out.add(c);
+  }
+  return out.isEmpty ? view.categories : out;
+}

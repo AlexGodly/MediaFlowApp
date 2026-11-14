@@ -11,6 +11,7 @@ import '../data/provider_catalog.dart';
 import '../data/rating_sources.dart';
 import '../data/recovery_runner.dart';
 import '../logic/extras.dart' show OtdEvent;
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/ratings_engine.dart';
 import '../logic/recovery.dart';
 import '../state/models.dart';
@@ -152,7 +153,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
         if (widget.ids != null)
           DropdownMenuItem(value: 'given', child: Text('${widget.label.isEmpty ? 'Selected titles' : widget.label} (${widget.ids!.length})')),
         const DropdownMenuItem(value: 'all', child: Text('Whole Library')),
-        for (final c in v?.categories ?? const <Category>[]) DropdownMenuItem(value: c.id, child: Text(c.name)),
+        for (final c in v == null ? const <Category>[] : filterCategories(v)) DropdownMenuItem(value: c.id, child: Text(c.name)),
       ],
       onChanged: (x) => setState(() => _scope = x ?? 'all'),
     );
@@ -835,7 +836,7 @@ class _SourcesSettingsState extends State<SourcesSettings> {
     final prefs = metadataPreferences(_settings);
     final enabled = (prefs['enabled'] as List).cast<String>().toSet();
     final max = jsNum(prefs['maxBatch']).toInt();
-    final cats = view.categories;
+    final cats = filterCategories(view);
     if (_category.isEmpty && cats.isNotEmpty) _category = cats.first.id;
     final presetRaw = asMap(asMap(_settings?['v453RecoveryPresets'])?[_category])?['metadata'];
     final custom = presetRaw is List;

@@ -358,3 +358,77 @@ class RecordUpload {
   final String? j;
   final bool deleted;
 }
+
+// ---- 10.0.0: applying other devices' records to the device's copy ---------------------
+
+/// Whether [r] can be applied to an account as it is: anything but the
+/// account's key lists (`__keys`, array markers, an object's key list).
+bool rowPatchable(RecordRow r) {
+  if (r.kind == 'doc') {
+    final id = r.recordId;
+    return id != '__keys' && !id.startsWith('__array') && !id.endsWith(_sep);
+  }
+  return kRecordArrays.contains(r.kind);
+}
+
+/// Applies [rows] (other devices' records) to [state] in place, giving exactly
+/// what [composeState] would build from [index] (which already includes the
+/// rows). Returns false when it can't (then the account must be rebuilt);
+/// [state] may then be partly changed.
+bool patchState(Map<String, dynamic> state, List<RecordRow> rows, RecordIndex index) {
+  if (!rows.every(rowPatchable)) return false;
+  // Arrays: every changed or deleted element comes out first, so the rest is
+  // in the new positions' order; then the new versions go in by position.
+  final inserts = <String, List<(RecordRow, Object?)>>{};
+  for (final r in rows) {
+    final data = r.deleted ? null : r.data;
+    if (r.kind == 'doc') {
+      final cut = r.recordId.indexOf(_sep);
+      if (cut < 0) {
+        if (!state.containsKey(r.recordId) || data == null) return false;
+        state[r.recordId] = jsonDecode(data);
+        continue;
+      }
+      final obj = state[r.recordId.substring(0, cut)];
+      if (obj is! Map) return false;
+      final sub = r.recordId.substring(cut + 1);
+      if (data == null) {
+        obj.remove(sub);
+      } else {
+        if (!obj.containsKey(sub)) return false; // a new key changes the key list too
+        obj[sub] = jsonDecode(data);
+      }
+      continue;
+    }
+    final list = state[r.kind];
+    if (list is! List) return false;
+    list.removeWhere((e) => e is Map && _idText(e['id']) == r.recordId);
+    if (data != null) (inserts[r.kind] ??= []).add((r, jsonDecode(data)));
+  }
+  for (final e in inserts.entries) {
+    final list = state[e.key] as List;
+    for (final (r, value) in e.value) {
+      // composeState's order: by position, then id.
+      final p = r.pos ?? 0;
+      int cmp(Object? el) {
+        if (el is! Map) return 0;
+        final id = _idText(el['id']);
+        final ep = index.entries[recordKey(r.kind, id)]?.$1 ?? 0;
+        if (ep != p) return ep < p ? -1 : 1;
+        return id.compareTo(r.recordId);
+      }
+
+      var lo = 0, hi = list.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (cmp(list[mid]) < 0) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      list.insert(lo, value);
+    }
+  }
+  return true;
+}

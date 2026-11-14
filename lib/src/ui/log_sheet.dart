@@ -742,7 +742,12 @@ class _LogFormState extends State<LogForm> {
     final parts = titleParts(title.raw);
     final moves = {for (final m in _partMoves()) m.id: m.qty};
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('Parts', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+      Row(children: [
+        Text('Parts', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+        const Spacer(),
+        Text('${parts.length} part${parts.length == 1 ? '' : 's'} · ${fmtNumber(moves.values.fold(0.0, (a, b) => a + b))} in all',
+            style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+      ]),
       const SizedBox(height: 6),
       Wrap(spacing: 6, runSpacing: 6, children: [
         for (final part in parts)
@@ -767,7 +772,7 @@ class _LogFormState extends State<LogForm> {
               Row(children: [
                 Expanded(child: Text(partName(part), style: const TextStyle(fontWeight: FontWeight.w800))),
                 SizedBox(
-                  width: 110,
+                  width: 156,
                   child: TextFormField(
                     initialValue: _partInput[id] ?? '',
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),

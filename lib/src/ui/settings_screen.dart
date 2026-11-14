@@ -1227,7 +1227,8 @@ class _ClassesEditor extends StatelessWidget {
                     dense: true,
                     value: members.contains(c.id),
                     onChanged: (v) => set(() => v == true ? members.add(c.id) : members.remove(c.id)),
-                    title: Text('${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}'),
+                    secondary: CategoryBadge(c, size: 26),
+                    title: Text('${c.name}${c.enabled ? '' : ' (Disabled)'}'),
                     subtitle: owners[c.id] != null && owners[c.id] != jsStr(existing?['name'])
                         ? Text('Currently in ${owners[c.id]} — selecting transfers it')
                         : null,
@@ -1360,7 +1361,7 @@ class _ChoiceLayoutEditorState extends State<_ChoiceLayoutEditor> {
   String _label(String id) {
     if (_labels[id] != null && !_cats.contains(id)) return _labels[id]!;
     final c = widget.view.categories.where((c) => c.id == id).firstOrNull;
-    return c == null ? id : '${c.icon} ${c.name}${c.enabled ? '' : ' (Disabled)'}';
+    return c == null ? id : '${c.name}${c.enabled ? '' : ' (Disabled)'}';
   }
 
   Future<void> _save(String source, List<String> order, List<String> hidden) => widget.account.setSetting(
@@ -1408,8 +1409,15 @@ class _ChoiceLayoutEditorState extends State<_ChoiceLayoutEditor> {
                 _save('custom', cur.order, hidden);
               },
             ),
-            title: Text(_label(cur.order[i]),
-                style: TextStyle(color: cur.hidden.contains(cur.order[i]) ? MF.textDim : null)),
+            title: Row(children: [
+              if (widget.view.categories.where((c) => c.id == cur.order[i]).firstOrNull case final c?) ...[
+                CategoryBadge(c, size: 24),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(_label(cur.order[i]), style: TextStyle(color: cur.hidden.contains(cur.order[i]) ? MF.textDim : null)),
+              ),
+            ]),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               IconButton(
                 tooltip: 'Move up',

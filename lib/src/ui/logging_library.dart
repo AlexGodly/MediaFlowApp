@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/library_index.dart';
 import '../logic/log_arrange.dart';
 import '../state/models.dart';
@@ -214,7 +215,7 @@ class _LoggingLibraryState extends State<LoggingLibrary> {
   }
 
   Future<void> _pickCategories() async {
-    final cats = widget.view.categories;
+    final cats = filterCategories(widget.view);
     final chosen = {...st.categories};
     final result = await showModalBottomSheet<Set<String>>(
       context: context,

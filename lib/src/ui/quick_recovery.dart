@@ -256,6 +256,33 @@ class _QuickRecoveryState extends State<_QuickRecovery> {
       else ...[
         Text('${preview.providers.length} source${preview.providers.length == 1 ? '' : 's'} · ${preview.proposals.length} proposed fields',
             style: TextStyle(fontSize: 12, color: MF.textDim)),
+        // 10.0.0: Select all / Deselect all (like the Library-wide review).
+        Builder(builder: (_) {
+          final open = preview.proposals.where((p) => !(p.hasOriginal || p.isProtected || p.same)).toList();
+          if (open.length < 2) return const SizedBox.shrink();
+          return Row(children: [
+            TextButton.icon(
+              onPressed: () => setState(() {
+                for (final p in open) {
+                  p.selected = true;
+                }
+              }),
+              icon: const Icon(Icons.done_all_rounded, size: 18),
+              label: const Text('Select all'),
+            ),
+            TextButton.icon(
+              onPressed: () => setState(() {
+                for (final p in open) {
+                  p.selected = false;
+                }
+              }),
+              icon: const Icon(Icons.remove_done_rounded, size: 18),
+              label: const Text('Deselect all'),
+            ),
+            const Spacer(),
+            Text('${open.where((p) => p.selected).length} of ${open.length} selected', style: TextStyle(color: MF.textDim, fontSize: 11)),
+          ]);
+        }),
         for (final p in preview.proposals) _proposal(p),
       ],
     ];

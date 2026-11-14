@@ -36,11 +36,11 @@ int computeDayStreak(List<dynamic> sessions, int nowMs) {
   return streak;
 }
 
-ProgressSummary progressSummary(Map<String, dynamic> state, int nowMs) {
+ProgressSummary progressSummary(Map<String, dynamic> state, int nowMs, {double? totalXp}) {
   final sessions = asList(state['sessions']);
   final streak = computeDayStreak(sessions, nowMs);
   return ProgressSummary(
-    level: levelInfo(xpMetrics(state).total),
+    level: levelInfo(totalXp ?? xpMetrics(state).total),
     streak: streak,
     multiplier: Leveling(state).streakMultiplier(streak),
   );
@@ -53,8 +53,9 @@ Object? _cacheState;
 String _cacheKey = '';
 ProgressSummary? _cache;
 
-ProgressSummary cachedProgressSummary(Map<String, dynamic> state, int nowMs) {
+ProgressSummary cachedProgressSummary(Map<String, dynamic> state, int nowMs, {double? totalXp}) {
   final key = [
+    totalXp ?? '',
     jsNum(state['savedAt']),
     asList(state['sessions']).length,
     asList(state['library']).length,
@@ -62,7 +63,7 @@ ProgressSummary cachedProgressSummary(Map<String, dynamic> state, int nowMs) {
   ].join('|');
   final hit = _cache;
   if (hit != null && identical(_cacheState, state) && key == _cacheKey) return hit;
-  final fresh = progressSummary(state, nowMs);
+  final fresh = progressSummary(state, nowMs, totalXp: totalXp);
   _cacheState = state;
   _cacheKey = key;
   _cache = fresh;

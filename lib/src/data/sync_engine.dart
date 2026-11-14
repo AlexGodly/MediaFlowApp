@@ -143,6 +143,11 @@ class SyncResult {
   /// background (null when [state] is null).
   Map<String, num>? stats;
 
+  /// 10.0.0: other devices' records to apply to the device's own copy (state
+  /// is then null). Handing the whole account back from the background took
+  /// 1–2 s on the screen's thread with a big Library; a few records don't.
+  List<RecordRow>? patches;
+
   /// Per-record storage: what this device now knows of the cloud's records
   /// (null when the account uses the single row).
   final RecordIndex? index;
@@ -179,10 +184,11 @@ Future<SyncResult> syncOnce(
   String deviceId = 'mediaflow-app',
   BackgroundRunner background = runInIsolate,
   int attempts = 5,
+  bool lean = false,
 }) async {
   if (cloud is RecordBackend && await cloud.usesRecords(userId)) {
     return syncRecords(cloud, userId, pending,
-        knownRaw: knownRaw, knownIndex: knownIndex, deviceId: deviceId, background: background);
+        knownRaw: knownRaw, knownIndex: knownIndex, deviceId: deviceId, background: background, lean: lean);
   }
   var known = knownRaw != null && knownUpdatedAt != null ? CloudSnapshot(knownRaw, knownUpdatedAt) : null;
   for (var attempt = 0; attempt < attempts; attempt++) {
@@ -221,8 +227,14 @@ Future<SyncResult> syncOnce(
 class RecordStep {
   RecordStep(this.state, this.raw, this.index, this.uploads, this.applied, this.rejected);
 
+  /// 10.0.0: whether other devices' records changed the account, which of
+  /// them ([incoming]), and whether they can be applied to the device's copy
+  /// as they are ([patchable]: no key-list changes).
+  bool remoteChanged = false, patchable = false;
+  List<RecordRow> incoming = const [];
+
   /// The account after this sync (null when unchanged).
-  final Map<String, dynamic>? state;
+  Map<String, dynamic>? state;
   final Object? raw;
   final RecordIndex index;
   final List<RecordUpload> uploads;
@@ -241,6 +253,7 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
   var cursor = fresh ? '' : index.cursor;
   Map<String, dynamic>? base;
   var changed = false;
+  List<RecordRow> incomingRows = const [];
   if (fresh) {
     index.entries.clear();
     final recs = <String, Rec>{};
@@ -281,6 +294,7 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
       incoming[key] = r;
     }
     if (incoming.isNotEmpty) {
+      incomingRows = incoming.values.toList();
       final current = decodeStateData(knownRaw);
       final recs = decomposeState(current, index.pos);
       for (final e in incoming.entries) {
@@ -299,8 +313,12 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
     }
   }
   index.cursor = cursor;
+  RecordStep mark(RecordStep st) => st
+    ..remoteChanged = changed
+    ..incoming = incomingRows
+    ..patchable = !fresh && changed && incomingRows.isNotEmpty && incomingRows.every(rowPatchable);
   if (ops.isEmpty) {
-    return RecordStep(changed ? base : null, changed ? encodeStateData(base!) : knownRaw, index, const [], 0, const []);
+    return mark(RecordStep(changed ? base : null, changed ? encodeStateData(base!) : knownRaw, index, const [], 0, const []));
   }
   final next = base ?? decodeStateData(knownRaw);
   var applied = 0;
@@ -314,7 +332,7 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
     }
   }
   if (applied == 0) {
-    return RecordStep(changed ? next : null, changed ? encodeStateData(next) : knownRaw, index, const [], 0, rejected);
+    return mark(RecordStep(changed ? next : null, changed ? encodeStateData(next) : knownRaw, index, const [], 0, rejected));
   }
   final recs = decomposeState(next, index.pos);
   final uploads = <RecordUpload>[];
@@ -329,16 +347,22 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
     uploads.add(RecordUpload(key.substring(0, cut), key.substring(cut + 1), null, null, deleted: true));
     index.entries.remove(key);
   }
-  return RecordStep(next, encodeStateData(next), index, uploads, applied, rejected);
+  return mark(RecordStep(next, encodeStateData(next), index, uploads, applied, rejected));
 }
 
 Future<RecordStep> _recordStepInBackground(
-    BackgroundRunner background, Object? knownRaw, RecordIndex? known, List<RecordRow> rows, List<AccountOp> ops) {
+    BackgroundRunner background, Object? knownRaw, RecordIndex? known, List<RecordRow> rows, List<AccountOp> ops,
+    {bool lean = false}) {
   final copy = List<AccountOp>.of(ops);
   return background(() {
     final step = recordStep(knownRaw, known, rows, copy);
     final state = step.state;
     if (state != null) step.stats = presenceStatsOf(state);
+    // 10.0.0: the device's copy already has its own changes, and other
+    // devices' few records are applied to it directly: the whole account is
+    // only handed back when that can't be done.
+    if (lean && state != null && !step.remoteChanged) step.state = null;
+    if (lean && state != null && step.patchable && copy.isEmpty) step.state = null;
     return step;
   });
 }
@@ -362,6 +386,7 @@ Future<SyncResult> syncRecords(
   RecordIndex? knownIndex,
   required String deviceId,
   BackgroundRunner background = runInIsolate,
+  bool lean = false,
 }) async {
   final usable = knownRaw != null && knownIndex != null && knownIndex.cursor.isNotEmpty;
   final rows = await cloud.fetchRecords(userId, usable ? recordsSince(knownIndex.cursor) : '');
@@ -380,11 +405,12 @@ Future<SyncResult> syncRecords(
   if (usable && pending.isEmpty && rows.every(known)) {
     return SyncResult(null, knownRaw, knownIndex.cursor, 0, const [], knownIndex);
   }
-  final step = await _recordStepInBackground(background, usable ? knownRaw : null, usable ? knownIndex : null, rows, pending);
+  final step = await _recordStepInBackground(background, usable ? knownRaw : null, usable ? knownIndex : null, rows, pending, lean: lean);
   if (step.uploads.isNotEmpty) await cloud.uploadRecords(userId, step.uploads, deviceId);
   // The cursor stays where the pull ended: this device's own rows come back
   // on the next pull and are recognised, and another device's row saved in
   // the meantime is never skipped.
   return SyncResult(step.state, step.raw, step.index.cursor, step.uploads.isEmpty ? 0 : step.applied, step.rejected, step.index)
-    ..stats = step.stats;
+    ..stats = step.stats
+    ..patches = step.state == null && step.remoteChanged ? step.incoming : null;
 }

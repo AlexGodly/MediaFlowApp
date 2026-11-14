@@ -11,10 +11,12 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/collections_logic.dart';
 import '../logic/order_view.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'collection_picker.dart' show pickCollections;
 import 'collections_screen.dart' show pickLibraryTitles, CollectionCover;
 import '../platform/file_io.dart';
 import 'floating_dock.dart' show recoveryShortcuts;
@@ -305,8 +307,12 @@ class _OrderScreenState extends State<OrderScreen> {
             onAddTitles: () => _addTitles(view, titleIds),
             onAddCollection: () => _addCollection(context, account, view, _order, showInTitles: true),
             trailing: FilterChip(
-              avatar: const Icon(Icons.collections_bookmark_rounded, size: 16),
-              label: const Text('Collections in this list'),
+              // 10.0.0: a plain icon in the label (as an avatar it was drawn
+              // on a dark circle); ✓ when on.
+              label: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (!mixed) ...[Icon(Icons.collections_bookmark_outlined, size: 16, color: MF.accent), const SizedBox(width: 6)],
+                const Text('Collections in this list'),
+              ]),
               selected: mixed,
               onSelected: (v) => _setQueueView('showCollectionsInRegularQueues', v),
             ),
@@ -365,7 +371,7 @@ class _OrderScreenState extends State<OrderScreen> {
             child: Row(children: [
               CompactDropdown<String>(
                 value: _cat,
-                items: [('all', 'All categories'), for (final c in view.categories) (c.id, c.name)],
+                items: [('all', 'All categories'), for (final c in filterCategories(view, keep: [_cat])) (c.id, c.name)],
                 onChanged: (v) => setState(() => _cat = v),
               ),
               const SizedBox(width: 6),
@@ -608,7 +614,9 @@ class _OrderScreenState extends State<OrderScreen> {
       final cat = view.category(q.categoryId);
       for (var i = 0; i < q.tokens.length; i++) {
         if (!q.tokens[i].startsWith('c:')) continue;
-        rows.add(_CollectionQueueRow(view: view, refs: refs, category: cat, token: q.tokens[i], index: i, count: q.tokens.length, order: _order));
+        rows.add(_queueSlot(
+            categoryId: cat.id, token: q.tokens[i], index: i, label: _tokenLabel(refs, const {}, q.tokens[i]), order: _order,
+            child: _CollectionQueueRow(view: view, refs: refs, category: cat, token: q.tokens[i], index: i, count: q.tokens.length, order: _order)));
       }
     }
     if (rows.isEmpty) return const [];
@@ -625,7 +633,8 @@ class _OrderScreenState extends State<OrderScreen> {
   Future<void> _addTitles(AccountView view, List<String> titleIds, {String? categoryId}) async {
     final cat = categoryId == null ? null : view.category(categoryId);
     final ids = await pickLibraryTitles(context, view,
-        exclude: {...titleIds, if (categoryId != null) for (final t in view.library) if (t.categoryId != categoryId) t.id},
+        exclude: titleIds.toSet(),
+        categories: {if (categoryId != null) categoryId},
         title: cat == null ? 'Add titles to Order' : 'Add ${cat.name} titles');
     if (ids == null || ids.isEmpty) return;
     await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
@@ -691,10 +700,14 @@ class _OrderScreenState extends State<OrderScreen> {
               final t = byId[id];
               final ti = queue.titleIndex[id];
               if (t == null || ti == null) continue;
-              rows.add(() => _row(view, t, ti, ids.length, cid, number: pos + 1));
+              rows.add(() => _queueSlot(
+                  categoryId: cid, token: token, index: pos, label: t.title, order: _order,
+                  child: _row(view, t, ti, ids.length, cid, number: pos + 1)));
             } else {
-              rows.add(() => _CollectionQueueRow(
-                    view: view, refs: refs!, category: cat, token: token, index: pos, count: tokens.length, order: _order));
+              rows.add(() => _queueSlot(
+                  categoryId: cid, token: token, index: pos, label: _tokenLabel(refs!, byId, token), order: _order,
+                  child: _CollectionQueueRow(
+                      view: view, refs: refs, category: cat, token: token, index: pos, count: tokens.length, order: _order)));
             }
           }
         } else {
@@ -764,6 +777,73 @@ class _OrderScreenState extends State<OrderScreen> {
 typedef _OrderEdit = Future<void> Function(
     String label, void Function(Map<String, dynamic> plan, Map<String, dynamic> state, int now, String Function() uid) f);
 
+/// A row being dragged inside one category's queue (10.0.0).
+class _QueueDrag {
+  const _QueueDrag(this.categoryId, this.token);
+  final String categoryId, token;
+}
+
+/// The name shown while a queue row is dragged.
+String _tokenLabel(_QueueRefs refs, Map<String, LibraryTitle> byId, String token) {
+  if (token.startsWith('t:')) return byId[token.substring(2)]?.title ?? 'Title';
+  final a = refs.assignments[token.substring(2)];
+  final c = a == null ? null : refs.collections[jsStr(a['collectionId'])];
+  return c == null ? 'Collection' : jsStr(c['title']);
+}
+
+/// 10.0.0: drag-and-drop in a category's queue (titles and Collections mixed):
+/// drag a row by its handle and drop it on another row of the same category;
+/// it takes that row's place (`orderMoveQueueToken` toIndex, like the arrows).
+Widget _queueSlot({
+  required String categoryId,
+  required String token,
+  required int index,
+  required String label,
+  required _OrderEdit order,
+  required Widget child,
+}) {
+  return DragTarget<_QueueDrag>(
+    onWillAcceptWithDetails: (d) => d.data.categoryId == categoryId && d.data.token != token,
+    onAcceptWithDetails: (d) =>
+        order('Reorder queue', (plan, s, now, uid) => orderMoveQueueToken(s, plan, categoryId, d.data.token, toIndex: index)),
+    builder: (context, candidates, _) => AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: candidates.isEmpty ? Colors.transparent : MF.accent, width: 3)),
+      ),
+      child: Row(children: [
+        Draggable<_QueueDrag>(
+          data: _QueueDrag(categoryId, token),
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 320),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: MF.raised,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: MF.accent),
+                boxShadow: const [BoxShadow(blurRadius: 12, color: Colors.black38)],
+              ),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+          childWhenDragging: Opacity(opacity: .3, child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: Tooltip(
+              message: 'Drag to move',
+              child: Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ]),
+    ),
+  );
+}
+
 /// 9.0.0: the clear "Add title" / "Add collection" buttons, the same in both tabs.
 class _AddBar extends StatelessWidget {
   const _AddBar({required this.onAddTitles, required this.onAddCollection, this.trailing});
@@ -784,54 +864,27 @@ class _AddBar extends StatelessWidget {
 /// Collection shows up where it was added.
 Future<void> _addCollection(BuildContext context, AccountController account, AccountView view, _OrderEdit order,
     {String? categoryId, bool showInTitles = false}) async {
-  final cols = collectionsOf(view.state);
-  if (cols.isEmpty) {
-    _toast(context, 'You have no Collections yet. Create one in Collections first.');
-    return;
-  }
-  String? col = jsStr(cols.first['id']);
-  String? cat = categoryId ?? (view.categories.isEmpty ? null : view.categories.first.id);
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => AlertDialog(
-        title: Text(categoryId == null ? 'Add a Collection' : 'Add a Collection to ${view.category(categoryId).name}'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(
-            initialValue: col,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Collection'),
-            items: [for (final c in cols) DropdownMenuItem(value: jsStr(c['id']), child: Text(jsStr(c['title']), overflow: TextOverflow.ellipsis))],
-            onChanged: (v) => set(() => col = v),
-          ),
-          if (categoryId == null)
-            DropdownButtonFormField<String>(
-              initialValue: cat,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Task category'),
-              items: [for (final c in view.categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
-              onChanged: (v) => set(() => cat = v),
-            ),
-          const SizedBox(height: 8),
-          Text('MediaFlow Recommends walks the Collection in its own order when it reaches it in the queue.',
-              style: TextStyle(color: MF.textDim, fontSize: 12)),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Add')),
-        ],
-      ),
-    ),
-  );
-  if (ok != true || col == null || cat == null) return;
-  String? error;
+  // 10.0.0: a picker with the Collections page's tools; several at once.
+  final picked = await pickCollections(context, view, categoryId: categoryId);
+  if (picked == null || picked.ids.isEmpty) return;
+  final errors = <String>[];
+  var added = 0;
   await order('Assign Collection', (plan, s, now, uid) {
-    error = orderAssignCollection(plan, col!, cat!, now, uid);
-    if (error == null && showInTitles && _OrderScreenState._queueView(plan)['showCollectionsInRegularQueues'] != true) {
+    errors.clear();
+    added = 0;
+    for (final id in picked.ids) {
+      final e = orderAssignCollection(plan, id, picked.categoryId, now, uid);
+      e == null ? added++ : errors.add(e);
+    }
+    if (added > 0 && showInTitles && _OrderScreenState._queueView(plan)['showCollectionsInRegularQueues'] != true) {
       plan['v288QueueView'] = {..._OrderScreenState._queueView(plan), 'showCollectionsInRegularQueues': true};
     }
   });
-  if (context.mounted) _toast(context, error ?? 'Collection added to ${view.category(cat!).name} ✓');
+  if (!context.mounted) return;
+  final where = view.category(picked.categoryId).name;
+  _toast(context, added > 0
+      ? '$added Collection${added == 1 ? '' : 's'} added to $where ✓${errors.isEmpty ? '' : ' · ${errors.length} already there'}'
+      : errors.first);
 }
 
 /// Assignments and Collections by id, once per account change.
@@ -966,9 +1019,13 @@ class _QueuesTab extends StatelessWidget {
         if (token.startsWith('t:')) {
           final t = byId[token.substring(2)];
           if (t == null) continue;
-          items.add(() => _titleToken(context, cat, t, token, index, count));
+          items.add(() => _queueSlot(
+              categoryId: cat.id, token: token, index: index, label: t.title, order: order,
+              child: _titleToken(context, cat, t, token, index, count)));
         } else {
-          items.add(() => _CollectionQueueRow(view: view, refs: refs, category: cat, token: token, index: index, count: count, order: order));
+          items.add(() => _queueSlot(
+              categoryId: cat.id, token: token, index: index, label: _tokenLabel(refs, byId, token), order: order,
+              child: _CollectionQueueRow(view: view, refs: refs, category: cat, token: token, index: index, count: count, order: order)));
         }
       }
     }

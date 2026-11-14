@@ -12,12 +12,16 @@ import 'widgets.dart';
 String _xp(num v) => fmtNumber(jsRound(v.toDouble() < 0 ? 0 : v.toDouble()));
 
 class ProgressCards extends StatelessWidget {
-  const ProgressCards({super.key, required this.state});
+  const ProgressCards({super.key, required this.state, this.totalXp});
   final Map<String, dynamic> state;
+
+  /// 10.0.0: the account's XP worked out in the background (plus logs since);
+  /// null = work it out here.
+  final double? totalXp;
 
   @override
   Widget build(BuildContext context) {
-    final p = cachedProgressSummary(state, DateTime.now().millisecondsSinceEpoch);
+    final p = cachedProgressSummary(state, DateTime.now().millisecondsSinceEpoch, totalXp: totalXp);
     return LayoutBuilder(builder: (context, c) {
       final level = _LevelingCard(p);
       final streak = _StreakCard(p);
@@ -86,8 +90,14 @@ class _LevelingCard extends StatelessWidget {
           const SizedBox(height: 6),
           Row(children: [
             Expanded(
-              child: Text('${_xp(l.xp)} XP total',
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+              // 10.0.0: counts up to the new total right after a log.
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(end: l.xp.toDouble()),
+                duration: const Duration(milliseconds: 650),
+                curve: Curves.easeOutCubic,
+                builder: (context, v, _) => Text('${_xp(v.round())} XP total',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
             ),
             const SizedBox(width: 8),
             Flexible(

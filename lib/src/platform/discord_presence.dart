@@ -20,6 +20,7 @@ import '../data/app_prefs.dart';
 import '../logic/custom_status.dart';
 import '../logic/presence_templates.dart';
 import '../util/js.dart';
+import 'diagnostics.dart';
 import 'discord_ffi.dart';
 
 /// What MediaFlow is doing at a moment: a situation (see
@@ -67,6 +68,8 @@ class DiscordPresence extends ChangeNotifier {
 
   DiscordFfi? _ffi;
   Pointer<DOpaque>? _client;
+  // Kept for the app's lifetime (10.0.0); never cancelled.
+  // ignore: unused_field
   Timer? _pump;
   NativeCallable<StatusCb>? _statusCb;
   final _secure = const FlutterSecureStorage();
@@ -108,22 +111,78 @@ class DiscordPresence extends ChangeNotifier {
 
   bool get available => supported && DiscordFfi.load() != null;
 
-  Future<void> setEnabled(bool on) async {
-    await AppPrefs.instance.set('discordEnabled', on);
-    if (on) {
-      await start();
-    } else {
-      _clear();
-      _stopClient();
+  /// 10.0.0: on/off changes run one after another (turning it on, off and
+  /// on again quickly crashed the app inside Discord's SDK), and turning it
+  /// off only disconnects: the SDK client lives as long as the app.
+  Future<void> _toggles = Future.value();
+
+  int _toggleSeq = 0;
+
+  Future<void> setEnabled(bool on) {
+    final ticket = ++_toggleSeq;
+    final saved = AppPrefs.instance.set('discordEnabled', on);
+    final next = _toggles.then((_) async {
+      await saved;
+      // Fast clicks: only the last choice is applied.
+      if (ticket != _toggleSeq) return;
+      _log(on ? 'turning on' : 'turning off');
+      if (on) {
+        await start();
+      } else {
+        _clear();
+        _disconnect();
+      }
+      notifyListeners();
+    });
+    _toggles = next.catchError((Object e) => _log('toggle failed: $e'));
+    return _toggles;
+  }
+
+  void _log(String step) {
+    try {
+      Diagnostics.instance.record('discord', 'Discord: $step');
+    } catch (_) {}
+  }
+
+  /// Disconnects from Discord but keeps the SDK client, its callbacks and
+  /// its pump running, so callbacks still in flight never reach freed memory.
+  void _disconnect() {
+    final ffi = _ffi, client = _client;
+    _sendTimer?.cancel();
+    if (ffi != null && client != null) {
+      try {
+        ffi.clientDisconnect(client);
+      } catch (e) {
+        _log('disconnect failed: $e');
+      }
     }
-    notifyListeners();
+    connected = false;
+    statusText = 'Off';
+    _log('disconnected');
   }
 
   // ---- client ----
 
   /// Starts the SDK (when bundled and turned on). Safe to call more than once.
   Future<void> start() async {
-    if (!supported || !enabled || _client != null) return;
+    if (!supported || !enabled) return;
+    if (_client != null) {
+      // Turned on again: reconnect the same client.
+      _log('reconnecting');
+      final refresh = await _readToken('refresh');
+      linked = refresh != null && refresh.isNotEmpty;
+      if (linked) {
+        statusText = 'Connecting…';
+        _refresh(refresh!);
+      } else {
+        statusText = mobile ? 'Not linked' : 'Waiting for the Discord app';
+      }
+      notifyListeners();
+      _sentKey = '';
+      _schedule();
+      return;
+    }
+    _log('starting');
     final ffi = DiscordFfi.load();
     if (ffi == null) {
       statusText = 'Not available in this build';
@@ -160,27 +219,14 @@ class DiscordPresence extends ChangeNotifier {
     _schedule();
   }
 
-  void _stopClient() {
-    final ffi = _ffi, client = _client;
-    _pump?.cancel();
-    _pump = null;
-    _minute?.cancel();
-    _minute = null;
-    if (ffi != null && client != null) {
-      try {
-        ffi.clientDisconnect(client);
-        ffi.clientDrop(client);
-      } catch (_) {}
-      calloc.free(client);
-    }
-    _client = null;
-    _statusCb?.close();
-    _statusCb = null;
-    connected = false;
-    statusText = 'Off';
-  }
-
   void _onStatus(int status, int error, int detail, Pointer<Void> _) {
+    _log('status $status${error != 0 ? ' (error $error/$detail)' : ''}');
+    if (!enabled) {
+      connected = false;
+      statusText = 'Off';
+      notifyListeners();
+      return;
+    }
     connected = status == ClientStatus.ready || status == ClientStatus.connected;
     statusText = switch (status) {
       ClientStatus.ready => 'Connected',
@@ -327,7 +373,7 @@ class DiscordPresence extends ChangeNotifier {
     _clear();
     await _deleteTokens();
     linked = false;
-    _stopClient();
+    _disconnect();
     await start();
   }
 
@@ -377,7 +423,7 @@ class DiscordPresence extends ChangeNotifier {
   /// Discord accepts about one update every few seconds: changes are
   /// coalesced and the latest one is sent.
   void _schedule() {
-    if (_client == null) return;
+    if (_client == null || !enabled) return;
     _sendTimer?.cancel();
     final wait = const Duration(seconds: 4) - DateTime.now().difference(_lastSend);
     _sendTimer = Timer(wait.isNegative ? const Duration(milliseconds: 300) : wait, _send);

@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../data/account_controller.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/history_logic.dart';
 import '../state/models.dart';
 import '../util/js.dart';
@@ -280,7 +281,7 @@ class _SessionEditorState extends State<_SessionEditor> {
   @override
   Widget build(BuildContext context) {
     final view = widget.view;
-    final cats = view.categories;
+    final cats = filterCategories(view);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(

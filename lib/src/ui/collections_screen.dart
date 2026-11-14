@@ -12,6 +12,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/collections_logic.dart';
 import '../logic/library_index.dart';
 import '../logic/library_logic.dart' show batchEdit;
@@ -26,6 +27,8 @@ import 'presence.dart';
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
+import 'title_picker.dart' show pickLibraryTitles;
+export 'title_picker.dart' show pickLibraryTitles;
 import '../logic/title_names.dart' show nameMatches;
 
 void _toast(BuildContext context, String text) =>
@@ -841,7 +844,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
         count,
       ]);
     }
-    final cats = view.categories;
+    final cats = filterCategories(view);
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       padding: const EdgeInsets.all(12),
@@ -1165,186 +1168,3 @@ class _CategoryPickerState extends State<_CategoryPicker> {
 }
 
 // ---- Add titles: a fast Library picker -------------------------------------------
-
-/// A Library title picker (search, category and status filters, multi-select).
-/// Uses the Library's prepared index: no re-sorting on each keystroke or tap.
-/// Library titles picked with search and filters; [single] returns the first
-/// tapped title at once.
-Future<List<String>?> pickLibraryTitles(BuildContext context, AccountView view,
-    {Set<String> exclude = const {}, String title = 'Add titles', bool single = false}) {
-  return showModalBottomSheet<List<String>>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: MF.surface,
-    builder: (c) => PresenceScope(
-      info: const PresenceInfo(situation: 'collections'),
-      child: _TitlePicker(view: view, exclude: exclude, title: title, single: single),
-    ),
-  );
-}
-
-class _TitlePicker extends StatefulWidget {
-  const _TitlePicker({required this.view, required this.exclude, required this.title, this.single = false});
-  final AccountView view;
-  final Set<String> exclude;
-  final String title;
-  final bool single;
-
-  @override
-  State<_TitlePicker> createState() => _TitlePickerState();
-}
-
-class _TitlePickerState extends State<_TitlePicker> {
-  final _search = TextEditingController();
-  final Set<String> _picked = {};
-  String _cat = '', _status = 'all', _query = '';
-  int _shown = 60;
-  Timer? _timer;
-  Int32List? _order;
-  String _rowsKey = '';
-  List<LibraryTitle> _rows = const [];
-  late final LibraryIndex _index = LibraryIndex.of(widget.view.state);
-
-  @override
-  void initState() {
-    super.initState();
-    // Natural title order: ready at once for small Libraries, in the
-    // background for big ones.
-    _index.libraryOrder('title', 'asc', 0).then((o) {
-      if (!mounted) return;
-      if (_order == null) {
-        _order = o;
-        if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _search.dispose();
-    super.dispose();
-  }
-
-  void _onSearch(String text) {
-    _timer?.cancel();
-    final delay = _index.length >= kLibraryBackgroundThreshold ? 250 : 120;
-    _timer = Timer(Duration(milliseconds: delay), () {
-      if (!mounted) return;
-      setState(() {
-        _query = text.trim().toLowerCase();
-        _shown = 60;
-      });
-    });
-  }
-
-  List<LibraryTitle> _filtered() {
-    final order = _order;
-    if (order == null) return const [];
-    final key = '$_cat|$_status|$_query';
-    if (key == _rowsKey) return _rows;
-    final search = _query.isEmpty ? null : _index.titleSearch;
-    final out = <LibraryTitle>[];
-    for (final i in order) {
-      final t = _index.titles[i];
-      if (widget.exclude.contains(t.id)) continue;
-      if (_cat.isNotEmpty && t.categoryId != _cat) continue;
-      if (_status != 'all' && t.status != _status) continue;
-      if (search != null && !search[i].contains(_query)) continue;
-      out.add(t);
-    }
-    _rowsKey = key;
-    return _rows = out;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final view = widget.view;
-    final rows = _filtered();
-    final loading = _order == null;
-    return SizedBox(
-      height: MediaQuery.sizeOf(context).height * 0.9,
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-          child: Row(children: [
-            Expanded(child: Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
-            FilledButton(
-              onPressed: _picked.isEmpty ? null : () => Navigator.pop(context, _picked.toList()),
-              child: Text('Add ${_picked.isEmpty ? '' : '(${_picked.length})'}'),
-            ),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: TextField(
-            controller: _search,
-            onChanged: _onSearch,
-            decoration: InputDecoration(hintText: 'Search ${fmtNumber(_index.length)} titles', prefixIcon: const Icon(Icons.search_rounded)),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
-            CompactDropdown<String>(
-              value: _cat,
-              items: [('', 'All categories'), for (final c in view.categories) (c.id, c.name)],
-              onChanged: (v) => setState(() {
-                _cat = v;
-                _shown = 60;
-              }),
-              maxWidth: 200,
-            ),
-            CompactDropdown<String>(
-              value: _status,
-              items: [('all', 'All statuses'), ...kStatusChoices],
-              onChanged: (v) => setState(() {
-                _status = v;
-                _shown = 60;
-              }),
-              maxWidth: 170,
-            ),
-            TextButton(
-              onPressed: () => setState(() => _picked.addAll(rows.take(_shown).map((t) => t.id))),
-              child: const Text('Select visible'),
-            ),
-            if (_picked.isNotEmpty) TextButton(onPressed: () => setState(_picked.clear), child: const Text('Deselect all')),
-            Text(loading ? 'Sorting…' : '${fmtNumber(rows.length)} titles', style: TextStyle(color: MF.textDim, fontSize: 12)),
-          ]),
-        ),
-        Expanded(
-          child: loading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  itemCount: rows.length > _shown ? _shown + 1 : rows.length,
-                  itemBuilder: (context, i) {
-                    if (i == _shown) {
-                      return TextButton(onPressed: () => setState(() => _shown += 60), child: Text('Show more (${fmtNumber(rows.length - _shown)} left)'));
-                    }
-                    final t = rows[i];
-                    final cat = view.category(t.categoryId);
-                    if (widget.single) {
-                      return ListTile(
-                        key: ValueKey(t.id),
-                        leading: Cover(title: t, category: cat, width: 32),
-                        title: Text(t.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1),
-                        onTap: () => Navigator.pop(context, [t.id]),
-                      );
-                    }
-                    return CheckboxListTile(
-                      key: ValueKey(t.id),
-                      value: _picked.contains(t.id),
-                      onChanged: (v) => setState(() => v == true ? _picked.add(t.id) : _picked.remove(t.id)),
-                      secondary: Cover(title: t, category: cat, width: 32),
-                      title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text('${cat.name} · ${statusLabel(t.status)}', maxLines: 1),
-                    );
-                  },
-                ),
-        ),
-      ]),
-    );
-  }
-}

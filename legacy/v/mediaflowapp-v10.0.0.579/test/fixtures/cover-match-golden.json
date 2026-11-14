@@ -1,0 +1,1105 @@
+{
+ "normalize": [
+  [
+   "Frieren: Beyond Journey’s End",
+   "frieren beyond journey s end"
+  ],
+  [
+   "  SPY×FAMILY  ",
+   "spy family"
+  ],
+  [
+   "Ｆｕｌｌｗｉｄｔｈ　Ｔｅｘｔ１２３",
+   "fullwidth text123"
+  ],
+  [
+   "Kaguya-sama: Love is War -Ultra Romantic-",
+   "kaguya sama love is war ultra romantic"
+  ],
+  [
+   "Re:ZERO -Starting Life in Another World-",
+   "re zero starting life in another world"
+  ],
+  [
+   "Ōshi no Ko",
+   "ōshi no ko"
+  ],
+  [
+   "ﬁnal ﬂight",
+   "final flight"
+  ],
+  [
+   "Ⅻ Kingdoms",
+   "xii kingdoms"
+  ],
+  [
+   "進撃の巨人",
+   "進撃の巨人"
+  ],
+  [
+   "Pokémon",
+   "pokémon"
+  ],
+  [
+   "½ Prince",
+   "1 2 prince"
+  ],
+  [
+   "",
+   ""
+  ],
+  [
+   "İstanbul",
+   "i stanbul"
+  ]
+ ],
+ "titles": {
+  "anilist": [
+   "Sousou no Frieren",
+   "Frieren: Beyond Journey’s End",
+   "葬送のフリーレン",
+   "Frieren at the Funeral"
+  ],
+  "anilistOther": [
+   "Cowboy Bebop",
+   "Cowboy Bebop"
+  ],
+  "jikan": [
+   "Sousou no Frieren",
+   "Frieren: Beyond Journey's End",
+   "葬送のフリーレン",
+   "Sousou no Frieren",
+   "Frieren: Beyond Journey’s End",
+   "Frieren The Slayer"
+  ],
+  "kitsu": [
+   "Oshi no Ko",
+   "[Oshi No Ko]",
+   "【推しの子】"
+  ],
+  "tvmaze": [
+   "Dune"
+  ],
+  "openlibrary": [
+   "Dune"
+  ],
+  "googlebooks": [
+   "Dune"
+  ],
+  "premiered": [
+   "Dune"
+  ],
+  "publishedFrom": [
+   "Dune"
+  ],
+  "kitsuRaw": [
+   "Oshi no Ko",
+   "Oshi no Ko",
+   "【推しの子】"
+  ]
+ },
+ "items": {
+  "plain": {
+   "title": "Frieren: Beyond Journey’s End"
+  },
+  "year2023": {
+   "title": "Frieren: Beyond Journey’s End",
+   "year": 2023
+  },
+  "releaseYear": {
+   "title": "<![CDATA[Oshi no Ko]]>",
+   "releaseYear": "2023"
+  },
+  "pubYear": {
+   "title": "Dune",
+   "publicationYear": 1965
+  },
+  "noTitle": {
+   "title": ""
+  }
+ },
+ "records": {
+  "anilist": {
+   "id": 154587,
+   "idMal": 52991,
+   "title": "Sousou no Frieren",
+   "titles": [
+    "Frieren: Beyond Journey’s End",
+    "葬送のフリーレン",
+    "Frieren at the Funeral"
+   ],
+   "year": 2023
+  },
+  "anilistOther": {
+   "id": 1,
+   "title": "Cowboy Bebop",
+   "titles": [
+    "Cowboy Bebop",
+    null
+   ],
+   "year": 1998
+  },
+  "jikan": {
+   "mal_id": 52991,
+   "title": "Sousou no Frieren",
+   "title_english": "Frieren: Beyond Journey's End",
+   "title_japanese": "葬送のフリーレン",
+   "title_synonyms": [
+    "Frieren The Slayer"
+   ],
+   "titles": [
+    {
+     "type": "Default",
+     "title": "Sousou no Frieren"
+    },
+    {
+     "type": "English",
+     "title": "Frieren: Beyond Journey’s End"
+    }
+   ],
+   "year": 2024
+  },
+  "kitsu": {
+   "id": "46474",
+   "title": "Oshi no Ko",
+   "titles": [
+    "[Oshi No Ko]",
+    "【推しの子】"
+   ],
+   "year": 2023
+  },
+  "tvmaze": {
+   "title": "Dune",
+   "year": 2021
+  },
+  "openlibrary": {
+   "title": "Dune",
+   "year": 1965
+  },
+  "googlebooks": {
+   "title": "Dune",
+   "year": 0
+  },
+  "premiered": {
+   "name": "Dune",
+   "premiered": "1965-08-01"
+  },
+  "publishedFrom": {
+   "title": "Dune",
+   "published": {
+    "from": "1966-01-01T00:00:00+00:00"
+   }
+  },
+  "kitsuRaw": {
+   "attributes": {
+    "canonicalTitle": "Oshi no Ko",
+    "titles": {
+     "en": "Oshi no Ko",
+     "ja_jp": "【推しの子】"
+    }
+   }
+  }
+ },
+ "matches": [
+  {
+   "item": "plain",
+   "record": "anilist",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.7,
+    "reason": "Exact title; no independent year or creator confirmation"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "anilist",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "anilistOther",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "anilistOther",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "jikan",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.7,
+    "reason": "Exact title; no independent year or creator confirmation"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "jikan",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "kitsu",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "kitsu",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "tvmaze",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "tvmaze",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "openlibrary",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "openlibrary",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "googlebooks",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "googlebooks",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "premiered",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "premiered",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "publishedFrom",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "publishedFrom",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "kitsuRaw",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "plain",
+   "record": "kitsuRaw",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "anilist",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.96,
+    "reason": "Exact title and release year"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "anilist",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "anilistOther",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "anilistOther",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "jikan",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.35,
+    "reason": "Conflicting publication years"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "jikan",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "kitsu",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "kitsu",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "tvmaze",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "tvmaze",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "openlibrary",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "openlibrary",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "googlebooks",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "googlebooks",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "premiered",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "premiered",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "publishedFrom",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "publishedFrom",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "kitsuRaw",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "year2023",
+   "record": "kitsuRaw",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "anilist",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "anilist",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "anilistOther",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "anilistOther",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "jikan",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "jikan",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "kitsu",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.96,
+    "reason": "Exact title and release year"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "kitsu",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "tvmaze",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "tvmaze",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "openlibrary",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "openlibrary",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "googlebooks",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "googlebooks",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "premiered",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "premiered",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "publishedFrom",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "publishedFrom",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "kitsuRaw",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.7,
+    "reason": "Exact title; no independent year or creator confirmation"
+   }
+  },
+  {
+   "item": "releaseYear",
+   "record": "kitsuRaw",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "anilist",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "anilist",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "anilistOther",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "anilistOther",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "jikan",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "jikan",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "kitsu",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "kitsu",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "tvmaze",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.35,
+    "reason": "Conflicting publication years"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "tvmaze",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "openlibrary",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.96,
+    "reason": "Exact title and release year"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "openlibrary",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "googlebooks",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.7,
+    "reason": "Exact title; no independent year or creator confirmation"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "googlebooks",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "premiered",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.96,
+    "reason": "Exact title and release year"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "premiered",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "publishedFrom",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0.35,
+    "reason": "Conflicting publication years"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "publishedFrom",
+   "idMatch": true,
+   "expected": {
+    "confidence": 1,
+    "reason": "Exact saved external ID and compatible title"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "kitsuRaw",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "pubYear",
+   "record": "kitsuRaw",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "anilist",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "anilist",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "anilistOther",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "anilistOther",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "jikan",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "jikan",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "kitsu",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "kitsu",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "tvmaze",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "tvmaze",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "openlibrary",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "openlibrary",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "googlebooks",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "googlebooks",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "premiered",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "premiered",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "publishedFrom",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "publishedFrom",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "kitsuRaw",
+   "idMatch": false,
+   "expected": {
+    "confidence": 0,
+    "reason": "Title mismatch"
+   }
+  },
+  {
+   "item": "noTitle",
+   "record": "kitsuRaw",
+   "idMatch": true,
+   "expected": {
+    "confidence": 0.84,
+    "reason": "Saved ID matches, but returned title is different; manual confirmation required"
+   }
+  }
+ ]
+}

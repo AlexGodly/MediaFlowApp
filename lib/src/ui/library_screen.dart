@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
-import '../logic/choice_layout.dart' show visibleChoices, choiceCategories, viewChoices;
+import '../logic/choice_layout.dart' show choiceCategories, setCategories, viewChoices, visibleChoices;
 import '../logic/library_logic.dart';
 import '../logic/library_index.dart';
 import '../state/models.dart';
@@ -425,7 +425,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                       CompactDropdown<String>(
                         value: '',
-                        items: [('', 'Move to…'), for (final c in view.categories) (c.id, c.name)],
+                        items: [('', 'Move to…'), for (final c in setCategories(view)) (c.id, c.name)],
                         onChanged: (v) {
                           if (v.isNotEmpty) _batch('category', v, label: view.category(v).name);
                         },
