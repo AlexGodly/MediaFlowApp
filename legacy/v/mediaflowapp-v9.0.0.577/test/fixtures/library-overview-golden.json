@@ -1,0 +1,266 @@
+{
+ "categories": [
+  {
+   "id": "anime",
+   "target": 3
+  },
+  {
+   "id": "manga",
+   "target": 0
+  },
+  {
+   "id": "books",
+   "target": 20
+  },
+  {
+   "id": "empty",
+   "target": 2
+  },
+  {
+   "id": "games"
+  }
+ ],
+ "cases": {
+  "mixed": {
+   "library": [
+    {
+     "categoryId": "anime",
+     "progress": 12,
+     "total": 12
+    },
+    {
+     "categoryId": "anime",
+     "progress": 30,
+     "total": 24
+    },
+    {
+     "categoryId": "anime",
+     "progress": 5,
+     "total": 0
+    },
+    {
+     "categoryId": "manga",
+     "progress": 140
+    },
+    {
+     "categoryId": "manga",
+     "progress": "20",
+     "total": ""
+    },
+    {
+     "categoryId": "manga",
+     "progress": -3
+    },
+    {
+     "categoryId": "books",
+     "progress": 100,
+     "total": 300
+    },
+    {
+     "categoryId": "books",
+     "progress": 50,
+     "total": 200
+    },
+    {
+     "categoryId": "games",
+     "progress": 0
+    },
+    {
+     "categoryId": "gone",
+     "progress": 7,
+     "total": 10
+    }
+   ],
+   "expected": {
+    "overallPct": 35,
+    "totalDone": 193,
+    "totalAll": 546,
+    "rows": [
+     {
+      "id": "anime",
+      "items": 3,
+      "done": 47,
+      "knownDone": 36,
+      "total": 54,
+      "unknown": true,
+      "pct": 87,
+      "estimated": true
+     },
+     {
+      "id": "manga",
+      "items": 3,
+      "done": 160,
+      "knownDone": 0,
+      "total": 217,
+      "unknown": true,
+      "pct": 74,
+      "estimated": true
+     },
+     {
+      "id": "books",
+      "items": 2,
+      "done": 150,
+      "knownDone": 150,
+      "total": 500,
+      "unknown": false,
+      "pct": 30,
+      "estimated": false
+     },
+     {
+      "id": "empty",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "games",
+      "items": 1,
+      "done": 0,
+      "knownDone": 0,
+      "total": 12,
+      "unknown": true,
+      "pct": 0,
+      "estimated": true
+     }
+    ]
+   }
+  },
+  "allUnknown": {
+   "library": [
+    {
+     "categoryId": "books",
+     "progress": 0
+    },
+    {
+     "categoryId": "books",
+     "progress": 0
+    },
+    {
+     "categoryId": "anime",
+     "progress": 1000
+    }
+   ],
+   "expected": {
+    "overallPct": 0,
+    "totalDone": 0,
+    "totalAll": 0,
+    "rows": [
+     {
+      "id": "anime",
+      "items": 1,
+      "done": 1000,
+      "knownDone": 0,
+      "total": 1350,
+      "unknown": true,
+      "pct": 74,
+      "estimated": true
+     },
+     {
+      "id": "manga",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "books",
+      "items": 2,
+      "done": 0,
+      "knownDone": 0,
+      "total": 160,
+      "unknown": true,
+      "pct": 0,
+      "estimated": true
+     },
+     {
+      "id": "empty",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "games",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     }
+    ]
+   }
+  },
+  "none": {
+   "library": [],
+   "expected": {
+    "overallPct": 0,
+    "totalDone": 0,
+    "totalAll": 0,
+    "rows": [
+     {
+      "id": "anime",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "manga",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "books",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "empty",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     },
+     {
+      "id": "games",
+      "items": 0,
+      "done": 0,
+      "knownDone": 0,
+      "total": 0,
+      "unknown": false,
+      "pct": 0,
+      "estimated": false
+     }
+    ]
+   }
+  }
+ }
+}
