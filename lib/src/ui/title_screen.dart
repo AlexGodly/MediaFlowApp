@@ -680,7 +680,7 @@ class _TitleEditorState extends State<TitleEditor> {
       startedAt: _startedAt,
       startEdited: _startEdited,
       completedAt: _completedAt,
-      seasons: _seasonsTouched ? _seasons : null,
+      seasons: _seasonsTouched ? [for (final x in _seasons) _logMode == 'parts' ? {...x, 'number': null} : x] : null,
       extras: TitleExtras(
         unit: _unit.text,
         // mf565ReadEditor: hours, then minutes and seconds capped at 59.
@@ -796,6 +796,99 @@ class _TitleEditorState extends State<TitleEditor> {
             },
           ),
         );
+    Widget row(int i) => Container(
+          // Keyed by the row itself so its boxes move with it when reordered.
+          key: parts ? ObjectKey(_seasons[i]) : ValueKey('season-$i-${_seasons.length}-$_logMode'),
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: parts ? const EdgeInsets.fromLTRB(8, 14, 8, 8) : const EdgeInsets.only(top: 6),
+          decoration: parts ? BoxDecoration(border: Border.all(color: MF.border), borderRadius: BorderRadius.circular(12)) : null,
+          child: LayoutBuilder(builder: (context, box) {
+            final remove = IconButton(
+              tooltip: parts ? 'Remove part' : 'Remove season',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => setState(() {
+                _seasonsTouched = true;
+                _seasons.removeAt(i);
+              }),
+            );
+            final done = field(i, 'progress', 'Done', digits: true, show: (v) => _n(jsNumOrNull(v)));
+            final total = field(i, 'total', 'Total', digits: true, show: (v) => v == null ? '' : _n(jsNum(v)));
+            const gap = SizedBox(width: 8), vgap = SizedBox(height: 10);
+            if (!parts) {
+              return box.maxWidth < 420
+                  ? Column(children: [
+                      Row(children: [field(i, 'name', 'Name'), remove]),
+                      vgap,
+                      Row(children: [done, gap, total, const SizedBox(width: 48)]),
+                    ])
+                  : Row(children: [field(i, 'name', 'Name', flex: 2), gap, done, gap, total, remove]);
+            }
+            final kind = field(i, 'mf577Kind', 'Kind', hint: 'Mode', flex: 2);
+            final name = field(i, 'name', 'Name', flex: 3);
+            final unit = field(i, 'mf577Unit', 'Unit', hint: 'Title\'s unit');
+            final time = field(i, 'mf577SecondsPerUnit', 'Time per unit', hint: 'mm:ss', show: (v) => partTimeText(jsNum(v).floor()));
+            // 11.1.0 (website v581): drag handle, arrows and position number.
+            final order = Row(children: [
+              ReorderableDragStartListener(
+                index: i,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.grab,
+                  child: Tooltip(
+                    message: 'Drag to move',
+                    child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Move up',
+                visualDensity: VisualDensity.compact,
+                onPressed: i == 0 ? null : () => _movePart(i, i - 1),
+                icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+              ),
+              IconButton(
+                tooltip: 'Move down',
+                visualDensity: VisualDensity.compact,
+                onPressed: i == _seasons.length - 1 ? null : () => _movePart(i, i + 1),
+                icon: const Icon(Icons.arrow_downward_rounded, size: 20),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 72,
+                child: TextFormField(
+                  key: ValueKey('pos-${identityHashCode(_seasons[i])}-$i-${_seasons.length}'),
+                  initialValue: '${i + 1}',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                      labelText: 'Position', isDense: true, floatingLabelBehavior: FloatingLabelBehavior.always),
+                  onFieldSubmitted: (v) => _movePart(i, (int.tryParse(v) ?? i + 1) - 1),
+                ),
+              ),
+              const Spacer(),
+              remove,
+            ]);
+            // Phones: kind + name, then counter, then unit and time.
+            if (box.maxWidth < 560) {
+              return Column(children: [
+                order,
+                vgap,
+                Row(children: [kind, gap, name]),
+                vgap,
+                Row(children: [done, gap, total]),
+                vgap,
+                Row(children: [unit, gap, time]),
+              ]);
+            }
+            return Column(children: [
+              order,
+              vgap,
+              Row(children: [kind, gap, name, gap, done, gap, total]),
+              vgap,
+              Row(children: [unit, gap, time]),
+            ]);
+          }),
+        );
     return [
       Container(
         padding: const EdgeInsets.all(12),
@@ -843,55 +936,27 @@ class _TitleEditorState extends State<TitleEditor> {
               '(empty: the title\'s, then the category\'s). The title\'s number is the sum of its parts.',
               style: TextStyle(color: MF.textDim, fontSize: 12)),
         ),
-      for (var i = 0; i < _seasons.length; i++)
-        Container(
-          key: ValueKey('season-$i-${_seasons.length}-$_logMode'),
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: parts ? const EdgeInsets.fromLTRB(8, 14, 8, 8) : const EdgeInsets.only(top: 6),
-          decoration: parts ? BoxDecoration(border: Border.all(color: MF.border), borderRadius: BorderRadius.circular(12)) : null,
-          child: LayoutBuilder(builder: (context, box) {
-            final remove = IconButton(
-              tooltip: parts ? 'Remove part' : 'Remove season',
-              icon: const Icon(Icons.close_rounded),
-              onPressed: () => setState(() {
-                _seasonsTouched = true;
-                _seasons.removeAt(i);
-              }),
-            );
-            final done = field(i, 'progress', 'Done', digits: true, show: (v) => _n(jsNumOrNull(v)));
-            final total = field(i, 'total', 'Total', digits: true, show: (v) => v == null ? '' : _n(jsNum(v)));
-            const gap = SizedBox(width: 8), vgap = SizedBox(height: 10);
-            if (!parts) {
-              return box.maxWidth < 420
-                  ? Column(children: [
-                      Row(children: [field(i, 'name', 'Name'), remove]),
-                      vgap,
-                      Row(children: [done, gap, total, const SizedBox(width: 48)]),
-                    ])
-                  : Row(children: [field(i, 'name', 'Name', flex: 2), gap, done, gap, total, remove]);
-            }
-            final kind = field(i, 'mf577Kind', 'Kind', hint: 'Mode', flex: 2);
-            final name = field(i, 'name', 'Name', flex: 3);
-            final unit = field(i, 'mf577Unit', 'Unit', hint: 'Title\'s unit');
-            final time = field(i, 'mf577SecondsPerUnit', 'Time per unit', hint: 'mm:ss', show: (v) => partTimeText(jsNum(v).floor()));
-            // Phones: kind + name, then counter, then unit and time.
-            if (box.maxWidth < 560) {
-              return Column(children: [
-                Row(children: [kind, gap, name, remove]),
-                vgap,
-                Row(children: [done, gap, total, const SizedBox(width: 48)]),
-                vgap,
-                Row(children: [unit, gap, time, const SizedBox(width: 48)]),
-              ]);
-            }
-            return Column(children: [
-              Row(children: [kind, gap, name, gap, done, gap, total, remove]),
-              vgap,
-              Row(children: [unit, gap, time, const SizedBox(width: 48)]),
-            ]);
-          }),
-        ),
+      if (parts)
+        ReorderableListView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          onReorder: (from, to) => _movePart(from, to > from ? to - 1 : to),
+          children: [for (var i = 0; i < _seasons.length; i++) row(i)],
+        )
+      else
+        for (var i = 0; i < _seasons.length; i++) row(i),
     ];
+  }
+
+  /// Moves a part to [to] (clamped); the saved order is this order (website v581).
+  void _movePart(int from, int to) {
+    if (from < 0 || from >= _seasons.length) return;
+    final t = to.clamp(0, _seasons.length - 1);
+    setState(() {
+      _seasonsTouched = true;
+      if (t != from) _seasons.insert(t, _seasons.removeAt(from));
+    });
   }
 
   Widget _numField(TextEditingController c, String label, {bool decimal = true}) => TextField(
