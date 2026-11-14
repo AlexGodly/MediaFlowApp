@@ -471,6 +471,15 @@ class LogDraftEditor {
         ..['v369SelectedSeasonId'] = '';
     }
     logDraft['entries'] = List<dynamic>.of(asList(logDraft['entries']))..add(e);
+    // Website v579: a by-parts title starts on its default part (the one
+    // logged last), one unit, so the log moves that part.
+    if (!itemized && isByParts(i)) {
+      final part = defaultPart(i);
+      if (part != null) {
+        e['mf577Parts'] = [PartMove(jsStr(part['id']), 1).toJson()];
+        applyParts(e);
+      }
+    }
     if (!defer) syncAfterAdd();
     return null;
   }

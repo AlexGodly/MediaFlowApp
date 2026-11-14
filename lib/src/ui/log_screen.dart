@@ -1006,6 +1006,11 @@ class _LogScreenState extends State<LogScreen> {
               Text(title.title, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text('${cat.name} · Consume $amount', style: TextStyle(color: MF.textDim, fontSize: 13)),
+              if (nextPartText(title.raw, cat.raw) case final next when next.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Next: $next', style: TextStyle(color: MF.accent, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                ),
             ] else ...[
               Text(cat.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
               Text('Consume $amount', style: TextStyle(color: MF.textDim, fontSize: 13)),
@@ -1816,6 +1821,13 @@ class _LogScreenState extends State<LogScreen> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Text('Parts', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+          const Spacer(),
+          Text('${parts.length} part${parts.length == 1 ? '' : 's'} · ${fmtNumber(chosen.values.fold(0.0, (a, b) => a + b))} in all',
+              style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 6),
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final p in parts)
             FilterChip(
@@ -1843,7 +1855,7 @@ class _LogScreenState extends State<LogScreen> {
                   Row(children: [
                     Expanded(child: Text(partName(p), style: const TextStyle(fontWeight: FontWeight.w800))),
                     SizedBox(
-                      width: 120,
+                      width: 156,
                       child: CommitField(
                         key: ValueKey('part-${entryKey(e)}-$id-$reached'),
                         value: _plain(reached ? to : q),
@@ -1875,7 +1887,7 @@ class _LogScreenState extends State<LogScreen> {
             }),
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text('+${fmtNumber(jsNum(e['qty']))} in all · title ${_num(jsNum(e['v179StartProgress']))} → ${_num(jsNum(e['v179EndProgress']))}',
+          child: Text('+${fmtNumber(jsNum(e['qty']))} in all · ${fmtMinutes(partsMinutes(item, cat.raw, cleanMoves(item, partMovesOf(e))))} · title ${_num(jsNum(e['v179StartProgress']))} → ${_num(jsNum(e['v179EndProgress']))}',
               style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
         ),
       ]),

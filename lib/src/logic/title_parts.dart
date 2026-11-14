@@ -15,6 +15,7 @@
 
 import '../util/js.dart';
 import 'log_engine.dart' show normalizeSeasons;
+import '../state/models.dart' show unitLabel;
 import 'title_units.dart';
 
 bool isByParts(Map<String, dynamic>? item) => item != null && item['mf577LogMode'] == 'parts';
@@ -208,6 +209,18 @@ String partsHistoryText(Object? rows, String Function(String unit, double n) uni
         ? '$name · $cap ${fmtN(jsNum(p['from']))} → ${fmtN(jsNum(p['to']))} (+${fmtN(jsNum(p['qty']))})'
         : '$name +${fmtN(jsNum(p['qty']))}';
   }).join(' · ');
+}
+
+/// Website v579 `mf579NextPartText`: "Mode · Live · Match 5 of 10" for a
+/// recommended by-parts title (its default part's next unit), else ''.
+String nextPartText(Map<String, dynamic>? item, Map<String, dynamic>? cat) {
+  if (!isByParts(item)) return '';
+  final part = defaultPart(item);
+  if (part == null) return '';
+  final u = unitLabel(partUnit(part, item, cat), 1);
+  final cap = u.isEmpty ? u : u[0].toUpperCase() + u.substring(1);
+  final next = jsNum(part['progress']) + 1, total = jsNum(part['total']) > 0 ? jsNum(part['total']) : 0.0;
+  return '${partName(part)} · $cap ${fmtN(total > 0 && next > total ? total : next)}${total > 0 ? ' of ${fmtN(total)}' : ''}';
 }
 
 String fmtN(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();

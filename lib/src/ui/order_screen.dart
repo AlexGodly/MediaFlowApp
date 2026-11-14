@@ -614,7 +614,9 @@ class _OrderScreenState extends State<OrderScreen> {
       final cat = view.category(q.categoryId);
       for (var i = 0; i < q.tokens.length; i++) {
         if (!q.tokens[i].startsWith('c:')) continue;
-        rows.add(_CollectionQueueRow(view: view, refs: refs, category: cat, token: q.tokens[i], index: i, count: q.tokens.length, order: _order));
+        rows.add(_queueSlot(
+            categoryId: cat.id, token: q.tokens[i], index: i, label: _tokenLabel(refs, const {}, q.tokens[i]), order: _order,
+            child: _CollectionQueueRow(view: view, refs: refs, category: cat, token: q.tokens[i], index: i, count: q.tokens.length, order: _order)));
       }
     }
     if (rows.isEmpty) return const [];
@@ -698,10 +700,14 @@ class _OrderScreenState extends State<OrderScreen> {
               final t = byId[id];
               final ti = queue.titleIndex[id];
               if (t == null || ti == null) continue;
-              rows.add(() => _row(view, t, ti, ids.length, cid, number: pos + 1));
+              rows.add(() => _queueSlot(
+                  categoryId: cid, token: token, index: pos, label: t.title, order: _order,
+                  child: _row(view, t, ti, ids.length, cid, number: pos + 1)));
             } else {
-              rows.add(() => _CollectionQueueRow(
-                    view: view, refs: refs!, category: cat, token: token, index: pos, count: tokens.length, order: _order));
+              rows.add(() => _queueSlot(
+                  categoryId: cid, token: token, index: pos, label: _tokenLabel(refs!, byId, token), order: _order,
+                  child: _CollectionQueueRow(
+                      view: view, refs: refs!, category: cat, token: token, index: pos, count: tokens.length, order: _order)));
             }
           }
         } else {
@@ -770,6 +776,73 @@ class _OrderScreenState extends State<OrderScreen> {
 
 typedef _OrderEdit = Future<void> Function(
     String label, void Function(Map<String, dynamic> plan, Map<String, dynamic> state, int now, String Function() uid) f);
+
+/// A row being dragged inside one category's queue (10.0.0).
+class _QueueDrag {
+  const _QueueDrag(this.categoryId, this.token);
+  final String categoryId, token;
+}
+
+/// The name shown while a queue row is dragged.
+String _tokenLabel(_QueueRefs refs, Map<String, LibraryTitle> byId, String token) {
+  if (token.startsWith('t:')) return byId[token.substring(2)]?.title ?? 'Title';
+  final a = refs.assignments[token.substring(2)];
+  final c = a == null ? null : refs.collections[jsStr(a['collectionId'])];
+  return c == null ? 'Collection' : jsStr(c['title']);
+}
+
+/// 10.0.0: drag-and-drop in a category's queue (titles and Collections mixed):
+/// drag a row by its handle and drop it on another row of the same category;
+/// it takes that row's place (`orderMoveQueueToken` toIndex, like the arrows).
+Widget _queueSlot({
+  required String categoryId,
+  required String token,
+  required int index,
+  required String label,
+  required _OrderEdit order,
+  required Widget child,
+}) {
+  return DragTarget<_QueueDrag>(
+    onWillAcceptWithDetails: (d) => d.data.categoryId == categoryId && d.data.token != token,
+    onAcceptWithDetails: (d) =>
+        order('Reorder queue', (plan, s, now, uid) => orderMoveQueueToken(s, plan, categoryId, d.data.token, toIndex: index)),
+    builder: (context, candidates, _) => AnimatedContainer(
+      duration: const Duration(milliseconds: 120),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: candidates.isEmpty ? Colors.transparent : MF.accent, width: 3)),
+      ),
+      child: Row(children: [
+        Draggable<_QueueDrag>(
+          data: _QueueDrag(categoryId, token),
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          feedback: Material(
+            color: Colors.transparent,
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 320),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: MF.raised,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: MF.accent),
+                boxShadow: const [BoxShadow(blurRadius: 12, color: Colors.black38)],
+              ),
+              child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ),
+          ),
+          childWhenDragging: Opacity(opacity: .3, child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.grab,
+            child: Tooltip(
+              message: 'Drag to move',
+              child: Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim)),
+            ),
+          ),
+        ),
+        Expanded(child: child),
+      ]),
+    ),
+  );
+}
 
 /// 9.0.0: the clear "Add title" / "Add collection" buttons, the same in both tabs.
 class _AddBar extends StatelessWidget {
@@ -946,9 +1019,13 @@ class _QueuesTab extends StatelessWidget {
         if (token.startsWith('t:')) {
           final t = byId[token.substring(2)];
           if (t == null) continue;
-          items.add(() => _titleToken(context, cat, t, token, index, count));
+          items.add(() => _queueSlot(
+              categoryId: cat.id, token: token, index: index, label: t.title, order: order,
+              child: _titleToken(context, cat, t, token, index, count)));
         } else {
-          items.add(() => _CollectionQueueRow(view: view, refs: refs, category: cat, token: token, index: index, count: count, order: order));
+          items.add(() => _queueSlot(
+              categoryId: cat.id, token: token, index: index, label: _tokenLabel(refs, byId, token), order: order,
+              child: _CollectionQueueRow(view: view, refs: refs, category: cat, token: token, index: index, count: count, order: order)));
         }
       }
     }
