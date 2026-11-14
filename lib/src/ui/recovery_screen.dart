@@ -15,6 +15,7 @@ import '../logic/ratings_engine.dart';
 import '../logic/recovery.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/library_logic.dart' show findTitle;
 import 'cover_choice.dart';
 import 'presence.dart';
 import 'ratings_ui.dart' show sourceLabel;
@@ -298,6 +299,13 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
             TextButton(onPressed: () => _manual(context, review.id), child: const Text('Search manually')),
             TextButton(onPressed: () => RecoveryRunner.instance.skipCover(review), child: const Text('Skip')),
           ]),
+          // 9.0.0: the full search (every source, every name) right here.
+          _showAll(
+            loading: review.loadingAll,
+            done: review.showingAll,
+            count: review.candidates.length,
+            onTap: () => RecoveryRunner.instance.showAllCovers(widget.account, review),
+          ),
           if (review.candidates.any((c) => c.ids.isNotEmpty))
             CheckboxListTile(
               dense: true,
@@ -428,6 +436,27 @@ class _RecoveryScreenState extends State<RecoveryScreen> with SingleTickerProvid
   }
 }
 
+/// "Show all results": the full search (every source, every name, like a
+/// manual search) inside a review card.
+Widget _showAll({required bool loading, required bool done, required int count, required VoidCallback onTap}) => Align(
+      alignment: Alignment.centerLeft,
+      child: loading
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 6),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(width: 8),
+                Text('Searching every source and every name…', style: TextStyle(fontSize: 12)),
+              ]),
+            )
+          : done
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Text('Showing all results · $count', style: TextStyle(color: MF.textDim, fontSize: 12)),
+                )
+              : OutlinedButton.icon(onPressed: onTap, icon: const Icon(Icons.manage_search_rounded, size: 18), label: const Text('Show all results')),
+    );
+
 class _MetadataReviewCard extends StatefulWidget {
   const _MetadataReviewCard({required this.account, required this.preview, required this.lookingFor, required this.onSearch});
   final AccountController account;
@@ -464,7 +493,73 @@ void _showValue(BuildContext context, String label, Object? value, List<FieldSou
   );
 }
 
+/// 9.0.0: every record for a title from every details source and every name
+/// it has (like searching each name manually), best known first.
+Future<List<Map<String, dynamic>>> allDetailRecords(Map<String, dynamic> item) async {
+  final ready = await RatingSources.instance.gatewayReady();
+  final sources = [for (final id in kAvailableSources) if (!kGatewaySources.contains(id) || ready.contains(id)) id];
+  final rows = <String, Map<String, dynamic>>{};
+  for (final name in titleVariants(item).take(6)) {
+    await Future.wait([
+      for (final p in sources)
+        () async {
+          try {
+            for (final row in await RatingSources.instance.lookup(p, {...item, 'title': name})) {
+              if (jsTruthy(row['recordId'])) rows.putIfAbsent('${row['provider'] ?? p}:${row['recordId']}', () => {'provider': p, ...row});
+            }
+          } catch (_) {}
+        }(),
+    ]);
+  }
+  return rows.values.toList();
+}
+
 class _MetadataReviewCardState extends State<_MetadataReviewCard> {
+  List<Map<String, dynamic>>? _all;
+  bool _loadingAll = false;
+
+  Future<void> _showAllRecords() async {
+    final item = widget.account.view == null ? null : findTitle(widget.account.view!.state, widget.preview.titleId);
+    if (item == null) return;
+    setState(() => _loadingAll = true);
+    final rows = await allDetailRecords(item);
+    if (!mounted) return;
+    setState(() {
+      _loadingAll = false;
+      _all = rows;
+    });
+  }
+
+  Widget _allRecords(BuildContext context) {
+    final rows = _all;
+    if (rows == null) return const SizedBox.shrink();
+    if (rows.isEmpty) return Text('No source found anything for any of its names.', style: TextStyle(color: MF.textDim, fontSize: 12));
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Pick a record to review its details:', style: TextStyle(color: MF.textDim, fontSize: 12)),
+      for (final r in rows)
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          title: Text(jsStr(r['title']), style: const TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text([
+            sourceLabel(jsStr(r['provider'])),
+            if (jsNum(r['year']) > 0) '${jsNum(r['year']).toInt()}',
+            if (jsStr(asMap(r['legacy'])?['mediaFormat']).isNotEmpty) jsStr(asMap(r['legacy'])?['mediaFormat']),
+            'ID ${jsStr(r['recordId'])}',
+            if (asList(r['aliases']).isNotEmpty) 'also ${asList(r['aliases']).map(jsStr).take(3).join(', ')}',
+          ].join(' · ')),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: () {
+            final p = RecoveryRunner.instance.pickMetadataRecord(widget.account, widget.preview.titleId, r);
+            setState(() => _all = null);
+            _toast(context, p == null || p.proposals.every((x) => x.hasOriginal || x.isProtected || x.same)
+                ? 'That record has nothing new for empty fields.'
+                : 'Review the details from ${sourceLabel(jsStr(r['provider']))} above, then save.');
+          },
+        ),
+    ]);
+  }
+
   String _show(Object? v) {
     final s = _fullValue(v);
     return s.length > 160 ? '${s.substring(0, 160)}…' : s;
@@ -484,6 +579,8 @@ class _MetadataReviewCardState extends State<_MetadataReviewCard> {
           Expanded(child: widget.lookingFor),
           TextButton(onPressed: widget.onSearch, child: const Text('Search manually')),
         ]),
+        _showAll(loading: _loadingAll, done: _all != null, count: _all?.length ?? 0, onTap: _showAllRecords),
+        _allRecords(context),
         for (final r in p.records)
           Padding(
             padding: const EdgeInsets.only(top: 4),

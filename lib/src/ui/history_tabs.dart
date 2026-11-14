@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../config.dart';
 import '../data/account_controller.dart';
 import '../logic/history_views.dart';
+import '../logic/title_parts.dart' show partsHistoryText;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'theme.dart';
@@ -243,6 +244,12 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
   }
 
   String _latestLabel(HistoryEvent ev, Category cat) {
+    // Website v577: the part logged last ("Competitive 44").
+    final parts = asList(ev.row['mf577Parts']).map(asMap).whereType<Map<String, dynamic>>().toList();
+    if (parts.isNotEmpty) {
+      final p = parts.last;
+      return '${jsStr(p['name']).isEmpty ? 'Part' : jsStr(p['name'])} ${p['to'] != null ? fmtNumber(jsNum(p['to'])) : '+${fmtNumber(jsNum(p['qty']))}'}';
+    }
     final season = asMap(ev.row['season']);
     if (season != null && jsNumOrNull(season['episode']) != null) {
       final sn = season['number'] == null ? '' : 'S${jsNum(season['number']).toInt().toString().padLeft(2, '0')} ';
@@ -378,6 +385,8 @@ class _ConsumptionHistoryTabState extends State<ConsumptionHistoryTab> with Auto
                         ].join(' · '),
                         style: TextStyle(color: MF.textDim, fontSize: 12),
                       ),
+                      if (ev.row['mf577Parts'] is List)
+                        Text(partsHistoryText(ev.row['mf577Parts'], unitLabel), style: TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w700)),
                     ]),
                   ),
                   if (!_select && log != null)
@@ -515,6 +524,8 @@ class _RecentlyViewedTabState extends State<RecentlyViewedTab> with AutomaticKee
               Text(widget.view.shownName(ev.title), style: const TextStyle(fontWeight: FontWeight.w800)),
               Text([if (ev.qty > 0) '${fmtNumber(ev.qty)} ${unitLabel(cat.unit, ev.qty)}', fmtMinutes(ev.minutes)].join(' · '),
                   style: TextStyle(color: MF.textDim, fontSize: 12)),
+              if (ev.row['mf577Parts'] is List)
+                Text(partsHistoryText(ev.row['mf577Parts'], unitLabel), style: TextStyle(color: MF.accent, fontSize: 12, fontWeight: FontWeight.w700)),
             ]),
           ),
         ]),

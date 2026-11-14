@@ -10,7 +10,7 @@ import 'package:mediaflow/src/logic/recovery.dart' show coverProviderId;
 void main() {
   test('the website\'s whole catalog and cover registry', () {
     expect(kProviderCatalog.length, 61);
-    expect(kCoverRegistry.length, 43);
+    expect(kCoverRegistry.length, 45, reason: '9.0.0: + Wikimedia Commons and Deezer');
     expect(kProviderCatalog.map((p) => p.id), containsAll(['tenrai', 'igdb', 'spotify', 'wikidata', 'vndb', 'steam']));
     // Every cover source the website can use works in the app.
     for (final p in kCoverRegistry.where((p) => p.websiteReady)) {
@@ -19,7 +19,7 @@ void main() {
     expect(providerStatus('igdb').works, isFalse);
     expect(providerStatus('tmdb', cover: true, serviceChecked: true, serviceReady: {'tmdb'}).works, isTrue);
     expect(providerStatus('omdb', cover: true, serviceChecked: true).works, isFalse);
-    expect(kAvailableSources.length, 19, reason: 'details & ratings sources, as on the website');
+    expect(kAvailableSources.length, 27, reason: 'details & ratings sources: the website\'s + the keyless ones (9.0.0)');
   });
 
   test('cover sources: global list, category preset, and what a preset may hold', () {
@@ -54,7 +54,7 @@ void main() {
       'gutendex': '84',
       'googlebooks': 'zyTCAlFPjgYC',
     };
-    for (final p in kExtraCoverIdKeys.keys) {
+    for (final p in const ['steam', 'itunes', 'musicbrainz', 'vndb', 'ifdb', 'gutendex-public', 'googlebooks']) {
       expect(savedExtraCoverId(ids, p), isNotEmpty, reason: p);
     }
     expect(savedExtraCoverId({'steam_app': 'abc'}, 'steam'), '');

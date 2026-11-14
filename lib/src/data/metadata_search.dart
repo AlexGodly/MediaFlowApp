@@ -387,6 +387,8 @@ Future<List<MetadataResult>> _mangadex(String q) async => _mangadexRows(await _g
 const kDefaultCoverSources = [
   'tenrai', 'jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary', 'steam', 'itunes', 'musicbrainz', 'vndb', 'ifdb', 'gutendex-public',
   'googlebooks', 'tmdb',
+  // 9.0.0 (website v577): the keyless sources, for new accounts.
+  'wikidata', 'wikimedia', 'loc', 'inventaire', 'episodate', 'deezer',
 ];
 Set<String> enabledCoverSources(Map<String, dynamic>? settings) {
   final v = (settings?['v424Covers'] as Map?)?['enabled'];
@@ -586,6 +588,12 @@ const kExtraCoverIdKeys = {
   'ifdb': 'ifdb',
   'gutendex-public': 'gutendex',
   'googlebooks': 'googlebooks',
+  'wikidata': 'wikidata',
+  'wikimedia': '',
+  'loc': '',
+  'inventaire': 'wikidata',
+  'episodate': 'episodate',
+  'deezer': 'deezer_album',
 };
 
 String _cut(Object? v, [int max = 220]) {
@@ -790,6 +798,9 @@ Future<List<MetadataResult>> searchExtraCovers(String title, Map<String, dynamic
     if (enabled.contains('ifdb')) ifdbCovers(q, ids),
     if (enabled.contains('gutendex-public')) gutenbergCovers(q, ids),
     if (enabled.contains('googlebooks')) googleBooksCovers(q, ids),
+    // 9.0.0 (website v577): the keyless sources, checked live.
+    for (final p in kKeylessCoverSources)
+      if (enabled.contains(p)) keylessCovers(p, q, ids),
   ];
   final results = await Future.wait(jobs.map((j) => j.catchError((_) => <MetadataResult>[])));
   return [for (final r in results) ...r];
@@ -806,4 +817,168 @@ Set<String> extraCoverSourcesForCategory({required String name, required String 
     if (RegExp(r'music|album|track|song').hasMatch(t)) ...{'itunes', 'musicbrainz'},
     if (type == 'reading' || RegExp(r'book|novel|reading|page|volume').hasMatch(t)) ...{'gutendex-public', 'googlebooks'},
   };
+}
+
+
+// ---- 9.0.0 (website v577): keyless cover sources -------------------------------------
+
+/// Checked live (tool/live_sources.py). Deezer only in the app (no web access).
+const kKeylessCoverSources = ['wikidata', 'wikimedia', 'loc', 'inventaire', 'episodate', 'deezer'];
+
+String _kText(Object? v, [int max = 220]) {
+  final t = '${v ?? ''}'.replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+  return t.length > max ? t.substring(0, max) : t;
+}
+
+int _kYear(Object? v) => int.tryParse(RegExp(r'(1[5-9]\d\d|20\d\d|21[0-4]\d)').firstMatch('${v ?? ''}')?[1] ?? '') ?? 0;
+
+/// A Wikimedia Commons file's image (`mf577Commons`).
+String commonsImage(Object? file, [int width = 600]) {
+  final f = '${file ?? ''}'.replaceFirst(RegExp(r'^File:', caseSensitive: false), '').trim();
+  return f.isEmpty ? '' : 'https://commons.wikimedia.org/wiki/Special:FilePath/${Uri.encodeComponent(f.replaceAll(' ', '_'))}?width=$width';
+}
+
+typedef KeylessGet = Future<Object?> Function(String url);
+
+/// `mf577WikidataRecords`.
+Future<List<Map<String, dynamic>>> keylessWikidata(String title, KeylessGet get) async {
+  final s = await get('https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&origin=*&language=en&uselang=en&type=item&limit=8&search=${Uri.encodeQueryComponent(title)}');
+  final ids = [
+    for (final r in (((s as Map?)?['search'] as List?) ?? const []).whereType<Map>())
+      if (RegExp(r'^Q\d{1,12}$').hasMatch('${r['id']}')) '${r['id']}',
+  ].take(8).toList();
+  if (ids.isEmpty) return const [];
+  final e = await get('https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=labels%7Cdescriptions%7Caliases%7Cclaims&languages=en%7Cja%7Cfr%7Cde%7Ces&ids=${ids.join('%7C')}');
+  final entities = ((e as Map?)?['entities'] as Map?) ?? const {};
+  final out = <Map<String, dynamic>>[];
+  for (final id in ids) {
+    final x = entities[id];
+    if (x is! Map) continue;
+    final labels = (x['labels'] as Map?) ?? const {};
+    List<Object?> claim(String p) => [
+          for (final c in ((x['claims'] as Map?)?[p] as List?) ?? const [])
+            if (c is Map) ((c['mainsnak'] as Map?)?['datavalue'] as Map?)?['value'],
+        ].where((v) => v != null).toList();
+    final time = (claim('P577').firstOrNull as Map?)?['time'] ?? (claim('P580').firstOrNull as Map?)?['time'] ?? '';
+    final t = '${(labels['en'] as Map?)?['value'] ?? (labels.values.whereType<Map>().firstOrNull)?['value'] ?? ''}';
+    if (t.isEmpty) continue;
+    out.add({
+      'id': id,
+      'title': t,
+      'description': '${(((x['descriptions'] as Map?)?['en']) as Map?)?['value'] ?? ''}',
+      'aliases': [
+        for (final l in labels.values.whereType<Map>()) '${l['value']}',
+        for (final a in ((((x['aliases'] as Map?)?['en']) as List?) ?? const []).whereType<Map>()) '${a['value']}',
+      ],
+      'image': '${claim('P18').firstOrNull ?? claim('P154').firstOrNull ?? ''}',
+      'year': _kYear(time),
+    });
+  }
+  return out;
+}
+
+/// `mf577LocRecords`.
+Future<List<Map<String, dynamic>>> keylessLoc(String title, KeylessGet get) async {
+  final d = await get('https://www.loc.gov/books/?fo=json&c=12&q=${Uri.encodeQueryComponent(title)}');
+  final out = <Map<String, dynamic>>[];
+  for (final r in (((d as Map?)?['results'] as List?) ?? const []).whereType<Map>()) {
+    List<dynamic> many(Object? v) => v is List ? v : (v == null ? const [] : [v]);
+    var img = '${many(r['image_url']).firstOrNull ?? ''}';
+    if (img.startsWith('//')) img = 'https:$img';
+    img = img.replaceFirst(RegExp(r'^http:'), 'https:').replaceFirst(RegExp(r'#.*$'), '');
+    final id = '${r['id'] ?? r['url'] ?? ''}'.replaceFirst(RegExp(r'/$'), '').split('/').last;
+    final t = _kText(r['title'] is List ? (r['title'] as List).firstOrNull : r['title']);
+    if (id.isEmpty || t.isEmpty) continue;
+    out.add({
+      'id': id, 'title': t, 'year': _kYear(r['date']), 'image': img, 'link': '${r['url'] ?? r['id'] ?? ''}',
+      'subjects': [for (final x in many(r['subject']).take(12)) _kText(x, 80)],
+      'creators': [for (final x in many(r['contributor']).take(6)) _kText(x, 80)],
+      'lccn': '${many(r['number_lccn']).firstOrNull ?? ''}',
+    });
+  }
+  return out;
+}
+
+/// `mf577InventaireRecords`.
+Future<List<Map<String, dynamic>>> keylessInventaire(String title, KeylessGet get) async {
+  final d = await get('https://inventaire.io/api/search?types=works&lang=en&limit=10&search=${Uri.encodeQueryComponent(title)}');
+  final out = <Map<String, dynamic>>[];
+  for (final r in (((d as Map?)?['results'] as List?) ?? const []).whereType<Map>()) {
+    final uri = '${r['uri'] ?? ''}';
+    final wd = RegExp(r'^wd:(Q\d+)$').firstMatch(uri)?[1];
+    final img = '${r['image'] ?? ''}';
+    final t = _kText(r['label']);
+    final id = wd ?? uri;
+    if (id.isEmpty || t.isEmpty) continue;
+    out.add({
+      'id': id, 'uri': uri, 'title': t, 'description': _kText(r['description'], 400),
+      'image': img.isEmpty ? '' : (img.startsWith('http') ? img : 'https://inventaire.io$img'),
+      'year': _kYear(r['description']),
+    });
+  }
+  return out;
+}
+
+/// `mf577EpisodateRecords`.
+Future<List<Map<String, dynamic>>> keylessEpisodate(String title, KeylessGet get) async {
+  final d = await get('https://www.episodate.com/api/search?page=1&q=${Uri.encodeQueryComponent(title)}');
+  final out = <Map<String, dynamic>>[];
+  for (final r in (((d as Map?)?['tv_shows'] as List?) ?? const []).whereType<Map>().take(10)) {
+    final id = '${r['permalink'] ?? r['id'] ?? ''}';
+    final t = _kText(r['name']);
+    if (id.isEmpty || t.isEmpty) continue;
+    out.add({
+      'id': id, 'title': t, 'year': _kYear(r['start_date']),
+      'image': '${r['image_thumbnail_path'] ?? ''}'.replaceFirst('/thumbnail/', '/full/').replaceFirst(RegExp(r'^http:'), 'https:'),
+      'network': _kText(r['network'], 80), 'status': _kText(r['status'], 40), 'country': _kText(r['country'], 10),
+      'endDate': r['end_date'] ?? '',
+    });
+  }
+  return out;
+}
+
+/// The keyless cover sources (website v577 `mf577CoverAdapter`).
+Future<List<MetadataResult>> keylessCovers(String provider, String title, Map<String, dynamic>? ids) async {
+  Future<Object?> get(String url) => _getJson(Uri.parse(url));
+  final out = <MetadataResult?>[];
+  final savedWd = '${ids?['wikidata'] ?? ''}';
+  switch (provider) {
+    case 'wikidata':
+      for (final r in await keylessWikidata(title, get)) {
+        if ('${r['image']}'.isEmpty) continue;
+        out.add(_extraRow('wikidata', 'Wikidata', '${r['id']}', r['title'], r['year'], commonsImage(r['image']), savedWd,
+            alt: [for (final a in r['aliases'] as List) '$a']));
+      }
+    case 'wikimedia':
+      final d = await get('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&list=search&srnamespace=6&srlimit=12&srsearch=${Uri.encodeQueryComponent(title)}');
+      for (final r in ((((d as Map?)?['query'] as Map?)?['search'] as List?) ?? const []).whereType<Map>()) {
+        final file = '${r['title'] ?? ''}';
+        if (!RegExp(r'\.(jpe?g|png|webp)$', caseSensitive: false).hasMatch(file)) continue;
+        final name = file.replaceFirst(RegExp(r'^File:', caseSensitive: false), '').replaceFirst(RegExp(r'\.[a-zA-Z]+$'), '').replaceAll(RegExp(r'[_-]+'), ' ');
+        out.add(_extraRow('wikimedia', 'Wikimedia', '${r['pageid'] ?? file}', name, _kYear(name), commonsImage(file), ''));
+      }
+    case 'loc':
+      for (final r in await keylessLoc(title, get)) {
+        if ('${r['image']}'.isEmpty) continue;
+        out.add(_extraRow('loc', 'LOC', '${r['id']}', r['title'], r['year'], '${r['image']}', ''));
+      }
+    case 'inventaire':
+      for (final r in await keylessInventaire(title, get)) {
+        if ('${r['image']}'.isEmpty) continue;
+        out.add(_extraRow('inventaire', 'Inventaire', '${r['id']}', r['title'], r['year'], '${r['image']}', savedWd));
+      }
+    case 'episodate':
+      for (final r in await keylessEpisodate(title, get)) {
+        if ('${r['image']}'.isEmpty) continue;
+        out.add(_extraRow('episodate', 'EpisoDate', '${r['id']}', r['title'], r['year'], '${r['image']}', '${ids?['episodate'] ?? ''}'));
+      }
+    case 'deezer':
+      final d = await get('https://api.deezer.com/search/album?limit=12&q=${Uri.encodeQueryComponent(title)}');
+      for (final r in (((d as Map?)?['data'] as List?) ?? const []).whereType<Map>()) {
+        final cover = '${r['cover_xl'] ?? r['cover_big'] ?? ''}';
+        out.add(_extraRow('deezer', 'Deezer', '${r['id'] ?? ''}', r['title'], null, cover, '${ids?['deezer_album'] ?? ''}',
+            subtitle: _kText((r['artist'] as Map?)?['name'], 120)));
+      }
+  }
+  return _firstSixteen(out);
 }

@@ -9,6 +9,7 @@
 import 'dart:math' as math;
 
 import '../util/js.dart';
+import 'title_parts.dart';
 import 'title_units.dart';
 import 'log_engine.dart' show normalizeSeasons;
 
@@ -212,6 +213,12 @@ class LogDraftEditor {
       final cat = category(i != null ? jsStr(i['categoryId']) : jsStr(task['categoryId']));
       // Website v569: a title with its own unit and runtime counts its own
       // runtime (3 matches of 20 min = 60 min), not the category's.
+      final moves = !itemized && isByParts(i) && e['mf577Parts'] is List ? partMovesOf(e) : null;
+      if (moves != null) {
+        // Website v577: each part at its own time.
+        minutes += partsMinutes(i, cat, moves);
+        continue;
+      }
       final own = ownRuntimeSeconds(i);
       minutes += own > 0 ? jsRound(qty * own / 60) : jsRound(qty * jsNum(cat['minutesPerUnit']));
     }
@@ -253,6 +260,72 @@ class LogDraftEditor {
   /// error message, or null when the entry was added or updated.
   String? addQuickEntry() {
     if (itemized) return addItemizedEntry();
+    final sel = item(entryDraft['libraryId']);
+    if (!isByParts(sel)) return _addQuickEntryBase();
+    // Website v577: a by-parts title is added, then its parts are chosen.
+    entryDraft['v252UseSeasonView'] = false;
+    if (mode == 'progress') {
+      final st = startProgress(sel!);
+      if (jsNum(entryDraft['endProgress']) <= st) entryDraft['endProgress'] = jsOut(st + 1);
+    }
+    final error = _addQuickEntryBase();
+    if (error != null) return error;
+    final e = entries.lastWhere((x) => jsStr(x['libraryId']) == jsStr(sel!['id']), orElse: () => <String, dynamic>{});
+    if (e.isNotEmpty && e['mf577Parts'] is! List) {
+      final part = defaultPart(sel);
+      if (part != null) {
+        final amount = mode == 'amount' ? math.max(1.0, jsNum(e['qty']).floorToDouble()) : 1.0;
+        e['mf577Parts'] = [PartMove(jsStr(part['id']), amount).toJson()];
+        applyParts(e);
+      }
+    }
+    return null;
+  }
+
+  // ---- Website v577: titles logged by parts (quick logging) -----------------------
+
+  /// An entry whose parts are chosen in quick logging.
+  bool isPartsEntry(Map<String, dynamic> e) => !itemized && isByParts(item(e['libraryId'])) && e['mf577Parts'] is List;
+
+  /// `mf577ApplyEntry`.
+  void applyParts(Map<String, dynamic> e) {
+    final i = item(e['libraryId']);
+    final moves = cleanMoves(i, partMovesOf(e));
+    e['mf577Parts'] = [for (final m in moves) m.toJson()];
+    final s = jsNumFromKey(e, 'v179StartProgress');
+    final start = s != null && s.isFinite ? math.max(0.0, s) : math.max(0.0, jsNum(i?['progress']));
+    final qty = movesQty(moves);
+    e['qty'] = jsOut(qty);
+    e['v179StartProgress'] = jsOut(start);
+    e['v179EndProgress'] = jsOut(start + qty);
+    e['v252UseSeasonView'] = false;
+    syncSingle();
+  }
+
+  /// `App.mf577TogglePart`.
+  void togglePartAt(int index, String id) {
+    if (index < 0 || index >= entries.length) return;
+    final e = entries[index];
+    final i = item(e['libraryId']);
+    if (!isByParts(i)) return;
+    e['mf577Parts'] = [for (final m in togglePart(i, partMovesOf(e), id)) m.toJson()];
+    applyParts(e);
+  }
+
+  /// `App.mf577SetPart`: [value] is the part's reached number (progress mode)
+  /// or its amount.
+  void setPartAt(int index, String id, double value) {
+    if (index < 0 || index >= entries.length) return;
+    final e = entries[index];
+    final i = item(e['libraryId']);
+    if (!isByParts(i)) return;
+    e['mf577Parts'] = [
+      for (final m in setPart(i, partMovesOf(e), id, value, reached: mode == 'progress' && e['isRepeat'] != true)) m.toJson(),
+    ];
+    applyParts(e);
+  }
+
+  String? _addQuickEntryBase() {
     final title = jsStr(entryDraft['title']).trim();
     if (title.isEmpty) return 'Choose or type a title first.';
     final selected = item(entryDraft['libraryId']);
@@ -647,6 +720,19 @@ class LogDraftEditor {
 
   /// `v369Sync`.
   void sync369() {
+    // Website v577: an Advanced unit of a by-parts title still at the title's
+    // default time takes its part's time.
+    for (final e in entries) {
+      final i = item(e['libraryId']);
+      if (!isByParts(i) || e['v369Units'] is! List || jsNumFromKey(e, 'v394RuntimeSeconds') != null) continue;
+      final def = defaultSeconds(i);
+      for (final u in units(e)) {
+        final part = titlePart(i, jsStr(u['seasonId']));
+        if (part == null) continue;
+        final secs = partSeconds(part, i, category(jsStr(i!['categoryId'])));
+        if (jsNum(u['durationSeconds']) == def && secs != def) u['durationSeconds'] = secs;
+      }
+    }
     for (final e in entries) {
       if (e['v369Units'] is! List) continue;
       e['qty'] = asList(e['v369Units']).length;
@@ -1042,4 +1128,19 @@ class LogDraftEditor {
   }
 
   static String _fmt(double v) => v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+}
+
+
+/// Website v577: an entry's moved parts (`mf577Parts`).
+List<PartMove> partMovesOf(Map<String, dynamic> e) =>
+    [for (final p in asList(e['mf577Parts']).map(asMap).whereType<Map<String, dynamic>>()) PartMove.fromJson(p)];
+
+/// Website v577: Advanced units grouped by part (`mf577FromUnits`).
+List<PartMove> partMovesFromUnits(Object? units) {
+  final counts = <String, double>{};
+  for (final u in asList(units).map(asMap).whereType<Map<String, dynamic>>()) {
+    final id = jsStr(u['seasonId']);
+    if (id.isNotEmpty) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return [for (final e in counts.entries) PartMove(e.key, e.value)];
 }

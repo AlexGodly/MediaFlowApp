@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,8 @@ import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import '../logic/title_units.dart';
+import '../logic/title_parts.dart';
+import 'title_screen.dart' show TitleEditor;
 import '../logic/title_names.dart' show nameMatches;
 
 Future<void> _openSheet(BuildContext context, Widget child) {
@@ -169,6 +172,10 @@ class _LogFormState extends State<LogForm> {
   // 8.2.0: several titles in one log (website Batch Log rows). Each added
   // title waits here; the one being filled in is the form below.
   final List<({LogEntry entry, String id, String text})> _batch = [];
+  // 9.0.0 (website v577): a by-parts title's chosen parts and what was typed
+  // for each (the part's reached number, or its amount).
+  List<String> _partIds = [];
+  final Map<String, String> _partInput = {};
   // XP preview (website v574): worked out on a copy of the account.
   Timer? _xpTimer;
   int _xpGen = 0;
@@ -177,11 +184,23 @@ class _LogFormState extends State<LogForm> {
   String? _xpProblem;
   bool _xpWorking = false;
 
+  // 9.0.0 (website v577): "Log any title" shares the Batch Log draft with the
+  // website and other devices (resumeStateV285.mf577Batch).
+  bool get _sharesDraft => widget.libraryId == null;
+  Timer? _draftTimer;
+  int _draftSeen = 0;
+  String _draftSent = '';
+
   @override
   void initState() {
     super.initState();
     _libraryId = widget.libraryId;
     if (_libraryId != null) _selectDefaults();
+    if (_sharesDraft) {
+      _adoptDraft(initial: true);
+      widget.account.addListener(_onAccount);
+      widget.account.startLiveDraft();
+    }
   }
 
   @override
@@ -190,7 +209,121 @@ class _LogFormState extends State<LogForm> {
       c.dispose();
     }
     _xpTimer?.cancel();
+    if (_sharesDraft) {
+      if (_draftTimer?.isActive ?? false) {
+        _draftTimer!.cancel();
+        _writeDraft();
+      }
+      widget.account.removeListener(_onAccount);
+      widget.account.stopLiveDraft();
+    }
     super.dispose();
+  }
+
+  void _onAccount() {
+    if (!mounted || _saving) return;
+    final d = widget.account.batchDraft;
+    if (d == null || jsNum(d['modifiedAt']) <= _draftSeen) return;
+    // Not while typing in this form.
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus != null && focus.context != null && focus.context!.findAncestorStateOfType<_LogFormState>() == this) return;
+    setState(() => _adoptDraft());
+  }
+
+  /// Takes the account's Batch Log draft (website rows) into this form.
+  void _adoptDraft({bool initial = false}) {
+    final d = widget.account.batchDraft;
+    final view = widget.account.view;
+    if (d == null || view == null) return;
+    _draftSeen = jsNum(d['modifiedAt']).toInt();
+    final draft = asMap(d['draft']) ?? const <String, dynamic>{};
+    if (draft['v179Mode'] == 'amount') _reachedMode = false;
+    if (draft['v179Mode'] == 'progress') _reachedMode = true;
+    _batch.clear();
+    for (final r in asList(draft['rows']).map(asMap).whereType<Map<String, dynamic>>()) {
+      final t = view.library.where((x) => x.id == jsStr(r['libraryId'])).firstOrNull;
+      if (t == null) continue;
+      final parts = [for (final p in asList(r['mf577Parts']).map(asMap).whereType<Map<String, dynamic>>()) PartMove.fromJson(p)];
+      final end = r['v179EndProgress'];
+      final minutes = jsNum(r['minutes']) > 0 ? jsNum(r['minutes']) : null;
+      final e = parts.isNotEmpty && isByParts(t.raw)
+          ? LogEntry(libraryId: t.id, parts: parts, minutes: minutes)
+          : _reachedMode && end != null && jsStr(end).trim().isNotEmpty
+              ? LogEntry(libraryId: t.id, reached: jsNum(end), minutes: minutes)
+              : LogEntry(libraryId: t.id, amount: jsNum(r['qty']), minutes: minutes);
+      final p = previewEntry(t, view.category(t.categoryId), e);
+      if (!(p.qty > 0)) continue;
+      _batch.add((entry: e, id: t.id, text: _entryText(t, view.category(t.categoryId), e, p)));
+    }
+    if (initial || _note.text.isEmpty) _note.text = jsStr(draft['note']);
+    final date = jsStr(draft['date']);
+    if (date.isNotEmpty && date != isoDay(DateTime.now())) _date = DateTime.tryParse(date);
+    final time = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(jsStr(draft['mf573Time']));
+    if (time != null) _time = TimeOfDay(hour: int.parse(time[1]!), minute: int.parse(time[2]!));
+    _xpKey = '';
+    // What the account has now is what this form shows: nothing to send back.
+    final now = _draftMap();
+    if (now != null) _draftSent = jsonEncode(now);
+  }
+
+  String _entryText(LibraryTitle t, Category cat, LogEntry e, ({double qty, double minutes, double start, double end}) p) {
+    final parts = e.parts.isEmpty ? '' : partsHistoryText(partsHistory(t.raw, cat.raw, partsSnapshot(t.raw), e.parts, repeat: t.isCompleted), unitLabel);
+    return parts.isNotEmpty
+        ? '${t.title} · $parts · ${fmtMinutes(p.minutes)}'
+        : '${t.title} · +${fmtNumber(p.qty)} ${unitLabel(titleUnit(t.raw, cat.raw), p.qty)} · ${fmtMinutes(p.minutes)}';
+  }
+
+  /// The form as website Batch Log rows, saved to the account (debounced).
+  void _scheduleDraft() {
+    if (!_sharesDraft) return;
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 700), _writeDraft);
+  }
+
+  void _writeDraft({bool empty = false}) {
+    final draft = _draftMap(empty: empty);
+    if (draft == null) return;
+    final rows = draft['rows'] as List;
+    final key = jsonEncode(draft);
+    if (key == _draftSent) return;
+    final cur = widget.account.batchDraft;
+    // Nothing written yet and nothing to keep: don't create an empty draft.
+    if (cur == null && rows.isEmpty && draft['note'] == '') return;
+    _draftSent = key;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _draftSeen = now;
+    unawaited(widget.account.saveBatchDraft({'draft': draft, 'modifiedAt': now}));
+  }
+
+  Map<String, dynamic>? _draftMap({bool empty = false}) {
+    final view = widget.account.view;
+    if (view == null) return null;
+    final rows = <Map<String, dynamic>>[];
+    if (!empty) {
+      for (final e in _allEntries()) {
+        final t = view.library.where((x) => x.id == e.libraryId).firstOrNull;
+        if (t == null) continue;
+        final p = previewEntry(t, view.category(t.categoryId), e);
+        rows.add({
+          'libraryId': t.id,
+          'query': t.mainTitle,
+          'qty': jsOut(p.qty),
+          'minutes': jsOut(p.minutes),
+          'v179StartProgress': jsOut(p.start),
+          'v179EndProgress': jsOut(p.end),
+          if (e.parts.isNotEmpty) 'mf577Parts': [for (final m in e.parts) m.toJson()],
+          if (e.minutes != null && _minutesEdited) 'mf577MinutesManual': true,
+        });
+      }
+    }
+    final draft = <String, dynamic>{
+      'rows': rows,
+      'note': empty ? '' : _note.text,
+      'date': empty || _date == null ? isoDay(DateTime.now()) : isoDay(_date!),
+      if (!empty && _timeText != null) 'mf573Time': _timeText,
+      'v179Mode': _reachedMode ? 'progress' : 'amount',
+    };
+    return draft;
   }
 
   LibraryTitle? get _title =>
@@ -206,7 +339,41 @@ class _LogFormState extends State<LogForm> {
     _reached.text = fmtPlain(next);
     _amount.text = '1';
     _minutesEdited = false;
+    _partIds = [];
+    _partInput.clear();
+    final part = defaultPart(t.raw);
+    if (part != null) _choosePart(jsStr(part['id']));
     _syncMinutes();
+  }
+
+  bool get _partReached => _reachedMode && !(_title?.isCompleted ?? false);
+
+  /// A part's default: one unit past where it is (reached), or 1 (amount).
+  String _partDefault(String id) {
+    final p = titlePart(_title?.raw, id);
+    if (p == null || !_partReached) return '1';
+    final from = jsNum(p['progress']), total = jsNum(p['total']);
+    return fmtPlain(total > 0 && from + 1 > total ? total : from + 1);
+  }
+
+  void _choosePart(String id) {
+    if (_partIds.contains(id)) {
+      if (_partIds.length > 1) _partIds.remove(id);
+      return;
+    }
+    _partIds.add(id);
+    _partInput[id] = _partDefault(id);
+  }
+
+  List<PartMove> _partMoves() {
+    final t = _title;
+    if (t == null || !isByParts(t.raw)) return const [];
+    var out = <PartMove>[];
+    for (final id in _partIds) {
+      final v = double.tryParse((_partInput[id] ?? '').trim().replaceAll(',', '.')) ?? 0;
+      out = setPart(t.raw, out, id, v, reached: _partReached);
+    }
+    return out;
   }
 
   String fmtPlain(double v) => v == v.roundToDouble() ? v.round().toString() : v.toString();
@@ -221,6 +388,7 @@ class _LogFormState extends State<LogForm> {
     final id = _libraryId;
     if (id == null) return null;
     final minutes = _parse(_minutes);
+    if (isByParts(_title?.raw)) return LogEntry(libraryId: id, parts: _partMoves(), minutes: minutes);
     return _reachedMode
         ? LogEntry(libraryId: id, reached: _parse(_reached) ?? 0, minutes: minutes)
         : LogEntry(libraryId: id, amount: _parse(_amount) ?? 0, minutes: minutes);
@@ -232,7 +400,7 @@ class _LogFormState extends State<LogForm> {
     final e = _entry();
     if (t == null || view == null || e == null) return null;
     final cat = view.category(t.categoryId);
-    final entryForPreview = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount);
+    final entryForPreview = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, parts: e.parts);
     return previewEntry(t, cat, entryForPreview);
   }
 
@@ -257,6 +425,7 @@ class _LogFormState extends State<LogForm> {
 
   /// Recomputes the XP preview a moment after the form stops changing.
   void _scheduleXp() {
+    _scheduleDraft();
     final view = widget.account.view;
     final entries = _allEntries();
     if (view == null || entries.isEmpty) {
@@ -305,7 +474,7 @@ class _LogFormState extends State<LogForm> {
     final e = _entry();
     final p = _preview();
     if (e == null || p == null || !(p.qty > 0)) return null;
-    return _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes);
+    return _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, parts: e.parts, minutes: p.minutes);
   }
 
   /// Everything this log saves: the added titles, then the one being filled in.
@@ -324,10 +493,10 @@ class _LogFormState extends State<LogForm> {
       return;
     }
     final cat = widget.account.view!.category(t.categoryId);
-    final text = '+${fmtNumber(p.qty)} ${unitLabel(titleUnit(t.raw, cat.raw), p.qty)} · ${fmtMinutes(p.minutes)}';
+    final text = _entryText(t, cat, e, p);
     setState(() {
       _batch.removeWhere((b) => b.id == t.id);
-      _batch.add((entry: e, id: t.id, text: '${t.title} · $text'));
+      _batch.add((entry: e, id: t.id, text: text));
       _libraryId = null;
       _search.clear();
       _minutes.clear();
@@ -360,6 +529,11 @@ class _LogFormState extends State<LogForm> {
         time: _timeText,
       );
       if (!mounted) return;
+      if (_sharesDraft) {
+        _draftTimer?.cancel();
+        _batch.clear();
+        _writeDraft(empty: true);
+      }
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
       final cat = widget.account.view!.category(_title?.categoryId ?? '');
@@ -382,7 +556,10 @@ class _LogFormState extends State<LogForm> {
     final view = widget.account.view;
     if (view == null) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
     final title = _title;
-    if (title == null) return _picker(view);
+    if (title == null) {
+      _scheduleDraft();
+      return _picker(view);
+    }
     final cat = view.category(title.categoryId);
     final p = _preview();
     _scheduleXp();
@@ -428,11 +605,26 @@ class _LogFormState extends State<LogForm> {
           selected: {_reachedMode},
           onSelectionChanged: (s) => setState(() {
             _reachedMode = s.first;
+            for (final id in _partIds) {
+              _partInput[id] = _partDefault(id);
+            }
             _syncMinutes();
           }),
         ),
         const SizedBox(height: 14),
+        if (isByParts(title.raw)) ...[
+          _partsEditor(title, cat),
+          const SizedBox(height: 10),
+        ],
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (isByParts(title.raw))
+            Expanded(
+              child: Text(
+                p == null ? '' : '+${fmtNumber(p.qty)} in all · ${title.title} ${fmtNumber(p.start)} → ${fmtNumber(p.end)}',
+                style: TextStyle(color: MF.textDim, fontSize: 12),
+              ),
+            )
+          else
           Expanded(
             child: TextField(
               key: ValueKey(_reachedMode),
@@ -544,6 +736,93 @@ class _LogFormState extends State<LogForm> {
 
   String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
+  /// Website v577: chips to pick the parts, then one line per chosen part
+  /// with its own counter ("Competitive · Match 41 → 44 (+3)").
+  Widget _partsEditor(LibraryTitle title, Category cat) {
+    final parts = titleParts(title.raw);
+    final moves = {for (final m in _partMoves()) m.id: m.qty};
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Parts', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      Wrap(spacing: 6, runSpacing: 6, children: [
+        for (final part in parts)
+          FilterChip(
+            label: Text(partName(part)),
+            selected: _partIds.contains(jsStr(part['id'])),
+            onSelected: (_) => setState(() {
+              _choosePart(jsStr(part['id']));
+              _error = null;
+              _syncMinutes();
+            }),
+          ),
+      ]),
+      for (final id in _partIds)
+        if (titlePart(title.raw, id) case final part?)
+          Container(
+            key: ValueKey('part-$id-$_reachedMode'),
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                Expanded(child: Text(partName(part), style: const TextStyle(fontWeight: FontWeight.w800))),
+                SizedBox(
+                  width: 110,
+                  child: TextFormField(
+                    initialValue: _partInput[id] ?? '',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      labelText: _partReached ? '${_cap(unitLabel(partUnit(part, title.raw, cat.raw), 1))} reached' : 'Amount',
+                    ),
+                    onChanged: (v) => setState(() {
+                      _partInput[id] = v;
+                      _error = null;
+                      _syncMinutes();
+                    }),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Builder(builder: (_) {
+                final from = jsNum(part['progress']), total = jsNum(part['total']), q = moves[id] ?? 0;
+                final to = total > 0 && from + q > total ? total : from + q;
+                final unit = partUnit(part, title.raw, cat.raw);
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Text(
+                    '${_partReached ? '${_cap(unitLabel(unit, 1))} ${fmtNumber(from)} → ${fmtNumber(to)} ' : ''}(+${fmtNumber(q)} ${unitLabel(unit, q)})'
+                    '${total > 0 ? ' · ${fmtNumber(to)}/${fmtNumber(total)}${to >= total ? ' ✓' : ''}' : ''}'
+                    ' · ${fmtMinutes(jsRound(q * partSeconds(part, title.raw, cat.raw) / 60))}',
+                    style: TextStyle(color: MF.textDim, fontSize: 12),
+                  ),
+                  if (total > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: LinearProgressIndicator(value: (to / total).clamp(0, 1).toDouble(), minHeight: 5),
+                    ),
+                ]);
+              }),
+            ]),
+          ),
+    ]);
+  }
+
+  /// "Add it to your Library" (9.0.0): the title editor, prefilled with what
+  /// was searched; the new title is then the one being logged.
+  Future<void> _addToLibrary(String name) async {
+    final before = {for (final t in widget.account.view?.library ?? const <LibraryTitle>[]) t.id};
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: widget.account, initialTitle: name)));
+    if (!mounted) return;
+    final added = widget.account.view?.library.where((t) => !before.contains(t.id)).toList() ?? const [];
+    if (added.isEmpty) return;
+    setState(() {
+      _libraryId = added.last.id;
+      _search.clear();
+      _selectDefaults();
+    });
+  }
+
   /// The titles added to this log so far (8.2.0).
   Widget _batchCard() => Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -602,9 +881,17 @@ class _LogFormState extends State<LogForm> {
         Flexible(
           child: matches.isEmpty
               ? Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No matching titles. Add new titles on the MediaFlow website for now.',
-                      textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(q.isEmpty ? 'Your Library is empty.' : 'No title in your Library matches “${_search.text.trim()}”.',
+                        textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => _addToLibrary(_search.text.trim()),
+                      icon: const Icon(Icons.library_add_rounded),
+                      label: Text(q.isEmpty ? 'Add a title to your Library' : 'Add “${_search.text.trim()}” to your Library'),
+                    ),
+                  ]),
                 )
               : ListView.builder(
                   shrinkWrap: true,

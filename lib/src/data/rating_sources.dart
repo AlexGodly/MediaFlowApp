@@ -11,7 +11,7 @@ import 'dart:io';
 import '../logic/ratings_engine.dart';
 import '../util/js.dart';
 import '../logic/title_names.dart' show scriptLang;
-import 'metadata_search.dart' show providerGateway;
+import 'metadata_search.dart' show providerGateway, keylessWikidata, keylessLoc, keylessInventaire, keylessEpisodate;
 
 /// `x||null` for counts.
 int? _countOrNull(Object? v) => v is num && v != 0 ? v.toInt() : null;
@@ -34,11 +34,17 @@ class RatingSources {
   static const _publicGap = {
     'jikan': 1700, 'anilist': 1500, 'kitsu': 1700, 'tvmaze': 1100, 'openlibrary': 1600,
     'gutendex': 1800, 'itunes': 1200, 'steam': 1400, 'vndb': 1800, 'musicbrainz': 1500,
+    // 9.0.0 (website v577): every keyless source, checked live.
+    'wikidata': 1200, 'loc': 2600, 'crossref': 1500, 'inventaire': 1500, 'episodate': 1500, 'dnb': 2000, 'bnf': 2000,
+    'gcd': 2000, 'deezer': 1200,
   };
   static const _hosts = {
     'jikan': 'api.jikan.moe', 'anilist': 'graphql.anilist.co', 'kitsu': 'kitsu.io', 'tvmaze': 'api.tvmaze.com',
     'openlibrary': 'openlibrary.org', 'gutendex': 'gutendex.com', 'itunes': 'itunes.apple.com',
     'steam': 'store.steampowered.com', 'vndb': 'api.vndb.org', 'musicbrainz': 'musicbrainz.org',
+    'wikidata': 'www.wikidata.org', 'loc': 'www.loc.gov', 'crossref': 'api.crossref.org', 'inventaire': 'inventaire.io',
+    'episodate': 'www.episodate.com', 'dnb': 'services.dnb.de', 'bnf': 'catalogue.bnf.fr', 'gcd': 'www.comics.org',
+    'deezer': 'api.deezer.com',
   };
 
   final Map<String, DateTime> _last = {};
@@ -126,7 +132,7 @@ class RatingSources {
 
   // ---------- public sources ----------
 
-  Future<Object?> _fetch(String provider, Uri url, {Map<String, dynamic>? body, StopToken? stop}) async {
+  Future<Object?> _fetch(String provider, Uri url, {Map<String, dynamic>? body, StopToken? stop, bool text = false}) async {
     if (url.scheme != 'https' || url.host != _hosts[provider]) throw Exception('Unapproved metadata endpoint');
     final cooling = _cooling[provider];
     if (cooling != null && cooling.isAfter(DateTime.now())) throw Exception('Provider cooling down temporarily');
@@ -150,9 +156,9 @@ class RatingSources {
         throw Exception('$provider is rate-limited; temporarily paused');
       }
       if (res.statusCode < 200 || res.statusCode >= 300) throw Exception('$provider HTTP ${res.statusCode}');
-      final text = await res.transform(utf8.decoder).join().timeout(const Duration(milliseconds: 14500));
-      if (text.length > 1800000) throw Exception('Metadata response too large');
-      final data = jsonDecode(text);
+      final body0 = await res.transform(utf8.decoder).join().timeout(const Duration(milliseconds: 14500));
+      if (body0.length > 1800000) throw Exception('Metadata response too large');
+      final Object? data = text ? body0 : jsonDecode(body0);
       if (_cache.length > 220) _cache.remove(_cache.keys.first);
       _cache[key] = _Cached(data, DateTime.now().add(const Duration(minutes: 15)));
       return data;
@@ -168,6 +174,124 @@ class RatingSources {
         if (e.value != null && '${e.value}' != '') e.key: '${e.value}',
     };
     return q.isEmpty ? u : u.replace(queryParameters: q);
+  }
+
+  /// Website v577 (`mf577LookupDetails`) plus the app-only Deezer and Grand
+  /// Comics Database: the keyless sources, checked live (tool/live_sources.py).
+  Future<List<Map<String, dynamic>>> lookupKeyless(String provider, Map<String, dynamic> item, {StopToken? stop}) async {
+    final variants = titleVariants(item);
+    final title = variants.isEmpty ? '' : variants.first;
+    final rows = <Map<String, dynamic>>[];
+    if (title.length < 2) return rows;
+    Future<Object?> get(String url, {bool text = false}) => _fetch(provider, Uri.parse(url), stop: stop, text: text);
+    String enc(String s) => Uri.encodeQueryComponent(s);
+    String cut(Object? v, [int max = 220]) {
+      final t = jsStr(v).replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+      return t.length > max ? t.substring(0, max) : t;
+    }
+
+    int year(Object? v) => int.tryParse(RegExp(r'(1[5-9]\d\d|20\d\d|21[0-4]\d)').firstMatch(jsStr(v))?[1] ?? '') ?? 0;
+    switch (provider) {
+      case 'wikidata':
+        for (final r in await keylessWikidata(title, (u) => get(u))) {
+          rows.add(sourceEntry(provider, r['id'], r['title'], {
+            'year': r['year'], 'aliases': stringList(r['aliases']), 'externalIds': {'wikidata': r['id']},
+            'legacy': {'synopsis': r['description'], 'year': r['year']},
+          }));
+        }
+      case 'loc':
+        for (final r in await keylessLoc(title, (u) => get(u))) {
+          rows.add(sourceEntry(provider, r['id'], r['title'], {
+            'year': r['year'], 'legacy': {'year': r['year'], 'genres': r['subjects']},
+            'fields': {'bookSubjects': r['subjects'], 'creators': r['creators']},
+            'externalIds': jsStr(r['lccn']).isEmpty ? <String, dynamic>{} : {'lccn': jsStr(r['lccn'])},
+          }));
+        }
+      case 'crossref':
+        final d = asMap(await get('https://api.crossref.org/works?rows=10&query.bibliographic=${enc(title)}'));
+        for (final r in asList(asMap(d?['message'])?['items']).map(asMap).whereType<Map<String, dynamic>>()) {
+          final t = asList(r['title']).isEmpty ? '' : jsStr(asList(r['title']).first);
+          if (t.isEmpty || !jsTruthy(r['DOI'])) continue;
+          int dp(Object? x) => jsNum(asList(asList(asMap(x)?['date-parts']).firstOrNull).firstOrNull).toInt();
+          final y = [dp(r['published']), dp(r['published-print']), dp(r['issued'])].firstWhere((x) => x > 0, orElse: () => 0);
+          final isbn = asList(r['ISBN']).isEmpty ? '' : jsStr(asList(r['ISBN']).first).replaceAll(RegExp(r'[^0-9Xx]'), '');
+          rows.add(sourceEntry(provider, r['DOI'], t, {
+            'year': y,
+            'externalIds': {'doi': jsStr(r['DOI']), if (isbn.isNotEmpty) 'isbn': isbn},
+            'legacy': {'year': y, 'synopsis': cut(r['abstract'], 1200), 'mediaFormat': cut(r['type'], 40)},
+            'fields': {
+              'publisher': cut(r['publisher'], 160),
+              'creators': [
+                for (final a in asList(r['author']).map(asMap).whereType<Map<String, dynamic>>().take(8))
+                  cut([a['given'], a['family']].where(jsTruthy).map(jsStr).join(' '), 120),
+              ].where((x) => x.isNotEmpty).toList(),
+            },
+          }));
+        }
+      case 'inventaire':
+        for (final r in await keylessInventaire(title, (u) => get(u))) {
+          final wd = RegExp(r'^Q\d+$').hasMatch(jsStr(r['id']));
+          rows.add(sourceEntry(provider, r['id'], r['title'], {
+            'year': r['year'], 'externalIds': wd ? {'wikidata': r['id']} : <String, dynamic>{},
+            'legacy': {'synopsis': r['description'], 'year': r['year']},
+          }));
+        }
+      case 'episodate':
+        for (final r in (await keylessEpisodate(title, (u) => get(u))).take(6)) {
+          rows.add(sourceEntry(provider, r['id'], r['title'], {
+            'year': r['year'], 'externalIds': {'episodate': r['id']},
+            'legacy': {'year': r['year'], 'mediaFormat': 'TV'},
+            'fields': {'tvNetwork': r['network'], 'tvStatus': r['status'], 'country': r['country'], 'tvLastAirDate': jsStr(r['endDate'])},
+          }));
+        }
+      case 'dnb' || 'bnf':
+        final url = provider == 'dnb'
+            ? 'https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&recordSchema=oai_dc&maximumRecords=10&query=${enc('tit=$title')}'
+            : 'https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&recordSchema=dublincore&maximumRecords=10&query=${enc('bib.title all "${title.replaceAll('"', '')}"')}';
+        final xml = jsStr(await get(url, text: true));
+        for (final dc in RegExp(r'<(?:oai_dc:)?dc[\s>][\s\S]*?</(?:oai_dc:)?dc>').allMatches(xml).map((m) => m[0]!)) {
+          List<String> tag(String name) => [
+                for (final m in RegExp('<dc:$name[^>]*>([\\s\\S]*?)</dc:$name>').allMatches(dc)) cut(_xmlText(m[1]!), 400),
+              ].where((x) => x.isNotEmpty).toList();
+          final t = tag('title').firstOrNull ?? '';
+          final ids = tag('identifier');
+          final rid = provider == 'dnb'
+              ? (ids.where((x) => RegExp(r'^\d{8,9}[\dX]$', caseSensitive: false).hasMatch(x)).firstOrNull ?? '')
+              : (ids.where((x) => x.contains('ark:/12148/')).firstOrNull ?? '').split('ark:/12148/').last;
+          if (t.isEmpty || rid.isEmpty) continue;
+          final isbn = ids.map((x) => x.replaceAll(RegExp(r'[^0-9Xx]'), '')).where((x) => x.length == 13 || x.length == 10).firstOrNull ?? '';
+          final y = year(tag('date').firstOrNull);
+          rows.add(sourceEntry(provider, rid, cut(t.split(' / ').first), {
+            'year': y,
+            'externalIds': {provider: rid, if (isbn.isNotEmpty) 'isbn': isbn},
+            'legacy': {'year': y, 'genres': tag('subject').take(10).toList()},
+            'fields': {'publisher': tag('publisher').firstOrNull ?? '', 'creators': tag('creator').take(6).toList()},
+          }));
+        }
+      case 'gcd':
+        final d = asMap(await get('https://www.comics.org/api/series/name/${Uri.encodeComponent(title)}/?format=json'));
+        for (final r in asList(d?['results']).map(asMap).whereType<Map<String, dynamic>>().take(10)) {
+          final id = RegExp(r'/series/(\d+)/').firstMatch(jsStr(r['api_url']))?[1] ?? '';
+          if (id.isEmpty || !jsTruthy(r['name'])) continue;
+          rows.add(sourceEntry(provider, id, r['name'], {
+            'year': jsNum(r['year_began']).toInt(),
+            'externalIds': {'gcd_series': id},
+            'legacy': {'year': jsNum(r['year_began']).toInt(), 'mediaFormat': cut(r['publishing_format'], 60)},
+            'fields': {'country': cut(r['country'], 10), 'endDate': jsTruthy(r['year_ended']) ? '${r['year_ended']}' : ''},
+          }));
+        }
+      case 'deezer':
+        final d = asMap(await get('https://api.deezer.com/search/album?limit=10&q=${enc(title)}'));
+        for (final r in asList(d?['data']).map(asMap).whereType<Map<String, dynamic>>()) {
+          if (!jsTruthy(r['id']) || !jsTruthy(r['title'])) continue;
+          rows.add(sourceEntry(provider, r['id'], r['title'], {
+            'externalIds': {'deezer_album': jsStr(r['id'])},
+            'legacy': {'mediaFormat': cut(r['record_type'], 30)},
+            'fields': {'trackCount': jsNum(r['nb_tracks']) > 0 ? jsNum(r['nb_tracks']).toInt() : null, 'artists': [cut(asMap(r['artist'])?['name'], 120)]},
+          }));
+        }
+    }
+    return rows.where((r) => jsStr(r['title']).isNotEmpty && jsStr(r['recordId']).isNotEmpty).take(10).toList();
   }
 
   /// `mf439LookupPublic`.
@@ -531,6 +655,8 @@ class RatingSources {
   /// `mf555rLookup`: one source, by name or saved ID.
   Future<List<Map<String, dynamic>>> lookup(String provider, Map<String, dynamic> query, {StopToken? stop}) {
     stop?.check();
+    // Website v577: EpisoDate answers directly now (no gateway key needed).
+    if (kKeylessDetailSources.contains(provider)) return lookupKeyless(provider, query, stop: stop);
     if (kGatewaySources.contains(provider)) return lookupGateway(provider, query, stop: stop);
     return lookupPublic(provider, query, stop: stop);
   }
@@ -641,3 +767,14 @@ List<Map<String, dynamic>> _names(List<(String, Object?)> pairs) => [
       for (final (lang, text) in pairs)
         if (lang.isNotEmpty && text is String && text.isNotEmpty) {'lang': lang, 'text': text},
     ];
+
+
+String _xmlText(String s) => s
+    .replaceAll(RegExp(r'<[^>]*>'), ' ')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll(RegExp(r'\s+'), ' ')
+    .trim();

@@ -15,6 +15,7 @@ import 'library_hooks.dart';
 import 'log_engine.dart' show reconcileStarts;
 import 'recommend.dart';
 import 'resume.dart' show clearLoggingDraft;
+import 'stats.dart' show xpMetrics;
 
 List<Map<String, dynamic>> _sessions(Map<String, dynamic> state) =>
     asList(state['sessions']).map(asMap).whereType<Map<String, dynamic>>().toList();
@@ -288,6 +289,40 @@ List<XpEntry> xpHistory(Map<String, dynamic> state) {
       if (residual == 0) continue;
       out.add(XpEntry(id: 'legacy:$key:${e.key}', kind: key, source: label, title: names[e.key] ?? '', xp: residual, legacy: true));
     }
+  }
+  // Website v577: a row for every title added and completed (the level
+  // engine's Library-count XP), the completion streak bonus, and "Other XP"
+  // for anything else counted, so the list sums to the account's XP.
+  final lv = Leveling(state);
+  if (lv.enabled) {
+    final add = math.max(0.0, jsRound(lv.reward('libraryAdditionXP')).toDouble());
+    final done = math.max(0.0, lv.completionXP);
+    for (final i in asList(state['library']).map(asMap).whereType<Map<String, dynamic>>()) {
+      final id = jsStr(i['id']);
+      if (id.isEmpty) continue;
+      final title = cleanTitle(i['title']);
+      if (add > 0) {
+        final at = jsNum(i['createdAt']) > 0 ? jsNum(i['createdAt']) : jsNum(i['addedAt']);
+        out.add(XpEntry(id: 'library:$id', kind: 'libraryAddition', source: 'Library · added title', title: title, xp: add,
+            baseXP: add, multiplier: 1, timestamp: at > 0 ? at : 0));
+      }
+      if (done > 0 && isCompletedItem(i)) {
+        final at = jsNum(i['completedAt']);
+        out.add(XpEntry(id: 'completed:$id', kind: 'titleCompletion', source: 'Title completed', title: title, xp: done,
+            baseXP: done, multiplier: 1, timestamp: at > 0 ? at : 0));
+      }
+    }
+  }
+  final m = xpMetrics(state);
+  final streakBonus = math.max(0.0, jsRound(m['completionStreakBonus']).toDouble());
+  if (streakBonus > 0) {
+    out.add(XpEntry(id: 'completion-streak', kind: 'titleCompletion', source: 'Completion streak bonus',
+        details: 'Streak multiplier on log completion bonuses', xp: streakBonus));
+  }
+  final rest = jsRound(m.total - out.fold<double>(0, (a, e) => a + e.xp)).toDouble();
+  if (rest > 0) {
+    out.add(XpEntry(id: 'other-xp', kind: 'other', source: 'Other XP',
+        details: 'XP the level engine counts without a dated record of its own', xp: rest, legacy: true));
   }
   out.sort((a, b) {
     final t = b.timestamp.compareTo(a.timestamp);

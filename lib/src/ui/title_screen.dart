@@ -19,6 +19,8 @@ import '../logic/recovery.dart' show kUniversalFields, setFieldManually, describ
 import '../logic/rich_fields.dart';
 import '../logic/title_names.dart';
 import '../logic/title_units.dart';
+import '../logic/title_parts.dart';
+import '../logic/log_engine.dart' show syncTitleFromSeasons;
 import '../platform/discord_presence.dart' show DiscordPresence;
 import '../state/models.dart';
 import '../util/js.dart';
@@ -234,14 +236,27 @@ class TitleScreen extends StatelessWidget {
                 ],
                 if (seasons.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('Seasons', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  Text(isByParts(raw) ? 'Logged by parts' : 'Seasons', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  if (isByParts(raw))
+                    Text('${fmtNumber(jsNum(raw['progress']))} in all · ${seasons.length} part${seasons.length == 1 ? '' : 's'} · completed only by hand',
+                        style: TextStyle(color: MF.textDim, fontSize: 12)),
                   for (final s in seasons)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(children: [
-                        Expanded(child: Text(jsStr(s['name']).isEmpty ? 'Season' : jsStr(s['name']))),
-                        Text('${fmtNumber(jsNum(s['progress']))}${jsNum(s['total']) > 0 ? ' / ${fmtNumber(jsNum(s['total']))}' : ''}',
-                            style: TextStyle(color: MF.textDim)),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        Row(children: [
+                          Expanded(child: Text(isByParts(raw) ? partName(s) : (jsStr(s['name']).isEmpty ? 'Season' : jsStr(s['name'])))),
+                          Text(
+                              '${fmtNumber(jsNum(s['progress']))}${jsNum(s['total']) > 0 ? ' / ${fmtNumber(jsNum(s['total']))}' : ''}'
+                              '${isByParts(raw) ? ' ${unitLabel(partUnit(s, raw, cat.raw), jsNum(s['progress']))}' : ''}'
+                              '${isByParts(raw) && jsNum(s['total']) > 0 && jsNum(s['progress']) >= jsNum(s['total']) ? ' ✓' : ''}',
+                              style: TextStyle(color: MF.textDim)),
+                        ]),
+                        if (isByParts(raw) && jsNum(s['total']) > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: LinearProgressIndicator(value: (jsNum(s['progress']) / jsNum(s['total'])).clamp(0, 1).toDouble(), minHeight: 4),
+                          ),
                       ]),
                     ),
                 ],
@@ -518,6 +533,8 @@ class _TitleEditorState extends State<TitleEditor> {
   bool _startEdited = false, _coverAuto = false, _busy = false;
   List<Map<String, dynamic>> _seasons = [];
   bool _seasonsTouched = false;
+  // 9.0.0 (website v577): how this title is logged — 'normal' or 'parts'.
+  String _logMode = 'normal';
   String? _error;
 
   // v565: the title's own unit and runtime, and its names in other languages.
@@ -576,6 +593,7 @@ class _TitleEditorState extends State<TitleEditor> {
     _completedAt = _f.completedAt;
     _coverAuto = _f.coverAuto;
     _seasons = [for (final s in asList(item?['seasons'])) if (asMap(s) != null) Map<String, dynamic>.from(asMap(s)!)];
+    _logMode = isByParts(item) ? 'parts' : 'normal';
     _before = item == null ? const {} : jsonClone(item) as Map<String, dynamic>;
     for (final k in kRichFields) {
       _rich[k]!.text = richFieldText(_before, k);
@@ -698,6 +716,24 @@ class _TitleEditorState extends State<TitleEditor> {
       if (item == null) return;
       // v178: the title metadata, marking what the person changed.
       applyRichEditorValues(item, _before, captured, now);
+      // Website v577: how this title is logged.
+      final wasParts = isByParts(item);
+      if (_logMode == 'parts') {
+        item['mf577LogMode'] = 'parts';
+        if (asList(item['seasons']).isEmpty) {
+          item['seasons'] = [
+            {'id': 'season_${mediaFlowUid(now + 991)}', 'name': 'Main', 'number': null, 'progress': jsNum(item['progress']), 'total': null, 'source': 'manual', 'manual': true},
+          ];
+        }
+        item['seasonSource'] = jsStr(item['seasonSource']).isEmpty ? 'manual' : item['seasonSource'];
+        syncTitleFromSeasons(item, 'edit-$now', modifiedAt: now);
+        item['modifiedAt'] = now;
+      } else if (wasParts) {
+        item.remove('mf577LogMode');
+        item.remove('mf577LastPartId');
+        syncTitleFromSeasons(item, 'edit-$now', modifiedAt: now);
+        item['modifiedAt'] = now;
+      }
       // v377: External Media IDs.
       applyExternalIdEdits(item, _before, idInputs, now);
       // v437: universal fields and media type, saved as manual (locked).
@@ -729,6 +765,118 @@ class _TitleEditorState extends State<TitleEditor> {
     }
     Navigator.of(context).pop();
     _toast(context, xp > 0 ? 'Saved · +${fmtNumber(xp)} XP' : 'Saved');
+  }
+
+  /// "How this title is logged" (website v577) and the seasons or parts.
+  List<Widget> _seasonsOrParts() {
+    final parts = _logMode == 'parts';
+    Widget field(int i, String key, String label, {bool digits = false, String hint = '', int flex = 1, String Function(Object?)? show}) => Expanded(
+          flex: flex,
+          child: TextFormField(
+            initialValue: show != null ? show(_seasons[i][key]) : (_seasons[i][key] == null ? '' : jsStr(_seasons[i][key])),
+            keyboardType: digits ? TextInputType.number : TextInputType.text,
+            inputFormatters: digits ? [FilteringTextInputFormatter.digitsOnly] : null,
+            decoration: InputDecoration(labelText: label, hintText: hint.isEmpty ? null : hint, isDense: true),
+            onChanged: (v) {
+              _seasonsTouched = true;
+              if (key == 'progress') {
+                _seasons[i][key] = int.tryParse(v) ?? 0;
+              } else if (key == 'total') {
+                _seasons[i][key] = int.tryParse(v);
+              } else if (key == 'mf577SecondsPerUnit') {
+                final secs = parsePartTime(v);
+                secs > 0 ? _seasons[i][key] = secs : _seasons[i].remove(key);
+              } else if (key == 'name') {
+                _seasons[i][key] = v;
+              } else {
+                v.trim().isEmpty ? _seasons[i].remove(key) : _seasons[i][key] = v.trim();
+              }
+            },
+          ),
+        );
+    return [
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(14)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Text('How this title is logged', style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('Normal fills seasons in order. By parts gives each part (a game mode, a chapter, anything) its own counter, unit and time per unit; '
+              'the title adds them up and is completed only by hand.',
+              style: TextStyle(color: MF.textDim, fontSize: 12)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'normal', label: Text('Normal'), icon: Icon(Icons.format_list_numbered_rounded)),
+              ButtonSegment(value: 'parts', label: Text('By parts'), icon: Icon(Icons.dashboard_customize_rounded)),
+            ],
+            selected: {_logMode},
+            onSelectionChanged: (v) => setState(() {
+              _logMode = v.first;
+              _seasonsTouched = true;
+              if (_logMode == 'parts' && _seasons.isEmpty) {
+                final p = _num(_progress) ?? 0;
+                _seasons.add({'name': p > 0 ? 'Main' : 'Part 1', 'progress': p.floor(), 'total': null});
+              }
+            }),
+          ),
+        ]),
+      ),
+      const SizedBox(height: 10),
+      Row(children: [
+        Expanded(child: Text(parts ? 'Parts' : 'Seasons', style: const TextStyle(fontWeight: FontWeight.w800))),
+        TextButton.icon(
+          onPressed: () => setState(() {
+            _seasonsTouched = true;
+            _seasons.add({'name': parts ? 'Part ${_seasons.length + 1}' : 'Season ${_seasons.length + 1}', 'progress': 0, 'total': null});
+          }),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: Text(parts ? 'Add part' : 'Add season'),
+        ),
+      ]),
+      if (parts)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Text('Each part: a kind (Mode, Chapter…), a name, its own counter, and optionally its own unit and time per unit '
+              '(empty: the title\'s, then the category\'s). The title\'s number is the sum of its parts.',
+              style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ),
+      for (var i = 0; i < _seasons.length; i++)
+        Container(
+          key: ValueKey('season-$i-${_seasons.length}-$_logMode'),
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: parts ? const EdgeInsets.all(8) : EdgeInsets.zero,
+          decoration: parts ? BoxDecoration(border: Border.all(color: MF.border), borderRadius: BorderRadius.circular(12)) : null,
+          child: Column(children: [
+            Row(children: [
+              if (parts) ...[field(i, 'mf577Kind', 'Kind', hint: 'Mode'), const SizedBox(width: 8)],
+              field(i, 'name', 'Name', flex: 2),
+              const SizedBox(width: 8),
+              field(i, 'progress', 'Done', digits: true, show: (v) => _n(jsNumOrNull(v))),
+              const SizedBox(width: 8),
+              field(i, 'total', 'Total', digits: true, show: (v) => v == null ? '' : _n(jsNum(v))),
+              IconButton(
+                tooltip: parts ? 'Remove part' : 'Remove season',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(() {
+                  _seasonsTouched = true;
+                  _seasons.removeAt(i);
+                }),
+              ),
+            ]),
+            if (parts)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Row(children: [
+                  field(i, 'mf577Unit', 'Unit', hint: 'Title\'s unit'),
+                  const SizedBox(width: 8),
+                  field(i, 'mf577SecondsPerUnit', 'Time per unit', hint: 'mm:ss', show: (v) => partTimeText(jsNum(v).floor())),
+                  const SizedBox(width: 48),
+                ]),
+              ),
+          ]),
+        ),
+    ];
   }
 
   Widget _numField(TextEditingController c, String label, {bool decimal = true}) => TextField(
@@ -1102,68 +1250,7 @@ class _TitleEditorState extends State<TitleEditor> {
             const SizedBox(height: 14),
             ..._unitAndNames(cat),
             const SizedBox(height: 14),
-            Row(children: [
-              const Expanded(child: Text('Seasons', style: TextStyle(fontWeight: FontWeight.w800))),
-              TextButton.icon(
-                onPressed: () => setState(() {
-                  _seasonsTouched = true;
-                  _seasons.add({'name': 'Season ${_seasons.length + 1}', 'progress': 0, 'total': null});
-                }),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add season'),
-              ),
-            ]),
-            for (var i = 0; i < _seasons.length; i++)
-              Padding(
-                key: ValueKey('season-$i-${_seasons.length}'),
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      initialValue: jsStr(_seasons[i]['name']),
-                      decoration: const InputDecoration(labelText: 'Name', isDense: true),
-                      onChanged: (v) {
-                        _seasonsTouched = true;
-                        _seasons[i]['name'] = v;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: _n(jsNumOrNull(_seasons[i]['progress'])),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'Done', isDense: true),
-                      onChanged: (v) {
-                        _seasonsTouched = true;
-                        _seasons[i]['progress'] = int.tryParse(v) ?? 0;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      initialValue: _seasons[i]['total'] == null ? '' : _n(jsNum(_seasons[i]['total'])),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      decoration: const InputDecoration(labelText: 'Total', isDense: true),
-                      onChanged: (v) {
-                        _seasonsTouched = true;
-                        _seasons[i]['total'] = int.tryParse(v);
-                      },
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => setState(() {
-                      _seasonsTouched = true;
-                      _seasons.removeAt(i);
-                    }),
-                  ),
-                ]),
-              ),
+            ..._seasonsOrParts(),
             const SizedBox(height: 12),
             _richSection(),
             _universalSection(),

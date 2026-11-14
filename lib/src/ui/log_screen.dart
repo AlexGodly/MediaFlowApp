@@ -16,6 +16,7 @@ import '../data/app_prefs.dart';
 import '../logic/log_arrange.dart';
 import '../logic/log_draft.dart';
 import '../logic/title_units.dart' show titleUnit;
+import '../logic/title_parts.dart';
 import '../logic/rec_submit.dart';
 import '../logic/recommend.dart';
 import '../logic/resume.dart';
@@ -1751,7 +1752,10 @@ class _LogScreenState extends State<LogScreen> {
           _collapseButton(collapsed, () => _toggleFlag(e, 'v379QuickCollapsed')),
           _entryMenu(view, index, pos, count, title),
         ]),
-        if (!collapsed) ...[
+        if (!collapsed && item != null && ed.isPartsEntry(e)) ...[
+          const SizedBox(height: 8),
+          _partsControls(ed, index, e, item, cat),
+        ] else if (!collapsed) ...[
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -1803,6 +1807,81 @@ class _LogScreenState extends State<LogScreen> {
 
   String _progressLabel(Map<String, dynamic>? item, Category cat) => '${_cap(_word(titleUnit(item, cat.raw), 1))} reached';
 
+  /// Website v577: a by-parts title's chips and one line per chosen part, with
+  /// its own counter and bar ("Competitive · Match 41 → 44 (+3)").
+  Widget _partsControls(LogDraftEditor ed, int index, Map<String, dynamic> e, Map<String, dynamic> item, Category cat) {
+    final reached = ed.mode == 'progress' && e['isRepeat'] != true;
+    final chosen = {for (final m in cleanMoves(item, partMovesOf(e))) m.id: m.qty};
+    final parts = titleParts(item);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final p in parts)
+            FilterChip(
+              label: Text(partName(p)),
+              selected: chosen.containsKey(jsStr(p['id'])),
+              onSelected: (_) => _edit((x) {
+                if (chosen.length == 1 && chosen.containsKey(jsStr(p['id']))) return 'Keep at least one part, or remove the title.';
+                x.togglePartAt(index, jsStr(p['id']));
+                return null;
+              }),
+            ),
+        ]),
+        for (final p in parts)
+          if (chosen.containsKey(jsStr(p['id'])))
+            Builder(builder: (_) {
+              final id = jsStr(p['id']);
+              final q = chosen[id] ?? 0, from = jsNum(p['progress']), total = jsNum(p['total']);
+              final to = total > 0 && from + q > total ? total : from + q;
+              final unit = partUnit(p, item, cat.raw);
+              return Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: MF.border)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Row(children: [
+                    Expanded(child: Text(partName(p), style: const TextStyle(fontWeight: FontWeight.w800))),
+                    SizedBox(
+                      width: 120,
+                      child: CommitField(
+                        key: ValueKey('part-${entryKey(e)}-$id-$reached'),
+                        value: _plain(reached ? to : q),
+                        label: reached ? '${_cap(_word(unit, 1))} reached' : 'Amount',
+                        decimal: false,
+                        min: reached ? from.floor() : 0,
+                        max: reached && total > 0 ? total.floor() : _stepLimit,
+                        onCommit: (t) => _edit((x) {
+                          x.setPartAt(index, id, double.tryParse(t.replaceAll(',', '.')) ?? 0);
+                          return null;
+                        }),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${reached ? '${_cap(_word(unit, 1))} ${_num(from)} → ${_num(to)} ' : ''}(+${fmtNumber(q)} ${_word(unit, q)})'
+                    '${total > 0 ? ' · ${_num(to)}/${_num(total)}${to >= total ? ' ✓' : ''}' : ''}'
+                    ' · ${fmtMinutes(jsRound(q * partSeconds(p, item, cat.raw) / 60))}',
+                    style: TextStyle(color: MF.textDim, fontSize: 12),
+                  ),
+                  if (total > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: LinearProgressIndicator(value: (to / total).clamp(0, 1).toDouble(), minHeight: 5),
+                    ),
+                ]),
+              );
+            }),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text('+${fmtNumber(jsNum(e['qty']))} in all · title ${_num(jsNum(e['v179StartProgress']))} → ${_num(jsNum(e['v179EndProgress']))}',
+              style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+        ),
+      ]),
+    );
+  }
+
   /// "Episode 12 → 15 / 28" for an entry: where the title stands before this
   /// log and where it will be after it (website v179 start / end progress,
   /// v369 projection for itemized logs), live as the draft changes.
@@ -1823,6 +1902,7 @@ class _LogScreenState extends State<LogScreen> {
     final season = jsStr(ed.selectedSeason(e, item)?['name']);
     final done = total > 0 && after >= total;
     final noun = _cap(_word(titleUnit(item, cat.raw), 1));
+    final bar = repeat ? null : _seasonBar(ed, e, item, cat);
     return Padding(
       padding: const EdgeInsets.only(top: 6, right: 8),
       child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 4, children: [
@@ -1840,7 +1920,49 @@ class _LogScreenState extends State<LogScreen> {
             decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(8)),
             child: Text('Starts at 0 (rewatch / reread)', style: TextStyle(fontSize: 11, color: MF.accent, fontWeight: FontWeight.w700)),
           ),
+        if (bar != null) bar,
       ]),
+    );
+  }
+
+  /// Website v577: with a season selected, its own counter and bar
+  /// ("Season 2 · Episode 3 → 5 / 12"), in Progress reached and Advanced.
+  Widget? _seasonBar(LogDraftEditor ed, Map<String, dynamic> e, Map<String, dynamic> item, Category cat) {
+    if (isByParts(item)) return null;
+    final Map<String, dynamic>? season;
+    double to;
+    if (ed.itemized) {
+      season = ed.selectedSeason(e, item);
+      if (season == null) return null;
+      to = LogDraftEditor.contiguousProgress(season['progress'], [...ed.knownUnits(item), ...ed.units(e)], jsStr(season['id']), season['total']);
+    } else {
+      if (e['v252UseSeasonView'] != true || e['v252SeasonEpisode'] == null) return null;
+      season = LogDraftEditor.seasonsOf(item).where((s) => jsStr(s['id']) == jsStr(e['v252SeasonId'])).firstOrNull;
+      if (season == null) return null;
+      to = jsNum(e['v252SeasonEpisode']);
+    }
+    final from = jsNum(season['progress']), total = jsNum(season['total']);
+    if (total > 0 && to > total) to = total;
+    if (to < from) to = from;
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+        decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(
+            '${jsStr(season['name']).isEmpty ? 'Season' : jsStr(season['name'])} · ${_cap(_word(titleUnit(item, cat.raw), 1))} ${_num(from)} → ${_num(to)}'
+            '${total > 0 ? ' / ${_num(total)}${to >= total ? ' ✓' : ''}' : ''} (+${_num(to - from)})',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          if (total > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: LinearProgressIndicator(value: (to / total).clamp(0, 1).toDouble(), minHeight: 4),
+            ),
+        ]),
+      ),
     );
   }
 

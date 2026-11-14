@@ -32,6 +32,8 @@ abstract class AccountOp {
         return TaskOp.fromJson(j);
       case 'draft':
         return DraftOp.fromJson(j);
+      case 'batchDraft':
+        return BatchDraftOp(jsStr(j['id']), asMap(j['section']) ?? const {});
       case 'recLog':
         return RecLogOp(RecLogRequest.fromJson(asMap(j['request']) ?? const {}));
       case 'batch':
@@ -104,6 +106,21 @@ class DraftOp extends AccountOp {
   Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'logging': logging};
 
   static DraftOp fromJson(Map<String, dynamic> j) => DraftOp(jsStr(j['id']), asMap(j['logging']) ?? const {});
+}
+
+/// Website v577: the Batch Log draft (resumeStateV285.mf577Batch), newer wins.
+class BatchDraftOp extends AccountOp {
+  BatchDraftOp(this.id, this.section);
+  @override
+  final String id;
+  final Map<String, dynamic> section;
+
+  @override
+  String get kind => 'batchDraft';
+  @override
+  bool apply(Map<String, dynamic> state) => applyBatchSection(state, section);
+  @override
+  Map<String, dynamic> toJson() => {'kind': kind, 'id': id, 'section': section};
 }
 
 /// MediaFlow Recommends session actions.

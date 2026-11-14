@@ -13,6 +13,7 @@ import '../logic/library_logic.dart' show findTitle;
 import '../util/js.dart';
 import 'account_controller.dart';
 import 'metadata_search.dart';
+import 'provider_catalog.dart' show kCoverRegistry;
 import 'rating_sources.dart';
 
 /// A title waiting for a cover choice.
@@ -24,7 +25,10 @@ class CoverReview {
   CoverReview(this.id, this.title, this.expectedModifiedAt, this.candidates);
   final String id, title;
   final int expectedModifiedAt;
-  final List<CoverCandidate> candidates;
+  List<CoverCandidate> candidates;
+
+  /// 9.0.0 "Show all results": every source and every name was searched.
+  bool showingAll = false, loadingAll = false;
 }
 
 class RecoveryJob {
@@ -195,17 +199,18 @@ class RecoveryRunner extends ChangeNotifier {
   /// `mf424Candidates`: saved External IDs get the first chance, then a name
   /// search; every name a record carries is compared with the title
   /// (`mf424Match`). Up to 24 covers of 65% confidence or more, best first.
-  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item, {String? query, bool manual = false}) async {
+  Future<List<CoverCandidate>> coverCandidates(AccountController account, Map<String, dynamic> item,
+      {String? query, bool manual = false, bool everything = false}) async {
     final cat = account.view!.category(jsStr(item['categoryId']));
     final unit = jsStr(cat.raw['unit']).isEmpty ? cat.unit : jsStr(cat.raw['unit']);
     final ids = asMap(item['externalIds']);
     final found = <String, CoverCandidate>{};
     void take(MetadataResult r) {
       final url = r.coverUrl.trim();
-      if (!url.startsWith('https://') || found.containsKey(url) || found.length >= 24) return;
+      if (!url.startsWith('https://') || found.containsKey(url) || found.length >= (everything ? 80 : 24)) return;
       final isbn = r.idMatch && r.externalIdKey == 'isbn';
       final m = isbn ? (confidence: 1.0, reason: 'Exact ISBN edition') : coverMatch(item, r.matchRecord, r.idMatch);
-      if (!manual && m.confidence < 0.65) return;
+      if (!manual && !everything && m.confidence < 0.65) return;
       final provider = coverProviderId(r.source);
       var recordId = (r.externalId ?? '').trim();
       if (provider == 'openlibrary') recordId = recordId.replaceFirst(RegExp(r'^/works/'), '');
@@ -234,8 +239,10 @@ class RecoveryRunner extends ChangeNotifier {
     }
     // 8.1.0: the category's own cover sources (Sources → Category presets) or the global list.
     final settings = asMap(account.view!.state['settings']);
-    final enabled = coverSourcesFor(settings, cat.id);
-    final names = query != null ? [query] : titleVariants(item).take(3).toList();
+    // "Show all results" (9.0.0): every cover source and every name, like a
+    // manual search of each name.
+    final enabled = everything ? {for (final p in kCoverRegistry) p.id} : coverSourcesFor(settings, cat.id);
+    final names = query != null ? [query] : titleVariants(item).take(everything ? 8 : 3).toList();
     for (final name in names) {
       List<MetadataResult> results;
       try {
@@ -247,7 +254,7 @@ class RecoveryRunner extends ChangeNotifier {
             kind: tmdbKind(categoryId: cat.id, categoryName: cat.name, externalIds: ids),
             externalIds: ids,
             enabled: enabled,
-            gatewayFollowsList: hasCoverPreset(settings, cat.id),
+            gatewayFollowsList: !everything && hasCoverPreset(settings, cat.id),
           ),
           // Website v440 sources (Steam, iTunes albums, MusicBrainz, VNDB, IFDB, Gutenberg, Google Books).
           searchExtraCovers(name, ids, enabled, albums: !const ['tracks', 'albums'].contains(unit), year: item['year']),
@@ -260,7 +267,7 @@ class RecoveryRunner extends ChangeNotifier {
         take(r);
       }
       // The title's own name found something: the other names are only a fallback.
-      if (found.isNotEmpty) break;
+      if (found.isNotEmpty && !everything) break;
     }
     final list = found.values.toList();
     mergeSortBy(list, (a, b) => a.confidence == b.confidence ? 0 : (b.confidence > a.confidence ? 1 : -1));
@@ -280,6 +287,23 @@ class RecoveryRunner extends ChangeNotifier {
       job.xp += xp!.round();
     }
     return true;
+  }
+
+  /// "Show all results" in a cover review: the full search, in the card.
+  Future<void> showAllCovers(AccountController account, CoverReview review) async {
+    final item = findTitle(account.view?.state ?? const {}, review.id);
+    if (item == null || review.loadingAll) return;
+    review.loadingAll = true;
+    notifyListeners();
+    try {
+      final all = await coverCandidates(account, item, everything: true);
+      final have = {for (final c in review.candidates) c.url};
+      review.candidates = [...review.candidates, for (final c in all) if (!have.contains(c.url)) c];
+      review.showingAll = true;
+    } finally {
+      review.loadingAll = false;
+      notifyListeners();
+    }
   }
 
   /// A cover picked in the review list.

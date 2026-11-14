@@ -12,7 +12,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../logic/consuming.dart';
-import '../logic/log_draft.dart' show LogDraftEditor;
+import '../logic/log_draft.dart' show LogDraftEditor, partMovesOf, partMovesFromUnits;
+import '../logic/title_parts.dart';
 import '../logic/presence_templates.dart';
 import '../logic/resume.dart' show readLogging;
 import '../logic/title_units.dart' show titleUnit;
@@ -77,6 +78,16 @@ String presenceVerb(Category cat, {String fallback = 'Logging'}) => switch (pres
 /// {before} it, and the season being logged.
 ({double progress, double before, String? season}) draftProgress(
     LogDraftEditor ed, Map<String, dynamic> item, Map<String, dynamic> entry) {
+  // 9.0.0 (website v577): a by-parts title shows the part being logged, with
+  // that part's own counter.
+  if (isByParts(item)) {
+    final moves = ed.itemized ? partMovesFromUnits(entry['v369Units']) : cleanMoves(item, partMovesOf(entry));
+    final last = moves.isEmpty ? null : titlePart(item, moves.last.id);
+    if (last != null) {
+      final from = jsNum(last['progress']), total = jsNum(last['total']), q = moves.last.qty;
+      return (progress: total > 0 && from + q > total ? total : from + q, before: from, season: partName(last));
+    }
+  }
   // A missing start (null, as JS Number(null) would make it 0) means the
   // title's saved progress.
   final start = entry['v179StartProgress'];

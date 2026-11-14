@@ -3,6 +3,7 @@
 // Collection queues per task category (assign, rules, move, reset, remove);
 // and the "Prioritize Personal Order" recommendation switch.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -11,7 +12,7 @@ import 'package:flutter/services.dart';
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
 import '../logic/collections_logic.dart';
-import '../logic/recommend.dart';
+import '../logic/order_view.dart';
 import '../state/models.dart';
 import '../util/js.dart';
 import 'collections_screen.dart' show pickLibraryTitles, CollectionCover;
@@ -21,7 +22,6 @@ import 'recovery_screen.dart' show openRecovery;
 import 'theme.dart';
 import 'title_screen.dart';
 import 'widgets.dart';
-import '../logic/title_names.dart' show nameMatches;
 
 void _toast(BuildContext context, String text) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), duration: const Duration(seconds: 3)));
@@ -71,11 +71,29 @@ class _OrderScreenState extends State<OrderScreen> {
   final _search = TextEditingController();
   String _cat = 'all', _status = 'all', _sort = 'order';
   String _tabCat = ''; // Tabs layout: the category shown
+  String _query = ''; // the search, applied after a short pause while typing
+  Timer? _searchTimer;
 
   @override
   void dispose() {
+    _searchTimer?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  void _onSearch(String text) {
+    _searchTimer?.cancel();
+    _searchTimer = Timer(const Duration(milliseconds: 220), () {
+      if (mounted && _query != text.trim().toLowerCase()) setState(() => _query = text.trim().toLowerCase());
+    });
+  }
+
+  /// 9.0.0: the Order as shown, computed once per account change and filter.
+  OrderTitlesModel _model(AccountView view) {
+    final p = asMap(view.state['orderPlan']) ?? const <String, dynamic>{};
+    final byId = memoFor(view, 'orderLibraryTitles', () => {for (final t in view.library) t.id: t});
+    return memoFor(view, 'orderModel|$_cat|$_status|$_sort|$_query',
+        () => OrderTitlesModel.build(p, byId, category: _cat, status: _status, sort: _sort, query: _query));
   }
 
   String get _titleView => AppPrefs.instance.get<String>('orderTitleView', 'list');
@@ -164,34 +182,6 @@ class _OrderScreenState extends State<OrderScreen> {
     var n = 0;
     await account.edit((s, now) => n = orderRestoreLast(s, now), label: 'Restore last Order');
     if (mounted) _toast(context, n == 0 ? 'No cleared Order is available to restore.' : '$n ordered title${n == 1 ? '' : 's'} restored ✓');
-  }
-
-  List<String> _visible(AccountView view, List<String> ids, Map<String, LibraryTitle> byId) {
-    final q = _search.text.trim().toLowerCase();
-    var out = [
-      for (final id in ids)
-        if ((_cat == 'all' || byId[id]!.categoryId == _cat) &&
-            (_status == 'all' || byId[id]!.status == _status) &&
-            (q.isEmpty || nameMatches(byId[id]!.raw, q)))
-          id,
-    ];
-    if (_sort != 'order') {
-      final pos = {for (var i = 0; i < ids.length; i++) ids[i]: i};
-      int cmp(String a, String b) {
-        final x = byId[a]!, y = byId[b]!;
-        final r = switch (_sort) {
-          'title' => x.title.toLowerCase().compareTo(y.title.toLowerCase()),
-          'progress' => y.progress.compareTo(x.progress),
-          'added' => jsNum(y.raw['createdAt']).compareTo(jsNum(x.raw['createdAt'])),
-          'rating' => (y.rating ?? 0).compareTo(x.rating ?? 0),
-          _ => 0,
-        };
-        return r != 0 ? r : pos[a]! - pos[b]!;
-      }
-
-      out = [...out]..sort(cmp);
-    }
-    return out;
   }
 
   /// `orderPlan.v288QueueView` (website v288/v289/v345/v364), unknown fields kept.
@@ -291,15 +281,16 @@ class _OrderScreenState extends State<OrderScreen> {
         if (view == null) return const SizedBox.shrink();
         final state = view.state;
         final p = asMap(state['orderPlan']) ?? const <String, dynamic>{};
-        final byId = memoFor(view, 'libraryById', () => {for (final t in view.library) t.id: t});
-        final titleIds = [for (final x in asList(p['titleIds'])) if (byId.containsKey(jsStr(x))) jsStr(x)];
+        final model = _model(view);
+        final byId = model.byId;
+        final titleIds = model.titleIds;
         final prioritize = jsTruthy(asMap(state['settings'])?['prioritizePersonalOrder']);
         final byCategory = p['viewMode'] == 'category';
         final qv = _queueView(p);
         final canRestore = asList(asMap(p['lastClearedOrder'])?['titleIds']).isNotEmpty;
-        final shown = _visible(view, titleIds, byId);
-        // Each title's place in the Order, computed once per change (was a scan per row).
-        final posOf = <String, int>{for (var i = 0; i < titleIds.length; i++) titleIds[i]: i};
+        final shown = model.shown;
+        final posOf = model.posOf;
+        final mixed = qv['showCollectionsInRegularQueues'] == true;
         final filtered = shown.length != titleIds.length || _sort != 'order';
         final grid = _titleView == 'covers' || _titleView == 'covers-title' || _titleView == 'cards';
         final header = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -310,6 +301,17 @@ class _OrderScreenState extends State<OrderScreen> {
             value: prioritize,
             onChanged: (v) => account.setSetting(['prioritizePersonalOrder'], v),
           ),
+          _AddBar(
+            onAddTitles: () => _addTitles(view, titleIds),
+            onAddCollection: () => _addCollection(context, account, view, _order, showInTitles: true),
+            trailing: FilterChip(
+              avatar: const Icon(Icons.collections_bookmark_rounded, size: 16),
+              label: const Text('Collections in this list'),
+              selected: mixed,
+              onSelected: (v) => _setQueueView('showCollectionsInRegularQueues', v),
+            ),
+          ),
+          const SizedBox(height: 8),
           Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
             SegmentedButton<String>(
               segments: const [ButtonSegment(value: 'all', label: Text('All titles')), ButtonSegment(value: 'category', label: Text('By category'))],
@@ -355,7 +357,7 @@ class _OrderScreenState extends State<OrderScreen> {
           TextField(
             controller: _search,
             decoration: const InputDecoration(hintText: 'Search your Order', prefixIcon: Icon(Icons.search_rounded), isDense: true),
-            onChanged: (_) => setState(() {}),
+            onChanged: _onSearch,
           ),
           const SizedBox(height: 6),
           SingleChildScrollView(
@@ -401,6 +403,9 @@ class _OrderScreenState extends State<OrderScreen> {
                   style: TextStyle(color: MF.textDim, fontSize: 12)),
             ),
           const SizedBox(height: 8),
+          // 9.0.0: Collections in the titles list (All titles view; By
+          // category places them inside each category's list instead).
+          if (mixed && !byCategory) ..._allTitlesCollections(view),
           if (titleIds.isEmpty)
             Padding(
               padding: const EdgeInsets.all(24),
@@ -411,7 +416,7 @@ class _OrderScreenState extends State<OrderScreen> {
         Widget titles;
         if (byCategory && !filtered) {
           // v565: only the rows on screen are built (a big Order lagged).
-          final blocks = _byCategory(view, p, titleIds, byId, qv);
+          final blocks = _byCategory(view, p, model, qv);
           final tabs = qv['layoutMode'] == 'tabs';
           final width = MediaQuery.sizeOf(context).width;
           final perRow = tabs || width < 760 ? 1 : _listColumns(view).clamp(1, width >= 1300 ? 4 : (width >= 1000 ? 3 : 2));
@@ -510,7 +515,7 @@ class _OrderScreenState extends State<OrderScreen> {
         final showQueues = qv['showCollectionQueues'] == true;
         final sections = <(String, Widget)>[
           if (showTitles) ('Titles', titles),
-          if (showQueues) ('Collection queues', _QueuesTab(account: account, view: view, order: _order)),
+          if (showQueues) ('Collection queues', _QueuesTab(account: account, view: view, order: _order, onAddTitles: () => _addTitles(view, titleIds))),
         ];
         if (qv['sectionOrder'] == 'collections-first') sections.setAll(0, sections.reversed.toList());
         return DefaultTabController(
@@ -523,12 +528,7 @@ class _OrderScreenState extends State<OrderScreen> {
                 IconButton(
                   tooltip: 'Add titles',
                   icon: const Icon(Icons.playlist_add_rounded),
-                  onPressed: () async {
-                    final ids = await pickLibraryTitles(context, view, exclude: titleIds.toSet(), title: 'Add titles to Order');
-                    if (ids == null || ids.isEmpty) return;
-                    await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
-                    if (context.mounted) _toast(context, '${ids.length} title${ids.length == 1 ? '' : 's'} added to Order ✓');
-                  },
+                  onPressed: () => _addTitles(view, titleIds),
                 ),
                 SyncIndicator(account: account),
               ],
@@ -600,76 +600,116 @@ class _OrderScreenState extends State<OrderScreen> {
         ),
       ]);
 
-  /// One block per category: its header (with Add, move, hide and any
-  /// assigned Collections) and its rows, built only when shown.
+  List<Widget> _allTitlesCollections(AccountView view) {
+    final queues = memoFor(view, 'orderQueues', () => orderQueues(view.state));
+    final refs = memoFor(view, 'orderQueueRefs', () => _QueueRefs.of(view.state));
+    final rows = <Widget>[];
+    for (final q in queues) {
+      final cat = view.category(q.categoryId);
+      for (var i = 0; i < q.tokens.length; i++) {
+        if (!q.tokens[i].startsWith('c:')) continue;
+        rows.add(_CollectionQueueRow(view: view, refs: refs, category: cat, token: q.tokens[i], index: i, count: q.tokens.length, order: _order));
+      }
+    }
+    if (rows.isEmpty) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 4, bottom: 2),
+        child: Text('Collections · their number is their place in their category queue', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w700)),
+      ),
+      ...rows,
+      const SizedBox(height: 8),
+    ];
+  }
+
+  Future<void> _addTitles(AccountView view, List<String> titleIds, {String? categoryId}) async {
+    final cat = categoryId == null ? null : view.category(categoryId);
+    final ids = await pickLibraryTitles(context, view,
+        exclude: {...titleIds, if (categoryId != null) for (final t in view.library) if (t.categoryId != categoryId) t.id},
+        title: cat == null ? 'Add titles to Order' : 'Add ${cat.name} titles');
+    if (ids == null || ids.isEmpty) return;
+    await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, ids));
+    if (mounted) _toast(context, '${ids.length} title${ids.length == 1 ? '' : 's'} added to Order ✓');
+  }
+
+  /// One block per category: its header (with Add, move and hide) and its
+  /// rows, built only when shown. With "Collections in this list" on, the
+  /// rows follow the category's queue, so assigned Collections sit between
+  /// the titles where MediaFlow Recommends meets them.
   List<({String cid, int count, Widget Function() header, List<Widget Function()> rows})> _byCategory(
-      AccountView view, Map<String, dynamic> p, List<String> titleIds, Map<String, LibraryTitle> byId, Map<String, dynamic> qv) {
+      AccountView view, Map<String, dynamic> p, OrderTitlesModel model, Map<String, dynamic> qv) {
     final hidden = asList(p['hiddenCategories']).map(jsStr).toSet();
     final out = <({String cid, int count, Widget Function() header, List<Widget Function()> rows})>[];
-    // One pass to group the Order by category.
-    final byCat = <String, List<String>>{};
-    for (final id in titleIds) {
-      (byCat[byId[id]!.categoryId] ??= []).add(id);
-    }
+    final byId = model.byId;
     final mixed = qv['showCollectionsInRegularQueues'] == true;
-    final cols = {for (final c in collectionsOf(view.state)) jsStr(c['id']): c};
-    final assigned = <String, List<String>>{};
-    for (final a in asList(p['collectionAssignments']).map(asMap).whereType<Map<String, dynamic>>()) {
-      final c = cols[jsStr(a['collectionId'])];
-      if (c != null) (assigned[jsStr(a['categoryId'])] ??= []).add(jsStr(c['title']));
-    }
+    final queues = mixed ? {for (final q in memoFor(view, 'orderQueues', () => orderQueues(view.state))) q.categoryId: q} : const <String, OrderQueue>{};
+    final refs = mixed ? memoFor(view, 'orderQueueRefs', () => _QueueRefs.of(view.state)) : null;
     for (final cid in orderCategoryDisplay(p, view.state)) {
       final cat = view.category(cid);
-      final ids = byCat[cid] ?? const <String>[];
+      final ids = model.byCategory[cid] ?? const <String>[];
+      final queue = queues[cid];
+      final collectionCount = queue == null ? 0 : queue.tokens.where((t) => t.startsWith('c:')).length;
       final isHidden = hidden.contains(cid);
-      final collections = mixed ? (assigned[cid] ?? const <String>[]) : const <String>[];
       Widget header() => Padding(
             padding: const EdgeInsets.only(top: 14, bottom: 4),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Row(children: [
-                CategoryBadge(cat, size: 24),
-                const SizedBox(width: 8),
-                Expanded(child: Text('${cat.name} · ${ids.length}', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
-                IconButton(
-                  tooltip: 'Add ${cat.name} titles',
-                  icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                  onPressed: () async {
-                    final pick = await pickLibraryTitles(context, view,
-                        exclude: {...titleIds, for (final t in view.library) if (t.categoryId != cid) t.id}, title: 'Add ${cat.name} titles');
-                    if (pick == null || pick.isEmpty) return;
-                    await _order('Add to Personal Order', (plan, s, now, uid) => orderAddTitles(plan, s, pick));
-                  },
-                ),
-                if (p['categoryMode'] == 'custom') ...[
-                  IconButton(icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, -1))),
-                  IconButton(icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, 1))),
-                ],
-                IconButton(
-                  tooltip: isHidden ? 'Show category' : 'Hide category',
-                  icon: Icon(isHidden ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
-                  onPressed: () => _order('Order categories', (plan, s, now, uid) => orderToggleCategory(plan, cid)),
-                ),
-              ]),
-              if (collections.isNotEmpty)
-                Wrap(spacing: 6, runSpacing: 4, children: [
-                  for (final name in collections)
-                    Chip(visualDensity: VisualDensity.compact, avatar: const Icon(Icons.collections_bookmark_rounded, size: 16), label: Text(name)),
-                ]),
+            child: Row(children: [
+              CategoryBadge(cat, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('${cat.name} · ${ids.length}${collectionCount > 0 ? ' + $collectionCount Collection${collectionCount == 1 ? '' : 's'}' : ''}',
+                    style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
+              ),
+              IconButton(
+                tooltip: 'Add ${cat.name} titles',
+                icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                onPressed: () => _addTitles(view, model.titleIds, categoryId: cid),
+              ),
+              IconButton(
+                tooltip: 'Add a Collection to ${cat.name}',
+                icon: const Icon(Icons.library_add_rounded, size: 18),
+                onPressed: () => _addCollection(context, account, view, _order, categoryId: cid, showInTitles: true),
+              ),
+              if (p['categoryMode'] == 'custom') ...[
+                IconButton(icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, -1))),
+                IconButton(icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: () => _order('Order categories', (plan, s, now, uid) => orderMoveCategory(plan, s, cid, 1))),
+              ],
+              IconButton(
+                tooltip: isHidden ? 'Show category' : 'Hide category',
+                icon: Icon(isHidden ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 18),
+                onPressed: () => _order('Order categories', (plan, s, now, uid) => orderToggleCategory(plan, cid)),
+              ),
             ]),
           );
       final rows = <Widget Function()>[];
       if (!isHidden) {
-        for (var i = 0; i < ids.length; i++) {
-          final id = ids[i], index = i, count = ids.length;
-          rows.add(() => _row(view, byId[id]!, index, count, cid));
+        if (queue != null && collectionCount > 0) {
+          final tokens = queue.tokens;
+          for (var k = 0; k < tokens.length; k++) {
+            final token = tokens[k], pos = k;
+            if (token.startsWith('t:')) {
+              final id = token.substring(2);
+              final t = byId[id];
+              final ti = queue.titleIndex[id];
+              if (t == null || ti == null) continue;
+              rows.add(() => _row(view, t, ti, ids.length, cid, number: pos + 1));
+            } else {
+              rows.add(() => _CollectionQueueRow(
+                    view: view, refs: refs!, category: cat, token: token, index: pos, count: tokens.length, order: _order));
+            }
+          }
+        } else {
+          for (var i = 0; i < ids.length; i++) {
+            final id = ids[i], index = i, count = ids.length;
+            rows.add(() => _row(view, byId[id]!, index, count, cid));
+          }
         }
       }
-      out.add((cid: cid, count: ids.length, header: header, rows: rows));
+      out.add((cid: cid, count: ids.length + collectionCount, header: header, rows: rows));
     }
     return out;
   }
 
-  Widget _row(AccountView view, LibraryTitle t, int i, int count, String? categoryId, {int? dragIndex}) {
+  Widget _row(AccountView view, LibraryTitle t, int i, int count, String? categoryId, {int? dragIndex, int? number}) {
     final cat = view.category(t.categoryId);
     final compact = _titleView == 'compact';
     void move({int delta = 0, int? to}) =>
@@ -679,7 +719,7 @@ class _OrderScreenState extends State<OrderScreen> {
       child: Row(children: [
         if (dragIndex != null)
           ReorderableDragStartListener(index: dragIndex, child: Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.drag_indicator_rounded, color: MF.textDim))),
-        SizedBox(width: 32, child: Text('${i + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
+        SizedBox(width: 32, child: Text('${number ?? i + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
         if (!compact) Cover(title: t, category: cat, width: 36),
         const SizedBox(width: 10),
         Expanded(
@@ -721,33 +761,50 @@ class _OrderScreenState extends State<OrderScreen> {
   }
 }
 
-class _QueuesTab extends StatelessWidget {
-  const _QueuesTab({required this.account, required this.view, required this.order});
-  final AccountController account;
-  final AccountView view;
-  final Future<void> Function(String label, void Function(Map<String, dynamic> plan, Map<String, dynamic> state, int now, String Function() uid) f) order;
+typedef _OrderEdit = Future<void> Function(
+    String label, void Function(Map<String, dynamic> plan, Map<String, dynamic> state, int now, String Function() uid) f);
 
-  Future<void> _assign(BuildContext context) async {
-    final cols = collectionsOf(view.state);
-    if (cols.isEmpty) {
-      _toast(context, 'Create a Collection first.');
-      return;
-    }
-    String? col = jsStr(cols.first['id']);
-    String? cat = view.categories.isEmpty ? null : view.categories.first.id;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => AlertDialog(
-          title: const Text('Add a Collection to a queue'),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<String>(
-              initialValue: col,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Collection'),
-              items: [for (final c in cols) DropdownMenuItem(value: jsStr(c['id']), child: Text(jsStr(c['title'])))],
-              onChanged: (v) => set(() => col = v),
-            ),
+/// 9.0.0: the clear "Add title" / "Add collection" buttons, the same in both tabs.
+class _AddBar extends StatelessWidget {
+  const _AddBar({required this.onAddTitles, required this.onAddCollection, this.trailing});
+  final VoidCallback onAddTitles;
+  final VoidCallback onAddCollection;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) => Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+        FilledButton.icon(onPressed: onAddTitles, icon: const Icon(Icons.playlist_add_rounded), label: const Text('Add title')),
+        FilledButton.tonalIcon(onPressed: onAddCollection, icon: const Icon(Icons.library_add_rounded), label: const Text('Add collection')),
+        if (trailing != null) trailing!,
+      ]);
+}
+
+/// Adds a Collection to a task category's queue (`v287AddCollectionAssignment`).
+/// From the Titles tab it also turns on "Collections in this list" so the new
+/// Collection shows up where it was added.
+Future<void> _addCollection(BuildContext context, AccountController account, AccountView view, _OrderEdit order,
+    {String? categoryId, bool showInTitles = false}) async {
+  final cols = collectionsOf(view.state);
+  if (cols.isEmpty) {
+    _toast(context, 'You have no Collections yet. Create one in Collections first.');
+    return;
+  }
+  String? col = jsStr(cols.first['id']);
+  String? cat = categoryId ?? (view.categories.isEmpty ? null : view.categories.first.id);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (d) => StatefulBuilder(
+      builder: (d, set) => AlertDialog(
+        title: Text(categoryId == null ? 'Add a Collection' : 'Add a Collection to ${view.category(categoryId).name}'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          DropdownButtonFormField<String>(
+            initialValue: col,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Collection'),
+            items: [for (final c in cols) DropdownMenuItem(value: jsStr(c['id']), child: Text(jsStr(c['title']), overflow: TextOverflow.ellipsis))],
+            onChanged: (v) => set(() => col = v),
+          ),
+          if (categoryId == null)
             DropdownButtonFormField<String>(
               initialValue: cat,
               isExpanded: true,
@@ -755,99 +812,92 @@ class _QueuesTab extends StatelessWidget {
               items: [for (final c in view.categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
               onChanged: (v) => set(() => cat = v),
             ),
-          ]),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Add')),
-          ],
-        ),
+          const SizedBox(height: 8),
+          Text('MediaFlow Recommends walks the Collection in its own order when it reaches it in the queue.',
+              style: TextStyle(color: MF.textDim, fontSize: 12)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Add')),
+        ],
       ),
+    ),
+  );
+  if (ok != true || col == null || cat == null) return;
+  String? error;
+  await order('Assign Collection', (plan, s, now, uid) {
+    error = orderAssignCollection(plan, col!, cat!, now, uid);
+    if (error == null && showInTitles && _OrderScreenState._queueView(plan)['showCollectionsInRegularQueues'] != true) {
+      plan['v288QueueView'] = {..._OrderScreenState._queueView(plan), 'showCollectionsInRegularQueues': true};
+    }
+  });
+  if (context.mounted) _toast(context, error ?? 'Collection added to ${view.category(cat!).name} ✓');
+}
+
+/// Assignments and Collections by id, once per account change.
+class _QueueRefs {
+  _QueueRefs(this.assignments, this.collections);
+  final Map<String, Map<String, dynamic>> assignments;
+  final Map<String, Map<String, dynamic>> collections;
+
+  static _QueueRefs of(Map<String, dynamic> state) {
+    final p = asMap(state['orderPlan']) ?? const <String, dynamic>{};
+    return _QueueRefs(
+      {for (final a in asList(p['collectionAssignments']).map(asMap).whereType<Map<String, dynamic>>()) jsStr(a['id']): a},
+      {for (final c in collectionsOf(state)) jsStr(c['id']): c},
     );
-    if (ok != true || col == null || cat == null) return;
-    String? error;
-    await order('Assign Collection', (plan, s, now, uid) => error = orderAssignCollection(plan, col!, cat!, now, uid));
-    if (context.mounted) _toast(context, error ?? 'Collection added to ${view.category(cat!).name} queue ✓');
   }
+}
+
+/// A Collection in a task category's queue: its place, rules, move, reset, remove.
+class _CollectionQueueRow extends StatelessWidget {
+  const _CollectionQueueRow(
+      {required this.view, required this.refs, required this.category, required this.token, required this.index, required this.count, required this.order});
+  final AccountView view;
+  final _QueueRefs refs;
+  final Category category;
+  final String token;
+  final int index, count;
+  final _OrderEdit order;
 
   @override
   Widget build(BuildContext context) {
-    final state = view.state;
-    final p = asMap(state['orderPlan']) ?? const <String, dynamic>{};
-    final assignments = {for (final a in asList(p['collectionAssignments']).map(asMap).whereType<Map<String, dynamic>>()) jsStr(a['id']): a};
-    final cols = {for (final c in collectionsOf(state)) jsStr(c['id']): c};
-    final byId = {for (final t in view.library) t.id: t};
-    // Read-only: the queue as the recommender sees it (reconciled on a copy).
-    final copy = {...state, 'orderPlan': Map<String, dynamic>.from(p)..['categoryQueues'] = Map<String, dynamic>.from(asMap(p['categoryQueues']) ?? const {})};
-    final r = Recommender(copy, now: 0);
-    final cats = view.categories.where((c) => assignments.values.any((a) => jsStr(a['categoryId']) == c.id) || asList(p['titleIds']).any((id) => byId[jsStr(id)]?.categoryId == c.id)).toList();
-    return ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 100), children: [
-      Text('Each task category can mix ordered titles with Collections. MediaFlow Recommends walks the queue from the top.',
-          style: TextStyle(color: MF.textDim)),
-      const SizedBox(height: 8),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(onPressed: () => _assign(context), icon: const Icon(Icons.add_rounded), label: const Text('Add Collection to a queue')),
-      ),
-      if (cats.isEmpty)
-        Padding(padding: EdgeInsets.all(24), child: Text('No queues yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
-      for (final cat in cats) ...[
-        Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 6),
-          child: Row(children: [
-            CategoryBadge(cat, size: 24),
-            const SizedBox(width: 8),
-            Text(cat.name, style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent)),
-          ]),
-        ),
-        for (final (i, token) in r.reconcileQueue(cat.id).indexed) _token(context, cat, token, i, r.reconcileQueue(cat.id).length, assignments, cols, byId),
-      ],
-    ]);
-  }
-
-  Widget _token(BuildContext context, Category cat, String token, int i, int count, Map<String, Map<String, dynamic>> assignments,
-      Map<String, Map<String, dynamic>> cols, Map<String, LibraryTitle> byId) {
-    void move(int delta) => order('Reorder queue', (plan, s, now, uid) => orderMoveQueueToken(s, plan, cat.id, token, delta: delta));
-    final arrows = [
-      IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: i == 0 ? null : () => move(-1)),
-      IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: i >= count - 1 ? null : () => move(1)),
-    ];
-    if (token.startsWith('t:')) {
-      final t = byId[token.substring(2)];
-      if (t == null) return const SizedBox.shrink();
-      return Row(children: [
-        SizedBox(width: 28, child: Text('${i + 1}', style: TextStyle(color: MF.textDim))),
-        Cover(title: t, category: cat, width: 30),
-        const SizedBox(width: 8),
-        Expanded(child: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-        ...arrows,
-      ]);
-    }
-    final a = assignments[token.substring(2)];
-    final c = a == null ? null : cols[jsStr(a['collectionId'])];
+    final a = refs.assignments[token.substring(2)];
+    final c = a == null ? null : refs.collections[jsStr(a['collectionId'])];
     if (a == null || c == null) return const SizedBox.shrink();
     final aid = jsStr(a['id']);
+    final cid = category.id;
+    void move({int delta = 0, int? to}) =>
+        order('Reorder queue', (plan, s, now, uid) => orderMoveQueueToken(s, plan, cid, token, delta: delta, toIndex: to));
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12), border: Border.all(color: MF.border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          SizedBox(width: 28, child: Text('${i + 1}', style: TextStyle(color: MF.textDim))),
-          CollectionCover(view: view, collection: c, size: 30),
+          SizedBox(width: 28, child: Text('${index + 1}', style: TextStyle(color: MF.textDim, fontWeight: FontWeight.w800))),
+          CollectionCover(view: view, collection: c, size: 34),
           const SizedBox(width: 8),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Collection · ${jsStr(c['title'])}', style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text('${collectionTitleIds(c).length} titles · ${asList(a['traversedTitleIds']).length} passed', style: TextStyle(color: MF.textDim, fontSize: 12)),
+              Text(jsStr(c['title']), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text('Collection · ${collectionTitleIds(c).length} titles · ${asList(a['traversedTitleIds']).length} passed',
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: MF.textDim, fontSize: 12)),
             ]),
           ),
-          ...arrows,
+          IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: index == 0 ? null : () => move(delta: -1)),
+          IconButton(
+              visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: index >= count - 1 ? null : () => move(delta: 1)),
           PopupMenuButton<String>(
             onSelected: (v) {
+              if (v == 'top') move(to: 0);
+              if (v == 'bottom') move(to: count - 1);
               if (v == 'reset') order('Reset Collection queue', (plan, s, now, uid) => orderSetAssignmentRule(plan, aid, 'reset', '', now));
               if (v == 'remove') order('Remove Collection from queue', (plan, s, now, uid) => orderRemoveAssignment(plan, aid));
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'top', child: Text('Move to top')),
+              PopupMenuItem(value: 'bottom', child: Text('Move to bottom')),
               PopupMenuItem(value: 'reset', child: Text('Reset queue progress')),
               PopupMenuItem(value: 'remove', child: Text('Remove from Personal Order')),
             ],
@@ -867,6 +917,84 @@ class _QueuesTab extends StatelessWidget {
             maxWidth: 260,
           ),
         ]),
+      ]),
+    );
+  }
+}
+
+/// Collection queues: every task category's queue, titles and Collections
+/// mixed. Computed once per account change; only the rows on screen are built.
+class _QueuesTab extends StatelessWidget {
+  const _QueuesTab({required this.account, required this.view, required this.order, required this.onAddTitles});
+  final AccountController account;
+  final AccountView view;
+  final _OrderEdit order;
+  final VoidCallback onAddTitles;
+
+  @override
+  Widget build(BuildContext context) {
+    final queues = memoFor(view, 'orderQueues', () => orderQueues(view.state));
+    final refs = memoFor(view, 'orderQueueRefs', () => _QueueRefs.of(view.state));
+    final byId = memoFor(view, 'orderLibraryTitles', () => {for (final t in view.library) t.id: t});
+    final items = <Widget Function()>[
+      () => Text('Each task category can mix ordered titles with Collections. MediaFlow Recommends walks the queue from the top.',
+          style: TextStyle(color: MF.textDim)),
+      () => Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: _AddBar(onAddTitles: onAddTitles, onAddCollection: () => _addCollection(context, account, view, order)),
+          ),
+      if (queues.isEmpty)
+        () => Padding(padding: const EdgeInsets.all(24), child: Text('No queues yet.', textAlign: TextAlign.center, style: TextStyle(color: MF.textDim))),
+    ];
+    for (final q in queues) {
+      final cat = view.category(q.categoryId);
+      items.add(() => Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 6),
+            child: Row(children: [
+              CategoryBadge(cat, size: 24),
+              const SizedBox(width: 8),
+              Expanded(child: Text('${cat.name} · ${q.tokens.length}', style: TextStyle(fontWeight: FontWeight.w900, color: MF.accent))),
+              IconButton(
+                tooltip: 'Add a Collection to ${cat.name}',
+                icon: const Icon(Icons.library_add_rounded, size: 18),
+                onPressed: () => _addCollection(context, account, view, order, categoryId: cat.id),
+              ),
+            ]),
+          ));
+      for (var i = 0; i < q.tokens.length; i++) {
+        final token = q.tokens[i], index = i, count = q.tokens.length;
+        if (token.startsWith('t:')) {
+          final t = byId[token.substring(2)];
+          if (t == null) continue;
+          items.add(() => _titleToken(context, cat, t, token, index, count));
+        } else {
+          items.add(() => _CollectionQueueRow(view: view, refs: refs, category: cat, token: token, index: index, count: count, order: order));
+        }
+      }
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      itemCount: items.length,
+      itemBuilder: (context, i) => items[i](),
+    );
+  }
+
+  Widget _titleToken(BuildContext context, Category cat, LibraryTitle t, String token, int i, int count) {
+    void move(int delta) => order('Reorder queue', (plan, s, now, uid) => orderMoveQueueToken(s, plan, cat.id, token, delta: delta));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: [
+        SizedBox(width: 28, child: Text('${i + 1}', style: TextStyle(color: MF.textDim))),
+        Cover(title: t, category: cat, width: 30),
+        const SizedBox(width: 8),
+        Expanded(
+          child: InkWell(
+            onTap: () => openTitle(context, account, t.id),
+            child: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+        IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_upward_rounded, size: 18), onPressed: i == 0 ? null : () => move(-1)),
+        IconButton(visualDensity: VisualDensity.compact, icon: const Icon(Icons.arrow_downward_rounded, size: 18), onPressed: i >= count - 1 ? null : () => move(1)),
       ]),
     );
   }
