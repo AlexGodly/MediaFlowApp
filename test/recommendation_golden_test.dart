@@ -16,8 +16,18 @@ import 'package:mediaflow/src/logic/recommend.dart';
 import 'package:mediaflow/src/logic/resume.dart';
 import 'package:mediaflow/src/state/state_codec.dart';
 
-Map<String, dynamic> _load(String name) =>
-    (jsonDecode(File('test/fixtures/$name.json').readAsStringSync()) as Map).cast<String, dynamic>();
+/// The fixtures were recorded from the website before task goal XP (v580).
+/// With goal XP off, v580 writes exactly what they recorded; goal XP itself is
+/// checked against the website's rules in goal_xp_test.dart (and the website's
+/// tests/test-v580-goal-xp.cjs).
+Map<String, dynamic> _load(String name) {
+  final fx = (jsonDecode(File('test/fixtures/$name.json').readAsStringSync()) as Map).cast<String, dynamic>();
+  for (final k in const ['before', 'after']) {
+    final s = fx[k];
+    if (s is Map && s['settings'] is Map) (s['settings'] as Map)['mf580GoalXP'] = {'enabled': false};
+  }
+  return fx;
+}
 
 Map<String, dynamic> _copy(Object? v) => (jsonDecode(jsonEncode(v)) as Map).cast<String, dynamic>();
 

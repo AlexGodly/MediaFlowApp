@@ -8,7 +8,10 @@ import '../data/account_controller.dart';
 import '../logic/log_engine.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import '../logic/extras.dart' show fmtRuntime;
+import 'amount_adder.dart';
 import 'presence.dart';
+import 'runtime_tools.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import '../logic/title_units.dart';
@@ -176,6 +179,7 @@ class _LogFormState extends State<LogForm> {
   // for each (the part's reached number, or its amount).
   List<String> _partIds = [];
   final Map<String, String> _partInput = {};
+  final Map<String, int> _partRev = {};
   // XP preview (website v574): worked out on a copy of the account.
   Timer? _xpTimer;
   int _xpGen = 0;
@@ -403,6 +407,12 @@ class _LogFormState extends State<LogForm> {
     final entryForPreview = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, parts: e.parts);
     return previewEntry(t, cat, entryForPreview);
   }
+
+  void _setRuntime(int seconds) => setState(() {
+        _minutesEdited = true;
+        _minutes.text = fmtN((seconds / 60 * 100).round() / 100);
+        _error = null;
+      });
 
   void _syncMinutes() {
     if (_minutesEdited) return;
@@ -659,6 +669,58 @@ class _LogFormState extends State<LogForm> {
             ),
           ),
         ]),
+        // Website v580: "+ add" under the amount ("3 + 4 = 7").
+        if (!_reachedMode && !isByParts(title.raw))
+          AmountAdder(
+            sumKey: 'any-${title.id}',
+            current: _parse(_amount) ?? 0,
+            onTotal: (v) => setState(() {
+              _amount.text = fmtN(v);
+              _error = null;
+              _syncMinutes();
+            }),
+          ),
+        // Website v580: Customize total runtime, with the Stopwatch / Runtime
+        // Calculator (the Minutes box is the runtime; off = automatic).
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Customize total runtime'),
+              Text(
+                _minutesEdited
+                    ? fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round())
+                    : 'Automatic: ${fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round())}',
+                style: TextStyle(color: MF.textDim, fontSize: 12),
+              ),
+            ]),
+          ),
+          Switch(
+            value: _minutesEdited,
+            onChanged: (v) => setState(() {
+              _minutesEdited = v;
+              if (!v) _syncMinutes();
+            }),
+          ),
+        ]),
+        if (_minutesEdited) ...[
+          TextFormField(
+            key: ValueKey('runtime-${_minutes.text}'),
+            initialValue: fmtRuntime((jsNum(_minutes.text.replaceAll(',', '.')) * 60).round()),
+            keyboardType: TextInputType.datetime,
+            decoration: const InputDecoration(labelText: 'Total runtime (HH:MM:SS)', isDense: true, helperText: 'Press Enter to apply'),
+            onFieldSubmitted: (v) {
+              final m = RegExp(r'^(\d{1,5}):([0-5]\d):([0-5]\d)$').firstMatch(v.trim());
+              if (m == null) {
+                ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Use total runtime as HH:MM:SS.')));
+                return;
+              }
+              _setRuntime(int.parse(m[1]!) * 3600 + int.parse(m[2]!) * 60 + int.parse(m[3]!));
+            },
+          ),
+          const SizedBox(height: 6),
+          RuntimeToolButtons(state: () => widget.account.view?.state, onSeconds: _setRuntime),
+        ],
         const SizedBox(height: 14),
         TextField(
           controller: _note,
@@ -774,6 +836,7 @@ class _LogFormState extends State<LogForm> {
                 SizedBox(
                   width: 156,
                   child: TextFormField(
+                    key: ValueKey('part-field-$id-${_partRev[id] ?? 0}'),
                     initialValue: _partInput[id] ?? '',
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
@@ -789,6 +852,20 @@ class _LogFormState extends State<LogForm> {
                   ),
                 ),
               ]),
+              if (!_partReached)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AmountAdder(
+                    sumKey: 'any-${title.id}-$id',
+                    current: (double.tryParse((_partInput[id] ?? '').trim().replaceAll(',', '.')) ?? 0).floorToDouble(),
+                    onTotal: (v) => setState(() {
+                      _partInput[id] = fmtN(v);
+                      _partRev[id] = (_partRev[id] ?? 0) + 1;
+                      _error = null;
+                      _syncMinutes();
+                    }),
+                  ),
+                ),
               const SizedBox(height: 4),
               Builder(builder: (_) {
                 final from = jsNum(part['progress']), total = jsNum(part['total']), q = moves[id] ?? 0;

@@ -24,6 +24,7 @@ import 'api_providers.dart';
 import 'app_nav.dart' show openNavigationSettings;
 import '../logic/action_xp.dart' show kActionXpGroups;
 import '../logic/category_classes.dart';
+import 'class_editor.dart' show classBadge, openClassEditor;
 import '../logic/choice_layout.dart';
 import '../logic/title_names.dart';
 import 'category_editor.dart';
@@ -141,6 +142,13 @@ final _sections = <(String, IconData, List<_S>)>[
       _S(['leveling', 'firstTitleStartXP'], 'First title start XP', def: 40),
       _S(['leveling', 'firstEpisodeXP'], 'First episode XP', def: 20),
       _S(['leveling', 'batchLogXP'], 'Batch Log bonus XP', def: 15),
+      // Website v580: task goal XP (once per task, by any log).
+      _S(['mf580GoalXP', 'enabled'], 'Task goal XP', kind: 'bool', def: true,
+          help: 'XP for reaching a recommendation\'s goal, once per task, by any log (Logging, Log any title).'),
+      _S(['mf580GoalXP', 'min'], 'Task goal: reaching the minimum XP', def: 100),
+      _S(['mf580GoalXP', 'max'], 'Task goal: reaching the maximum XP (more)', def: 300),
+      _S(['mf580GoalXP', 'perExtra'], 'Task goal: each unit past the maximum XP', def: 10, max: 10000),
+      _S(['mf580GoalXP', 'extraCap'], 'Task goal: past the maximum, at most XP', def: 100),
       _S(['leveling', 'collectionCreateXP'], 'Collection created XP', def: 35),
       _S(['leveling', 'collectionEditXP'], 'Collection edited XP', def: 10),
       _S(['leveling', 'collectionAddTitleXP'], 'Add title to Collection XP', def: 8),
@@ -1181,86 +1189,7 @@ class _ClassesEditor extends StatelessWidget {
   Future<void> _write(Map<String, dynamic> next) =>
       account.setSetting(['v480CategoryClasses'], cleanCategoryClasses(next, view.categories.map((c) => c.id)));
 
-  Future<void> _editClass(BuildContext context, Map<String, dynamic>? existing) async {
-    final name = TextEditingController(text: jsStr(existing?['name']));
-    final icon = TextEditingController(text: jsStr(existing?['icon']).isEmpty ? '✨' : jsStr(existing?['icon']));
-    final color = TextEditingController(text: jsStr(existing?['color']).isEmpty ? '#A78BFA' : jsStr(existing?['color']));
-    var weight = jsNum(existing?['weight']).clamp(1, 5).round();
-    if (weight < 1) weight = 1;
-    var enabled = existing?['enabled'] != false;
-    final members = {for (final c in asList(existing?['categoryIds'])) jsStr(c)};
-    final owners = <String, String>{};
-    for (final g in asList(_prefs['classes'])) {
-      for (final c in asList(asMap(g)!['categoryIds'])) {
-        owners[jsStr(c)] = jsStr(asMap(g)!['name']);
-      }
-    }
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (d) => StatefulBuilder(
-        builder: (d, set) => AlertDialog(
-          title: Text(existing == null ? 'Add Category Class' : 'Edit Category Class'),
-          content: SizedBox(
-            width: 460,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                TextField(controller: name, maxLength: 80, autofocus: true, decoration: const InputDecoration(labelText: 'Class name', hintText: 'Anime', counterText: '')),
-                Row(children: [
-                  SizedBox(width: 90, child: TextField(controller: icon, maxLength: 32, decoration: const InputDecoration(labelText: 'Icon', counterText: ''))),
-                  const SizedBox(width: 10),
-                  Expanded(child: TextField(controller: color, decoration: const InputDecoration(labelText: 'Colour (#RRGGBB)'))),
-                ]),
-                const SizedBox(height: 10),
-                Row(children: [
-                  const Text('Class weight'),
-                  Expanded(
-                    child: Slider(value: weight.toDouble(), min: 1, max: 5, divisions: 4, label: '$weight', onChanged: (v) => set(() => weight = v.round())),
-                  ),
-                  Text('$weight'),
-                ]),
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: enabled, onChanged: (v) => set(() => enabled = v), title: const Text('Class enabled')),
-                const Text('Categories in this class', style: TextStyle(fontWeight: FontWeight.w700)),
-                Text('One primary class per category. Changing assignments does not modify the categories.', style: TextStyle(color: MF.textDim, fontSize: 12)),
-                for (final c in view.categories)
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: members.contains(c.id),
-                    onChanged: (v) => set(() => v == true ? members.add(c.id) : members.remove(c.id)),
-                    secondary: CategoryBadge(c, size: 26),
-                    title: Text('${c.name}${c.enabled ? '' : ' (Disabled)'}'),
-                    subtitle: owners[c.id] != null && owners[c.id] != jsStr(existing?['name'])
-                        ? Text('Currently in ${owners[c.id]} — selecting transfers it')
-                        : null,
-                  ),
-              ]),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save Class')),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    if (name.text.trim().isEmpty) {
-      if (context.mounted) _toast(context, 'Enter a class name');
-      return;
-    }
-    final item = <String, dynamic>{
-      'id': jsStr(existing?['id']).isEmpty ? mediaFlowUid(DateTime.now().millisecondsSinceEpoch) : jsStr(existing?['id']),
-      'name': name.text.trim(),
-      'icon': icon.text.trim().isEmpty ? '✨' : icon.text.trim(),
-      'iconUrl': '',
-      'color': color.text.trim().toUpperCase(),
-      'weight': weight,
-      'enabled': enabled,
-      'categoryIds': [for (final c in view.categories) if (members.contains(c.id)) c.id],
-    };
-    await _write(saveCategoryClass(_prefs, item));
-    if (context.mounted) _toast(context, 'Category Class saved');
-  }
+  Future<void> _editClass(BuildContext context, Map<String, dynamic>? existing) => openClassEditor(context, account, existing);
 
   @override
   Widget build(BuildContext context) {
@@ -1306,7 +1235,7 @@ class _ClassesEditor extends StatelessWidget {
       for (final g in classes)
         ListTile(
           contentPadding: EdgeInsets.zero,
-          leading: Text(jsStr(g['icon']), style: const TextStyle(fontSize: 22)),
+          leading: classBadge(g, size: 36),
           title: Text(jsStr(g['name'])),
           subtitle: Text('Weight ${jsNum(g['weight']).round()} · ${g['enabled'] == false ? 'Disabled' : 'Enabled'} · '
               '${[for (final c in asList(g['categoryIds'])) byId[jsStr(c)]?.name ?? ''].where((n) => n.isNotEmpty).join(', ')}'),

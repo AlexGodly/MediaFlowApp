@@ -110,9 +110,12 @@ Map<String, dynamic> xpPreviewData(Map<String, dynamic> state, Map<String, dynam
     if (delta('v335FirstEpisodeRewards') > 0) {'label': 'First episode', 'xp': delta('v335FirstEpisodeRewards')},
     if (newTitles > 0) {'label': 'New Library titles', 'xp': newTitles * jsRound(l.reward('libraryAdditionXP')) + delta('v348LibraryAdditionBonus')},
     if (reroll > 0) {'label': 'Reroll title reward', 'xp': reroll},
+    // Website v580: task goal XP (already inside the logs' streak XP).
+    if (_goalXP(rows) > 0) {'label': _goalLabel(rows), 'xp': _goalXP(rows)},
   ];
   final total = rows.fold<double>(0, (a, s) => a + math.max(0.0, jsNum(s['xpWithStreak']))) +
-      extras.where((e) => e['label'] != 'Repeat units & full repeats' && e['label'] != 'Reroll title reward')
+      extras.where((e) =>
+              e['label'] != 'Repeat units & full repeats' && e['label'] != 'Reroll title reward' && !jsStr(e['label']).startsWith('Task goal'))
           .fold<double>(0, (a, e) => a + jsNum(e['xp']));
   final target = rows.where((s) => s['v165RespectXPVersion'] != null).firstOrNull;
   return {
@@ -141,4 +144,20 @@ Map<String, dynamic> xpPreviewData(Map<String, dynamic> state, Map<String, dynam
             'noRerollMultiplier': jsNum(target['v165NoRerollMultiplier']),
           },
   };
+}
+
+/// Website v580: the task goal XP on these logs (before the day streak).
+double _goalXP(List<Map<String, dynamic>> rows) => rows.fold(0.0, (a, s) => a + math.max(0.0, jsNum(s['mf580GoalXP'])));
+
+/// "Task goal · minimum (2) +100 · maximum (4) +300".
+String _goalLabel(List<Map<String, dynamic>> rows) {
+  final g = rows.map((s) => asMap(s['mf580Goal'])).whereType<Map<String, dynamic>>().firstOrNull;
+  if (g == null) return 'Task goal';
+  String n(Object? v) => jsNum(v) == jsNum(v).roundToDouble() ? jsNum(v).toInt().toString() : '${jsNum(v)}';
+  final bits = [
+    if (jsNum(g['min']) > 0) 'minimum (${n(g['low'])}) +${n(g['min'])}',
+    if (jsNum(g['max']) > 0) 'maximum (${n(g['high'])}) +${n(g['max'])}',
+    if (jsNum(g['extra']) > 0) 'past the maximum +${n(g['extra'])}',
+  ];
+  return bits.isEmpty ? 'Task goal' : 'Task goal · ${bits.join(' · ')}';
 }

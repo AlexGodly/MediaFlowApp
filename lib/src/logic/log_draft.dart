@@ -480,6 +480,11 @@ class LogDraftEditor {
         applyParts(e);
       }
     }
+    // Website v580: in Advanced logging too (one unit of that part).
+    if (itemized && isByParts(i) && !repeat) {
+      final part = defaultPart(i);
+      if (part != null) setAdvPartUnits(asList(logDraft['entries']).length - 1, jsStr(part['id']), 1);
+    }
     if (!defer) syncAfterAdd();
     return null;
   }
@@ -811,6 +816,83 @@ class LogDraftEditor {
     e['v369UpdatedAt'] = now;
     e['v369NextNumber'] = number + 1;
     sync369();
+    return null;
+  }
+
+  // ---------- website v580: by-parts titles in Advanced logging ----------
+
+  /// The parts moved by an Advanced entry (its units grouped by part).
+  List<PartMove> advParts(int index) {
+    final e = entry(index), i = item(e?['libraryId']);
+    if (e == null || !isByParts(i)) return const [];
+    return cleanMoves(i, partMovesFromUnits(e['v369Units']));
+  }
+
+  /// `mf580SetPartUnits`: one part's units set to [qty] (0 removes them).
+  /// Units already there keep their number and time; new ones are numbered
+  /// after the part's saved progress.
+  void setAdvPartUnits(int index, String id, double qty) {
+    final e = entry(index), i = item(e?['libraryId']);
+    final part = titlePart(i, id);
+    if (e == null || i == null || part == null) return;
+    final from = jsNum(part['progress']), total = jsNum(part['total']) > 0 ? jsNum(part['total']) : 0.0;
+    final repeat = e['isRepeat'] == true;
+    var n = (qty.isFinite ? qty.floor() : 0).clamp(0, 2000).toInt();
+    if (total > 0 && !repeat) n = math.min(n, math.max(0, (total - from).floor()));
+    final list = _unitList(e);
+    final mine = [for (final u in list.map(asMap).whereType<Map<String, dynamic>>()) if (jsStr(u['seasonId']) == id) u]
+      ..sort((a, b) => jsNum(a['number']).compareTo(jsNum(b['number'])));
+    final keep = mine.take(n).toList();
+    final now = clock(), secs = partSeconds(part, i, category(jsStr(i['categoryId'])));
+    var last = keep.isEmpty ? (repeat ? 0.0 : from) : keep.map((u) => jsNum(u['number'])).reduce((a, b) => math.max(a, b));
+    while (keep.length < n) {
+      last++;
+      keep.add(<String, dynamic>{
+        'id': uid(),
+        'number': jsOut(last),
+        'seasonId': id,
+        'seasonName': jsStr(part['name']),
+        'seasonNumber': part['number'],
+        'loggedAt': now,
+        'durationSeconds': secs,
+        'v369UpdatedAt': now,
+        'isRepeat': repeat,
+      });
+    }
+    list
+      ..removeWhere((u) => jsStr(asMap(u)?['seasonId']) == id)
+      ..addAll(keep);
+    e['v369SelectedSeasonId'] = id;
+    e['v369NextNumber'] = jsOut(last + 1);
+    e['v369UpdatedAt'] = now;
+    sync369();
+  }
+
+  /// `App.mf580AdvSet`: [value] is the part's reached number (Progress
+  /// Reached) or its amount (Per Unit, Amount Consumed).
+  String? setAdvPart(int index, String id, double value) {
+    final e = entry(index), i = item(e?['libraryId']);
+    final part = titlePart(i, id);
+    if (e == null || part == null) return null;
+    final from = jsNum(part['progress']), total = jsNum(part['total']) > 0 ? jsNum(part['total']) : 0.0;
+    final v = value < 0 ? 0.0 : value.floorToDouble();
+    final reached = method(e) == 'last' && e['isRepeat'] != true;
+    final qty = reached ? math.max(0.0, (total > 0 ? math.min(total, v) : v) - from) : v;
+    final list = advParts(index);
+    if (qty <= 0 && list.length == 1 && list.first.id == id) return 'Keep at least one part, or remove the title.';
+    setAdvPartUnits(index, id, qty);
+    return null;
+  }
+
+  /// `App.mf580AdvToggle`.
+  String? toggleAdvPart(int index, String id) {
+    final list = advParts(index);
+    if (list.any((m) => m.id == id)) {
+      if (list.length == 1) return 'Keep at least one part, or remove the title.';
+      setAdvPartUnits(index, id, 0);
+    } else {
+      setAdvPartUnits(index, id, 1);
+    }
     return null;
   }
 
