@@ -7,7 +7,19 @@ A big update: speed and memory on big accounts, pickers with real tools, titles 
 - **Log page cards no longer re-read the whole account** after a log: the XP total comes from the background with the new log's XP added straight away.
 - **Diagnostics** say on which screen a slow frame or freeze happened, what happened just before it (a sync, a save…) and how much memory the app used.
 - Smaller image memory cache.
-- **Timings on a 31,468-title account** (`test/perf_31k_test.dart`, measured on CI; printed as `PERF …`): opening the account, the Library index, the Log page cards, category lists, search, and splitting into / rebuilding from records all stay inside their budgets (0.5–6 s on a CI machine, most well under a second).
+- **Timings on a 31,468-title account** with 6,000 History logs (`test/perf_31k_test.dart`, measured on the CI machine):
+
+  | Step | Time |
+  |---|---|
+  | Open the account (all Library titles) | 20 ms |
+  | Library index | 9 ms |
+  | Log page cards | 67 ms (22 ms again after a log) |
+  | Category lists in your order (×100) | 3 ms |
+  | Search all titles | 64 ms |
+  | Split into records for sync | 209 ms |
+  | Rebuild from records | 147 ms |
+
+  With 100,000 titles, the Library's sorts take 35–174 ms in the background and filter + search 212 ms.
 
 ## Titles logged by parts
 - **The same layout everywhere** (Logging and Log any title, like the website's Batch Log): a "Parts · N parts · N in all" header, chips, one card per part with a wide "Match reached" / "Amount" box, *Match 0 → 1 (+1 match) · 15m* and a bar, then "+N in all · time".
