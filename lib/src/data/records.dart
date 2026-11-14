@@ -377,13 +377,15 @@ bool rowPatchable(RecordRow r) {
 /// [state] may then be partly changed.
 bool patchState(Map<String, dynamic> state, List<RecordRow> rows, RecordIndex index) {
   if (!rows.every(rowPatchable)) return false;
+  // Arrays: every changed or deleted element comes out first, so the rest is
+  // in the new positions' order; then the new versions go in by position.
+  final inserts = <String, List<(RecordRow, Object?)>>{};
   for (final r in rows) {
     final data = r.deleted ? null : r.data;
     if (r.kind == 'doc') {
       final cut = r.recordId.indexOf(_sep);
       if (cut < 0) {
-        if (!state.containsKey(r.recordId)) return false;
-        if (data == null) return false;
+        if (!state.containsKey(r.recordId) || data == null) return false;
         state[r.recordId] = jsonDecode(data);
         continue;
       }
@@ -400,33 +402,33 @@ bool patchState(Map<String, dynamic> state, List<RecordRow> rows, RecordIndex in
     }
     final list = state[r.kind];
     if (list is! List) return false;
-    final at = list.indexWhere((e) => e is Map && _idText(e['id']) == r.recordId);
-    if (data == null) {
-      if (at >= 0) list.removeAt(at);
-      continue;
-    }
-    final value = jsonDecode(data);
-    if (at >= 0) list.removeAt(at);
-    // composeState's order: by position, then id.
-    final p = r.pos ?? 0;
-    int cmp(Object? e) {
-      if (e is! Map) return 0;
-      final id = _idText(e['id']);
-      final ep = index.entries[recordKey(r.kind, id)]?.$1 ?? 0;
-      if (ep != p) return ep < p ? -1 : 1;
-      return id.compareTo(r.recordId);
-    }
-
-    var lo = 0, hi = list.length;
-    while (lo < hi) {
-      final mid = (lo + hi) >> 1;
-      if (cmp(list[mid]) < 0) {
-        lo = mid + 1;
-      } else {
-        hi = mid;
+    list.removeWhere((e) => e is Map && _idText(e['id']) == r.recordId);
+    if (data != null) (inserts[r.kind] ??= []).add((r, jsonDecode(data)));
+  }
+  for (final e in inserts.entries) {
+    final list = state[e.key] as List;
+    for (final (r, value) in e.value) {
+      // composeState's order: by position, then id.
+      final p = r.pos ?? 0;
+      int cmp(Object? el) {
+        if (el is! Map) return 0;
+        final id = _idText(el['id']);
+        final ep = index.entries[recordKey(r.kind, id)]?.$1 ?? 0;
+        if (ep != p) return ep < p ? -1 : 1;
+        return id.compareTo(r.recordId);
       }
+
+      var lo = 0, hi = list.length;
+      while (lo < hi) {
+        final mid = (lo + hi) >> 1;
+        if (cmp(list[mid]) < 0) {
+          lo = mid + 1;
+        } else {
+          hi = mid;
+        }
+      }
+      list.insert(lo, value);
     }
-    list.insert(lo, value);
   }
   return true;
 }

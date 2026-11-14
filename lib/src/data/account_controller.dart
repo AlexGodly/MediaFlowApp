@@ -208,6 +208,7 @@ class AccountController extends ChangeNotifier {
         knownIndex: _display == null ? null : _index,
         deviceId: deviceId,
         background: _bg,
+        lean: true,
       );
       _baseRaw = result.raw;
       _baseUpdatedAt = result.updatedAt;

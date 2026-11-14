@@ -184,10 +184,11 @@ Future<SyncResult> syncOnce(
   String deviceId = 'mediaflow-app',
   BackgroundRunner background = runInIsolate,
   int attempts = 5,
+  bool lean = false,
 }) async {
   if (cloud is RecordBackend && await cloud.usesRecords(userId)) {
     return syncRecords(cloud, userId, pending,
-        knownRaw: knownRaw, knownIndex: knownIndex, deviceId: deviceId, background: background);
+        knownRaw: knownRaw, knownIndex: knownIndex, deviceId: deviceId, background: background, lean: lean);
   }
   var known = knownRaw != null && knownUpdatedAt != null ? CloudSnapshot(knownRaw, knownUpdatedAt) : null;
   for (var attempt = 0; attempt < attempts; attempt++) {
@@ -350,7 +351,8 @@ RecordStep recordStep(Object? knownRaw, RecordIndex? known, List<RecordRow> rows
 }
 
 Future<RecordStep> _recordStepInBackground(
-    BackgroundRunner background, Object? knownRaw, RecordIndex? known, List<RecordRow> rows, List<AccountOp> ops) {
+    BackgroundRunner background, Object? knownRaw, RecordIndex? known, List<RecordRow> rows, List<AccountOp> ops,
+    {bool lean = false}) {
   final copy = List<AccountOp>.of(ops);
   return background(() {
     final step = recordStep(knownRaw, known, rows, copy);
@@ -359,8 +361,8 @@ Future<RecordStep> _recordStepInBackground(
     // 10.0.0: the device's copy already has its own changes, and other
     // devices' few records are applied to it directly: the whole account is
     // only handed back when that can't be done.
-    if (state != null && !step.remoteChanged) step.state = null;
-    if (state != null && step.patchable && copy.isEmpty) step.state = null;
+    if (lean && state != null && !step.remoteChanged) step.state = null;
+    if (lean && state != null && step.patchable && copy.isEmpty) step.state = null;
     return step;
   });
 }
@@ -384,6 +386,7 @@ Future<SyncResult> syncRecords(
   RecordIndex? knownIndex,
   required String deviceId,
   BackgroundRunner background = runInIsolate,
+  bool lean = false,
 }) async {
   final usable = knownRaw != null && knownIndex != null && knownIndex.cursor.isNotEmpty;
   final rows = await cloud.fetchRecords(userId, usable ? recordsSince(knownIndex.cursor) : '');
@@ -402,7 +405,7 @@ Future<SyncResult> syncRecords(
   if (usable && pending.isEmpty && rows.every(known)) {
     return SyncResult(null, knownRaw, knownIndex.cursor, 0, const [], knownIndex);
   }
-  final step = await _recordStepInBackground(background, usable ? knownRaw : null, usable ? knownIndex : null, rows, pending);
+  final step = await _recordStepInBackground(background, usable ? knownRaw : null, usable ? knownIndex : null, rows, pending, lean: lean);
   if (step.uploads.isNotEmpty) await cloud.uploadRecords(userId, step.uploads, deviceId);
   // The cursor stays where the pull ended: this device's own rows come back
   // on the next pull and are recognised, and another device's row saved in
