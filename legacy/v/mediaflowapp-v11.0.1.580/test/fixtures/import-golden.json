@@ -1,0 +1,1131 @@
+{
+ "now": 1794477600000,
+ "categories": [
+  {
+   "id": "seasonal",
+   "name": "Seasonal Anime",
+   "unit": "episodes",
+   "minutesPerUnit": 24
+  },
+  {
+   "id": "backlog",
+   "name": "Anime",
+   "unit": "episodes",
+   "minutesPerUnit": 24
+  },
+  {
+   "id": "animemovies",
+   "name": "Anime Movies",
+   "unit": "movies",
+   "minutesPerUnit": 110
+  },
+  {
+   "id": "manga",
+   "name": "Manga",
+   "unit": "chapters",
+   "minutesPerUnit": 6
+  },
+  {
+   "id": "tv",
+   "name": "TV",
+   "unit": "episodes",
+   "minutesPerUnit": 45
+  },
+  {
+   "id": "movies",
+   "name": "Movies",
+   "unit": "movies",
+   "minutesPerUnit": 120
+  },
+  {
+   "id": "books",
+   "name": "Books",
+   "unit": "pages",
+   "minutesPerUnit": 2,
+   "enabled": false
+  }
+ ],
+ "library": [
+  {
+   "id": "lib_frieren",
+   "title": "Frieren",
+   "categoryId": "backlog",
+   "progress": 3,
+   "total": 28,
+   "status": "active",
+   "externalIds": {
+    "mal": "52991"
+   },
+   "year": 2023,
+   "createdAt": 1700000000000
+  },
+  {
+   "id": "lib_dune",
+   "title": "Dune",
+   "categoryId": "movies",
+   "progress": 0,
+   "total": 1,
+   "status": "planned",
+   "year": 2021,
+   "coverUrl": "https://img/dune.jpg",
+   "createdAt": 1700000000000
+  },
+  {
+   "id": "lib_manual",
+   "title": "Bocchi the Rock!",
+   "categoryId": "backlog",
+   "progress": 1,
+   "status": "active",
+   "year": 2022,
+   "externalIds": {
+    "mal": "47917",
+    "anilist": "130003"
+   },
+   "richMetadataManual": {
+    "year": true,
+    "genres": true
+   },
+   "genres": [
+    "Mine"
+   ],
+   "v377ManualExternalIds": {
+    "kitsu": ""
+   },
+   "createdAt": 1700000000000
+  },
+  {
+   "id": "lib_bb",
+   "title": "Breaking Bad",
+   "categoryId": "tv",
+   "progress": 10,
+   "status": "active",
+   "createdAt": 1700000000000
+  }
+ ],
+ "cases": [
+  {
+   "name": "mal-xml",
+   "service": "malxml",
+   "records": [
+    {
+     "series_animedb_id": "52991",
+     "series_title": "Sousou no Frieren",
+     "series_type": "TV",
+     "series_episodes": "28",
+     "my_watched_episodes": "28",
+     "my_start_date": "2023-09-29",
+     "my_finish_date": "2024-03-22",
+     "my_score": "10",
+     "my_status": "Completed",
+     "my_last_updated": "1711100000"
+    },
+    {
+     "series_animedb_id": "47917",
+     "series_title": "Bocchi the Rock!",
+     "series_type": "TV",
+     "series_episodes": "12",
+     "my_watched_episodes": "12",
+     "my_status": "Completed",
+     "my_start_date": "0000-00-00",
+     "my_finish_date": "2023-01-01",
+     "series_image": "https://cdn.myanimelist.net/images/anime/1448/127956.jpg"
+    },
+    {
+     "series_animedb_id": "0",
+     "series_title": "Some Movie",
+     "series_type": "Movie",
+     "series_episodes": "1",
+     "my_watched_episodes": "0",
+     "my_status": "Plan to Watch"
+    },
+    {
+     "series_title": ""
+    },
+    {
+     "manga_mangadb_id": "2",
+     "manga_title": "Berserk",
+     "manga_chapters": "0",
+     "my_read_chapters": "364",
+     "my_status": "Reading",
+     "manga_type": "Manhwa"
+    }
+   ],
+   "result": {
+    "added": 2,
+    "updated": 2,
+    "skipped": 1,
+    "covers": 1,
+    "startDates": 1,
+    "finishDates": 2,
+    "timestamps": 1
+   },
+   "library": [
+    {
+     "id": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "progress": 28,
+     "total": 28,
+     "status": "completed",
+     "externalIds": {
+      "mal": "52991"
+     },
+     "year": 2023,
+     "createdAt": 1700000000000,
+     "rating": 10,
+     "source": "malxml",
+     "tags": [
+      "MAL-XML"
+     ],
+     "startedAt": 1695988800000,
+     "startedAtSource": "mal",
+     "completedAt": 1711108800000,
+     "sourceTimestamp": 1711100000000,
+     "sourceTimestampSource": "malxml",
+     "modifiedAt": 1794477600000,
+     "mediaFormat": "TV"
+    },
+    {
+     "id": "lib_dune",
+     "title": "Dune",
+     "categoryId": "movies",
+     "progress": 0,
+     "total": 1,
+     "status": "planned",
+     "year": 2021,
+     "coverUrl": "https://img/dune.jpg",
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_manual",
+     "title": "Bocchi the Rock!",
+     "categoryId": "backlog",
+     "progress": 12,
+     "status": "completed",
+     "year": 2022,
+     "externalIds": {
+      "mal": "47917",
+      "anilist": "130003"
+     },
+     "richMetadataManual": {
+      "year": true,
+      "genres": true
+     },
+     "genres": [
+      "Mine"
+     ],
+     "v377ManualExternalIds": {
+      "kitsu": ""
+     },
+     "createdAt": 1700000000000,
+     "total": 12,
+     "rating": null,
+     "source": "malxml",
+     "tags": [
+      "MAL-XML"
+     ],
+     "completedAt": 1672574400000,
+     "coverUrl": "https://cdn.myanimelist.net/images/anime/1448/127956.jpg",
+     "coverSource": "import:malxml",
+     "modifiedAt": 1794477600000,
+     "mediaFormat": "TV"
+    },
+    {
+     "id": "lib_bb",
+     "title": "Breaking Bad",
+     "categoryId": "tv",
+     "progress": 10,
+     "status": "active",
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "id_1",
+     "title": "Some Movie",
+     "categoryId": "animemovies",
+     "progress": 0,
+     "total": 1,
+     "status": "planned",
+     "priority": "medium",
+     "estimatedMinutes": null,
+     "tags": [
+      "MAL-XML"
+     ],
+     "source": "malxml",
+     "year": null,
+     "rating": null,
+     "externalIds": {},
+     "startedAt": null,
+     "startedAtSource": null,
+     "completedAt": null,
+     "createdAt": 1794477600000,
+     "modifiedAt": 1794477600000,
+     "sourceTimestamp": null,
+     "sourceTimestampSource": null,
+     "coverUrl": null,
+     "coverSource": null,
+     "mediaFormat": "Movie"
+    },
+    {
+     "id": "id_2",
+     "title": "Berserk",
+     "categoryId": "manga",
+     "progress": 364,
+     "total": null,
+     "status": "active",
+     "priority": "medium",
+     "estimatedMinutes": null,
+     "tags": [
+      "MAL-XML"
+     ],
+     "source": "malxml",
+     "year": null,
+     "rating": null,
+     "externalIds": {
+      "mal": "2"
+     },
+     "startedAt": null,
+     "startedAtSource": null,
+     "completedAt": null,
+     "createdAt": 1794477600000,
+     "modifiedAt": 1794477600000,
+     "sourceTimestamp": null,
+     "sourceTimestampSource": null,
+     "coverUrl": null,
+     "coverSource": null,
+     "mediaFormat": "Manhwa"
+    }
+   ],
+   "completionTimeline": [
+    {
+     "libraryId": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "completedAt": 1711108800000
+    },
+    {
+     "libraryId": "lib_manual",
+     "title": "Bocchi the Rock!",
+     "categoryId": "backlog",
+     "completedAt": 1672574400000
+    }
+   ]
+  },
+  {
+   "name": "csv",
+   "service": "csv",
+   "records": [
+    {
+     "title": "Dune",
+     "media_type": "movie",
+     "status": "completed",
+     "progress": "1",
+     "total": "1",
+     "rating": "9",
+     "year": "2021",
+     "imdb_id": "https://www.imdb.com/title/tt1160419/",
+     "genres": "Sci-Fi, Adventure",
+     "runtime": "155 min",
+     "poster": "//image.tmdb.org/t/p/w500/d.jpg"
+    },
+    {
+     "title": "Breaking Bad",
+     "media_type": "show",
+     "status": "watching",
+     "progress": "30",
+     "total": "62",
+     "rating": "",
+     "year": "2008",
+     "imdb_id": "tt0903747",
+     "genres": "Drama",
+     "runtime": "47",
+     "poster": ""
+    },
+    {
+     "title": "New Show",
+     "media_type": "tv",
+     "status": "plan to watch",
+     "progress": "",
+     "total": "",
+     "rating": "",
+     "year": "",
+     "imdb_id": "",
+     "genres": "",
+     "runtime": "",
+     "poster": ""
+    }
+   ],
+   "csv": "Title,Media Type,Status,Progress,Total,Rating,Year,IMDb ID,Genres,Runtime,Poster\nDune,movie,completed,1,1,9,2021,https://www.imdb.com/title/tt1160419/,\"Sci-Fi, Adventure\",155 min,//image.tmdb.org/t/p/w500/d.jpg\n\"Breaking Bad\",show,watching,30,62,,2008,tt0903747,Drama,47,\nNew Show,tv,plan to watch,,,,,,,,\n",
+   "result": {
+    "added": 1,
+    "updated": 2,
+    "skipped": 0,
+    "covers": 1,
+    "startDates": 0,
+    "finishDates": 0,
+    "timestamps": 0
+   },
+   "library": [
+    {
+     "id": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "progress": 3,
+     "total": 28,
+     "status": "active",
+     "externalIds": {
+      "mal": "52991"
+     },
+     "year": 2023,
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_dune",
+     "title": "Dune",
+     "categoryId": "movies",
+     "progress": 1,
+     "total": 1,
+     "status": "completed",
+     "year": 2021,
+     "coverUrl": "https://img/dune.jpg",
+     "createdAt": 1700000000000,
+     "rating": 9,
+     "externalIds": {
+      "imdb": "tt1160419"
+     },
+     "source": "csv",
+     "tags": [
+      "Import .csv file"
+     ],
+     "modifiedAt": 1794477600000,
+     "genres": [
+      "Sci-Fi",
+      "Adventure"
+     ],
+     "durationMinutes": 155
+    },
+    {
+     "id": "lib_manual",
+     "title": "Bocchi the Rock!",
+     "categoryId": "backlog",
+     "progress": 1,
+     "status": "active",
+     "year": 2022,
+     "externalIds": {
+      "mal": "47917",
+      "anilist": "130003"
+     },
+     "richMetadataManual": {
+      "year": true,
+      "genres": true
+     },
+     "genres": [
+      "Mine"
+     ],
+     "v377ManualExternalIds": {
+      "kitsu": ""
+     },
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_bb",
+     "title": "Breaking Bad",
+     "categoryId": "tv",
+     "progress": 30,
+     "status": "active",
+     "createdAt": 1700000000000,
+     "total": 62,
+     "rating": null,
+     "year": 2008,
+     "externalIds": {
+      "imdb": "tt0903747"
+     },
+     "source": "csv",
+     "tags": [
+      "Import .csv file"
+     ],
+     "modifiedAt": 1794477600000,
+     "genres": [
+      "Drama"
+     ],
+     "durationMinutes": 47
+    },
+    {
+     "id": "id_1",
+     "title": "New Show",
+     "categoryId": "tv",
+     "progress": 0,
+     "total": null,
+     "status": "planned",
+     "priority": "medium",
+     "estimatedMinutes": null,
+     "tags": [
+      "Import .csv file"
+     ],
+     "source": "csv",
+     "year": null,
+     "rating": null,
+     "externalIds": {},
+     "startedAt": null,
+     "startedAtSource": null,
+     "completedAt": null,
+     "createdAt": 1794477600000,
+     "modifiedAt": 1794477600000,
+     "sourceTimestamp": null,
+     "sourceTimestampSource": null,
+     "coverUrl": null,
+     "coverSource": null
+    }
+   ],
+   "completionTimeline": []
+  },
+  {
+   "name": "json-trakt",
+   "service": "trakt",
+   "records": [
+    {
+     "__group": "items",
+     "title": "Arcane",
+     "type": "show",
+     "status": "completed",
+     "progress": 9,
+     "total": 9,
+     "year": 2021,
+     "ids": {
+      "tmdb": 94605,
+      "imdb": "tt11126994"
+     },
+     "seasons": [
+      {
+       "season": 1,
+       "episodes": 9,
+       "watched": 9
+      },
+      {
+       "season": 2,
+       "episodes": 9,
+       "watched": 0
+      }
+     ],
+     "overview": "<p>Two sisters.</p>",
+     "genres": [
+      {
+       "name": "Animation"
+      },
+      {
+       "name": "Drama"
+      }
+     ],
+     "added_at": "2021-11-07T12:00:00Z",
+     "finished_at": "2021-11-21T20:00:00Z",
+     "poster": {
+      "large": "https://img/arcane.jpg"
+     }
+    },
+    {
+     "__group": "items",
+     "name": "Breaking Bad",
+     "kind": "tv",
+     "status": "on hold",
+     "progress": 12,
+     "community_score": 95,
+     "network": "AMC"
+    }
+   ],
+   "json": {
+    "items": [
+     {
+      "title": "Arcane",
+      "type": "show",
+      "status": "completed",
+      "progress": 9,
+      "total": 9,
+      "year": 2021,
+      "ids": {
+       "tmdb": 94605,
+       "imdb": "tt11126994"
+      },
+      "seasons": [
+       {
+        "season": 1,
+        "episodes": 9,
+        "watched": 9
+       },
+       {
+        "season": 2,
+        "episodes": 9,
+        "watched": 0
+       }
+      ],
+      "overview": "<p>Two sisters.</p>",
+      "genres": [
+       {
+        "name": "Animation"
+       },
+       {
+        "name": "Drama"
+       }
+      ],
+      "added_at": "2021-11-07T12:00:00Z",
+      "finished_at": "2021-11-21T20:00:00Z",
+      "poster": {
+       "large": "https://img/arcane.jpg"
+      }
+     },
+     {
+      "name": "Breaking Bad",
+      "kind": "tv",
+      "status": "on hold",
+      "progress": 12,
+      "community_score": 95,
+      "network": "AMC"
+     }
+    ]
+   },
+   "result": {
+    "added": 1,
+    "updated": 1,
+    "skipped": 0,
+    "covers": 1,
+    "startDates": 0,
+    "finishDates": 1,
+    "timestamps": 1
+   },
+   "library": [
+    {
+     "id": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "progress": 3,
+     "total": 28,
+     "status": "active",
+     "externalIds": {
+      "mal": "52991"
+     },
+     "year": 2023,
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_dune",
+     "title": "Dune",
+     "categoryId": "movies",
+     "progress": 0,
+     "total": 1,
+     "status": "planned",
+     "year": 2021,
+     "coverUrl": "https://img/dune.jpg",
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_manual",
+     "title": "Bocchi the Rock!",
+     "categoryId": "backlog",
+     "progress": 1,
+     "status": "active",
+     "year": 2022,
+     "externalIds": {
+      "mal": "47917",
+      "anilist": "130003"
+     },
+     "richMetadataManual": {
+      "year": true,
+      "genres": true
+     },
+     "genres": [
+      "Mine"
+     ],
+     "v377ManualExternalIds": {
+      "kitsu": ""
+     },
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_bb",
+     "title": "Breaking Bad",
+     "categoryId": "tv",
+     "progress": 12,
+     "status": "paused",
+     "createdAt": 1700000000000,
+     "rating": null,
+     "year": null,
+     "externalIds": {},
+     "source": "trakt",
+     "tags": [
+      "trakt"
+     ],
+     "modifiedAt": 1794477600000,
+     "studios": [
+      "AMC"
+     ],
+     "mediaFormat": "tv",
+     "communityScore": 9.5
+    },
+    {
+     "id": "id_3",
+     "title": "Arcane",
+     "categoryId": "tv",
+     "progress": 9,
+     "total": 18,
+     "status": "completed",
+     "priority": "medium",
+     "estimatedMinutes": null,
+     "tags": [
+      "trakt"
+     ],
+     "source": "trakt",
+     "year": 2021,
+     "rating": null,
+     "externalIds": {
+      "tmdb": "94605",
+      "imdb": "tt11126994"
+     },
+     "startedAt": null,
+     "startedAtSource": null,
+     "completedAt": 1637524800000,
+     "createdAt": 1636286400000,
+     "modifiedAt": 1794477600000,
+     "sourceTimestamp": 1636286400000,
+     "sourceTimestampSource": "trakt",
+     "coverUrl": "https://img/arcane.jpg",
+     "coverSource": "import:trakt",
+     "genres": [
+      "Animation",
+      "Drama"
+     ],
+     "synopsis": "Two sisters.",
+     "seasons": [
+      {
+       "id": "season-id_1",
+       "number": 1,
+       "name": "Season 1",
+       "progress": 9,
+       "total": 9,
+       "source": "import:trakt",
+       "manual": false,
+       "synthetic": false
+      },
+      {
+       "id": "season-id_2",
+       "number": 2,
+       "name": "Season 2",
+       "progress": 0,
+       "total": 9,
+       "source": "import:trakt",
+       "manual": false,
+       "synthetic": false
+      }
+     ],
+     "seasonSource": "import:trakt",
+     "seasonViewEnabled": true,
+     "seasonsModifiedAt": 1794477600000
+    }
+   ],
+   "completionTimeline": [
+    {
+     "libraryId": "id_3",
+     "title": "Arcane",
+     "categoryId": "tv",
+     "completedAt": 1637524800000
+    }
+   ]
+  },
+  {
+   "name": "simkl",
+   "service": "simkl",
+   "simkl": {
+    "anime": [
+     {
+      "show": {
+       "title": "Sousou no Frieren",
+       "year": 2023,
+       "ids": {
+        "simkl": 2099,
+        "mal": 52991
+       }
+      },
+      "status": "completed",
+      "watched_episodes_count": 28,
+      "total_episodes_count": 28,
+      "seasons": [
+       {
+        "number": 1,
+        "episodes": [
+         {
+          "number": 1,
+          "watched_at": "2023-09-29T15:00:00Z"
+         },
+         {
+          "number": 2,
+          "watched_at": "2023-09-29T15:30:00Z"
+         },
+         {
+          "number": 3,
+          "watched_at": "2023-10-06T15:00:00Z"
+         }
+        ]
+       }
+      ],
+      "last_watched_at": "2024-03-22T15:00:00Z"
+     }
+    ],
+    "shows": [
+     {
+      "show": {
+       "title": "Breaking Bad",
+       "year": 2008,
+       "runtime": 47,
+       "ids": {
+        "simkl": 11,
+        "imdb": "tt0903747"
+       }
+      },
+      "status": "watching",
+      "watched_episodes_count": 30,
+      "seasons": [
+       {
+        "number": 1,
+        "episodes": [
+         {
+          "number": 1,
+          "watched_at": "2020-01-02T10:00:00Z"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "movies": [
+     {
+      "movie": {
+       "title": "Dune",
+       "year": 2021,
+       "ids": {
+        "simkl": 5,
+        "imdb": "tt1160419"
+       }
+      },
+      "status": "completed",
+      "last_watched_at": "2022-01-01T20:00:00Z"
+     }
+    ]
+   },
+   "library": [
+    {
+     "id": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "progress": 28,
+     "total": 28,
+     "status": "completed",
+     "externalIds": {
+      "mal": "52991",
+      "simkl": "2099"
+     },
+     "year": 2023,
+     "createdAt": 1700000000000,
+     "rating": null,
+     "source": "simkl",
+     "tags": [
+      "Simkl"
+     ],
+     "startedAt": 1695999600000,
+     "startedAtSource": "import:simkl",
+     "completedAt": 1711119600000,
+     "modifiedAt": 1794477600000,
+     "seasons": [
+      {
+       "id": "season-id_1",
+       "number": 1,
+       "name": "Season 1",
+       "progress": 3,
+       "total": null,
+       "source": "import:simkl",
+       "manual": false,
+       "synthetic": false
+      },
+      {
+       "id": "v252-unassigned-1794477600000-a2v7e",
+       "number": null,
+       "name": "Unassigned",
+       "progress": 25,
+       "total": 28,
+       "source": "import:simkl",
+       "manual": false,
+       "synthetic": true
+      }
+     ],
+     "seasonSource": "import:simkl",
+     "seasonViewEnabled": true,
+     "seasonsModifiedAt": 1794477600000
+    },
+    {
+     "id": "lib_dune",
+     "title": "Dune",
+     "categoryId": "movies",
+     "progress": 0,
+     "total": 1,
+     "status": "completed",
+     "year": 2021,
+     "coverUrl": "https://img/dune.jpg",
+     "createdAt": 1700000000000,
+     "rating": null,
+     "externalIds": {
+      "simkl": "5",
+      "imdb": "tt1160419"
+     },
+     "source": "simkl",
+     "tags": [
+      "Simkl"
+     ],
+     "completedAt": 1641067200000,
+     "modifiedAt": 1794477600000
+    },
+    {
+     "id": "lib_manual",
+     "title": "Bocchi the Rock!",
+     "categoryId": "backlog",
+     "progress": 1,
+     "status": "active",
+     "year": 2022,
+     "externalIds": {
+      "mal": "47917",
+      "anilist": "130003"
+     },
+     "richMetadataManual": {
+      "year": true,
+      "genres": true
+     },
+     "genres": [
+      "Mine"
+     ],
+     "v377ManualExternalIds": {
+      "kitsu": ""
+     },
+     "createdAt": 1700000000000
+    },
+    {
+     "id": "lib_bb",
+     "title": "Breaking Bad",
+     "categoryId": "tv",
+     "progress": 30,
+     "status": "active",
+     "createdAt": 1700000000000,
+     "rating": null,
+     "year": 2008,
+     "externalIds": {
+      "simkl": "11",
+      "imdb": "tt0903747"
+     },
+     "source": "simkl",
+     "tags": [
+      "Simkl"
+     ],
+     "startedAt": 1577959200000,
+     "startedAtSource": "import:simkl",
+     "modifiedAt": 1794477600000,
+     "durationMinutes": 47,
+     "seasons": [
+      {
+       "id": "season-id_2",
+       "number": 1,
+       "name": "Season 1",
+       "progress": 1,
+       "total": null,
+       "source": "import:simkl",
+       "manual": false,
+       "synthetic": false
+      },
+      {
+       "id": "v252-unassigned-1794477600000-bci5b",
+       "number": null,
+       "name": "Unassigned",
+       "progress": 29,
+       "total": 29,
+       "source": "import:simkl",
+       "manual": false,
+       "synthetic": true
+      }
+     ],
+     "seasonSource": "import:simkl",
+     "seasonViewEnabled": true,
+     "seasonsModifiedAt": 1794477600000,
+     "total": 29
+    }
+   ],
+   "completionTimeline": [
+    {
+     "libraryId": "lib_frieren",
+     "title": "Frieren",
+     "categoryId": "backlog",
+     "completedAt": 1711119600000
+    },
+    {
+     "libraryId": "lib_dune",
+     "title": "Dune",
+     "categoryId": "movies",
+     "completedAt": 1641067200000
+    }
+   ],
+   "sessions": [
+    {
+     "id": "id_4",
+     "timestamp": 1696001400000,
+     "date": "2023-09-29",
+     "categoryId": "backlog",
+     "targetAmount": 2,
+     "actualAmount": 2,
+     "minutes": 48,
+     "note": "Imported from Simkl · Frieren",
+     "status": "complete",
+     "unit": "episodes",
+     "xp": 0,
+     "healthStatus": "healthy",
+     "titles": [
+      {
+       "title": "Frieren",
+       "libraryId": "lib_frieren",
+       "qty": 2
+      }
+     ],
+     "source": "simkl",
+     "importKey": "simkl:2099:2023-09-29"
+    },
+    {
+     "id": "id_5",
+     "timestamp": 1696604400000,
+     "date": "2023-10-06",
+     "categoryId": "backlog",
+     "targetAmount": 1,
+     "actualAmount": 1,
+     "minutes": 24,
+     "note": "Imported from Simkl · Frieren",
+     "status": "complete",
+     "unit": "episodes",
+     "xp": 0,
+     "healthStatus": "healthy",
+     "titles": [
+      {
+       "title": "Frieren",
+       "libraryId": "lib_frieren",
+       "qty": 1
+      }
+     ],
+     "source": "simkl",
+     "importKey": "simkl:2099:2023-10-06"
+    },
+    {
+     "id": "id_7",
+     "timestamp": 1577959200000,
+     "date": "2020-01-02",
+     "categoryId": "tv",
+     "targetAmount": 1,
+     "actualAmount": 1,
+     "minutes": 47,
+     "note": "Imported from Simkl · Breaking Bad",
+     "status": "complete",
+     "unit": "episodes",
+     "xp": 0,
+     "healthStatus": "healthy",
+     "titles": [
+      {
+       "title": "Breaking Bad",
+       "libraryId": "lib_bb",
+       "qty": 1
+      }
+     ],
+     "source": "simkl",
+     "importKey": "simkl:11:2020-01-02"
+    }
+   ]
+  }
+ ],
+ "exchangeRows": [
+  {
+   "title": "Frieren",
+   "media_type": "backlog",
+   "status": "active",
+   "progress": 3,
+   "total": 28,
+   "rating": "",
+   "year": 2023,
+   "start_date": "",
+   "finish_date": "",
+   "timestamp": "2023-11-14T22:13:20.000Z",
+   "cover_url": "",
+   "mal_id": "52991",
+   "anilist_id": "",
+   "imdb_id": "",
+   "tmdb_id": "",
+   "trakt_id": "",
+   "simkl_id": "",
+   "kitsu_id": "",
+   "isbn": "",
+   "seasons": []
+  },
+  {
+   "title": "Dune",
+   "media_type": "movies",
+   "status": "planned",
+   "progress": 0,
+   "total": 1,
+   "rating": "",
+   "year": 2021,
+   "start_date": "",
+   "finish_date": "",
+   "timestamp": "2023-11-14T22:13:20.000Z",
+   "cover_url": "https://img/dune.jpg",
+   "mal_id": "",
+   "anilist_id": "",
+   "imdb_id": "",
+   "tmdb_id": "",
+   "trakt_id": "",
+   "simkl_id": "",
+   "kitsu_id": "",
+   "isbn": "",
+   "seasons": []
+  },
+  {
+   "title": "Bocchi the Rock!",
+   "media_type": "backlog",
+   "status": "active",
+   "progress": 1,
+   "total": "",
+   "rating": "",
+   "year": 2022,
+   "start_date": "",
+   "finish_date": "",
+   "timestamp": "2023-11-14T22:13:20.000Z",
+   "cover_url": "",
+   "mal_id": "47917",
+   "anilist_id": "130003",
+   "imdb_id": "",
+   "tmdb_id": "",
+   "trakt_id": "",
+   "simkl_id": "",
+   "kitsu_id": "",
+   "isbn": "",
+   "seasons": []
+  },
+  {
+   "title": "Breaking Bad",
+   "media_type": "tv",
+   "status": "active",
+   "progress": 10,
+   "total": "",
+   "rating": "",
+   "year": "",
+   "start_date": "",
+   "finish_date": "",
+   "timestamp": "2023-11-14T22:13:20.000Z",
+   "cover_url": "",
+   "mal_id": "",
+   "anilist_id": "",
+   "imdb_id": "",
+   "tmdb_id": "",
+   "trakt_id": "",
+   "simkl_id": "",
+   "kitsu_id": "",
+   "isbn": "",
+   "seasons": []
+  }
+ ]
+}
