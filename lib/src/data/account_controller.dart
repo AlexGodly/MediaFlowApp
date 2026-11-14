@@ -123,7 +123,7 @@ class AccountController extends ChangeNotifier {
   bool get hasData => _view != null;
 
   /// Changes that matter to the user (logs and task actions); drafts excluded.
-  int get pendingCount => _pending.where((op) => op is! DraftOp).length;
+  int get pendingCount => _pending.where((op) => op is! DraftOp && op is! BatchDraftOp).length;
 
   /// Level, XP, streak and Library size, worked out in the background with
   /// each sync (7.0.0, for Discord). Null until the first one.
@@ -335,11 +335,24 @@ class AccountController extends ChangeNotifier {
     }
   }
 
+  /// Website v577: saves the Batch Log draft (multi-title Log any title) to
+  /// the account, shared with the website's Batch Log and other devices.
+  Future<void> saveBatchDraft(Map<String, dynamic> section) async {
+    final display = await _working();
+    if (!applyBatchSection(display, section)) return;
+    _pending.removeWhere((p) => p is BatchDraftOp);
+    await _queue(BatchDraftOp(mediaFlowUid(), normalizeBatchSection(section)), display, delay: draftSyncDelay);
+  }
+
+  /// The account's Batch Log draft as this device has it.
+  Map<String, dynamic>? get batchDraft => _display == null ? null : readBatchSection(_display!);
+
   // ---- live logging draft (per-record accounts) ----------------------------
 
   static const _resumeKey = 'resumeStateV285';
   static const _sep = '\u001f';
   static const _loggingRecord = '$_resumeKey${_sep}logging';
+  static const _batchRecord = '$_resumeKey${_sep}mf577Batch';
   static const _taskRecords = ['sessionActive', 'currentTask$_sep', 'currentTask${_sep}id', 'currentTask${_sep}libraryId'];
   Timer? _draftPushTimer, _livePoll;
   String _liveSince = '';
@@ -420,11 +433,28 @@ class AccountController extends ChangeNotifier {
     _livePulling = true;
     try {
       final since = _liveSince.isNotEmpty ? _liveSince : recordsSince(index.cursor);
-      final rows = await cloud.fetchDocRecords(userId, [_loggingRecord, ..._taskRecords], since);
+      final rows = await cloud.fetchDocRecords(userId, [_loggingRecord, _batchRecord, ..._taskRecords], since);
       if (rows.isEmpty) return false;
       for (final r in rows) {
         if (r.updatedAt.compareTo(_liveSince) > 0) _liveSince = r.updatedAt;
       }
+      // Website v577: the Batch Log draft changed on another device.
+      final brow = rows.where((r) => r.recordId == _batchRecord).lastOrNull;
+      final bdisplay = _display;
+      if (brow != null && !brow.deleted && brow.data != null && bdisplay != null &&
+          index.entries[recordKey('doc', _batchRecord)]?.$2 != recHash(brow.data!, brow.pos)) {
+        final section = asMap(jsonDecode(brow.data!));
+        if (section != null && applyBatchSection(bdisplay, section)) {
+          index.entries[recordKey('doc', _batchRecord)] = (null, recHash(brow.data!, null));
+          _pending.removeWhere((p) => p is BatchDraftOp);
+          _pending.add(BatchDraftOp(mediaFlowUid(), normalizeBatchSection(section)));
+          _view = AccountView(bdisplay);
+          _notify();
+          await _save();
+          _scheduleSync(liveFoldDelay);
+        }
+      }
+      if (!rows.any((r) => r.recordId != _batchRecord)) return false;
       // A recommendation started, rerolled or ended on the website: a full sync now.
       final taskChanged = rows.any((r) {
         if (r.recordId == _loggingRecord) return false;

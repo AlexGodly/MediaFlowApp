@@ -234,3 +234,59 @@ Map<String, dynamic>? mergeLogging(Map<String, dynamic> left, Map<String, dynami
   draft['amount'] = entries.fold<int>(0, (sum, e) => sum + asList(e['v369Units']).length);
   return chosen;
 }
+
+// ---- Website v577: the Batch Log draft (resumeStateV285.mf577Batch) ----------------------
+
+const _batchRowKeys = [
+  'libraryId', 'query', 'qty', 'minutes', 'loggedAt', 'v179StartProgress', 'v179EndProgress', 'mf577Parts', 'mf577MinutesManual',
+  'v331TimestampOverride',
+];
+
+/// `mf577BatchNorm`: {draft: {rows, note, date, mf573Time?, v179Mode?}, modifiedAt}.
+Map<String, dynamic> normalizeBatchSection(Object? raw) {
+  final x = asMap(raw) ?? const {};
+  final d = asMap(x['draft']) ?? const {};
+  final rows = [
+    for (final r in asList(d['rows']).map(asMap).whereType<Map<String, dynamic>>().take(200))
+      {
+        for (final k in _batchRowKeys)
+          if (r.containsKey(k)) k: _clone(r[k]),
+      }..putIfAbsent('libraryId', () => ''),
+  ];
+  final note = jsStr(d['note']);
+  final date = jsStr(d['date']);
+  final time = jsStr(d['mf573Time']);
+  return {
+    'draft': {
+      'rows': rows,
+      'note': note.length > 2000 ? note.substring(0, 2000) : note,
+      'date': RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) ? date : '',
+      if (RegExp(r'^\d{1,2}:\d{2}$').hasMatch(time)) 'mf573Time': time,
+      if (d['v179Mode'] == 'progress' || d['v179Mode'] == 'amount') 'v179Mode': d['v179Mode'],
+    },
+    'modifiedAt': _ms(x['modifiedAt']),
+  };
+}
+
+/// The account's Batch Log draft, or null.
+Map<String, dynamic>? readBatchSection(Map<String, dynamic> state) {
+  final raw = asMap(asMap(state['resumeStateV285'])?['mf577Batch']);
+  return raw == null ? null : normalizeBatchSection(raw);
+}
+
+/// Newer wins (`mf577BatchAdopt` / the merge). Returns true when it changed.
+bool applyBatchSection(Map<String, dynamic> state, Map<String, dynamic> incoming) {
+  final next = normalizeBatchSection(incoming);
+  final cur = readBatchSection(state);
+  if (cur != null && _ms(next['modifiedAt']) <= _ms(cur['modifiedAt'])) return false;
+  final old = asMap(state['resumeStateV285']) ?? const <String, dynamic>{};
+  state['resumeStateV285'] = {
+    'format': kResumeFormat,
+    'dashboard': _normalizeDashboard(old['dashboard']),
+    'logging': normalizeLogging(old['logging']),
+    ...old,
+    'mf577Batch': next,
+    'modifiedAt': math.max(_ms(old['modifiedAt']), _ms(next['modifiedAt'])),
+  };
+  return true;
+}
