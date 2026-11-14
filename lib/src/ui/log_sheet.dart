@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../logic/log_engine.dart';
-import '../logic/resume.dart' show readBatchSection;
 import '../state/models.dart';
 import '../util/js.dart';
 import 'presence.dart';
