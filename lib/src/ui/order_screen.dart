@@ -707,7 +707,7 @@ class _OrderScreenState extends State<OrderScreen> {
               rows.add(() => _queueSlot(
                   categoryId: cid, token: token, index: pos, label: _tokenLabel(refs!, byId, token), order: _order,
                   child: _CollectionQueueRow(
-                      view: view, refs: refs!, category: cat, token: token, index: pos, count: tokens.length, order: _order)));
+                      view: view, refs: refs, category: cat, token: token, index: pos, count: tokens.length, order: _order)));
             }
           }
         } else {

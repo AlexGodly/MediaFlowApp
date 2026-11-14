@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data' show BytesBuilder;
 
 import 'package:path_provider/path_provider.dart';
 
