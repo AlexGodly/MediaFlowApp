@@ -776,7 +776,9 @@ class _TitleEditorState extends State<TitleEditor> {
             initialValue: show != null ? show(_seasons[i][key]) : (_seasons[i][key] == null ? '' : jsStr(_seasons[i][key])),
             keyboardType: digits ? TextInputType.number : TextInputType.text,
             inputFormatters: digits ? [FilteringTextInputFormatter.digitsOnly] : null,
-            decoration: InputDecoration(labelText: label, hintText: hint.isEmpty ? null : hint, isDense: true),
+            // Labels always shown (they vanished in narrow, empty boxes on phones).
+            decoration: InputDecoration(
+                labelText: label, hintText: hint.isEmpty ? null : hint, isDense: true, floatingLabelBehavior: FloatingLabelBehavior.always),
             onChanged: (v) {
               _seasonsTouched = true;
               if (key == 'progress') {
@@ -845,36 +847,49 @@ class _TitleEditorState extends State<TitleEditor> {
         Container(
           key: ValueKey('season-$i-${_seasons.length}-$_logMode'),
           margin: const EdgeInsets.only(bottom: 8),
-          padding: parts ? const EdgeInsets.all(8) : EdgeInsets.zero,
+          padding: parts ? const EdgeInsets.fromLTRB(8, 14, 8, 8) : const EdgeInsets.only(top: 6),
           decoration: parts ? BoxDecoration(border: Border.all(color: MF.border), borderRadius: BorderRadius.circular(12)) : null,
-          child: Column(children: [
-            Row(children: [
-              if (parts) ...[field(i, 'mf577Kind', 'Kind', hint: 'Mode'), const SizedBox(width: 8)],
-              field(i, 'name', 'Name', flex: 2),
-              const SizedBox(width: 8),
-              field(i, 'progress', 'Done', digits: true, show: (v) => _n(jsNumOrNull(v))),
-              const SizedBox(width: 8),
-              field(i, 'total', 'Total', digits: true, show: (v) => v == null ? '' : _n(jsNum(v))),
-              IconButton(
-                tooltip: parts ? 'Remove part' : 'Remove season',
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () => setState(() {
-                  _seasonsTouched = true;
-                  _seasons.removeAt(i);
-                }),
-              ),
-            ]),
-            if (parts)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Row(children: [
-                  field(i, 'mf577Unit', 'Unit', hint: 'Title\'s unit'),
-                  const SizedBox(width: 8),
-                  field(i, 'mf577SecondsPerUnit', 'Time per unit', hint: 'mm:ss', show: (v) => partTimeText(jsNum(v).floor())),
-                  const SizedBox(width: 48),
-                ]),
-              ),
-          ]),
+          child: LayoutBuilder(builder: (context, box) {
+            final remove = IconButton(
+              tooltip: parts ? 'Remove part' : 'Remove season',
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => setState(() {
+                _seasonsTouched = true;
+                _seasons.removeAt(i);
+              }),
+            );
+            final done = field(i, 'progress', 'Done', digits: true, show: (v) => _n(jsNumOrNull(v)));
+            final total = field(i, 'total', 'Total', digits: true, show: (v) => v == null ? '' : _n(jsNum(v)));
+            const gap = SizedBox(width: 8), vgap = SizedBox(height: 10);
+            if (!parts) {
+              return box.maxWidth < 420
+                  ? Column(children: [
+                      Row(children: [field(i, 'name', 'Name'), remove]),
+                      vgap,
+                      Row(children: [done, gap, total, const SizedBox(width: 48)]),
+                    ])
+                  : Row(children: [field(i, 'name', 'Name', flex: 2), gap, done, gap, total, remove]);
+            }
+            final kind = field(i, 'mf577Kind', 'Kind', hint: 'Mode', flex: 2);
+            final name = field(i, 'name', 'Name', flex: 3);
+            final unit = field(i, 'mf577Unit', 'Unit', hint: 'Title\'s unit');
+            final time = field(i, 'mf577SecondsPerUnit', 'Time per unit', hint: 'mm:ss', show: (v) => partTimeText(jsNum(v).floor()));
+            // Phones: kind + name, then counter, then unit and time.
+            if (box.maxWidth < 560) {
+              return Column(children: [
+                Row(children: [kind, gap, name, remove]),
+                vgap,
+                Row(children: [done, gap, total, const SizedBox(width: 48)]),
+                vgap,
+                Row(children: [unit, gap, time, const SizedBox(width: 48)]),
+              ]);
+            }
+            return Column(children: [
+              Row(children: [kind, gap, name, gap, done, gap, total, remove]),
+              vgap,
+              Row(children: [unit, gap, time, const SizedBox(width: 48)]),
+            ]);
+          }),
         ),
     ];
   }
