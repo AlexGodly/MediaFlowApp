@@ -24,6 +24,7 @@ import 'log_engine.dart';
 import 'log_times.dart';
 import 'recommend.dart';
 import 'resume.dart';
+import 'title_parts.dart';
 import 'title_units.dart';
 
 T _clone<T>(T value) => jsonDecode(jsonEncode(value)) as T;
@@ -212,6 +213,16 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
   final error = editor.validate();
   if (error != null) return RecLogOutcome(applied: false, error: error);
 
+  // ---- v577: by-parts titles: which parts this log moves (before anything changes) ----
+  final partPlan = <({Map<String, dynamic> item, Map<String, double> before, List<PartMove> list, bool repeat, bool itemized})>[];
+  for (final e in editor.entries) {
+    final i = editor.item(e['libraryId']);
+    if (!isByParts(i)) continue;
+    final list = itemized ? partMovesFromUnits(e['v369Units']) : cleanMoves(i, partMovesOf(e));
+    if (list.isEmpty) continue;
+    partPlan.add((item: i!, before: partsSnapshot(i), list: list, repeat: e['isRepeat'] == true, itemized: itemized));
+  }
+
   // ---- v369: snapshot titles and units ---------------------------------------------
   final baseLibrary = <String, ({Map<String, dynamic> item, double progress, List<Map<String, dynamic>> seasons})>{};
   final capturedUnits = <String, ({List<Map<String, dynamic>> units, bool repeat})>{};
@@ -308,7 +319,12 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
       final item = editor.item(e['libraryId']);
       final actual = item != null ? r.getCategory(jsStr(item['categoryId'])) : assignedCat;
       // v565: the title's own unit counts in its category's unit (website submitLog).
-      final qty = toCategoryAmount(item, actual, math.max(0.0, jsNum(e['qty'])));
+      final rawQty = math.max(0.0, jsNum(e['qty']));
+      // v577: a by-parts title counts each part in the category's unit.
+      final moves = isByParts(item) ? (itemized ? partMovesFromUnits(e['v369Units']) : cleanMoves(item, partMovesOf(e))) : const <PartMove>[];
+      final qty = moves.isNotEmpty && (movesQty(moves) - rawQty).abs() < 1e-9
+          ? partsCategoryAmount(item, actual, moves)
+          : toCategoryAmount(item, actual, rawQty);
       final g = groups.putIfAbsent(jsStr(actual['id']), () => (cat: actual, entries: <Map<String, dynamic>>[], sums: [0.0, 0.0]));
       g.entries.add(e);
       g.sums[0] += qty;
@@ -632,6 +648,35 @@ RecLogOutcome applyRecLog(Map<String, dynamic> state, RecLogRequest req, {Random
         target['v553RerollTitleNames'] = reroll.titles;
       }
     }
+  }
+
+  // ---- v577: by-parts titles move only their chosen parts; History keeps which ----
+  if (partPlan.isNotEmpty && added.isNotEmpty) {
+    final done = <String>{};
+    for (final pp in partPlan) {
+      final id = jsStr(pp.item['id']);
+      if (!done.add(id)) continue;
+      final rows = partPlan.where((x) => jsStr(x.item['id']) == id).toList();
+      final moves = [for (final x in rows) if (!x.repeat && !x.itemized) x.list];
+      if (moves.isNotEmpty) applyPartMoves(pp.item, pp.before, moves, now);
+      syncTitleFromSeasons(pp.item, req.eventId, modifiedAt: now);
+      if (rows.last.list.isNotEmpty) pp.item['mf577LastPartId'] = rows.last.list.last.id;
+      pp.item['modifiedAt'] = now;
+    }
+    final queues = <String, List<({Map<String, dynamic> item, Map<String, double> before, List<PartMove> list, bool repeat, bool itemized})>>{};
+    for (final pp in partPlan) {
+      (queues[jsStr(pp.item['id'])] ??= []).add(pp);
+    }
+    for (final s in added) {
+      for (final t in asList(s['titles'])) {
+        final m = asMap(t);
+        final q = queues[jsStr(m?['libraryId'])];
+        if (m == null || q == null || q.isEmpty) continue;
+        final pp = q.removeAt(0);
+        m['mf577Parts'] = partsHistory(pp.item, r.getCategory(jsStr(pp.item['categoryId'])), pp.before, pp.list, repeat: pp.repeat);
+      }
+    }
+    tracker.save(state, l, now, metaUid);
   }
 
   // ---- the form closes: the shared draft is cleared --------------------------------------------------------

@@ -9,6 +9,7 @@
 import 'dart:math' as math;
 
 import '../util/js.dart';
+import 'title_parts.dart';
 import 'title_units.dart';
 import 'log_engine.dart' show normalizeSeasons;
 
@@ -212,6 +213,12 @@ class LogDraftEditor {
       final cat = category(i != null ? jsStr(i['categoryId']) : jsStr(task['categoryId']));
       // Website v569: a title with its own unit and runtime counts its own
       // runtime (3 matches of 20 min = 60 min), not the category's.
+      final moves = !itemized && isByParts(i) && e['mf577Parts'] is List ? partMovesOf(e) : null;
+      if (moves != null) {
+        // Website v577: each part at its own time.
+        minutes += partsMinutes(i, cat, moves);
+        continue;
+      }
       final own = ownRuntimeSeconds(i);
       minutes += own > 0 ? jsRound(qty * own / 60) : jsRound(qty * jsNum(cat['minutesPerUnit']));
     }
@@ -647,6 +654,19 @@ class LogDraftEditor {
 
   /// `v369Sync`.
   void sync369() {
+    // Website v577: an Advanced unit of a by-parts title still at the title's
+    // default time takes its part's time.
+    for (final e in entries) {
+      final i = item(e['libraryId']);
+      if (!isByParts(i) || e['v369Units'] is! List || jsNumFromKey(e, 'v394RuntimeSeconds') != null) continue;
+      final def = defaultSeconds(i);
+      for (final u in units(e)) {
+        final part = titlePart(i, jsStr(u['seasonId']));
+        if (part == null) continue;
+        final secs = partSeconds(part, i, category(jsStr(i!['categoryId'])));
+        if (jsNum(u['durationSeconds']) == def && secs != def) u['durationSeconds'] = secs;
+      }
+    }
     for (final e in entries) {
       if (e['v369Units'] is! List) continue;
       e['qty'] = asList(e['v369Units']).length;
@@ -1042,4 +1062,19 @@ class LogDraftEditor {
   }
 
   static String _fmt(double v) => v == v.truncateToDouble() ? v.toInt().toString() : v.toString();
+}
+
+
+/// Website v577: an entry's moved parts (`mf577Parts`).
+List<PartMove> partMovesOf(Map<String, dynamic> e) =>
+    [for (final p in asList(e['mf577Parts']).map(asMap).whereType<Map<String, dynamic>>()) PartMove.fromJson(p)];
+
+/// Website v577: Advanced units grouped by part (`mf577FromUnits`).
+List<PartMove> partMovesFromUnits(Object? units) {
+  final counts = <String, double>{};
+  for (final u in asList(units).map(asMap).whereType<Map<String, dynamic>>()) {
+    final id = jsStr(u['seasonId']);
+    if (id.isNotEmpty) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return [for (final e in counts.entries) PartMove(e.key, e.value)];
 }
