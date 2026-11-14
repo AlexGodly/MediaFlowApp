@@ -57,7 +57,7 @@ class Diagnostics {
   Future<void> init() async {
     // Covers: at most ~96 MB / 500 decoded images held at once.
     final cache = PaintingBinding.instance.imageCache;
-    cache.maximumSizeBytes = 96 << 20;
+    cache.maximumSizeBytes = 64 << 20; // 10.0.0: 96 → 64 MB (covers are decoded at their shown size)
     cache.maximumSize = 500;
 
     try {

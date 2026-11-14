@@ -377,7 +377,14 @@ class AccountController extends ChangeNotifier {
     final display = await _working();
     if (!applyBatchSection(display, section)) return;
     _pending.removeWhere((p) => p is BatchDraftOp);
-    await _queue(BatchDraftOp(mediaFlowUid(), normalizeBatchSection(section)), display, delay: draftSyncDelay);
+    // Like the logging draft: its records go up on their own within a second;
+    // the whole account is only re-saved much later (10.0.0, far less work).
+    final live = _index != null && cloud is RecordBackend;
+    await _queue(BatchDraftOp(mediaFlowUid(), normalizeBatchSection(section)), display, delay: live ? liveFoldDelay : draftSyncDelay);
+    if (live) {
+      _draftPushTimer?.cancel();
+      _draftPushTimer = Timer(liveDraftDelay, () => unawaited(_pushDraftNow()));
+    }
   }
 
   /// The account's Batch Log draft as this device has it.
@@ -412,7 +419,7 @@ class AccountController extends ChangeNotifier {
   Future<bool> _pushDraftNow() async {
     final cloud = this.cloud, index = _index, display = _display;
     if (cloud is! RecordBackend || index == null || display == null || _disposed) return false;
-    if (_syncing || _pending.isEmpty || !_pending.every((p) => p is DraftOp)) {
+    if (_syncing || _pending.isEmpty || !_pending.every((p) => p is DraftOp || p is BatchDraftOp)) {
       if (!_syncing) unawaited(sync());
       return false;
     }
