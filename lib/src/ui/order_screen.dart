@@ -11,11 +11,12 @@ import 'package:flutter/services.dart';
 
 import '../data/account_controller.dart';
 import '../data/app_prefs.dart';
-import '../logic/choice_layout.dart' show filterCategories, setCategories;
+import '../logic/choice_layout.dart' show filterCategories;
 import '../logic/collections_logic.dart';
 import '../logic/order_view.dart';
 import '../state/models.dart';
 import '../util/js.dart';
+import 'collection_picker.dart' show pickCollections;
 import 'collections_screen.dart' show pickLibraryTitles, CollectionCover;
 import '../platform/file_io.dart';
 import 'floating_dock.dart' show recoveryShortcuts;
@@ -790,54 +791,27 @@ class _AddBar extends StatelessWidget {
 /// Collection shows up where it was added.
 Future<void> _addCollection(BuildContext context, AccountController account, AccountView view, _OrderEdit order,
     {String? categoryId, bool showInTitles = false}) async {
-  final cols = collectionsOf(view.state);
-  if (cols.isEmpty) {
-    _toast(context, 'You have no Collections yet. Create one in Collections first.');
-    return;
-  }
-  String? col = jsStr(cols.first['id']);
-  String? cat = categoryId ?? (view.categories.isEmpty ? null : view.categories.first.id);
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (d) => StatefulBuilder(
-      builder: (d, set) => AlertDialog(
-        title: Text(categoryId == null ? 'Add a Collection' : 'Add a Collection to ${view.category(categoryId).name}'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(
-            initialValue: col,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Collection'),
-            items: [for (final c in cols) DropdownMenuItem(value: jsStr(c['id']), child: Text(jsStr(c['title']), overflow: TextOverflow.ellipsis))],
-            onChanged: (v) => set(() => col = v),
-          ),
-          if (categoryId == null)
-            DropdownButtonFormField<String>(
-              initialValue: cat,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Task category'),
-              items: [for (final c in setCategories(view)) DropdownMenuItem(value: c.id, child: Text(c.name))],
-              onChanged: (v) => set(() => cat = v),
-            ),
-          const SizedBox(height: 8),
-          Text('MediaFlow Recommends walks the Collection in its own order when it reaches it in the queue.',
-              style: TextStyle(color: MF.textDim, fontSize: 12)),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(d, true), child: const Text('Add')),
-        ],
-      ),
-    ),
-  );
-  if (ok != true || col == null || cat == null) return;
-  String? error;
+  // 10.0.0: a picker with the Collections page's tools; several at once.
+  final picked = await pickCollections(context, view, categoryId: categoryId);
+  if (picked == null || picked.ids.isEmpty) return;
+  final errors = <String>[];
+  var added = 0;
   await order('Assign Collection', (plan, s, now, uid) {
-    error = orderAssignCollection(plan, col!, cat!, now, uid);
-    if (error == null && showInTitles && _OrderScreenState._queueView(plan)['showCollectionsInRegularQueues'] != true) {
+    errors.clear();
+    added = 0;
+    for (final id in picked.ids) {
+      final e = orderAssignCollection(plan, id, picked.categoryId, now, uid);
+      e == null ? added++ : errors.add(e);
+    }
+    if (added > 0 && showInTitles && _OrderScreenState._queueView(plan)['showCollectionsInRegularQueues'] != true) {
       plan['v288QueueView'] = {..._OrderScreenState._queueView(plan), 'showCollectionsInRegularQueues': true};
     }
   });
-  if (context.mounted) _toast(context, error ?? 'Collection added to ${view.category(cat!).name} ✓');
+  if (!context.mounted) return;
+  final where = view.category(picked.categoryId).name;
+  _toast(context, added > 0
+      ? '$added Collection${added == 1 ? '' : 's'} added to $where ✓${errors.isEmpty ? '' : ' · ${errors.length} already there'}'
+      : errors.first);
 }
 
 /// Assignments and Collections by id, once per account change.
