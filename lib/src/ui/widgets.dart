@@ -618,9 +618,14 @@ final Expando<Map<String, Object?>> _memo = Expando('memo');
 /// which is replaced whenever the account changes).
 T memoFor<T>(Object owner, String key, T Function() compute) {
   final m = _memo[owner] ??= <String, Object?>{};
-  if (m.containsKey(key)) return m[key] as T;
+  // 9.0.0: the key carries the type, so two screens caching different things
+  // under one name ('libraryById' held titles in Order and raw maps in Log)
+  // can never hand each other the wrong type (the Personal Order crash).
+  final k = '$key<$T>';
+  final hit = m[k];
+  if (hit is T) return hit;
   final v = compute();
-  m[key] = v;
+  m[k] = v;
   return v;
 }
 

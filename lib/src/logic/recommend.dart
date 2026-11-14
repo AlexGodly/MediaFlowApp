@@ -489,9 +489,8 @@ class Recommender {
 
   Map<String, dynamic>? findLibraryItem(String libraryId, String title) {
     if (libraryId.isNotEmpty) {
-      for (final i in library) {
-        if (jsStr(i['id']) == libraryId) return i;
-      }
+      final hit = _libraryItem(libraryId);
+      if (hit != null) return hit;
     }
     final q = cleanTitle(title).toLowerCase();
     if (q.isEmpty) return null;
@@ -595,11 +594,26 @@ class Recommender {
     return out;
   }
 
+  // 9.0.0: titles are looked up by id through an index built once (the
+  // Personal Order queues looked every title up by scanning a fresh copy of
+  // the whole Library, which froze big accounts). First match wins, as before.
+  List<dynamic>? _libraryIndexSource;
+  int _libraryIndexLength = -1;
+  Map<String, Map<String, dynamic>> _libraryIndex = const {};
+
   Map<String, dynamic>? _libraryItem(String id) {
-    for (final i in library) {
-      if (jsStr(i['id']) == id) return i;
+    final list = asList(state['library']);
+    if (!identical(list, _libraryIndexSource) || list.length != _libraryIndexLength) {
+      final index = <String, Map<String, dynamic>>{};
+      for (final raw in list) {
+        final i = asMap(raw);
+        if (i != null) index.putIfAbsent(jsStr(i['id']), () => i);
+      }
+      _libraryIndex = index;
+      _libraryIndexSource = list;
+      _libraryIndexLength = list.length;
     }
-    return null;
+    return _libraryIndex[id];
   }
 
   static bool _isCompleted(Map<String, dynamic> item) {
