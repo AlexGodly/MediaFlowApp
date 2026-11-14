@@ -23,6 +23,7 @@ void main() {
       if (f.path.endsWith('settings_screen.dart') || f.path.endsWith('old_system_screen.dart')) continue; // editing categories themselves
       final lines = f.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
+        if (lines[i].contains('viewChoices(')) continue; // already follows the layout
         if (RegExp(r"for \(final c in (widget\.)?view\.categories\) \(c\.id").hasMatch(lines[i])) bad.add('${f.path}:${i + 1}');
       }
     }

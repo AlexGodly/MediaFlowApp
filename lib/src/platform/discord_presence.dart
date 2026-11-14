@@ -68,6 +68,8 @@ class DiscordPresence extends ChangeNotifier {
 
   DiscordFfi? _ffi;
   Pointer<DOpaque>? _client;
+  // Kept for the app's lifetime (10.0.0); never cancelled.
+  // ignore: unused_field
   Timer? _pump;
   NativeCallable<StatusCb>? _statusCb;
   final _secure = const FlutterSecureStorage();
