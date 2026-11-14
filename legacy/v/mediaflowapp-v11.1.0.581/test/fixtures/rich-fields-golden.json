@@ -1,0 +1,409 @@
+{
+ "fields": [
+  "year",
+  "mediaFormat",
+  "durationMinutes",
+  "releaseDate",
+  "seasonLabel",
+  "ageRating",
+  "communityScore",
+  "mediaSource",
+  "demographic",
+  "studios",
+  "producers",
+  "genres",
+  "themes",
+  "synopsis"
+ ],
+ "cases": [
+  {
+   "name": "unchanged",
+   "item": {
+    "id": "t1",
+    "title": "Frieren",
+    "year": 2023,
+    "mediaFormat": "TV",
+    "durationMinutes": 24,
+    "releaseDate": "2023-09-29",
+    "seasonLabel": "Fall 2023",
+    "ageRating": "PG-13",
+    "communityScore": 9.1,
+    "mediaSource": "Manga",
+    "demographic": "Shounen",
+    "studios": [
+     "Madhouse"
+    ],
+    "producers": [],
+    "genres": [
+     "Adventure",
+     "Drama"
+    ],
+    "themes": [],
+    "synopsis": "An elf mage.",
+    "richMetadataManual": {
+     "genres": true,
+     "coverUrl": true,
+     "bogus": "yes"
+    },
+    "modifiedAt": 5
+   },
+   "inputs": {
+    "l-rich-year": "2023",
+    "l-rich-format": "TV",
+    "l-rich-duration": "24",
+    "l-rich-release-date": "2023-09-29",
+    "l-rich-season": "Fall 2023",
+    "l-rich-age-rating": "PG-13",
+    "l-rich-community-score": "9.1",
+    "l-rich-source": "Manga",
+    "l-rich-demographic": "Shounen",
+    "l-rich-studios": "Madhouse",
+    "l-rich-producers": "",
+    "l-rich-genres": "Adventure, Drama",
+    "l-rich-themes": "",
+    "l-rich-synopsis": "An elf mage."
+   },
+   "expected": {
+    "captured": {
+     "year": 2023,
+     "mediaFormat": "TV",
+     "durationMinutes": 24,
+     "releaseDate": "2023-09-29",
+     "seasonLabel": "Fall 2023",
+     "ageRating": "PG-13",
+     "communityScore": 9.1,
+     "mediaSource": "Manga",
+     "demographic": "Shounen",
+     "studios": [
+      "Madhouse"
+     ],
+     "producers": [],
+     "genres": [
+      "Adventure",
+      "Drama"
+     ],
+     "themes": [],
+     "synopsis": "An elf mage."
+    },
+    "changed": false,
+    "item": {
+     "id": "t1",
+     "title": "Frieren",
+     "year": 2023,
+     "mediaFormat": "TV",
+     "durationMinutes": 24,
+     "releaseDate": "2023-09-29",
+     "seasonLabel": "Fall 2023",
+     "ageRating": "PG-13",
+     "communityScore": 9.1,
+     "mediaSource": "Manga",
+     "demographic": "Shounen",
+     "studios": [
+      "Madhouse"
+     ],
+     "producers": [],
+     "genres": [
+      "Adventure",
+      "Drama"
+     ],
+     "themes": [],
+     "synopsis": "An elf mage.",
+     "richMetadataManual": {
+      "genres": true
+     },
+     "modifiedAt": 5
+    }
+   }
+  },
+  {
+   "name": "edits and cleaning",
+   "item": {
+    "id": "t1",
+    "title": "Frieren",
+    "year": 2023,
+    "mediaFormat": "TV",
+    "durationMinutes": 24,
+    "releaseDate": "2023-09-29",
+    "seasonLabel": "Fall 2023",
+    "ageRating": "PG-13",
+    "communityScore": 9.1,
+    "mediaSource": "Manga",
+    "demographic": "Shounen",
+    "studios": [
+     "Madhouse"
+    ],
+    "producers": [],
+    "genres": [
+     "Adventure",
+     "Drama"
+    ],
+    "themes": [],
+    "synopsis": "An elf mage.",
+    "richMetadataManual": {
+     "genres": true,
+     "coverUrl": true,
+     "bogus": "yes"
+    },
+    "modifiedAt": 5
+   },
+   "inputs": {
+    "l-rich-year": "12023",
+    "l-rich-format": "  <b>TV</b>  Series ",
+    "l-rich-duration": "-5",
+    "l-rich-release-date": "aired 2023-09-29 (JP)",
+    "l-rich-season": "Fall 2023",
+    "l-rich-age-rating": "",
+    "l-rich-community-score": "87",
+    "l-rich-source": "Manga",
+    "l-rich-demographic": "Shounen",
+    "l-rich-studios": "Madhouse, , Madhouse, Studio&nbsp;X",
+    "l-rich-producers": "Aniplex",
+    "l-rich-genres": "Adventure, Drama, Fantasy",
+    "l-rich-themes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "l-rich-synopsis": "Line<br>two"
+   },
+   "expected": {
+    "captured": {
+     "year": 9999,
+     "mediaFormat": "TV Series",
+     "durationMinutes": 0,
+     "releaseDate": "2023-09-29",
+     "seasonLabel": "Fall 2023",
+     "ageRating": "",
+     "communityScore": 10,
+     "mediaSource": "Manga",
+     "demographic": "Shounen",
+     "studios": [
+      "Madhouse",
+      "Studio X"
+     ],
+     "producers": [
+      "Aniplex"
+     ],
+     "genres": [
+      "Adventure",
+      "Drama",
+      "Fantasy"
+     ],
+     "themes": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     ],
+     "synopsis": "Line two"
+    },
+    "changed": true,
+    "item": {
+     "id": "t1",
+     "title": "Frieren",
+     "year": 9999,
+     "mediaFormat": "TV Series",
+     "durationMinutes": null,
+     "releaseDate": "2023-09-29",
+     "seasonLabel": "Fall 2023",
+     "ageRating": "",
+     "communityScore": 10,
+     "mediaSource": "Manga",
+     "demographic": "Shounen",
+     "studios": [
+      "Madhouse",
+      "Studio X"
+     ],
+     "producers": [
+      "Aniplex"
+     ],
+     "genres": [
+      "Adventure",
+      "Drama",
+      "Fantasy"
+     ],
+     "themes": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     ],
+     "synopsis": "Line two",
+     "richMetadataManual": {
+      "genres": true,
+      "year": true,
+      "mediaFormat": true,
+      "durationMinutes": true,
+      "ageRating": true,
+      "communityScore": true,
+      "studios": true,
+      "producers": true,
+      "themes": true,
+      "synopsis": true
+     },
+     "modifiedAt": 1762600000000
+    }
+   }
+  },
+  {
+   "name": "new title",
+   "item": {
+    "id": "t2",
+    "title": "New"
+   },
+   "inputs": {
+    "l-rich-year": "1999",
+    "l-rich-format": "",
+    "l-rich-duration": "",
+    "l-rich-release-date": "1999-04-03T00:00:00Z",
+    "l-rich-season": "",
+    "l-rich-age-rating": "",
+    "l-rich-community-score": "abc",
+    "l-rich-source": "",
+    "l-rich-demographic": "",
+    "l-rich-studios": "",
+    "l-rich-producers": "",
+    "l-rich-genres": "Action",
+    "l-rich-themes": "",
+    "l-rich-synopsis": ""
+   },
+   "expected": {
+    "captured": {
+     "year": 1999,
+     "mediaFormat": "",
+     "durationMinutes": null,
+     "releaseDate": "1999-04-03",
+     "seasonLabel": "",
+     "ageRating": "",
+     "communityScore": null,
+     "mediaSource": "",
+     "demographic": "",
+     "studios": [],
+     "producers": [],
+     "genres": [
+      "Action"
+     ],
+     "themes": [],
+     "synopsis": ""
+    },
+    "changed": true,
+    "item": {
+     "id": "t2",
+     "title": "New",
+     "year": 1999,
+     "mediaFormat": "",
+     "durationMinutes": null,
+     "releaseDate": "1999-04-03",
+     "seasonLabel": "",
+     "ageRating": "",
+     "communityScore": null,
+     "mediaSource": "",
+     "demographic": "",
+     "studios": [],
+     "producers": [],
+     "genres": [
+      "Action"
+     ],
+     "themes": [],
+     "synopsis": "",
+     "richMetadataManual": {
+      "year": true,
+      "releaseDate": true,
+      "genres": true
+     },
+     "modifiedAt": 1762600000000
+    }
+   }
+  },
+  {
+   "name": "cleared",
+   "item": {
+    "id": "t1",
+    "title": "Frieren",
+    "year": 2023,
+    "mediaFormat": "TV",
+    "durationMinutes": 24,
+    "releaseDate": "2023-09-29",
+    "seasonLabel": "Fall 2023",
+    "ageRating": "PG-13",
+    "communityScore": 9.1,
+    "mediaSource": "Manga",
+    "demographic": "Shounen",
+    "studios": [
+     "Madhouse"
+    ],
+    "producers": [],
+    "genres": [
+     "Adventure",
+     "Drama"
+    ],
+    "themes": [],
+    "synopsis": "An elf mage.",
+    "richMetadataManual": {
+     "genres": true,
+     "coverUrl": true,
+     "bogus": "yes"
+    },
+    "modifiedAt": 5
+   },
+   "inputs": {
+    "l-rich-year": "",
+    "l-rich-format": "",
+    "l-rich-duration": "",
+    "l-rich-release-date": "",
+    "l-rich-season": "",
+    "l-rich-age-rating": "",
+    "l-rich-community-score": "",
+    "l-rich-source": "",
+    "l-rich-demographic": "",
+    "l-rich-studios": "",
+    "l-rich-producers": "",
+    "l-rich-genres": "",
+    "l-rich-themes": "",
+    "l-rich-synopsis": ""
+   },
+   "expected": {
+    "captured": {
+     "year": null,
+     "mediaFormat": "",
+     "durationMinutes": null,
+     "releaseDate": "",
+     "seasonLabel": "",
+     "ageRating": "",
+     "communityScore": null,
+     "mediaSource": "",
+     "demographic": "",
+     "studios": [],
+     "producers": [],
+     "genres": [],
+     "themes": [],
+     "synopsis": ""
+    },
+    "changed": true,
+    "item": {
+     "id": "t1",
+     "title": "Frieren",
+     "year": null,
+     "mediaFormat": "",
+     "durationMinutes": null,
+     "releaseDate": "",
+     "seasonLabel": "",
+     "ageRating": "",
+     "communityScore": null,
+     "mediaSource": "",
+     "demographic": "",
+     "studios": [],
+     "producers": [],
+     "genres": [],
+     "themes": [],
+     "synopsis": "",
+     "richMetadataManual": {
+      "genres": true,
+      "year": true,
+      "mediaFormat": true,
+      "durationMinutes": true,
+      "releaseDate": true,
+      "seasonLabel": true,
+      "ageRating": true,
+      "communityScore": true,
+      "mediaSource": true,
+      "demographic": true,
+      "studios": true,
+      "synopsis": true
+     },
+     "modifiedAt": 1762600000000
+    }
+   }
+  }
+ ]
+}

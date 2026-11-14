@@ -1,0 +1,17 @@
+name: Live check of metadata and cover sources
+# Runs the keyless sources against the real services (this workspace has no
+# internet) whenever the check changes, or by hand.
+on:
+  push:
+    branches-ignore: [main]
+    paths: ['tool/live_sources.py', '.github/workflows/live-sources.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tool/live_sources.py

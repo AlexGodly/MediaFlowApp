@@ -1,0 +1,1834 @@
+{
+ "units": [
+  {
+   "item": "plain",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "sessions",
+   "seconds": 3600
+  },
+  {
+   "item": "plain",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "sessions",
+   "seconds": 3600
+  },
+  {
+   "item": "plain",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "sessions",
+   "seconds": 3600
+  },
+  {
+   "item": "plain",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "sessions",
+   "seconds": 3600
+  },
+  {
+   "item": "plain",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "sessions",
+   "seconds": 3600
+  },
+  {
+   "item": "plain",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "sessions",
+   "seconds": 1500
+  },
+  {
+   "item": "plain",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "sessions",
+   "seconds": 1500
+  },
+  {
+   "item": "plain",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "sessions",
+   "seconds": 1500
+  },
+  {
+   "item": "plain",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "sessions",
+   "seconds": 1500
+  },
+  {
+   "item": "plain",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "sessions",
+   "seconds": 1500
+  },
+  {
+   "item": "plain",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "episodes",
+   "seconds": 1410
+  },
+  {
+   "item": "plain",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "episodes",
+   "seconds": 1410
+  },
+  {
+   "item": "plain",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "episodes",
+   "seconds": 1410
+  },
+  {
+   "item": "plain",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "episodes",
+   "seconds": 1410
+  },
+  {
+   "item": "plain",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "episodes",
+   "seconds": 1410
+  },
+  {
+   "item": "plain",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "episodes",
+   "seconds": 0
+  },
+  {
+   "item": "plain",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "episodes",
+   "seconds": 0
+  },
+  {
+   "item": "plain",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "episodes",
+   "seconds": 0
+  },
+  {
+   "item": "plain",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "episodes",
+   "seconds": 0
+  },
+  {
+   "item": "plain",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "episodes",
+   "seconds": 0
+  },
+  {
+   "item": "matches",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 0.3333333333333333,
+   "amount": 0,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 0.3333333333333333,
+   "amount": 0.33,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 0.3333333333333333,
+   "amount": 1,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 0.3333333333333333,
+   "amount": 0.83,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 0.3333333333333333,
+   "amount": 2.33,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 0.8,
+   "amount": 0,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 0.8,
+   "amount": 0.8,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 0.8,
+   "amount": 2.4,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 0.8,
+   "amount": 2,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 0.8,
+   "amount": 5.6,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 0.851063829787234,
+   "amount": 0,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 0.851063829787234,
+   "amount": 0.85,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 0.851063829787234,
+   "amount": 2.55,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 0.851063829787234,
+   "amount": 2.13,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 0.851063829787234,
+   "amount": 5.96,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "matches",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "matches",
+   "seconds": 1200
+  },
+  {
+   "item": "noRuntime",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "rounds",
+   "seconds": 3600
+  },
+  {
+   "item": "noRuntime",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "rounds",
+   "seconds": 3600
+  },
+  {
+   "item": "noRuntime",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "rounds",
+   "seconds": 3600
+  },
+  {
+   "item": "noRuntime",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "rounds",
+   "seconds": 3600
+  },
+  {
+   "item": "noRuntime",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "rounds",
+   "seconds": 3600
+  },
+  {
+   "item": "noRuntime",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "rounds",
+   "seconds": 1500
+  },
+  {
+   "item": "noRuntime",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "rounds",
+   "seconds": 1500
+  },
+  {
+   "item": "noRuntime",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "rounds",
+   "seconds": 1500
+  },
+  {
+   "item": "noRuntime",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "rounds",
+   "seconds": 1500
+  },
+  {
+   "item": "noRuntime",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "rounds",
+   "seconds": 1500
+  },
+  {
+   "item": "noRuntime",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "rounds",
+   "seconds": 1410
+  },
+  {
+   "item": "noRuntime",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "rounds",
+   "seconds": 1410
+  },
+  {
+   "item": "noRuntime",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "rounds",
+   "seconds": 1410
+  },
+  {
+   "item": "noRuntime",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "rounds",
+   "seconds": 1410
+  },
+  {
+   "item": "noRuntime",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "rounds",
+   "seconds": 1410
+  },
+  {
+   "item": "noRuntime",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "rounds",
+   "seconds": 0
+  },
+  {
+   "item": "noRuntime",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "rounds",
+   "seconds": 0
+  },
+  {
+   "item": "noRuntime",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "rounds",
+   "seconds": 0
+  },
+  {
+   "item": "noRuntime",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "rounds",
+   "seconds": 0
+  },
+  {
+   "item": "noRuntime",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "rounds",
+   "seconds": 0
+  },
+  {
+   "item": "long",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 1.5,
+   "amount": 0,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 1.5,
+   "amount": 1.5,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 1.5,
+   "amount": 4.5,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 1.5,
+   "amount": 3.75,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 1.5,
+   "amount": 10.5,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 3.6,
+   "amount": 0,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 3.6,
+   "amount": 3.6,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 3.6,
+   "amount": 10.8,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 3.6,
+   "amount": 9,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 3.6,
+   "amount": 25.2,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 3.8297872340425534,
+   "amount": 0,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 3.8297872340425534,
+   "amount": 3.83,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 3.8297872340425534,
+   "amount": 11.49,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 3.8297872340425534,
+   "amount": 9.57,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 3.8297872340425534,
+   "amount": 26.81,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "long",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "boss fights",
+   "seconds": 5400
+  },
+  {
+   "item": "odd",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 0.19444444444444445,
+   "amount": 0,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 0.19444444444444445,
+   "amount": 0.19,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 0.19444444444444445,
+   "amount": 0.58,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 0.19444444444444445,
+   "amount": 0.49,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 0.19444444444444445,
+   "amount": 1.36,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 0.4666666666666667,
+   "amount": 0,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 0.4666666666666667,
+   "amount": 0.47,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 0.4666666666666667,
+   "amount": 1.4,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 0.4666666666666667,
+   "amount": 1.17,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 0.4666666666666667,
+   "amount": 3.27,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 0.49645390070921985,
+   "amount": 0,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 0.49645390070921985,
+   "amount": 0.5,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 0.49645390070921985,
+   "amount": 1.49,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 0.49645390070921985,
+   "amount": 1.24,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 0.49645390070921985,
+   "amount": 3.48,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "odd",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "laps",
+   "seconds": 700
+  },
+  {
+   "item": "spaces",
+   "cat": "hour",
+   "qty": 0,
+   "factor": 0.25,
+   "amount": 0,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "hour",
+   "qty": 1,
+   "factor": 0.25,
+   "amount": 0.25,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "hour",
+   "qty": 3,
+   "factor": 0.25,
+   "amount": 0.75,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "hour",
+   "qty": 2.5,
+   "factor": 0.25,
+   "amount": 0.63,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "hour",
+   "qty": 7,
+   "factor": 0.25,
+   "amount": 1.75,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "secs",
+   "qty": 0,
+   "factor": 0.6,
+   "amount": 0,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "secs",
+   "qty": 1,
+   "factor": 0.6,
+   "amount": 0.6,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "secs",
+   "qty": 3,
+   "factor": 0.6,
+   "amount": 1.8,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "secs",
+   "qty": 2.5,
+   "factor": 0.6,
+   "amount": 1.5,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "secs",
+   "qty": 7,
+   "factor": 0.6,
+   "amount": 4.2,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "frac",
+   "qty": 0,
+   "factor": 0.6382978723404256,
+   "amount": 0,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "frac",
+   "qty": 1,
+   "factor": 0.6382978723404256,
+   "amount": 0.64,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "frac",
+   "qty": 3,
+   "factor": 0.6382978723404256,
+   "amount": 1.91,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "frac",
+   "qty": 2.5,
+   "factor": 0.6382978723404256,
+   "amount": 1.6,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "frac",
+   "qty": 7,
+   "factor": 0.6382978723404256,
+   "amount": 4.47,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "none",
+   "qty": 0,
+   "factor": 1,
+   "amount": 0,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "none",
+   "qty": 1,
+   "factor": 1,
+   "amount": 1,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "none",
+   "qty": 3,
+   "factor": 1,
+   "amount": 3,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "none",
+   "qty": 2.5,
+   "factor": 1,
+   "amount": 2.5,
+   "key": "races",
+   "seconds": 900
+  },
+  {
+   "item": "spaces",
+   "cat": "none",
+   "qty": 7,
+   "factor": 1,
+   "amount": 7,
+   "key": "races",
+   "seconds": 900
+  }
+ ],
+ "labels": [
+  {
+   "unit": "matches",
+   "count": 1,
+   "label": "match"
+  },
+  {
+   "unit": "matches",
+   "count": 2,
+   "label": "matches"
+  },
+  {
+   "unit": "rounds",
+   "count": 1,
+   "label": "round"
+  },
+  {
+   "unit": "rounds",
+   "count": 2,
+   "label": "rounds"
+  },
+  {
+   "unit": "boss fights",
+   "count": 1,
+   "label": "boss fight"
+  },
+  {
+   "unit": "boss fights",
+   "count": 2,
+   "label": "boss fights"
+  },
+  {
+   "unit": "boxes",
+   "count": 1,
+   "label": "box"
+  },
+  {
+   "unit": "boxes",
+   "count": 2,
+   "label": "boxes"
+  },
+  {
+   "unit": "stories",
+   "count": 1,
+   "label": "story"
+  },
+  {
+   "unit": "stories",
+   "count": 2,
+   "label": "stories"
+  },
+  {
+   "unit": "glass",
+   "count": 1,
+   "label": "glass"
+  },
+  {
+   "unit": "glass",
+   "count": 2,
+   "label": "glass"
+  },
+  {
+   "unit": "quizzes",
+   "count": 1,
+   "label": "quizz"
+  },
+  {
+   "unit": "quizzes",
+   "count": 2,
+   "label": "quizzes"
+  },
+  {
+   "unit": "runs",
+   "count": 1,
+   "label": "run"
+  },
+  {
+   "unit": "runs",
+   "count": 2,
+   "label": "runs"
+  },
+  {
+   "unit": "days",
+   "count": 1,
+   "label": "day"
+  },
+  {
+   "unit": "days",
+   "count": 2,
+   "label": "days"
+  },
+  {
+   "unit": "chess",
+   "count": 1,
+   "label": "chess"
+  },
+  {
+   "unit": "chess",
+   "count": 2,
+   "label": "chess"
+  },
+  {
+   "unit": "episodes",
+   "count": 1,
+   "label": "episode"
+  },
+  {
+   "unit": "episodes",
+   "count": 2,
+   "label": "episodes"
+  },
+  {
+   "unit": "sessions",
+   "count": 1,
+   "label": "session"
+  },
+  {
+   "unit": "sessions",
+   "count": 2,
+   "label": "sessions"
+  }
+ ],
+ "names": [
+  {
+   "item": {
+    "title": "Shingeki no Kyojin",
+    "titleEnglish": "Attack on Titan",
+    "titleRomaji": "Shingeki no Kyojin",
+    "categoryId": "anime",
+    "universalMetadata": {
+     "fields": {
+      "originalTitle": {
+       "value": "進撃の巨人"
+      },
+      "alternateTitles": {
+       "value": [
+        "AoT",
+        "进击的巨人",
+        "진격의 거인"
+       ]
+      }
+     }
+    }
+   },
+   "names": [
+    {
+     "lang": "en",
+     "text": "Attack on Titan",
+     "source": "metadata"
+    },
+    {
+     "lang": "ja-Latn",
+     "text": "Shingeki no Kyojin",
+     "source": "metadata"
+    },
+    {
+     "lang": "ja",
+     "text": "進撃の巨人",
+     "source": "metadata"
+    },
+    {
+     "lang": "",
+     "text": "AoT",
+     "source": "metadata"
+    },
+    {
+     "lang": "zh",
+     "text": "进击的巨人",
+     "source": "metadata"
+    },
+    {
+     "lang": "ko",
+     "text": "진격의 거인",
+     "source": "metadata"
+    }
+   ],
+   "search": "shingeki no kyojin\nattack on titan\nshingeki no kyojin\n進撃の巨人\naot\n进击的巨人\n진격의 거인",
+   "shown": [
+    "Shingeki no Kyojin",
+    "Attack on Titan",
+    "進撃の巨人",
+    "Shingeki no Kyojin"
+   ],
+   "matches": [
+    true,
+    true,
+    true,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "item": {
+    "title": "Main",
+    "mf565Names": [
+     {
+      "lang": "ja",
+      "text": "メイン"
+     },
+     {
+      "lang": "xx",
+      "text": "Weird"
+     },
+     {
+      "lang": "en",
+      "text": "  Main  Eng "
+     }
+    ],
+    "mf565NameLanguage": "ja",
+    "categoryId": "manga"
+   },
+   "names": [
+    {
+     "lang": "ja",
+     "text": "メイン",
+     "source": ""
+    },
+    {
+     "lang": "other",
+     "text": "Weird",
+     "source": ""
+    },
+    {
+     "lang": "en",
+     "text": "Main  Eng",
+     "source": ""
+    }
+   ],
+   "search": "main\nメイン\nweird\nmain  eng",
+   "shown": [
+    "メイン",
+    "メイン",
+    "メイン",
+    "メイン"
+   ],
+   "matches": [
+    false,
+    false,
+    false,
+    true,
+    true,
+    false,
+    true,
+    true,
+    false
+   ]
+  },
+  {
+   "item": {
+    "title": "Only Main",
+    "categoryId": "anime"
+   },
+   "names": [],
+   "search": "only main",
+   "shown": [
+    "Only Main",
+    "Only Main",
+    "Only Main",
+    "Only Main"
+   ],
+   "matches": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    true,
+    false
+   ]
+  },
+  {
+   "item": {
+    "title": "Exempt",
+    "titleEnglish": "Eng",
+    "mf565NameExempt": true,
+    "categoryId": "anime"
+   },
+   "names": [
+    {
+     "lang": "en",
+     "text": "Eng",
+     "source": "metadata"
+    }
+   ],
+   "search": "exempt\neng",
+   "shown": [
+    "Exempt",
+    "Exempt",
+    "Exempt",
+    "Exempt"
+   ],
+   "matches": [
+    false,
+    false,
+    false,
+    true,
+    false,
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "item": {
+    "title": "Orig",
+    "originalTitle": "オリジナル",
+    "categoryId": "games"
+   },
+   "names": [
+    {
+     "lang": "ja",
+     "text": "オリジナル",
+     "source": "metadata"
+    }
+   ],
+   "search": "orig\nオリジナル",
+   "shown": [
+    "Orig",
+    "Orig",
+    "Orig",
+    "Orig"
+   ],
+   "matches": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "item": {
+    "title": "Dup",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Same"
+     },
+     {
+      "lang": "en",
+      "text": "same"
+     },
+     {
+      "lang": "fr",
+      "text": "Same"
+     }
+    ],
+    "categoryId": "games"
+   },
+   "names": [
+    {
+     "lang": "en",
+     "text": "Same",
+     "source": ""
+    },
+    {
+     "lang": "fr",
+     "text": "Same",
+     "source": ""
+    }
+   ],
+   "search": "dup\nsame\nsame",
+   "shown": [
+    "Dup",
+    "Same",
+    "Same",
+    "Same"
+   ],
+   "matches": [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    true,
+    false,
+    true
+   ]
+  }
+ ],
+ "prefSets": [
+  {
+   "global": "main",
+   "categories": {}
+  },
+  {
+   "global": "en",
+   "categories": {}
+  },
+  {
+   "global": "en",
+   "categories": {
+    "manga": "ja",
+    "anime": "ja"
+   }
+  },
+  {
+   "global": "ja-Latn",
+   "categories": {
+    "games": "fr"
+   }
+  }
+ ],
+ "prefsRaw": [
+  {
+   "raw": null,
+   "prefs": {
+    "global": "main",
+    "categories": {}
+   }
+  },
+  {
+   "raw": {},
+   "prefs": {
+    "global": "main",
+    "categories": {}
+   }
+  },
+  {
+   "raw": {
+    "global": "zz"
+   },
+   "prefs": {
+    "global": "main",
+    "categories": {}
+   }
+  },
+  {
+   "raw": {
+    "global": "en",
+    "categories": {
+     "a": "ja",
+     "b": "nope",
+     "c": ""
+    }
+   },
+   "prefs": {
+    "global": "en",
+    "categories": {
+     "a": "ja"
+    }
+   }
+  }
+ ],
+ "addCases": [
+  {
+   "item": {
+    "title": "A",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "B"
+     }
+    ]
+   },
+   "add": [
+    {
+     "lang": "en",
+     "text": "B"
+    },
+    {
+     "lang": "ja",
+     "text": "C",
+     "source": "anilist"
+    },
+    {
+     "lang": "en",
+     "text": "a"
+    }
+   ],
+   "added": 1,
+   "after": {
+    "title": "A",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "B"
+     },
+     {
+      "lang": "ja",
+      "text": "C",
+      "source": "anilist"
+     }
+    ]
+   }
+  },
+  {
+   "item": {
+    "title": "X",
+    "titleEnglish": "Eng"
+   },
+   "add": [
+    {
+     "lang": "en",
+     "text": "Eng"
+    },
+    {
+     "lang": "en",
+     "text": "eng"
+    },
+    {
+     "lang": "ko",
+     "text": "K",
+     "source": "kitsu"
+    }
+   ],
+   "added": 1,
+   "after": {
+    "title": "X",
+    "titleEnglish": "Eng",
+    "mf565Names": [
+     {
+      "lang": "ko",
+      "text": "K",
+      "source": "kitsu"
+     }
+    ]
+   }
+  },
+  {
+   "item": {
+    "title": "Y"
+   },
+   "add": [],
+   "added": 0,
+   "after": {
+    "title": "Y"
+   }
+  }
+ ],
+ "editCases": [
+  {
+   "item": {
+    "id": "t",
+    "title": "T",
+    "modifiedAt": 5
+   },
+   "data": {
+    "unit": "matches",
+    "secs": 1200,
+    "names": [
+     {
+      "lang": "en",
+      "text": "Tee"
+     }
+    ],
+    "lang": "en",
+    "exempt": false
+   },
+   "before": [],
+   "changed": true,
+   "after": {
+    "id": "t",
+    "title": "T",
+    "modifiedAt": 1000,
+    "mf565Unit": "matches",
+    "mf565SecondsPerUnit": 1200,
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Tee",
+      "source": "manual"
+     }
+    ],
+    "mf565NameLanguage": "en"
+   }
+  },
+  {
+   "item": {
+    "id": "t",
+    "title": "T",
+    "mf565Unit": "matches",
+    "mf565SecondsPerUnit": 1200,
+    "modifiedAt": 5
+   },
+   "data": {
+    "unit": "",
+    "secs": 1200,
+    "names": [],
+    "lang": "",
+    "exempt": false
+   },
+   "before": [],
+   "changed": true,
+   "after": {
+    "id": "t",
+    "title": "T",
+    "modifiedAt": 1000
+   }
+  },
+  {
+   "item": {
+    "id": "t",
+    "title": "T",
+    "mf565Unit": "laps",
+    "modifiedAt": 5
+   },
+   "data": {
+    "unit": "laps",
+    "secs": 0,
+    "names": [],
+    "lang": "",
+    "exempt": true
+   },
+   "before": [],
+   "changed": true,
+   "after": {
+    "id": "t",
+    "title": "T",
+    "mf565Unit": "laps",
+    "modifiedAt": 1000,
+    "mf565NameExempt": true
+   }
+  },
+  {
+   "item": {
+    "id": "t",
+    "title": "T",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Tee",
+      "source": "anilist"
+     }
+    ],
+    "modifiedAt": 5
+   },
+   "data": {
+    "unit": "",
+    "secs": 0,
+    "names": [
+     {
+      "lang": "en",
+      "text": "Tee"
+     },
+     {
+      "lang": "ja",
+      "text": "ティー"
+     }
+    ],
+    "lang": "",
+    "exempt": false
+   },
+   "before": [
+    {
+     "lang": "en",
+     "text": "Tee",
+     "source": "anilist"
+    }
+   ],
+   "changed": true,
+   "after": {
+    "id": "t",
+    "title": "T",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Tee",
+      "source": "anilist"
+     },
+     {
+      "lang": "ja",
+      "text": "ティー",
+      "source": "manual"
+     }
+    ],
+    "modifiedAt": 1000
+   }
+  },
+  {
+   "item": {
+    "id": "t",
+    "title": "T",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Tee",
+      "source": "anilist"
+     }
+    ],
+    "modifiedAt": 5
+   },
+   "data": {
+    "unit": "",
+    "secs": 0,
+    "names": [
+     {
+      "lang": "en",
+      "text": "Tee"
+     }
+    ],
+    "lang": "",
+    "exempt": false
+   },
+   "before": [
+    {
+     "lang": "en",
+     "text": "Tee",
+     "source": "anilist"
+    }
+   ],
+   "changed": false,
+   "after": {
+    "id": "t",
+    "title": "T",
+    "mf565Names": [
+     {
+      "lang": "en",
+      "text": "Tee",
+      "source": "anilist"
+     }
+    ],
+    "modifiedAt": 5
+   }
+  }
+ ],
+ "scripts": [
+  [
+   "進撃",
+   "zh"
+  ],
+  [
+   "メイン",
+   "ja"
+  ],
+  [
+   "진격",
+   "ko"
+  ],
+  [
+   "abc",
+   ""
+  ],
+  [
+   "进击",
+   "zh"
+  ]
+ ]
+}
