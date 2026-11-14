@@ -11,6 +11,8 @@ import 'presence.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import '../logic/title_units.dart';
+import '../logic/title_parts.dart';
+import 'title_screen.dart' show TitleEditor;
 import '../logic/title_names.dart' show nameMatches;
 
 Future<void> _openSheet(BuildContext context, Widget child) {
@@ -169,6 +171,10 @@ class _LogFormState extends State<LogForm> {
   // 8.2.0: several titles in one log (website Batch Log rows). Each added
   // title waits here; the one being filled in is the form below.
   final List<({LogEntry entry, String id, String text})> _batch = [];
+  // 9.0.0 (website v577): a by-parts title's chosen parts and what was typed
+  // for each (the part's reached number, or its amount).
+  List<String> _partIds = [];
+  final Map<String, String> _partInput = {};
   // XP preview (website v574): worked out on a copy of the account.
   Timer? _xpTimer;
   int _xpGen = 0;
@@ -206,7 +212,41 @@ class _LogFormState extends State<LogForm> {
     _reached.text = fmtPlain(next);
     _amount.text = '1';
     _minutesEdited = false;
+    _partIds = [];
+    _partInput.clear();
+    final part = defaultPart(t.raw);
+    if (part != null) _choosePart(jsStr(part['id']));
     _syncMinutes();
+  }
+
+  bool get _partReached => _reachedMode && !(_title?.isCompleted ?? false);
+
+  /// A part's default: one unit past where it is (reached), or 1 (amount).
+  String _partDefault(String id) {
+    final p = titlePart(_title?.raw, id);
+    if (p == null || !_partReached) return '1';
+    final from = jsNum(p['progress']), total = jsNum(p['total']);
+    return fmtPlain(total > 0 && from + 1 > total ? total : from + 1);
+  }
+
+  void _choosePart(String id) {
+    if (_partIds.contains(id)) {
+      if (_partIds.length > 1) _partIds.remove(id);
+      return;
+    }
+    _partIds.add(id);
+    _partInput[id] = _partDefault(id);
+  }
+
+  List<PartMove> _partMoves() {
+    final t = _title;
+    if (t == null || !isByParts(t.raw)) return const [];
+    var out = <PartMove>[];
+    for (final id in _partIds) {
+      final v = double.tryParse((_partInput[id] ?? '').trim().replaceAll(',', '.')) ?? 0;
+      out = setPart(t.raw, out, id, v, reached: _partReached);
+    }
+    return out;
   }
 
   String fmtPlain(double v) => v == v.roundToDouble() ? v.round().toString() : v.toString();
@@ -221,6 +261,7 @@ class _LogFormState extends State<LogForm> {
     final id = _libraryId;
     if (id == null) return null;
     final minutes = _parse(_minutes);
+    if (isByParts(_title?.raw)) return LogEntry(libraryId: id, parts: _partMoves(), minutes: minutes);
     return _reachedMode
         ? LogEntry(libraryId: id, reached: _parse(_reached) ?? 0, minutes: minutes)
         : LogEntry(libraryId: id, amount: _parse(_amount) ?? 0, minutes: minutes);
@@ -232,7 +273,7 @@ class _LogFormState extends State<LogForm> {
     final e = _entry();
     if (t == null || view == null || e == null) return null;
     final cat = view.category(t.categoryId);
-    final entryForPreview = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount);
+    final entryForPreview = _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, parts: e.parts);
     return previewEntry(t, cat, entryForPreview);
   }
 
@@ -305,7 +346,7 @@ class _LogFormState extends State<LogForm> {
     final e = _entry();
     final p = _preview();
     if (e == null || p == null || !(p.qty > 0)) return null;
-    return _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, minutes: p.minutes);
+    return _minutesEdited ? e : LogEntry(libraryId: e.libraryId, reached: e.reached, amount: e.amount, parts: e.parts, minutes: p.minutes);
   }
 
   /// Everything this log saves: the added titles, then the one being filled in.
@@ -324,7 +365,10 @@ class _LogFormState extends State<LogForm> {
       return;
     }
     final cat = widget.account.view!.category(t.categoryId);
-    final text = '+${fmtNumber(p.qty)} ${unitLabel(titleUnit(t.raw, cat.raw), p.qty)} · ${fmtMinutes(p.minutes)}';
+    final parts = e.parts.isEmpty ? '' : partsHistoryText(partsHistory(t.raw, cat.raw, partsSnapshot(t.raw), e.parts, repeat: t.isCompleted), unitLabel);
+    final text = parts.isNotEmpty
+        ? '$parts · ${fmtMinutes(p.minutes)}'
+        : '+${fmtNumber(p.qty)} ${unitLabel(titleUnit(t.raw, cat.raw), p.qty)} · ${fmtMinutes(p.minutes)}';
     setState(() {
       _batch.removeWhere((b) => b.id == t.id);
       _batch.add((entry: e, id: t.id, text: '${t.title} · $text'));
@@ -428,11 +472,26 @@ class _LogFormState extends State<LogForm> {
           selected: {_reachedMode},
           onSelectionChanged: (s) => setState(() {
             _reachedMode = s.first;
+            for (final id in _partIds) {
+              _partInput[id] = _partDefault(id);
+            }
             _syncMinutes();
           }),
         ),
         const SizedBox(height: 14),
+        if (isByParts(title.raw)) ...[
+          _partsEditor(title, cat),
+          const SizedBox(height: 10),
+        ],
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (isByParts(title.raw))
+            Expanded(
+              child: Text(
+                p == null ? '' : '+${fmtNumber(p.qty)} in all · ${title.title} ${fmtNumber(p.start)} → ${fmtNumber(p.end)}',
+                style: TextStyle(color: MF.textDim, fontSize: 12),
+              ),
+            )
+          else
           Expanded(
             child: TextField(
               key: ValueKey(_reachedMode),
@@ -544,6 +603,93 @@ class _LogFormState extends State<LogForm> {
 
   String _cap(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
+  /// Website v577: chips to pick the parts, then one line per chosen part
+  /// with its own counter ("Competitive · Match 41 → 44 (+3)").
+  Widget _partsEditor(LibraryTitle title, Category cat) {
+    final parts = titleParts(title.raw);
+    final moves = {for (final m in _partMoves()) m.id: m.qty};
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Parts', style: TextStyle(color: MF.textDim, fontSize: 12, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      Wrap(spacing: 6, runSpacing: 6, children: [
+        for (final part in parts)
+          FilterChip(
+            label: Text(partName(part)),
+            selected: _partIds.contains(jsStr(part['id'])),
+            onSelected: (_) => setState(() {
+              _choosePart(jsStr(part['id']));
+              _error = null;
+              _syncMinutes();
+            }),
+          ),
+      ]),
+      for (final id in _partIds)
+        if (titlePart(title.raw, id) case final part?)
+          Container(
+            key: ValueKey('part-$id-$_reachedMode'),
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(color: MF.raised, borderRadius: BorderRadius.circular(12)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Row(children: [
+                Expanded(child: Text(partName(part), style: const TextStyle(fontWeight: FontWeight.w800))),
+                SizedBox(
+                  width: 110,
+                  child: TextFormField(
+                    initialValue: _partInput[id] ?? '',
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+                    decoration: InputDecoration(
+                      isDense: true,
+                      labelText: _partReached ? '${_cap(unitLabel(partUnit(part, title.raw, cat.raw), 1))} reached' : 'Amount',
+                    ),
+                    onChanged: (v) => setState(() {
+                      _partInput[id] = v;
+                      _error = null;
+                      _syncMinutes();
+                    }),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Builder(builder: (_) {
+                final from = jsNum(part['progress']), total = jsNum(part['total']), q = moves[id] ?? 0;
+                final to = total > 0 && from + q > total ? total : from + q;
+                final unit = partUnit(part, title.raw, cat.raw);
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Text(
+                    '${_partReached ? '${_cap(unitLabel(unit, 1))} ${fmtNumber(from)} → ${fmtNumber(to)} ' : ''}(+${fmtNumber(q)} ${unitLabel(unit, q)})'
+                    '${total > 0 ? ' · ${fmtNumber(to)}/${fmtNumber(total)}${to >= total ? ' ✓' : ''}' : ''}'
+                    ' · ${fmtMinutes(jsRound(q * partSeconds(part, title.raw, cat.raw) / 60))}',
+                    style: TextStyle(color: MF.textDim, fontSize: 12),
+                  ),
+                  if (total > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: LinearProgressIndicator(value: (to / total).clamp(0, 1).toDouble(), minHeight: 5),
+                    ),
+                ]);
+              }),
+            ]),
+          ),
+    ]);
+  }
+
+  /// "Add it to your Library" (9.0.0): the title editor, prefilled with what
+  /// was searched; the new title is then the one being logged.
+  Future<void> _addToLibrary(String name) async {
+    final before = {for (final t in widget.account.view?.library ?? const <LibraryTitle>[]) t.id};
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => TitleEditor(account: widget.account, initialTitle: name)));
+    if (!mounted) return;
+    final added = widget.account.view?.library.where((t) => !before.contains(t.id)).toList() ?? const [];
+    if (added.isEmpty) return;
+    setState(() {
+      _libraryId = added.last.id;
+      _search.clear();
+      _selectDefaults();
+    });
+  }
+
   /// The titles added to this log so far (8.2.0).
   Widget _batchCard() => Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -602,9 +748,17 @@ class _LogFormState extends State<LogForm> {
         Flexible(
           child: matches.isEmpty
               ? Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No matching titles. Add new titles on the MediaFlow website for now.',
-                      textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+                  padding: const EdgeInsets.all(20),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(q.isEmpty ? 'Your Library is empty.' : 'No title in your Library matches “${_search.text.trim()}”.',
+                        textAlign: TextAlign.center, style: TextStyle(color: MF.textDim)),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => _addToLibrary(_search.text.trim()),
+                      icon: const Icon(Icons.library_add_rounded),
+                      label: Text(q.isEmpty ? 'Add a title to your Library' : 'Add “${_search.text.trim()}” to your Library'),
+                    ),
+                  ]),
                 )
               : ListView.builder(
                   shrinkWrap: true,

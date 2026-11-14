@@ -260,6 +260,72 @@ class LogDraftEditor {
   /// error message, or null when the entry was added or updated.
   String? addQuickEntry() {
     if (itemized) return addItemizedEntry();
+    final sel = item(entryDraft['libraryId']);
+    if (!isByParts(sel)) return _addQuickEntryBase();
+    // Website v577: a by-parts title is added, then its parts are chosen.
+    entryDraft['v252UseSeasonView'] = false;
+    if (mode == 'progress') {
+      final st = startProgress(sel!);
+      if (jsNum(entryDraft['endProgress']) <= st) entryDraft['endProgress'] = jsOut(st + 1);
+    }
+    final error = _addQuickEntryBase();
+    if (error != null) return error;
+    final e = entries.lastWhere((x) => jsStr(x['libraryId']) == jsStr(sel!['id']), orElse: () => <String, dynamic>{});
+    if (e.isNotEmpty && e['mf577Parts'] is! List) {
+      final part = defaultPart(sel);
+      if (part != null) {
+        final amount = mode == 'amount' ? math.max(1.0, jsNum(e['qty']).floorToDouble()) : 1.0;
+        e['mf577Parts'] = [PartMove(jsStr(part['id']), amount).toJson()];
+        applyParts(e);
+      }
+    }
+    return null;
+  }
+
+  // ---- Website v577: titles logged by parts (quick logging) -----------------------
+
+  /// An entry whose parts are chosen in quick logging.
+  bool isPartsEntry(Map<String, dynamic> e) => !itemized && isByParts(item(e['libraryId'])) && e['mf577Parts'] is List;
+
+  /// `mf577ApplyEntry`.
+  void applyParts(Map<String, dynamic> e) {
+    final i = item(e['libraryId']);
+    final moves = cleanMoves(i, partMovesOf(e));
+    e['mf577Parts'] = [for (final m in moves) m.toJson()];
+    final s = jsNumFromKey(e, 'v179StartProgress');
+    final start = s != null && s.isFinite ? math.max(0.0, s) : math.max(0.0, jsNum(i?['progress']));
+    final qty = movesQty(moves);
+    e['qty'] = jsOut(qty);
+    e['v179StartProgress'] = jsOut(start);
+    e['v179EndProgress'] = jsOut(start + qty);
+    e['v252UseSeasonView'] = false;
+    syncSingle();
+  }
+
+  /// `App.mf577TogglePart`.
+  void togglePartAt(int index, String id) {
+    if (index < 0 || index >= entries.length) return;
+    final e = entries[index];
+    final i = item(e['libraryId']);
+    if (!isByParts(i)) return;
+    e['mf577Parts'] = [for (final m in togglePart(i, partMovesOf(e), id)) m.toJson()];
+    applyParts(e);
+  }
+
+  /// `App.mf577SetPart`: [value] is the part's reached number (progress mode)
+  /// or its amount.
+  void setPartAt(int index, String id, double value) {
+    if (index < 0 || index >= entries.length) return;
+    final e = entries[index];
+    final i = item(e['libraryId']);
+    if (!isByParts(i)) return;
+    e['mf577Parts'] = [
+      for (final m in setPart(i, partMovesOf(e), id, value, reached: mode == 'progress' && e['isRepeat'] != true)) m.toJson(),
+    ];
+    applyParts(e);
+  }
+
+  String? _addQuickEntryBase() {
     final title = jsStr(entryDraft['title']).trim();
     if (title.isEmpty) return 'Choose or type a title first.';
     final selected = item(entryDraft['libraryId']);

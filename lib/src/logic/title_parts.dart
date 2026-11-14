@@ -211,3 +211,24 @@ String partsHistoryText(Object? rows, String Function(String unit, double n) uni
 }
 
 String fmtN(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
+/// `mf577ParseTime`: "20" = 20 minutes; "mm:ss"; "h:mm:ss". Seconds, or 0.
+int parsePartTime(String text) {
+  final s = text.trim();
+  if (s.isEmpty) return 0;
+  final n = double.tryParse(s.replaceAll(',', '.'));
+  if (n != null) return (n * 60).round();
+  final m = RegExp(r'^(\d+):(\d{1,2})(?::(\d{1,2}))?$').firstMatch(s);
+  if (m == null) return 0;
+  return m[3] != null
+      ? int.parse(m[1]!) * 3600 + int.parse(m[2]!) * 60 + int.parse(m[3]!)
+      : int.parse(m[1]!) * 60 + int.parse(m[2]!);
+}
+
+/// `mf577TimeText`.
+String partTimeText(int secs) {
+  if (secs <= 0) return '';
+  final h = secs ~/ 3600, m = secs % 3600 ~/ 60, s = secs % 60;
+  String two(int v) => v.toString().padLeft(2, '0');
+  return h > 0 ? '$h:${two(m)}:${two(s)}' : '$m:${two(s)}';
+}
