@@ -56,7 +56,12 @@ const kMediaTypes = [
 ];
 
 /// Public sources (`MF439_PUBLIC`) and gateway sources (`MF439_GATEWAY`).
-const kPublicSources = ['jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary', 'gutendex', 'itunes', 'steam', 'vndb', 'musicbrainz'];
+const kPublicSources = ['jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary', 'gutendex', 'itunes', 'steam', 'vndb', 'musicbrainz',
+  ...kKeylessDetailSources];
+
+/// 9.0.0 (website v577): keyless detail sources, checked live; Deezer and the
+/// Grand Comics Database only in the app (they don't let a web page read them).
+const kKeylessDetailSources = ['wikidata', 'loc', 'crossref', 'inventaire', 'episodate', 'dnb', 'bnf', 'gcd', 'deezer'];
 const kGatewaySources = ['tmdb', 'omdb', 'malofficial', 'trakt', 'simkl', 'watchmode', 'animeschedule', 'metron', 'episodate', 'gutendex'];
 
 /// `mf439Available`.

@@ -15,7 +15,7 @@ const kProviderCatalog = <({String id, String name, String access, String caps, 
   (id: 'comicvine', name: 'Comic Vine', access: 'restricted', caps: 'cover/id/metadata/releases', media: 'comic'),
   (id: 'coverartarchive', name: 'Cover Art Archive', access: 'public', caps: 'cover/id', media: 'music'),
   (id: 'crossref', name: 'Crossref', access: 'public', caps: 'cover/id/metadata', media: 'book'),
-  (id: 'deezer', name: 'Deezer', access: 'review', caps: 'cover/id/metadata', media: 'music'),
+  (id: 'deezer', name: 'Deezer', access: 'public', caps: 'cover/id/metadata', media: 'music'),
   (id: 'discogs', name: 'Discogs', access: 'key', caps: 'cover/id/metadata/rating', media: 'music'),
   (id: 'episodate', name: 'EpisoDate', access: 'public', caps: 'cover/id/releases', media: 'other'),
   (id: 'fanart', name: 'Fanart.tv', access: 'key', caps: 'cover/id', media: 'movie/tv'),
@@ -24,7 +24,7 @@ const kProviderCatalog = <({String id, String name, String access, String caps, 
   (id: 'giantbomb', name: 'Giant Bomb', access: 'key', caps: 'cover/id/metadata', media: 'game'),
   (id: 'gog', name: 'GOG', access: 'review', caps: 'cover/id/metadata', media: 'game'),
   (id: 'googlebooks', name: 'Google Books', access: 'skipped', caps: 'cover/id/metadata', media: 'book/comic/reading'),
-  (id: 'gcd', name: 'Grand Comics Database', access: 'review', caps: 'cover/id/releases', media: 'other'),
+  (id: 'gcd', name: 'Grand Comics Database', access: 'public', caps: 'cover/id/releases', media: 'other'),
   (id: 'gutendex', name: 'Gutendex', access: 'public', caps: 'cover/id/metadata', media: 'other'),
   (id: 'gutendex-public', name: 'Gutendex / Gutenberg Covers', access: 'public', caps: 'cover/id', media: 'book/comic/reading'),
   (id: 'hardcover', name: 'Hardcover', access: 'key', caps: 'cover/id/metadata', media: 'other'),
@@ -91,18 +91,18 @@ const kCoverRegistry = <({String id, String name, bool websiteReady, bool creden
   (id: 'animeschedule', name: 'AnimeSchedule', websiteReady: false, credentials: false),
   (id: 'watchmode', name: 'Watchmode', websiteReady: false, credentials: true),
   (id: 'marvel', name: 'Marvel API', websiteReady: false, credentials: true),
-  (id: 'wikidata', name: 'Wikidata', websiteReady: false, credentials: false),
+  (id: 'wikidata', name: 'Wikidata', websiteReady: true, credentials: false),
   (id: 'fribb', name: 'Fribb', websiteReady: false, credentials: false),
   (id: 'manami', name: 'manami-project', websiteReady: false, credentials: false),
-  (id: 'loc', name: 'Library of Congress', websiteReady: false, credentials: false),
+  (id: 'loc', name: 'Library of Congress', websiteReady: true, credentials: false),
   (id: 'dnb', name: 'German National Library', websiteReady: false, credentials: false),
   (id: 'bnf', name: 'BnF', websiteReady: false, credentials: false),
   (id: 'crossref', name: 'Crossref', websiteReady: false, credentials: false),
   (id: 'trakt', name: 'Trakt', websiteReady: false, credentials: true),
   (id: 'hardcover', name: 'Hardcover', websiteReady: false, credentials: true),
-  (id: 'inventaire', name: 'Inventaire.io', websiteReady: false, credentials: false),
+  (id: 'inventaire', name: 'Inventaire.io', websiteReady: true, credentials: false),
   (id: 'gutendex', name: 'Gutendex', websiteReady: false, credentials: false),
-  (id: 'episodate', name: 'EpisoDate', websiteReady: false, credentials: false),
+  (id: 'episodate', name: 'EpisoDate', websiteReady: true, credentials: false),
   (id: 'mangaupdates', name: 'MangaUpdates', websiteReady: false, credentials: false),
   (id: 'gcd', name: 'Grand Comics Database', websiteReady: false, credentials: false),
   (id: 'royalroad', name: 'Royal Road RSS', websiteReady: false, credentials: false),
@@ -114,17 +114,30 @@ const kCoverRegistry = <({String id, String name, bool websiteReady, bool creden
   (id: 'vndb', name: 'VNDB Visual Novel Covers', websiteReady: true, credentials: false),
   (id: 'ifdb', name: 'IFDB Interactive Fiction Covers', websiteReady: true, credentials: false),
   (id: 'gutendex-public', name: 'Gutendex / Gutenberg Covers', websiteReady: true, credentials: false),
+  // 9.0.0 (website v577): keyless, checked live.
+  (id: 'wikimedia', name: 'Wikimedia Commons', websiteReady: true, credentials: false),
+  (id: 'deezer', name: 'Deezer (app only)', websiteReady: false, credentials: false),
 ];
 
 /// Cover sources the app calls directly (no key needed).
 const kAppCoverAdapters = {
   'tenrai', 'jikan', 'anilist', 'kitsu', 'tvmaze', 'openlibrary', 'mangadex',
   'steam', 'itunes', 'musicbrainz', 'vndb', 'ifdb', 'gutendex-public', 'googlebooks',
+  // 9.0.0 (website v577): every keyless cover source.
+  'wikidata', 'wikimedia', 'loc', 'inventaire', 'episodate', 'deezer',
+};
+
+/// 9.0.0: keyless sources that can't be used, and why (checked live).
+const kBlockedSources = {
+  'boardgamegeek': 'Now needs a registered key',
+  'mangaupdates': 'Blocks automated requests',
+  'royalroad': 'No search API; blocks automated requests',
+  'gog': 'Its public search no longer returns results',
 };
 
 /// Cover sources reached through MediaFlow's provider service (keys stay on
 /// the server); they work once their key is set up there.
-const kServiceCoverSources = {'tmdb', 'omdb', 'fanart', 'animeschedule', 'malofficial', 'episodate', 'gutendex'};
+const kServiceCoverSources = {'tmdb', 'omdb', 'fanart', 'animeschedule', 'malofficial', 'gutendex'};
 
 /// What a provider can do in the app right now, in a few words.
 ({bool works, String text}) providerStatus(String id, {bool cover = false, Set<String> serviceReady = const {}, bool serviceChecked = false}) {
@@ -137,6 +150,11 @@ const kServiceCoverSources = {'tmdb', 'omdb', 'fanart', 'animeschedule', 'maloff
         ? (works: true, text: 'Provider service · ready')
         : (works: false, text: 'Provider service · API key not set up yet');
   }
+  // 9.0.0: the keyless detail sources work directly; some can't be used.
+  if (const ['wikidata', 'loc', 'crossref', 'inventaire', 'episodate', 'dnb', 'bnf', 'gcd', 'deezer'].contains(id)) {
+    return (works: true, text: id == 'gcd' || id == 'deezer' ? 'Public · ready (in the app; the website can\'t reach it)' : 'Public · ready');
+  }
+  if (kBlockedSources[id] case final why?) return (works: false, text: '$why · not connected (same as the website)');
   final access = kProviderCatalog.where((p) => p.id == id).firstOrNull?.access ?? '';
   return (
     works: false,
