@@ -1902,6 +1902,7 @@ class _LogScreenState extends State<LogScreen> {
     final season = jsStr(ed.selectedSeason(e, item)?['name']);
     final done = total > 0 && after >= total;
     final noun = _cap(_word(titleUnit(item, cat.raw), 1));
+    final bar = repeat ? null : _seasonBar(ed, e, item, cat);
     return Padding(
       padding: const EdgeInsets.only(top: 6, right: 8),
       child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, runSpacing: 4, children: [
@@ -1919,7 +1920,49 @@ class _LogScreenState extends State<LogScreen> {
             decoration: BoxDecoration(color: MF.accentSoft, borderRadius: BorderRadius.circular(8)),
             child: Text('Starts at 0 (rewatch / reread)', style: TextStyle(fontSize: 11, color: MF.accent, fontWeight: FontWeight.w700)),
           ),
+        if (bar != null) bar,
       ]),
+    );
+  }
+
+  /// Website v577: with a season selected, its own counter and bar
+  /// ("Season 2 · Episode 3 → 5 / 12"), in Progress reached and Advanced.
+  Widget? _seasonBar(LogDraftEditor ed, Map<String, dynamic> e, Map<String, dynamic> item, Category cat) {
+    if (isByParts(item)) return null;
+    final Map<String, dynamic>? season;
+    double to;
+    if (ed.itemized) {
+      season = ed.selectedSeason(e, item);
+      if (season == null) return null;
+      to = LogDraftEditor.contiguousProgress(season['progress'], [...ed.knownUnits(item), ...ed.units(e)], jsStr(season['id']), season['total']);
+    } else {
+      if (e['v252UseSeasonView'] != true || e['v252SeasonEpisode'] == null) return null;
+      season = LogDraftEditor.seasonsOf(item).where((s) => jsStr(s['id']) == jsStr(e['v252SeasonId'])).firstOrNull;
+      if (season == null) return null;
+      to = jsNum(e['v252SeasonEpisode']);
+    }
+    final from = jsNum(season['progress']), total = jsNum(season['total']);
+    if (total > 0 && to > total) to = total;
+    if (to < from) to = from;
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+        decoration: BoxDecoration(color: MF.surface, borderRadius: BorderRadius.circular(10), border: Border.all(color: MF.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(
+            '${jsStr(season['name']).isEmpty ? 'Season' : jsStr(season['name'])} · ${_cap(_word(titleUnit(item, cat.raw), 1))} ${_num(from)} → ${_num(to)}'
+            '${total > 0 ? ' / ${_num(total)}${to >= total ? ' ✓' : ''}' : ''} (+${_num(to - from)})',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          if (total > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: LinearProgressIndicator(value: (to / total).clamp(0, 1).toDouble(), minHeight: 4),
+            ),
+        ]),
+      ),
     );
   }
 
