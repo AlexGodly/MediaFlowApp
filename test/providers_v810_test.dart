@@ -54,7 +54,7 @@ void main() {
       'gutendex': '84',
       'googlebooks': 'zyTCAlFPjgYC',
     };
-    for (final p in kExtraCoverIdKeys.keys) {
+    for (final p in const ['steam', 'itunes', 'musicbrainz', 'vndb', 'ifdb', 'gutendex-public', 'googlebooks']) {
       expect(savedExtraCoverId(ids, p), isNotEmpty, reason: p);
     }
     expect(savedExtraCoverId({'steam_app': 'abc'}, 'steam'), '');
