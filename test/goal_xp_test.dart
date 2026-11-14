@@ -18,7 +18,7 @@ Map<String, dynamic> state(int now) => {
       ],
       'sessions': <dynamic>[],
       'settings': <String, dynamic>{},
-      'currentTask': {'id': 'task1', 'categoryId': 'comics', 'low': 2, 'high': 4, 'targetMid': 3, 'createdAt': now - 60000},
+      'currentTask': {'id': 'task1', 'categoryId': 'comics', 'low': 2, 'high': 4, 'targetMid': 3, 'createdAt': 0},
     };
 
 void main() {
